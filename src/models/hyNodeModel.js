@@ -13,7 +13,7 @@ const portConfigSchema = new mongoose.Schema({
 
 const outboundSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    type: { type: String, enum: ['direct', 'block', 'socks5', 'http'], required: true },
+    type: { type: String, enum: ['direct', 'socks5', 'http'], required: true },
     addr: { type: String, default: '' },
     username: { type: String, default: '' },
     password: { type: String, default: '' },

@@ -102,21 +102,43 @@ function applyOutboundsAndAcl(config, node) {
     const customOutbounds = node.outbounds || [];
     const customAclRules = node.aclRules || [];
     
-    if (customOutbounds.length > 0) {
-        config.outbounds = customOutbounds.map(ob => {
+    // In Hysteria 2, valid outbound types are: direct, socks5, http
+    // 'block' type is not a real outbound — 'reject' is a built-in ACL action
+    const realOutbounds = customOutbounds.filter(ob => ob.type !== 'block');
+    
+    if (realOutbounds.length > 0) {
+        config.outbounds = realOutbounds.map(ob => {
             const entry = { name: ob.name, type: ob.type };
-            if (ob.type === 'socks5' || ob.type === 'http') {
+            if (ob.type === 'socks5') {
+                // SOCKS5 format: { addr, username?, password? }
                 const proxyConfig = { addr: ob.addr };
                 if (ob.username) proxyConfig.username = ob.username;
                 if (ob.password) proxyConfig.password = ob.password;
-                entry[ob.type] = proxyConfig;
+                entry.socks5 = proxyConfig;
+            } else if (ob.type === 'http') {
+                // HTTP format: { url, insecure? }
+                // url can include auth: http://user:pass@host:port
+                let url = ob.addr;
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = 'http://' + url;
+                }
+                if (ob.username && ob.password) {
+                    // Insert auth into URL: http://user:pass@host:port
+                    const urlObj = new URL(url);
+                    urlObj.username = ob.username;
+                    urlObj.password = ob.password;
+                    url = urlObj.toString();
+                }
+                entry.http = { url };
             }
             return entry;
         });
     }
     
     if (customAclRules.length > 0) {
-        config.acl = { inline: customAclRules };
+        // 'block' is not a valid ACL action in Hysteria 2 — replace with 'reject'
+        const normalizedRules = customAclRules.map(r => r.replace(/\bblock\(/g, 'reject('));
+        config.acl = { inline: normalizedRules };
     }
 }
 
