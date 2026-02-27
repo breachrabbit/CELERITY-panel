@@ -61,6 +61,14 @@ const settingsSchema = new mongoose.Schema({
             keepLast: { type: Number, default: 30 },        // сколько хранить в S3
         },
     },
+
+    webhook: {
+        enabled: { type: Boolean, default: false },
+        url: { type: String, default: '' },
+        secret: { type: String, default: '' },
+        // empty = all events; non-empty = only listed events
+        events: { type: [String], default: [] },
+    },
     
 }, { timestamps: true });
 

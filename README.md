@@ -72,6 +72,8 @@ MONGO_PASSWORD=yourmongopassword   # openssl rand -hex 16
 - 📱 **Subscriptions** — Auto-format for Clash, Sing-box, Shadowrocket
 - 🔄 **Backup/Restore** — Automatic database backups
 - 💻 **SSH Terminal** — Direct node access from browser
+- 🔑 **API Keys** — Secure external access with scopes, IP allowlist, rate limiting
+- 🪝 **Webhooks** — Real-time event notifications with HMAC-SHA256 signing
 
 ---
 
@@ -133,6 +135,47 @@ Instead of rigid "plans", use flexible groups:
 
 ## 📖 API Reference
 
+### API Key Authentication
+
+All `/api/*` endpoints (except `/api/auth` and `/api/files`) require authentication via either an API key or an admin session cookie.
+
+**Create a key:** Settings → Security → API Keys → Create Key
+
+**Usage:**
+```http
+# Option 1 — header
+X-API-Key: ck_your_key_here
+
+# Option 2 — Bearer token
+Authorization: Bearer ck_your_key_here
+```
+
+#### Scopes
+
+| Scope | Access |
+|-------|--------|
+| `users:read` | Read users |
+| `users:write` | Create / update / delete users |
+| `nodes:read` | Read nodes |
+| `nodes:write` | Create / update / delete / sync nodes |
+| `stats:read` | Read stats and groups |
+| `sync:write` | Trigger sync, kick users |
+
+#### Rate Limiting
+
+Each key has a configurable rate limit (default: 60 req/min).  
+Exceeded requests return `429` with `X-RateLimit-Limit` / `X-RateLimit-Remaining` headers.
+
+#### Error Responses
+
+| Code | Reason |
+|------|--------|
+| `401` | Invalid, expired, or missing key |
+| `403` | Key valid but missing required scope / IP not in allowlist |
+| `429` | Rate limit exceeded |
+
+---
+
 ### Authentication (for nodes)
 
 #### POST `/api/auth`
@@ -168,17 +211,23 @@ Universal subscription endpoint. Auto-detects format by User-Agent.
 
 ### Users
 
+Required scope: `users:read` (GET) / `users:write` (POST, PUT, DELETE)
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/users` | List users |
+| GET | `/api/users` | List users (pagination, filtering, sorting) |
 | GET | `/api/users/:userId` | Get user |
 | POST | `/api/users` | Create user |
 | PUT | `/api/users/:userId` | Update user |
 | DELETE | `/api/users/:userId` | Delete user |
 | POST | `/api/users/:userId/enable` | Enable user |
 | POST | `/api/users/:userId/disable` | Disable user |
+| POST | `/api/users/:userId/groups` | Add user to groups |
+| DELETE | `/api/users/:userId/groups/:groupId` | Remove user from group |
 
 ### Nodes
+
+Required scope: `nodes:read` (GET) / `nodes:write` (POST, PUT, DELETE)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -188,13 +237,73 @@ Universal subscription endpoint. Auto-detects format by User-Agent.
 | PUT | `/api/nodes/:id` | Update node |
 | DELETE | `/api/nodes/:id` | Delete node |
 | GET | `/api/nodes/:id/config` | Get node config (YAML) |
+| POST | `/api/nodes/:id/sync` | Sync specific node |
 | POST | `/api/nodes/:id/update-config` | Push config via SSH |
 
-### Sync
+### Stats & Sync
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/sync` | Sync all nodes |
+Required scope: `stats:read` / `sync:write`
+
+| Method | Endpoint | Scope | Description |
+|--------|----------|-------|-------------|
+| GET | `/api/stats` | `stats:read` | Panel statistics |
+| GET | `/api/groups` | `stats:read` | List server groups |
+| POST | `/api/sync` | `sync:write` | Sync all nodes |
+| POST | `/api/kick/:userId` | `sync:write` | Kick user from all nodes |
+
+---
+
+## 🪝 Webhooks
+
+Send real-time event notifications to any HTTP endpoint.
+
+**Configure:** Settings → Security → Webhooks
+
+### Request Format
+
+```http
+POST https://your-endpoint.com/webhook
+Content-Type: application/json
+X-Webhook-Event: user.created
+X-Webhook-Timestamp: 1700000000
+X-Webhook-Signature: sha256=<hmac>
+User-Agent: C3-Celerity-Webhook/1.0
+
+{
+  "event": "user.created",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "data": { ... }
+}
+```
+
+### Signature Verification
+
+```js
+const crypto = require('crypto');
+const expected = 'sha256=' + crypto
+  .createHmac('sha256', YOUR_SECRET)
+  .update(`${timestamp}.${rawBody}`)
+  .digest('hex');
+// compare with X-Webhook-Signature header
+```
+
+### Events
+
+| Event | Trigger |
+|-------|---------|
+| `user.created` | User created |
+| `user.updated` | User updated |
+| `user.deleted` | User deleted |
+| `user.enabled` | User enabled |
+| `user.disabled` | User disabled |
+| `user.traffic_exceeded` | User traffic limit reached |
+| `user.expired` | User subscription expired |
+| `node.online` | Node came online |
+| `node.offline` | Node went offline |
+| `node.error` | Node sync/config error |
+| `sync.completed` | Full sync cycle finished |
+
+Leave the events list empty to receive **all** events.
 
 ---
 

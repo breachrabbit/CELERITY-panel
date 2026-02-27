@@ -25,6 +25,8 @@ const HyNode = require('../models/hyNodeModel');
 const ServerGroup = require('../models/serverGroupModel');
 const Settings = require('../models/settingsModel');
 const Admin = require('../models/adminModel');
+const ApiKey = require('../models/apiKeyModel');
+const webhookService = require('../services/webhookService');
 const syncService = require('../services/syncService');
 const cryptoService = require('../services/cryptoService');
 const cache = require('../services/cacheService');
@@ -390,6 +392,7 @@ router.post('/nodes', requireAuth, async (req, res) => {
             ip: req.body.ip,
             domain: req.body.domain || '',
             sni: req.body.sni || '',
+            flag: req.body.flag || '',
             port: parseInt(req.body.port) || 443,
             portRange: req.body.portRange || '20000-50000',
             statsPort: parseInt(req.body.statsPort) || 9999,
@@ -407,8 +410,8 @@ router.post('/nodes', requireAuth, async (req, res) => {
             },
         };
         
-        await HyNode.create(nodeData);
-        res.redirect('/panel/nodes');
+        const newNode = await HyNode.create(nodeData);
+        res.redirect(`/panel/nodes/${newNode._id}`);
     } catch (error) {
         res.status(500).send('Error: ' + error.message);
     }
@@ -905,10 +908,11 @@ router.get('/settings', requireAuth, async (req, res) => {
         domain: config.PANEL_DOMAIN || null,
     };
     
-    // Получаем данные админа и настройки
-    const [admin, settings] = await Promise.all([
+    // Получаем данные админа, настройки и API ключи
+    const [admin, settings, apiKeys] = await Promise.all([
         Admin.findOne({ username: req.session.adminUsername }),
         Settings.get(),
+        ApiKey.listKeys(),
     ]);
     
     render(res, 'settings', {
@@ -917,6 +921,9 @@ router.get('/settings', requireAuth, async (req, res) => {
         ssl,
         admin,
         settings,
+        apiKeys,
+        validScopes: ApiKey.VALID_SCOPES,
+        webhookEvents: Object.values(webhookService.EVENTS),
         message: req.query.message || null,
         error: req.query.error || null,
     });
@@ -949,6 +956,19 @@ router.post('/settings', requireAuth, async (req, res) => {
             'nodeAuth.insecure': req.body['nodeAuth.insecure'] === 'on',
         };
         
+        // Webhook settings (only when the dedicated webhook form is submitted)
+        if (req.body['_webhookSettings'] !== undefined) {
+            updates['webhook.enabled'] = req.body['webhook.enabled'] === 'on';
+            updates['webhook.url'] = req.body['webhook.url'] || '';
+            // Always update secret (even empty string = clear it intentionally)
+            updates['webhook.secret'] = req.body['webhook.secret'] || '';
+            // Events: multiple checkboxes with same name
+            const rawEvents = req.body['webhook.events'];
+            updates['webhook.events'] = rawEvents
+                ? (Array.isArray(rawEvents) ? rawEvents : [rawEvents])
+                : [];
+        }
+
         // Backup settings (если форма бэкапов)
         if (req.body['_backupSettings'] || req.body['backup.enabled'] !== undefined) {
             updates['backup.enabled'] = req.body['backup.enabled'] === 'on';
@@ -1636,6 +1656,105 @@ router.post('/settings/restore-backup', requireAuth, async (req, res) => {
         res.json({ success: true, message: 'Database restored successfully' });
     } catch (error) {
         logger.error(`[Restore] Error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==================== API KEYS ====================
+
+// POST /panel/api-keys - Create a new API key (returns plaintext key once)
+router.post('/api-keys', requireAuth, async (req, res) => {
+    try {
+        const { name, scopes, allowedIPs, rateLimit, expiresAt } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+
+        // Scopes: checkbox array or single value
+        const scopesArr = scopes
+            ? (Array.isArray(scopes) ? scopes : [scopes])
+            : [];
+
+        // Validate scopes
+        const invalidScopes = scopesArr.filter(s => !ApiKey.VALID_SCOPES.includes(s));
+        if (invalidScopes.length > 0) {
+            return res.status(400).json({ error: `Invalid scopes: ${invalidScopes.join(', ')}` });
+        }
+
+        const allowedIPsArr = allowedIPs
+            ? allowedIPs.split('\n').map(s => s.trim()).filter(Boolean)
+            : [];
+
+        const { doc, plainKey } = await ApiKey.createKey({
+            name: name.trim(),
+            scopes: scopesArr,
+            allowedIPs: allowedIPsArr,
+            rateLimit: parseInt(rateLimit) || 60,
+            expiresAt: expiresAt || null,
+            createdBy: req.session.adminUsername,
+        });
+
+        logger.info(`[Panel] API key created: "${doc.name}" (${doc.keyPrefix}...) by ${req.session.adminUsername}`);
+
+        res.json({ success: true, key: plainKey, doc });
+    } catch (error) {
+        logger.error(`[Panel] API key create error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /panel/api-keys/:id/toggle - Enable/disable a key
+router.post('/api-keys/:id/toggle', requireAuth, async (req, res) => {
+    try {
+        const key = await ApiKey.findById(req.params.id);
+        if (!key) {
+            return res.status(404).json({ error: 'API key not found' });
+        }
+
+        key.active = !key.active;
+        await key.save();
+
+        logger.info(`[Panel] API key ${key.keyPrefix}... ${key.active ? 'enabled' : 'disabled'} by ${req.session.adminUsername}`);
+        res.json({ success: true, active: key.active });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /panel/api-keys/:id/delete - Delete a key
+router.post('/api-keys/:id/delete', requireAuth, async (req, res) => {
+    try {
+        const key = await ApiKey.findByIdAndDelete(req.params.id);
+        if (!key) {
+            return res.status(404).json({ error: 'API key not found' });
+        }
+
+        logger.info(`[Panel] API key "${key.name}" (${key.keyPrefix}...) deleted by ${req.session.adminUsername}`);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /panel/settings/test-webhook - Send test webhook
+router.post('/settings/test-webhook', requireAuth, async (req, res) => {
+    try {
+        const { url, secret } = req.body;
+
+        if (!url || !url.trim()) {
+            return res.status(400).json({ error: 'URL is required' });
+        }
+
+        const result = await webhookService.test(url.trim(), secret || '');
+
+        if (result.success) {
+            logger.info(`[Panel] Webhook test OK: ${url} (HTTP ${result.status})`);
+            res.json({ success: true, status: result.status });
+        } else {
+            res.status(400).json({ success: false, error: result.error, status: result.status });
+        }
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });

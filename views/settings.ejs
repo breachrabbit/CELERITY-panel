@@ -328,7 +328,304 @@
             </div>
         </div>
     </div>
+
+    <!-- ==================== API KEYS ==================== -->
+    <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h2><%= t('apiKeys.title') || 'API Keys' %></h2>
+            <button class="btn btn-primary btn-sm" onclick="openApiKeyModal()"><%= t('apiKeys.create') || 'Create Key' %></button>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <% if (!apiKeys || apiKeys.length === 0) { %>
+            <div style="padding: 2rem; text-align:center; color: var(--text-muted); font-size:14px;">
+                <%= t('apiKeys.empty') || 'No API keys yet. Create one to enable external integrations.' %>
+            </div>
+            <% } else { %>
+            <div style="overflow-x:auto;">
+                <table class="table" style="margin:0;">
+                    <thead>
+                        <tr>
+                            <th><%= t('apiKeys.name') || 'Name' %></th>
+                            <th><%= t('apiKeys.prefix') || 'Key Prefix' %></th>
+                            <th><%= t('apiKeys.scopes') || 'Scopes' %></th>
+                            <th><%= t('apiKeys.rateLimit') || 'Limit/min' %></th>
+                            <th><%= t('apiKeys.lastUsed') || 'Last Used' %></th>
+                            <th><%= t('apiKeys.expires') || 'Expires' %></th>
+                            <th><%= t('common.status') %></th>
+                            <th><%= t('common.actions') %></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <% apiKeys.forEach(key => { %>
+                        <tr id="apikey-row-<%= key._id %>">
+                            <td><strong><%= key.name %></strong></td>
+                            <td><code style="font-size:12px;"><%= key.keyPrefix %>...</code></td>
+                            <td>
+                                <% (key.scopes || []).forEach(scope => { %>
+                                <span class="badge" style="font-size:10px; margin:1px; background: var(--primary-dim, rgba(99,102,241,0.15)); color: var(--primary); border-radius:4px; padding:2px 6px;"><%= scope %></span>
+                                <% }) %>
+                                <% if (!key.scopes || key.scopes.length === 0) { %>
+                                <span style="color:var(--text-muted); font-size:12px;">—</span>
+                                <% } %>
+                            </td>
+                            <td style="font-size:13px;"><%= key.rateLimit %></td>
+                            <td style="font-size:12px; color:var(--text-muted);">
+                                <%= key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU') : '—' %>
+                                <% if (key.lastUsedIP) { %><br><span style="font-size:11px;"><%= key.lastUsedIP %></span><% } %>
+                            </td>
+                            <td style="font-size:12px; color:var(--text-muted);">
+                                <%= key.expiresAt ? new Date(key.expiresAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'ru-RU') : '—' %>
+                            </td>
+                            <td>
+                                <span class="status-badge <%= key.active ? 'online' : 'offline' %>">
+                                    <%= key.active ? (t('common.active') || 'Active') : (t('common.inactive') || 'Inactive') %>
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm" onclick="toggleApiKey('<%= key._id %>', <%= key.active %>)" style="margin-right:4px;">
+                                    <%= key.active ? t('common.disable') : t('common.enable') %>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteApiKey('<%= key._id %>', <%- JSON.stringify(key.name) %>)">
+                                    <%= t('common.delete') %>
+                                </button>
+                            </td>
+                        </tr>
+                    <% }) %>
+                    </tbody>
+                </table>
+            </div>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- ==================== WEBHOOKS ==================== -->
+    <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+            <h2><%= t('webhooks.title') || 'Webhooks' %></h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="/panel/settings" id="webhookSettingsForm">
+                <input type="hidden" name="_webhookSettings" value="1">
+
+                <label class="checkbox-label" style="margin-bottom: 1rem;">
+                    <input type="checkbox" name="webhook.enabled" id="webhookEnabled"
+                           <%= settings?.webhook?.enabled ? 'checked' : '' %>>
+                    <span><%= t('webhooks.enabled') || 'Enable webhooks' %></span>
+                </label>
+
+                <div id="webhookFields" style="<%= settings?.webhook?.enabled ? '' : 'display:none;' %>">
+                    <div class="form-group">
+                        <label><%= t('webhooks.url') || 'Webhook URL' %></label>
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="url" name="webhook.url" id="webhookUrl" placeholder="https://example.com/webhook"
+                                   value="<%= settings?.webhook?.url || '' %>" style="flex:1;">
+                            <button type="button" class="btn btn-sm" onclick="testWebhook()"><%= t('webhooks.test') || 'Test' %></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><%= t('webhooks.secret') || 'Secret (HMAC-SHA256)' %></label>
+                        <input type="text" name="webhook.secret" placeholder="<%= t('webhooks.secretPlaceholder') || 'Leave empty to skip signature verification' %>"
+                               value="<%= settings?.webhook?.secret || '' %>">
+                        <small class="hint"><%= t('webhooks.secretHint') || 'Verify via X-Webhook-Signature header: sha256=HMAC-SHA256(secret, timestamp.body)' %></small>
+                    </div>
+                    <div class="form-group">
+                        <label><%= t('webhooks.events') || 'Events' %> <small style="color:var(--text-muted);">(<%= t('webhooks.eventsHint') || 'empty = all events' %>)</small></label>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:0.4rem; margin-top:0.5rem;">
+                            <% (webhookEvents || []).forEach(ev => { %>
+                            <label class="checkbox-label" style="font-size:13px;">
+                                <input type="checkbox" name="webhook.events" value="<%= ev %>"
+                                       <%= (settings?.webhook?.events || []).includes(ev) || (settings?.webhook?.events || []).length === 0 ? 'checked' : '' %>>
+                                <span><code style="font-size:11px;"><%= ev %></code></span>
+                            </label>
+                            <% }) %>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="margin-top: 0.75rem;"><%= t('common.save') %></button>
+            </form>
+        </div>
+    </div>
 </div>
+
+<!-- ==================== API KEY MODAL ==================== -->
+<div id="apiKeyModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+    <div style="background:var(--bg-secondary, #1a1a1a); border:1px solid var(--border); border-radius:12px; padding:1.5rem; width:100%; max-width:520px; max-height:90vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="margin:0;"><%= t('apiKeys.createTitle') || 'Create API Key' %></h3>
+            <button onclick="closeApiKeyModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);">×</button>
+        </div>
+        <form id="apiKeyForm" onsubmit="submitApiKey(event)">
+            <div class="form-group">
+                <label><%= t('apiKeys.name') || 'Name' %> *</label>
+                <input type="text" id="akName" placeholder="<%= t('apiKeys.namePlaceholder') || 'e.g. Telegram Bot' %>" required>
+            </div>
+            <div class="form-group">
+                <label><%= t('apiKeys.scopes') || 'Scopes' %></label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.35rem; margin-top:0.4rem;">
+                    <% (validScopes || []).forEach(scope => { %>
+                    <label class="checkbox-label" style="font-size:13px;">
+                        <input type="checkbox" class="ak-scope" value="<%= scope %>">
+                        <span><code style="font-size:11px;"><%= scope %></code></span>
+                    </label>
+                    <% }) %>
+                </div>
+                <small class="hint" style="margin-top:0.4rem; display:block;"><%= t('apiKeys.scopesHint') || 'No scopes selected = no access.' %></small>
+            </div>
+            <div class="form-group">
+                <label><%= t('apiKeys.rateLimit') || 'Rate Limit (req/min)' %></label>
+                <input type="number" id="akRateLimit" value="60" min="1" max="10000">
+            </div>
+            <div class="form-group">
+                <label><%= t('apiKeys.allowedIPs') || 'Allowed IPs (one per line, empty = all)' %></label>
+                <textarea id="akAllowedIPs" rows="3" placeholder="1.2.3.4&#10;5.6.7.8" style="width:100%; resize:vertical;"></textarea>
+            </div>
+            <div class="form-group">
+                <label><%= t('apiKeys.expiresAt') || 'Expires At (optional)' %></label>
+                <input type="date" id="akExpiresAt">
+            </div>
+            <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1rem;">
+                <button type="button" class="btn" onclick="closeApiKeyModal()"><%= t('common.cancel') %></button>
+                <button type="submit" class="btn btn-primary" id="akSubmitBtn"><%= t('apiKeys.create') || 'Create' %></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== API KEY REVEAL MODAL ==================== -->
+<div id="apiKeyRevealModal" style="display:none; position:fixed; inset:0; z-index:1001; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+    <div style="background:var(--bg-secondary, #1a1a1a); border:1px solid var(--border); border-radius:12px; padding:1.5rem; width:100%; max-width:500px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="margin:0; color:var(--success, #22c55e);">✓ <%= t('apiKeys.created') || 'Key Created' %></h3>
+            <button onclick="closeRevealModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);">×</button>
+        </div>
+        <div style="background:var(--warning-dim, rgba(245,158,11,0.1)); border:1px solid var(--warning, #f59e0b); border-radius:8px; padding:0.75rem; margin-bottom:1rem; font-size:13px; color:var(--warning, #f59e0b);">
+            ⚠ <%= t('apiKeys.revealWarning') || 'Copy this key now. It will never be shown again.' %>
+        </div>
+        <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+            <input type="text" id="revealKeyInput" readonly style="flex:1; font-family:monospace; font-size:13px; background:var(--bg-tertiary, #111); border:1px solid var(--border);">
+            <button class="btn btn-primary" onclick="copyRevealKey()"><%= t('apiKeys.copy') || 'Copy' %></button>
+        </div>
+        <button class="btn" style="width:100%;" onclick="closeRevealModal()"><%= t('apiKeys.done') || 'Done, I copied it' %></button>
+    </div>
+</div>
+
+<script>
+// ── API Keys ──
+
+function openApiKeyModal() {
+    document.getElementById('apiKeyModal').style.display = 'flex';
+}
+
+function closeApiKeyModal() {
+    document.getElementById('apiKeyModal').style.display = 'none';
+    document.getElementById('apiKeyForm').reset();
+}
+
+function closeRevealModal() {
+    document.getElementById('apiKeyRevealModal').style.display = 'none';
+    window.location.reload();
+}
+
+function copyRevealKey() {
+    const input = document.getElementById('revealKeyInput');
+    input.select();
+    navigator.clipboard?.writeText(input.value).catch(() => document.execCommand('copy'));
+    const btn = event.target;
+    btn.textContent = '✓';
+    setTimeout(() => btn.textContent = '<%= t("apiKeys.copy") || "Copy" %>', 1500);
+}
+
+async function submitApiKey(e) {
+    e.preventDefault();
+    const btn = document.getElementById('akSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    const scopes = [...document.querySelectorAll('.ak-scope:checked')].map(c => c.value);
+
+    const body = new URLSearchParams();
+    body.append('name', document.getElementById('akName').value);
+    scopes.forEach(s => body.append('scopes', s));
+    body.append('rateLimit', document.getElementById('akRateLimit').value);
+    body.append('allowedIPs', document.getElementById('akAllowedIPs').value);
+    const exp = document.getElementById('akExpiresAt').value;
+    if (exp) body.append('expiresAt', exp);
+
+    try {
+        const res = await fetch('/panel/api-keys', { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+        closeApiKeyModal();
+        document.getElementById('revealKeyInput').value = data.key;
+        document.getElementById('apiKeyRevealModal').style.display = 'flex';
+    } catch (err) {
+        alert(err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '<%= t("apiKeys.create") || "Create" %>';
+    }
+}
+
+async function toggleApiKey(id, currentActive) {
+    if (!confirm(currentActive ? '<%= t("apiKeys.confirmDisable") || "Disable this key?" %>' : '<%= t("apiKeys.confirmEnable") || "Enable this key?" %>')) return;
+    try {
+        const res = await fetch(`/panel/api-keys/${id}/toggle`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        window.location.reload();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+async function deleteApiKey(id, name) {
+    if (!confirm(`<%= t("apiKeys.confirmDelete") || "Delete key" %> "${name}"?`)) return;
+    try {
+        const res = await fetch(`/panel/api-keys/${id}/delete`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        document.getElementById(`apikey-row-${id}`)?.remove();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+// ── Webhooks ──
+
+document.getElementById('webhookEnabled')?.addEventListener('change', function() {
+    document.getElementById('webhookFields').style.display = this.checked ? '' : 'none';
+});
+
+async function testWebhook() {
+    const url = document.getElementById('webhookUrl').value.trim();
+    const secret = document.querySelector('[name="webhook.secret"]')?.value || '';
+    if (!url) { alert('<%= t("webhooks.urlRequired") || "Enter a URL first" %>'); return; }
+
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+        const body = new URLSearchParams({ url, secret });
+        const res = await fetch('/panel/settings/test-webhook', { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = `✓ HTTP ${data.status}`;
+            btn.style.color = 'var(--success)';
+        } else {
+            btn.textContent = `✗ ${data.status || data.error}`;
+            btn.style.color = 'var(--danger, #ef4444)';
+        }
+    } catch (err) {
+        btn.textContent = '✗ Error';
+        btn.style.color = 'var(--danger, #ef4444)';
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => { btn.textContent = '<%= t("webhooks.test") || "Test" %>'; btn.style.color = ''; }, 3000);
+    }
+}
+</script>
 
 <!-- ==================== TAB: BACKUP ==================== -->
 <div class="tab-content" id="tab-backup">

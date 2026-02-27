@@ -10,6 +10,7 @@ const ServerGroup = require('../models/serverGroupModel');
 const cryptoService = require('../services/cryptoService');
 const cache = require('../services/cacheService');
 const logger = require('../utils/logger');
+const { requireScope } = require('../middleware/auth');
 
 /**
  * Инвалидация кэша при изменении нод
@@ -23,7 +24,7 @@ async function invalidateNodesCache() {
 /**
  * GET /nodes - Список всех нод
  */
-router.get('/', async (req, res) => {
+router.get('/', requireScope('nodes:read'), async (req, res) => {
     try {
         const { active, group, status } = req.query;
         
@@ -46,7 +47,7 @@ router.get('/', async (req, res) => {
 /**
  * GET /nodes/:id - Получить ноду
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireScope('nodes:read'), async (req, res) => {
     try {
         const node = await HyNode.findById(req.params.id).populate('groups', 'name color');
         
@@ -73,7 +74,7 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /nodes - Создать ноду
  */
-router.post('/', async (req, res) => {
+router.post('/', requireScope('nodes:write'), async (req, res) => {
     try {
         const {
             name, ip, domain, sni, port, portRange, statsPort,
@@ -128,7 +129,7 @@ router.post('/', async (req, res) => {
 /**
  * PUT /nodes/:id - Обновить ноду
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireScope('nodes:write'), async (req, res) => {
     try {
         const allowedUpdates = [
             'name', 'domain', 'sni', 'port', 'portRange', 'statsPort',
@@ -167,7 +168,7 @@ router.put('/:id', async (req, res) => {
 /**
  * DELETE /nodes/:id - Удалить ноду
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireScope('nodes:write'), async (req, res) => {
     try {
         const node = await HyNode.findByIdAndDelete(req.params.id);
         
@@ -196,7 +197,7 @@ router.delete('/:id', async (req, res) => {
 /**
  * GET /nodes/:id/status - Получить статус ноды
  */
-router.get('/:id/status', async (req, res) => {
+router.get('/:id/status', requireScope('nodes:read'), async (req, res) => {
     try {
         const node = await HyNode.findById(req.params.id).select('name status lastError onlineUsers lastSync');
         
@@ -220,7 +221,7 @@ router.get('/:id/status', async (req, res) => {
 /**
  * POST /nodes/:id/reset-status - Сброс статуса ноды на online
  */
-router.post('/:id/reset-status', async (req, res) => {
+router.post('/:id/reset-status', requireScope('nodes:write'), async (req, res) => {
     try {
         const node = await HyNode.findByIdAndUpdate(
             req.params.id,
@@ -244,7 +245,7 @@ router.post('/:id/reset-status', async (req, res) => {
 /**
  * POST /nodes/:id/sync - Принудительная синхронизация ноды
  */
-router.post('/:id/sync', async (req, res) => {
+router.post('/:id/sync', requireScope('nodes:write'), async (req, res) => {
     try {
         const node = await HyNode.findByIdAndUpdate(
             req.params.id,
@@ -268,7 +269,7 @@ router.post('/:id/sync', async (req, res) => {
 /**
  * GET /nodes/:id/users - Пользователи на ноде
  */
-router.get('/:id/users', async (req, res) => {
+router.get('/:id/users', requireScope('nodes:read'), async (req, res) => {
     try {
         const node = await HyNode.findById(req.params.id);
         
@@ -291,7 +292,7 @@ router.get('/:id/users', async (req, res) => {
 /**
  * POST /nodes/:id/groups - Добавить ноду в группы
  */
-router.post('/:id/groups', async (req, res) => {
+router.post('/:id/groups', requireScope('nodes:write'), async (req, res) => {
     try {
         const { groups } = req.body;
         
@@ -322,7 +323,7 @@ router.post('/:id/groups', async (req, res) => {
 /**
  * DELETE /nodes/:id/groups/:groupId - Удалить ноду из группы
  */
-router.delete('/:id/groups/:groupId', async (req, res) => {
+router.delete('/:id/groups/:groupId', requireScope('nodes:write'), async (req, res) => {
     try {
         const node = await HyNode.findByIdAndUpdate(
             req.params.id,
@@ -347,7 +348,7 @@ router.delete('/:id/groups/:groupId', async (req, res) => {
 /**
  * GET /nodes/:id/config - Получить текущий конфиг ноды
  */
-router.get('/:id/config', async (req, res) => {
+router.get('/:id/config', requireScope('nodes:read'), async (req, res) => {
     try {
         const node = await HyNode.findById(req.params.id);
         
@@ -374,7 +375,7 @@ router.get('/:id/config', async (req, res) => {
 /**
  * POST /nodes/:id/setup-port-hopping - Настройка port hopping на ноде
  */
-router.post('/:id/setup-port-hopping', async (req, res) => {
+router.post('/:id/setup-port-hopping', requireScope('nodes:write'), async (req, res) => {
     try {
         const node = await HyNode.findById(req.params.id);
         
@@ -398,7 +399,7 @@ router.post('/:id/setup-port-hopping', async (req, res) => {
 /**
  * POST /nodes/:id/update-config - Обновить конфиг на ноде через SSH
  */
-router.post('/:id/update-config', async (req, res) => {
+router.post('/:id/update-config', requireScope('nodes:write'), async (req, res) => {
     try {
         const node = await HyNode.findById(req.params.id);
         

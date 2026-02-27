@@ -11,6 +11,8 @@ const cryptoService = require('../services/cryptoService');
 const cache = require('../services/cacheService');
 const logger = require('../utils/logger');
 const { getNodesByGroups } = require('../utils/helpers');
+const { requireScope } = require('../middleware/auth');
+const webhook = require('../services/webhookService');
 
 /**
  * Инвалидация кэша пользователя
@@ -29,7 +31,7 @@ async function invalidateUserCache(userId, subscriptionToken) {
 /**
  * GET /users - Список всех пользователей
  */
-router.get('/', async (req, res) => {
+router.get('/', requireScope('users:read'), async (req, res) => {
     try {
         const { enabled, group, page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
         
@@ -122,7 +124,7 @@ router.get('/', async (req, res) => {
 /**
  * GET /users/:userId - Получить пользователя
  */
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', requireScope('users:read'), async (req, res) => {
     try {
         const user = await HyUser.findOne({ userId: req.params.userId })
             .populate('nodes', 'name ip domain port portRange')
@@ -143,7 +145,7 @@ router.get('/:userId', async (req, res) => {
  * POST /users - Создать пользователя
  * Body: { userId, username?, groups?, enabled?, trafficLimit?, expireAt? }
  */
-router.post('/', async (req, res) => {
+router.post('/', requireScope('users:write'), async (req, res) => {
     try {
         const { userId, username, groups, enabled, trafficLimit, expireAt } = req.body;
         
@@ -177,6 +179,8 @@ router.post('/', async (req, res) => {
         await user.save();
         
         logger.info(`[Users API] Created user ${userId}, groups: ${userGroups.length}`);
+
+        webhook.emit(webhook.EVENTS.USER_CREATED, { userId, username: username || '', groups: userGroups });
         
         res.status(201).json(user);
     } catch (error) {
@@ -188,7 +192,7 @@ router.post('/', async (req, res) => {
 /**
  * PUT /users/:userId - Обновить пользователя
  */
-router.put('/:userId', async (req, res) => {
+router.put('/:userId', requireScope('users:write'), async (req, res) => {
     try {
         const { enabled, groups, trafficLimit, username, expireAt } = req.body;
         
@@ -231,6 +235,8 @@ router.put('/:userId', async (req, res) => {
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
         
         logger.info(`[Users API] Updated user ${req.params.userId}`);
+
+        webhook.emit(webhook.EVENTS.USER_UPDATED, { userId: req.params.userId, updates });
         
         res.json(updatedUser);
     } catch (error) {
@@ -242,7 +248,7 @@ router.put('/:userId', async (req, res) => {
 /**
  * DELETE /users/:userId - Удалить пользователя
  */
-router.delete('/:userId', async (req, res) => {
+router.delete('/:userId', requireScope('users:write'), async (req, res) => {
     try {
         const user = await HyUser.findOneAndDelete({ userId: req.params.userId });
         
@@ -254,6 +260,8 @@ router.delete('/:userId', async (req, res) => {
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
         
         logger.info(`[Users API] Deleted user ${req.params.userId}`);
+
+        webhook.emit(webhook.EVENTS.USER_DELETED, { userId: req.params.userId });
         
         res.json({ success: true, message: 'Пользователь удалён' });
     } catch (error) {
@@ -265,7 +273,7 @@ router.delete('/:userId', async (req, res) => {
 /**
  * POST /users/:userId/enable - Включить пользователя
  */
-router.post('/:userId/enable', async (req, res) => {
+router.post('/:userId/enable', requireScope('users:write'), async (req, res) => {
     try {
         const user = await HyUser.findOneAndUpdate(
             { userId: req.params.userId },
@@ -281,6 +289,7 @@ router.post('/:userId/enable', async (req, res) => {
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
         
         logger.info(`[Users API] Enabled user ${req.params.userId}`);
+        webhook.emit(webhook.EVENTS.USER_ENABLED, { userId: req.params.userId });
         res.json(user);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -290,7 +299,7 @@ router.post('/:userId/enable', async (req, res) => {
 /**
  * POST /users/:userId/disable - Отключить пользователя
  */
-router.post('/:userId/disable', async (req, res) => {
+router.post('/:userId/disable', requireScope('users:write'), async (req, res) => {
     try {
         const user = await HyUser.findOneAndUpdate(
             { userId: req.params.userId },
@@ -306,6 +315,7 @@ router.post('/:userId/disable', async (req, res) => {
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
         
         logger.info(`[Users API] Disabled user ${req.params.userId}`);
+        webhook.emit(webhook.EVENTS.USER_DISABLED, { userId: req.params.userId });
         res.json(user);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -316,7 +326,7 @@ router.post('/:userId/disable', async (req, res) => {
  * POST /users/:userId/groups - Добавить пользователя в группы
  * Body: { groups: ['groupId1', 'groupId2'] }
  */
-router.post('/:userId/groups', async (req, res) => {
+router.post('/:userId/groups', requireScope('users:write'), async (req, res) => {
     try {
         const { groups } = req.body;
         
@@ -347,7 +357,7 @@ router.post('/:userId/groups', async (req, res) => {
 /**
  * DELETE /users/:userId/groups/:groupId - Удалить пользователя из группы
  */
-router.delete('/:userId/groups/:groupId', async (req, res) => {
+router.delete('/:userId/groups/:groupId', requireScope('users:write'), async (req, res) => {
     try {
         const user = await HyUser.findOneAndUpdate(
             { userId: req.params.userId },
@@ -373,7 +383,7 @@ router.delete('/:userId/groups/:groupId', async (req, res) => {
  * POST /users/sync-from-main - Синхронизация с основной БД
  * Body: { users: [{ userId, username, enabled, groups }] }
  */
-router.post('/sync-from-main', async (req, res) => {
+router.post('/sync-from-main', requireScope('users:write'), async (req, res) => {
     try {
         const { users } = req.body;
         

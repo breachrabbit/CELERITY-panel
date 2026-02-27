@@ -648,6 +648,36 @@ class CacheService {
         }
     }
 
+    // ==================== API KEY RATE LIMITING ====================
+
+    /**
+     * Check and increment rate limit counter for an API key.
+     * Uses INCR + EXPIRE (sliding window per minute).
+     * Returns { allowed: bool, count: number, limit: number }
+     */
+    async checkApiKeyRateLimit(keyPrefix, maxPerMinute) {
+        if (!this.isConnected()) return { allowed: true, count: 0, limit: maxPerMinute };
+
+        try {
+            const redisKey = `ratelimit:ak:${keyPrefix}`;
+            const count = await this.redis.incr(redisKey);
+
+            // Set TTL only on first increment
+            if (count === 1) {
+                await this.redis.expire(redisKey, 60);
+            }
+
+            return {
+                allowed: count <= maxPerMinute,
+                count,
+                limit: maxPerMinute,
+            };
+        } catch (err) {
+            // On Redis error - allow (fail open)
+            return { allowed: true, count: 0, limit: maxPerMinute };
+        }
+    }
+
     // ==================== STATS ====================
 
     /**

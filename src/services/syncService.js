@@ -18,11 +18,16 @@ const cache = require('./cacheService');
 const logger = require('../utils/logger');
 const axios = require('axios');
 const config = require('../../config');
+const webhook = require('./webhookService');
 
 class SyncService {
     constructor() {
         this.isSyncing = false;
         this.lastSyncTime = null;
+        // Track which users have already received a traffic/expiry webhook in this
+        // process lifetime to avoid spamming the same event every stats cycle.
+        this._notifiedTraffic = new Set();
+        this._notifiedExpired = new Set();
     }
 
     /**
@@ -99,6 +104,7 @@ class SyncService {
                 { _id: node._id },
                 { $set: { status: 'error', lastError: error.message } }
             );
+            webhook.emit(webhook.EVENTS.NODE_ERROR, { nodeId: node._id, name: node.name, error: error.message });
             return false;
         } finally {
             ssh.disconnect();
@@ -115,6 +121,7 @@ class SyncService {
         }
         
         this.isSyncing = true;
+        const syncStart = Date.now();
         logger.info('[Sync] Starting sync for all nodes');
         
         try {
@@ -131,6 +138,10 @@ class SyncService {
             
             this.lastSyncTime = new Date();
             logger.info('[Sync] Sync completed');
+            webhook.emit(webhook.EVENTS.SYNC_COMPLETED, {
+                nodesCount: nodes.length,
+                duration: Math.round((Date.now() - syncStart) / 1000),
+            });
         } finally {
             this.isSyncing = false;
         }
@@ -185,6 +196,9 @@ class SyncService {
             if (bulkOps.length > 0) {
                 const result = await HyUser.bulkWrite(bulkOps, { ordered: false });
                 logger.debug(`[Stats] ${node.name}: Bulk updated ${result.modifiedCount}/${bulkOps.length} users`);
+
+                // Check traffic limits and expiry for affected users (fire-and-forget)
+                this._checkUserLimits(Object.keys(stats)).catch(() => {});
             }
             
             // Update node traffic
@@ -225,10 +239,15 @@ class SyncService {
             
             const online = Object.keys(response.data).length;
             
-            await HyNode.updateOne(
+            const prevNode = await HyNode.findOneAndUpdate(
                 { _id: node._id },
                 { $set: { onlineUsers: online, status: 'online' } }
             );
+
+            // Fire node.online if it was previously offline/error
+            if (prevNode && prevNode.status !== 'online') {
+                webhook.emit(webhook.EVENTS.NODE_ONLINE, { nodeId: node._id, name: node.name });
+            }
             
             if (online > 0) {
                 logger.info(`[Stats] ${node.name}: ${online} online`);
@@ -240,10 +259,15 @@ class SyncService {
             logger.warn(`[Stats] ${node.name}: Stats unavailable - ${error.message}`);
             
             // Update only lastError, don't touch status
-            await HyNode.updateOne(
+            const prevNode = await HyNode.findOneAndUpdate(
                 { _id: node._id },
                 { $set: { lastError: `Stats: ${error.message}` } }
             );
+
+            // Fire node.offline only if it was online before
+            if (prevNode && prevNode.status === 'online') {
+                webhook.emit(webhook.EVENTS.NODE_OFFLINE, { nodeId: node._id, name: node.name, lastError: error.message });
+            }
             return 0;
         }
     }
@@ -317,6 +341,51 @@ class SyncService {
             await Promise.allSettled(
                 batch.map(node => this.getOnlineUsers(node))
             );
+        }
+    }
+
+    /**
+     * Check traffic limits and expiry for a list of userIds after stats update.
+     * Emits user.traffic_exceeded and user.expired webhooks only ONCE per user
+     * (when they first cross the threshold, not on every subsequent cycle).
+     *
+     * Uses a simple in-memory Set to deduplicate across calls within a process lifetime.
+     * The Set is cleared on process restart, which is acceptable — one extra notification
+     * on redeploy is not a problem.
+     */
+    async _checkUserLimits(userIds) {
+        if (!userIds || userIds.length === 0) return;
+
+        const users = await HyUser.find(
+            { userId: { $in: userIds }, enabled: true },
+            { userId: 1, trafficLimit: 1, 'traffic.tx': 1, 'traffic.rx': 1, expireAt: 1 }
+        ).lean();
+
+        const now = new Date();
+        for (const user of users) {
+            // Traffic exceeded — emit only once per user per process lifetime
+            if (user.trafficLimit > 0) {
+                const used = (user.traffic?.tx || 0) + (user.traffic?.rx || 0);
+                if (used >= user.trafficLimit && !this._notifiedTraffic.has(user.userId)) {
+                    this._notifiedTraffic.add(user.userId);
+                    webhook.emit(webhook.EVENTS.USER_TRAFFIC_EXCEEDED, {
+                        userId: user.userId,
+                        used,
+                        limit: user.trafficLimit,
+                    });
+                } else if (used < user.trafficLimit) {
+                    // Traffic was reset — allow future notifications
+                    this._notifiedTraffic.delete(user.userId);
+                }
+            }
+            // Expired — emit only once per user per process lifetime
+            if (user.expireAt && new Date(user.expireAt) < now && !this._notifiedExpired.has(user.userId)) {
+                this._notifiedExpired.add(user.userId);
+                webhook.emit(webhook.EVENTS.USER_EXPIRED, {
+                    userId: user.userId,
+                    expiredAt: user.expireAt,
+                });
+            }
         }
     }
 

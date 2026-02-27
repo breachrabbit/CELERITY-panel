@@ -72,6 +72,8 @@ MONGO_PASSWORD=парольмонго         # openssl rand -hex 16
 - 📱 **Подписки** — автоформаты для Clash, Sing-box, Shadowrocket
 - 🔄 **Бэкап/Восстановление** — автоматические бэкапы базы
 - 💻 **SSH-терминал** — прямой доступ к нодам из браузера
+- 🔑 **API-ключи** — безопасный внешний доступ со скоупами, IP-фильтром и rate limiting
+- 🪝 **Вебхуки** — уведомления о событиях с подписью HMAC-SHA256
 
 ---
 
@@ -133,6 +135,47 @@ MONGO_PASSWORD=парольмонго         # openssl rand -hex 16
 
 ## 📖 API
 
+### Аутентификация через API-ключ
+
+Все эндпоинты `/api/*` (кроме `/api/auth` и `/api/files`) требуют аутентификации — через API-ключ или cookie сессии администратора.
+
+**Создать ключ:** Настройки → Безопасность → API-ключи → Создать ключ
+
+**Использование:**
+```http
+# Вариант 1 — заголовок
+X-API-Key: ck_your_key_here
+
+# Вариант 2 — Bearer токен
+Authorization: Bearer ck_your_key_here
+```
+
+#### Скоупы (права доступа)
+
+| Скоуп | Доступ |
+|-------|--------|
+| `users:read` | Чтение пользователей |
+| `users:write` | Создание / изменение / удаление пользователей |
+| `nodes:read` | Чтение нод |
+| `nodes:write` | Создание / изменение / удаление / синхронизация нод |
+| `stats:read` | Статистика и группы |
+| `sync:write` | Запуск синхронизации, кик пользователей |
+
+#### Rate Limiting
+
+Каждый ключ имеет настраиваемый лимит (по умолчанию: 60 req/мин).  
+При превышении возвращается `429` с заголовками `X-RateLimit-Limit` / `X-RateLimit-Remaining`.
+
+#### Коды ошибок
+
+| Код | Причина |
+|-----|---------|
+| `401` | Ключ недействителен, истёк или не передан |
+| `403` | Ключ валиден, но нет нужного скоупа / IP не в списке |
+| `429` | Превышен лимит запросов |
+
+---
+
 ### Авторизация (для нод)
 
 #### POST `/api/auth`
@@ -168,17 +211,23 @@ MONGO_PASSWORD=парольмонго         # openssl rand -hex 16
 
 ### Пользователи
 
+Требуемый скоуп: `users:read` (GET) / `users:write` (POST, PUT, DELETE)
+
 | Метод | Эндпоинт | Описание |
 |-------|----------|----------|
-| GET | `/api/users` | Список пользователей |
+| GET | `/api/users` | Список пользователей (пагинация, фильтры, сортировка) |
 | GET | `/api/users/:userId` | Получить пользователя |
 | POST | `/api/users` | Создать пользователя |
 | PUT | `/api/users/:userId` | Обновить пользователя |
 | DELETE | `/api/users/:userId` | Удалить пользователя |
 | POST | `/api/users/:userId/enable` | Включить |
 | POST | `/api/users/:userId/disable` | Отключить |
+| POST | `/api/users/:userId/groups` | Добавить в группы |
+| DELETE | `/api/users/:userId/groups/:groupId` | Удалить из группы |
 
 ### Ноды
+
+Требуемый скоуп: `nodes:read` (GET) / `nodes:write` (POST, PUT, DELETE)
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|----------|
@@ -188,13 +237,73 @@ MONGO_PASSWORD=парольмонго         # openssl rand -hex 16
 | PUT | `/api/nodes/:id` | Обновить ноду |
 | DELETE | `/api/nodes/:id` | Удалить ноду |
 | GET | `/api/nodes/:id/config` | Получить конфиг (YAML) |
+| POST | `/api/nodes/:id/sync` | Синхронизировать ноду |
 | POST | `/api/nodes/:id/update-config` | Отправить конфиг через SSH |
 
-### Синхронизация
+### Статистика и синхронизация
 
-| Метод | Эндпоинт | Описание |
-|-------|----------|----------|
-| POST | `/api/sync` | Синхронизировать все ноды |
+Требуемый скоуп: `stats:read` / `sync:write`
+
+| Метод | Эндпоинт | Скоуп | Описание |
+|-------|----------|-------|----------|
+| GET | `/api/stats` | `stats:read` | Статистика панели |
+| GET | `/api/groups` | `stats:read` | Список групп серверов |
+| POST | `/api/sync` | `sync:write` | Синхронизировать все ноды |
+| POST | `/api/kick/:userId` | `sync:write` | Кикнуть пользователя со всех нод |
+
+---
+
+## 🪝 Вебхуки
+
+Отправляйте уведомления о событиях в реальном времени на любой HTTP-эндпоинт.
+
+**Настройка:** Настройки → Безопасность → Вебхуки
+
+### Формат запроса
+
+```http
+POST https://your-endpoint.com/webhook
+Content-Type: application/json
+X-Webhook-Event: user.created
+X-Webhook-Timestamp: 1700000000
+X-Webhook-Signature: sha256=<hmac>
+User-Agent: C3-Celerity-Webhook/1.0
+
+{
+  "event": "user.created",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "data": { ... }
+}
+```
+
+### Проверка подписи
+
+```js
+const crypto = require('crypto');
+const expected = 'sha256=' + crypto
+  .createHmac('sha256', YOUR_SECRET)
+  .update(`${timestamp}.${rawBody}`)
+  .digest('hex');
+// сравните с заголовком X-Webhook-Signature
+```
+
+### События
+
+| Событие | Когда |
+|---------|-------|
+| `user.created` | Создан пользователь |
+| `user.updated` | Обновлён пользователь |
+| `user.deleted` | Удалён пользователь |
+| `user.enabled` | Пользователь включён |
+| `user.disabled` | Пользователь отключён |
+| `user.traffic_exceeded` | Достигнут лимит трафика |
+| `user.expired` | Истёк срок подписки |
+| `node.online` | Нода перешла в онлайн |
+| `node.offline` | Нода ушла в оффлайн |
+| `node.error` | Ошибка синхронизации/конфига ноды |
+| `sync.completed` | Завершён полный цикл синхронизации |
+
+Оставьте список событий пустым, чтобы получать **все** события.
 
 ---
 

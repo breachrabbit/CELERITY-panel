@@ -17,6 +17,7 @@ const { WebSocketServer } = require('ws');
 const config = require('./config');
 const logger = require('./src/utils/logger');
 const requireAuth = require('./src/middleware/auth');
+const { requireScope } = requireAuth;
 const { i18nMiddleware } = require('./src/middleware/i18n');
 const { countRequest } = require('./src/middleware/rpsCounter');
 const syncService = require('./src/services/syncService');
@@ -196,7 +197,7 @@ app.use('/api', subscriptionRoutes);
 app.use('/api/users', requireAuth, usersRoutes);
 app.use('/api/nodes', requireAuth, nodesRoutes);
 
-app.get('/api/groups', requireAuth, async (req, res) => {
+app.get('/api/groups', requireAuth, requireScope('stats:read'), async (req, res) => {
     try {
         const { getActiveGroups } = require('./src/utils/helpers');
         const groups = await getActiveGroups();
@@ -206,7 +207,7 @@ app.get('/api/groups', requireAuth, async (req, res) => {
     }
 });
 
-app.get('/api/stats', requireAuth, async (req, res) => {
+app.get('/api/stats', requireAuth, requireScope('stats:read'), async (req, res) => {
     try {
         const HyUser = require('./src/models/hyUserModel');
         const HyNode = require('./src/models/hyNodeModel');
@@ -233,7 +234,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/api/sync', requireAuth, async (req, res) => {
+app.post('/api/sync', requireAuth, requireScope('sync:write'), async (req, res) => {
     if (syncService.isSyncing) {
         return res.status(409).json({ error: 'Sync already in progress' });
     }
@@ -245,7 +246,7 @@ app.post('/api/sync', requireAuth, async (req, res) => {
     res.json({ message: 'Sync started' });
 });
 
-app.post('/api/kick/:userId', requireAuth, async (req, res) => {
+app.post('/api/kick/:userId', requireAuth, requireScope('sync:write'), async (req, res) => {
     try {
         await syncService.kickUser(req.params.userId);
         await cacheService.clearDeviceIPs(req.params.userId);
