@@ -256,6 +256,38 @@ app.post('/api/kick/:userId', requireAuth, requireScope('sync:write'), async (re
     }
 });
 
+// ==================== API DOCS ====================
+
+if (config.API_DOCS_ENABLED) {
+    const apiSpec = require('./src/docs/openapi');
+
+    app.get('/api/docs/openapi.json', (req, res) => {
+        res.json(apiSpec);
+    });
+
+    app.get('/api/docs', (req, res) => {
+        res.send(`<!doctype html>
+<html>
+  <head>
+    <title>C³ CELERITY — API Reference</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <style>body { margin: 0; }</style>
+  </head>
+  <body>
+    <script
+      id="api-reference"
+      data-url="/api/docs/openapi.json"
+      data-configuration='{"theme":"purple","layout":"modern"}'
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </body>
+</html>`);
+    });
+
+    logger.info('[Docs] API docs available at /api/docs');
+}
+
 // ==================== WEB PANEL ====================
 
 app.use('/panel', panelRoutes);

@@ -522,6 +522,7 @@ volumes:
 | `MONGO_USER` | ❌ | Пользователь MongoDB (default: hysteria) |
 | `PANEL_IP_WHITELIST` | ❌ | IP whitelist для панели |
 | `SYNC_INTERVAL` | ❌ | Интервал синхронизации в минутах (default: 2) |
+| `API_DOCS_ENABLED` | ❌ | Включить интерактивную документацию API на `/api/docs` (default: false) |
 
 ---
 

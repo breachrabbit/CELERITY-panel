@@ -24,6 +24,7 @@ module.exports = {
     SESSION_SECRET: process.env.SESSION_SECRET,
     PANEL_IP_WHITELIST: process.env.PANEL_IP_WHITELIST || '',
     SYNC_INTERVAL: parseInt(process.env.SYNC_INTERVAL) || 2,
+    API_DOCS_ENABLED: process.env.API_DOCS_ENABLED === 'true',
     DEFAULT_NODE_CONFIG: {
         portRange: '20000-50000',
         mainPort: 443,

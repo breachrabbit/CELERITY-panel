@@ -522,6 +522,7 @@ volumes:
 | `MONGO_USER` | ❌ | MongoDB user (default: hysteria) |
 | `PANEL_IP_WHITELIST` | ❌ | IP whitelist for panel |
 | `SYNC_INTERVAL` | ❌ | Sync interval in minutes (default: 2) |
+| `API_DOCS_ENABLED` | ❌ | Enable interactive API docs at `/api/docs` (default: false) |
 
 ---
 

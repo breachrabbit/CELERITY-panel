@@ -382,10 +382,17 @@
                                 </span>
                             </td>
                             <td>
-                                <button class="btn btn-sm" onclick="toggleApiKey('<%= key._id %>', <%= key.active %>)" style="margin-right:4px;">
+                                <button class="btn btn-sm"
+                                        data-id="<%= key._id %>"
+                                        data-active="<%= key.active %>"
+                                        onclick="toggleApiKey(this.dataset.id, this.dataset.active === 'true')"
+                                        style="margin-right:4px;">
                                     <%= key.active ? t('common.disable') : t('common.enable') %>
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteApiKey('<%= key._id %>', <%- JSON.stringify(key.name) %>)">
+                                <button class="btn btn-sm btn-danger"
+                                        data-id="<%= key._id %>"
+                                        data-name="<%= key.name %>"
+                                        onclick="deleteApiKey(this.dataset.id, this.dataset.name)">
                                     <%= t('common.delete') %>
                                 </button>
                             </td>
