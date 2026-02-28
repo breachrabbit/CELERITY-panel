@@ -22,7 +22,7 @@ function detectFormat(userAgent) {
     const ua = (userAgent || '').toLowerCase();
     // Shadowrocket ожидает base64-encoded URI list
     if (/shadowrocket/.test(ua)) return 'shadowrocket';
-    // Happ - plain URI list
+    // Happ (Xray-core) ожидает plain URI list
     if (/happ/.test(ua)) return 'uri';
     if (/clash|stash|surge|loon/.test(ua)) return 'clash';
     // sing-box based clients: Hiddify, NekoBox, SFI/SFA/SFM/SFT, Karing
@@ -205,6 +205,7 @@ function generateURI(user, node, config) {
     
     // SNI for TLS handshake (can be custom domain for masquerading)
     if (config.sni) params.push(`sni=${config.sni}`);
+    params.push('alpn=h3');
     // insecure=1 only if no valid certificate (self-signed without domain)
     params.push(`insecure=${config.hasCert ? '0' : '1'}`);
     if (config.portRange) params.push(`mport=${config.portRange}`);
@@ -216,16 +217,14 @@ function generateURI(user, node, config) {
 
 // ==================== FORMAT GENERATORS ====================
 
-function generateURIList(user, nodes, profileTitle) {
+function generateURIList(user, nodes) {
     const uris = [];
     nodes.forEach(node => {
         getNodeConfigs(node).forEach(cfg => {
             uris.push(generateURI(user, node, cfg));
         });
     });
-    
-    // Чистый список URI без комментариев
-    return uris.join('\n') + '\n';
+    return uris.join('\n');
 }
 
 function generateClashYAML(user, nodes) {
@@ -482,13 +481,13 @@ function generateHTML(user, nodes, token, baseUrl) {
 // ==================== MAIN ROUTE ====================
 
 /**
- * GET /files/:token или /sub/:token
+ * GET /files/:token - Единственный роут
  * - Браузер → HTML
  * - Приложение → подписка
  * 
  * С кэшированием готовых подписок в Redis
  */
-router.get(['/files/:token', '/sub/:token'], async (req, res) => {
+router.get('/files/:token', async (req, res) => {
     try {
         const token = req.params.token;
         const userAgent = req.headers['user-agent'] || 'unknown';
@@ -581,11 +580,10 @@ router.get(['/files/:token', '/sub/:token'], async (req, res) => {
 function generateSubscriptionData(user, nodes, format, userAgent) {
     let content;
     let needsBase64 = false;
-    const profileTitle = getSubscriptionTitle(user);
     
     switch (format) {
         case 'shadowrocket':
-            content = generateURIList(user, nodes, profileTitle);
+            content = generateURIList(user, nodes);
             needsBase64 = true;
             break;
         case 'clash':
@@ -599,7 +597,7 @@ function generateSubscriptionData(user, nodes, format, userAgent) {
         case 'uri':
         case 'raw':
         default:
-            content = generateURIList(user, nodes, profileTitle);
+            content = generateURIList(user, nodes);
             if (/quantumult/i.test(userAgent)) {
                 needsBase64 = true;
             }
@@ -640,14 +638,6 @@ function sendCachedSubscription(res, data, format, userAgent) {
             break;
     }
     
-    // Для URI формата - минимум заголовков (как в Blitz)
-    // Метаданные уже в теле как комментарии //
-    if (format === 'uri' || format === 'raw' || format === 'shadowrocket') {
-        res.set('Content-Type', 'text/plain; charset=utf-8');
-        return res.send(data.content);
-    }
-    
-    // Для остальных форматов - полные заголовки
     res.set({
         'Content-Type': `${contentType}; charset=utf-8`,
         'Content-Disposition': `attachment; filename="${data.username}"`,
