@@ -500,8 +500,6 @@
     "blockAdsDesc": "doubleclick, googlesyndication и др.",
     "blockCn": "Блокировать CN / Private",
     "blockCnDesc": "Китайские и частные IP-адреса",
-    "directRu": "RU — напрямую",
-    "directRuDesc": "Российские сайты идут через сервер напрямую",
     "directAll": "Всё напрямую",
     "directAllDesc": "Без ограничений, весь трафик разрешён",
     "reset": "Сбросить",

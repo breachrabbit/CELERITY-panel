@@ -121,11 +121,6 @@
                         <div class="preset-title"><%= t('outbounds.blockCn') %></div>
                         <div class="preset-desc"><%= t('outbounds.blockCnDesc') %></div>
                     </div>
-                    <div class="preset-card" onclick="applyPreset('direct-ru', this)">
-                        <div class="preset-icon">🇷🇺</div>
-                        <div class="preset-title"><%= t('outbounds.directRu') %></div>
-                        <div class="preset-desc"><%= t('outbounds.directRuDesc') %></div>
-                    </div>
                     <div class="preset-card" onclick="applyPreset('direct-all', this)">
                         <div class="preset-icon">↗</div>
                         <div class="preset-title"><%= t('outbounds.directAll') %></div>
@@ -269,7 +264,6 @@ const PRESETS = {
         'direct(all)',
     ],
     'block-cn':  ['reject(geoip:cn)', 'reject(geoip:private)', 'direct(all)'],
-    'direct-ru': ['direct(geoip:ru)', 'direct(all)'],
     'direct-all': ['direct(all)'],
     'clear': [],
 };
