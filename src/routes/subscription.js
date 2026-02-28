@@ -232,9 +232,9 @@ function generateURIList(user, nodes, profileTitle) {
     const expire = user.expireAt ? Math.floor(new Date(user.expireAt).getTime() / 1000) : 0;
     
     const meta = [
-        `#profile-title: ${profileTitle || 'Hysteria'}`,
-        `#profile-update-interval: 12`,
-        `#subscription-userinfo: upload=${tx}; download=${rx}; total=${total}; expire=${expire}`,
+        `//profile-title: ${profileTitle || 'Hysteria'}`,
+        `//profile-update-interval: 12`,
+        `//subscription-userinfo: upload=${tx}; download=${rx}; total=${total}; expire=${expire}`,
     ].join('\n');
     
     return meta + '\n' + uris.join('\n');
