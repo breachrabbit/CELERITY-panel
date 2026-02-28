@@ -22,8 +22,8 @@ function detectFormat(userAgent) {
     const ua = (userAgent || '').toLowerCase();
     // Shadowrocket ожидает base64-encoded URI list
     if (/shadowrocket/.test(ua)) return 'shadowrocket';
-    // Happ использует sing-box core - отдаём singbox JSON
-    if (/happ/.test(ua)) return 'singbox';
+    // Happ - plain URI list
+    if (/happ/.test(ua)) return 'uri';
     if (/clash|stash|surge|loon/.test(ua)) return 'clash';
     // sing-box based clients: Hiddify, NekoBox, SFI/SFA/SFM/SFT, Karing
     if (/hiddify|sing-?box|nekobox|neko|sfi|sfa|sfm|sft|karing|hiddifynext/.test(ua)) return 'singbox';
@@ -225,8 +225,19 @@ function generateURIList(user, nodes, profileTitle) {
         });
     });
     
-    // Просто список URI без комментариев - максимальная совместимость
-    return uris.join('\n');
+    // Метаданные по документации Happ (с # комментариями)
+    const tx = user.traffic?.tx || 0;
+    const rx = user.traffic?.rx || 0;
+    const total = user.trafficLimit || 0;
+    const expire = user.expireAt ? Math.floor(new Date(user.expireAt).getTime() / 1000) : 0;
+    
+    const meta = [
+        `#profile-title: ${profileTitle || 'Hysteria'}`,
+        `#profile-update-interval: 12`,
+        `#subscription-userinfo: upload=${tx}; download=${rx}; total=${total}; expire=${expire}`,
+    ].join('\n');
+    
+    return meta + '\n' + uris.join('\n');
 }
 
 function generateClashYAML(user, nodes) {
