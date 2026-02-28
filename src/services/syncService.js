@@ -73,7 +73,8 @@ class SyncService {
                 const authUrl = this.getAuthUrl();
                 const settings = await Settings.get();
                 const authInsecure = settings?.nodeAuth?.insecure ?? true;
-                configContent = configGenerator.generateNodeConfig(node, authUrl, { authInsecure });
+                const useTlsFiles = node.useTlsFiles || false;
+                configContent = configGenerator.generateNodeConfig(node, authUrl, { authInsecure, useTlsFiles });
             }
             
             // Update config on node

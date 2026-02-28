@@ -476,11 +476,11 @@ journalctl -u hysteria-server -n 20 --no-pager || true
         }
         
         log('Setup completed successfully!');
-        return { success: true, logs };
+        return { success: true, logs, useTlsFiles };
         
     } catch (error) {
         log(`Error: ${error.message}`);
-        return { success: false, error: error.message, logs };
+        return { success: false, error: error.message, logs, useTlsFiles: false };
         
     } finally {
         if (conn) {

@@ -69,6 +69,7 @@ const hyNodeSchema = new mongoose.Schema({
     settings: { type: Object, default: {} },
     customConfig: { type: String, default: '' },
     useCustomConfig: { type: Boolean, default: false },
+    useTlsFiles: { type: Boolean, default: false },
     
 }, { timestamps: true });
 

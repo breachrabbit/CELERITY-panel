@@ -467,7 +467,7 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
 
         if (result.success) {
             await HyNode.findByIdAndUpdate(req.params.id, {
-                $set: { status: 'online', lastSync: new Date(), lastError: '' },
+                $set: { status: 'online', lastSync: new Date(), lastError: '', useTlsFiles: result.useTlsFiles },
             });
             logger.info(`[Nodes API] Auto-setup completed for ${node.name}`);
             res.json({ success: true, logs: result.logs });

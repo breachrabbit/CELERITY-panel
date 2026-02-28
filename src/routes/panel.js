@@ -502,9 +502,9 @@ router.post('/nodes/:id/setup', requireAuth, async (req, res) => {
         });
         
         if (result.success) {
-            // Обновляем статус
+            // Обновляем статус и сохраняем useTlsFiles
             await HyNode.findByIdAndUpdate(req.params.id, { 
-                $set: { status: 'online', lastSync: new Date(), lastError: '' } 
+                $set: { status: 'online', lastSync: new Date(), lastError: '', useTlsFiles: result.useTlsFiles } 
             });
             res.json({ success: true, message: 'Нода успешно настроена', logs: result.logs });
         } else {
