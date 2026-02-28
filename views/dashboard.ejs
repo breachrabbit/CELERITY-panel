@@ -174,6 +174,11 @@
                     <%= t('dashboard.recentLogs') %>
                 </h2>
                 <div class="logs-controls">
+                    <div class="logs-search-wrap">
+                        <input type="text" class="logs-search-input" id="logsSearch" placeholder="<%= t('common.search') %>..." oninput="onLogsSearchInput(this.value)">
+                        <span class="logs-search-count" id="logsSearchCount"></span>
+                        <button class="logs-search-clear" id="logsSearchClear" onclick="clearLogsSearch()" title="<%= t('common.clear') %>">✕</button>
+                    </div>
                     <button class="btn btn-sm" id="logsToggleBtn" onclick="toggleLogs()" title="<%= t('dashboard.pauseLogs') %>">⏸️</button>
                     <button class="btn btn-sm" onclick="clearLogs()" title="<%= t('common.clear') %>">🗑️</button>
                 </div>
@@ -347,6 +352,7 @@
 <script>
 const i18n = {
     noLogs: <%- JSON.stringify(t("dashboard.noLogs")) %>,
+    loading: <%- JSON.stringify(t("common.loading")) %>,
     loadError: <%- JSON.stringify(t("dashboard.loadError")) %>,
     error: <%- JSON.stringify(t("common.error")) %>,
     nodeRestarted: <%- JSON.stringify(t("dashboard.nodeRestarted")) %>,
@@ -363,6 +369,8 @@ const i18n = {
 let logsWs = null;
 let logsPaused = false;
 let logsAutoScroll = true;
+let logsSearchDebounce = null;
+let logsSearchMode = false;
 
 // Load on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -385,12 +393,11 @@ function connectLogsWebSocket() {
     };
     
     logsWs.onmessage = (event) => {
-        if (logsPaused) return;
+        if (logsPaused || logsSearchMode) return;
         
         const msg = JSON.parse(event.data);
         
         if (msg.type === 'history') {
-            // Initial history load
             const container = document.getElementById('logsContainer');
             if (msg.logs && msg.logs.length > 0) {
                 container.innerHTML = msg.logs.map(log => formatLogLine(log)).join('');
@@ -399,14 +406,12 @@ function connectLogsWebSocket() {
                 container.innerHTML = '<div class="logs-empty">' + i18n.noLogs + '</div>';
             }
         } else if (msg.type === 'log') {
-            // New real-time log
             appendLog(msg);
         }
     };
     
     logsWs.onclose = () => {
         updateLogsStatus('disconnected');
-        // Reconnect after 3 seconds
         setTimeout(connectLogsWebSocket, 3000);
     };
     
@@ -425,28 +430,103 @@ function formatLogLine(log) {
     return `<div class="${cls}">${escapeHtml(message)}</div>`;
 }
 
+function formatRawLine(line) {
+    let cls = 'log-line';
+    if (line.includes('"level":"error"') || line.includes('[ERROR]')) cls += ' log-error';
+    else if (line.includes('"level":"warn"') || line.includes('[WARN]')) cls += ' log-warn';
+    else if (line.includes('✅') || line.includes('✓')) cls += ' log-success';
+    return `<div class="${cls}">${escapeHtml(line)}</div>`;
+}
+
 function appendLog(log) {
     const container = document.getElementById('logsContainer');
     
-    // Remove "no logs" message if present
     const emptyMsg = container.querySelector('.logs-empty');
     if (emptyMsg) emptyMsg.remove();
     
-    // Add new log at top (newest first)
     const logHtml = formatLogLine(log);
     container.insertAdjacentHTML('afterbegin', logHtml);
     
-    // Keep only last 100 logs in DOM
     const lines = container.querySelectorAll('.log-line');
     if (lines.length > 100) {
         lines[lines.length - 1].remove();
     }
 }
 
+function onLogsSearchInput(value) {
+    const clearBtn = document.getElementById('logsSearchClear');
+    clearBtn.style.display = value.trim() ? 'flex' : 'none';
+
+    clearTimeout(logsSearchDebounce);
+    logsSearchDebounce = setTimeout(() => {
+        const q = value.trim();
+        if (q) {
+            execLogsSearch(q);
+        } else {
+            exitLogsSearchMode();
+        }
+    }, 400);
+}
+
+async function execLogsSearch(q) {
+    logsSearchMode = true;
+    const container = document.getElementById('logsContainer');
+    const countEl = document.getElementById('logsSearchCount');
+
+    container.innerHTML = '<div class="logs-loading">...</div>';
+    if (countEl) countEl.textContent = '';
+
+    try {
+        const res = await fetch(`/panel/logs/search?q=${encodeURIComponent(q)}&limit=200`, { credentials: 'include' });
+        const data = await res.json();
+
+        if (!logsSearchMode) return;
+
+        if (data.matches && data.matches.length > 0) {
+            container.innerHTML = data.matches.map(line => formatRawLine(line)).join('');
+            if (countEl) {
+                const shown = data.matches.length;
+                const total = data.total;
+                countEl.textContent = shown < total
+                    ? `${shown} / ${total}`
+                    : `${total}`;
+            }
+        } else {
+            container.innerHTML = '<div class="logs-empty">' + i18n.noLogs + '</div>';
+            if (countEl) countEl.textContent = '0';
+        }
+    } catch (e) {
+        if (logsSearchMode) {
+            container.innerHTML = '<div class="logs-empty">—</div>';
+        }
+    }
+}
+
+function exitLogsSearchMode() {
+    logsSearchMode = false;
+    const countEl = document.getElementById('logsSearchCount');
+    if (countEl) countEl.textContent = '';
+    const container = document.getElementById('logsContainer');
+    container.innerHTML = '<div class="logs-loading">' + i18n.loading + '</div>';
+    if (logsWs) {
+        logsWs.onclose = null;
+        logsWs.close();
+        logsWs = null;
+    }
+    connectLogsWebSocket();
+}
+
+function clearLogsSearch() {
+    const input = document.getElementById('logsSearch');
+    input.value = '';
+    input.focus();
+    onLogsSearchInput('');
+}
+
 function scrollLogsToBottom() {
     if (logsAutoScroll) {
         const container = document.getElementById('logsContainer');
-        container.scrollTop = 0; // Newest are at top
+        container.scrollTop = 0;
     }
 }
 

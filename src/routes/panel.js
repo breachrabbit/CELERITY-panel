@@ -1258,6 +1258,54 @@ router.get('/logs', requireAuth, async (req, res) => {
     }
 });
 
+// GET /panel/logs/search - Поиск по всем лог-файлам
+router.get('/logs/search', requireAuth, async (req, res) => {
+    try {
+        const q = (req.query.q || '').trim();
+        const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+
+        if (!q) {
+            return res.json({ matches: [], total: 0 });
+        }
+
+        const logsDir = path.join(__dirname, '../../logs');
+        if (!fs.existsSync(logsDir)) {
+            return res.json({ matches: [], total: 0 });
+        }
+
+        const files = fs.readdirSync(logsDir)
+            .filter(f => f.startsWith('combined') && f.endsWith('.log'))
+            .map(f => ({
+                name: f,
+                path: path.join(logsDir, f),
+                mtime: fs.statSync(path.join(logsDir, f)).mtime
+            }))
+            .sort((a, b) => b.mtime - a.mtime);
+
+        const qLower = q.toLowerCase();
+        const matches = [];
+        let total = 0;
+
+        for (const file of files) {
+            const content = fs.readFileSync(file.path, 'utf8');
+            const lines = content.split('\n').filter(Boolean).reverse();
+            for (const line of lines) {
+                if (line.toLowerCase().includes(qLower)) {
+                    total++;
+                    if (matches.length < limit) {
+                        matches.push(line);
+                    }
+                }
+            }
+        }
+
+        res.json({ matches, total });
+    } catch (error) {
+        logger.error(`[Panel] Logs search error: ${error.message}`);
+        res.json({ matches: [], total: 0, error: error.message });
+    }
+});
+
 // POST /panel/backup - Backup MongoDB и скачать
 router.post('/backup', requireAuth, async (req, res) => {
     try {

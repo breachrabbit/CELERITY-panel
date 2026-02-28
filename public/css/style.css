@@ -1047,6 +1047,7 @@ html {
 .logs-container {
     max-height: 300px;
     overflow-y: auto;
+    overflow-x: hidden;
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     background: var(--bg-primary);
@@ -1056,15 +1057,13 @@ html {
     padding: 8px 16px;
     border-bottom: 1px solid var(--border);
     color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: anywhere;
 }
 
 .log-line:hover {
     background: var(--bg-tertiary);
-    white-space: normal;
-    word-break: break-all;
 }
 
 .log-error { color: var(--danger); }
@@ -1075,6 +1074,61 @@ html {
     padding: 40px;
     text-align: center;
     color: var(--text-muted);
+}
+
+/* Logs search */
+.logs-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.logs-search-input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 6px);
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 4px 28px 4px 10px;
+    width: 160px;
+    outline: none;
+    transition: border-color 0.2s, width 0.2s;
+}
+
+.logs-search-input:focus {
+    border-color: var(--primary);
+    width: 220px;
+}
+
+.logs-search-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    margin-right: 2px;
+    min-width: 24px;
+    text-align: right;
+}
+
+.logs-search-clear {
+    position: absolute;
+    right: 6px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    transition: color 0.15s;
+}
+
+.logs-search-clear:hover {
+    color: var(--text-primary);
 }
 
 /* Pagination */
