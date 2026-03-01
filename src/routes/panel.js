@@ -847,24 +847,14 @@ router.post('/users/:userId', requireAuth, async (req, res) => {
             const parsedExpireAt = new Date(expireAtRaw);
 
             if (Number.isNaN(parsedExpireAt.getTime())) {
+                draftUser.expireAt = null;
                 return render(res, 'user-form', {
-                    title: `Редактирование ${req.params.userId}`,
+                    title: res.locals.t('users.editUser') + ' ' + req.params.userId,
                     page: 'users',
                     groups: availableGroups,
                     user: draftUser,
                     isEdit: true,
-                    error: 'Некорректный формат даты/времени окончания',
-                });
-            }
-
-            if (parsedExpireAt.getTime() < Date.now()) {
-                return render(res, 'user-form', {
-                    title: `Редактирование ${req.params.userId}`,
-                    page: 'users',
-                    groups: availableGroups,
-                    user: draftUser,
-                    isEdit: true,
-                    error: 'Дата/время окончания не может быть в прошлом',
+                    error: res.locals.t('users.expireAtInvalidError'),
                 });
             }
 
@@ -895,6 +885,8 @@ router.post('/users/:userId', requireAuth, async (req, res) => {
         }
         await cache.clearDeviceIPs(req.params.userId);
         await cache.invalidateDashboardCounts();
+
+        webhookService.emit(webhookService.EVENTS.USER_UPDATED, { userId: req.params.userId, updates });
 
         res.redirect(`/panel/users/${req.params.userId}`);
     } catch (error) {

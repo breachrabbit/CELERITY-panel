@@ -255,15 +255,15 @@ function getSortIcon(field) {
 %>
 
 <script>
-const baseUrl = <%- JSON.stringify(baseUrl) %>;
-const currentSortBy = <%- JSON.stringify(query.sortBy || "createdAt") %>;
-const currentSortOrder = <%- JSON.stringify(query.sortOrder || "desc") %>;
+const baseUrl = <%= JSON.stringify(baseUrl) %>;
+const currentSortBy = <%= JSON.stringify(String(query.sortBy || "createdAt").replace(/[<>]/g, "")) %>;
+const currentSortOrder = <%= JSON.stringify(String(query.sortOrder || "desc").replace(/[<>]/g, "")) %>;
 const i18n = {
-    turnedOn: <%- JSON.stringify(t("users.turnedOn")) %>,
-    turnedOff: <%- JSON.stringify(t("users.turnedOff")) %>,
-    error: <%- JSON.stringify(t("common.error")) %>,
-    linkCopied: <%- JSON.stringify(t("users.linkCopied")) %>,
-    copyError: <%- JSON.stringify(t("users.copyError")) %>
+    turnedOn: <%= JSON.stringify(t("users.turnedOn")) %>,
+    turnedOff: <%= JSON.stringify(t("users.turnedOff")) %>,
+    error: <%= JSON.stringify(t("common.error")) %>,
+    linkCopied: <%= JSON.stringify(t("users.linkCopied")) %>,
+    copyError: <%= JSON.stringify(t("users.copyError")) %>
 };
 
 // Debounced search

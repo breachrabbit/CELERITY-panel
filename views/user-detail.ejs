@@ -103,14 +103,16 @@
             </div>
             <div class="card-body">
                 <div class="actions-list">
-                    <% if (user.enabled) { %>
-                    <button class="btn btn-warning btn-block" onclick="toggleUser(false)">
-                        <%= t('users.disableUser') %>
-                    </button>
-                    <% } else { %>
-                    <button class="btn btn-success btn-block" onclick="toggleUser(true)">
-                        <%= t('users.enableUser') %>
-                    </button>
+                    <% if (!isExpired) { %>
+                        <% if (user.enabled) { %>
+                        <button class="btn btn-warning btn-block" onclick="toggleUser(false)">
+                            <%= t('users.disableUser') %>
+                        </button>
+                        <% } else { %>
+                        <button class="btn btn-success btn-block" onclick="toggleUser(true)">
+                            <%= t('users.enableUser') %>
+                        </button>
+                        <% } %>
                     <% } %>
                     
                     <a href="/panel/users/<%= user.userId %>/edit" class="btn btn-primary btn-block">

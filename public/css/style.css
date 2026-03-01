@@ -2195,6 +2195,12 @@ html {
     background: var(--accent);
 }
 
+.radio-group {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
 .form-group .datetime-input {
     color-scheme: dark;
     padding-right: 44px;

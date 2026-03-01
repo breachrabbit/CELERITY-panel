@@ -7,10 +7,7 @@ const selectedGroupIds = new Set(
 const trafficLimitGB = isEditMode ? Math.round((user.trafficLimit || 0) / (1024 * 1024 * 1024)) : 0;
 const maxDevicesValue = isEditMode ? (parseInt(user.maxDevices, 10) || 0) : 0;
 const hasExpireAt = isEditMode && user.expireAt;
-const expireAtDate = hasExpireAt ? new Date(user.expireAt) : null;
-const expireAtLocalValue = expireAtDate && !Number.isNaN(expireAtDate.getTime())
-    ? new Date(expireAtDate.getTime() - (expireAtDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16)
-    : '';
+const expireAtIso = hasExpireAt ? new Date(user.expireAt).toISOString() : '';
 %>
 <div class="page-header">
     <a href="/panel/users" class="btn btn-back"><%= t('common.backToList') %></a>
@@ -93,11 +90,11 @@ const expireAtLocalValue = expireAtDate && !Number.isNaN(expireAtDate.getTime())
 
             <div class="form-group" id="expireDatetimeGroup" style="display: <%= hasExpireAt ? 'block' : 'none' %>;">
                 <label for="expireAtLocal"><%= t('users.expireAtLabel') %></label>
-                <input type="datetime-local" id="expireAtLocal" name="expireAtLocal" class="datetime-input" value="<%= expireAtLocalValue %>">
+                <input type="datetime-local" id="expireAtLocal" name="expireAtLocal" class="datetime-input" data-utc="<%= expireAtIso %>">
                 <small><%= t('users.expireAtHint') %></small>
             </div>
 
-            <input type="hidden" id="expireAt" name="expireAt" value="<%= hasExpireAt ? new Date(user.expireAt).toISOString() : '' %>">
+            <input type="hidden" id="expireAt" name="expireAt" value="<%= expireAtIso %>">
             
             <div class="form-group">
                 <label class="checkbox-label">
@@ -123,14 +120,28 @@ const expireAtLocalValue = expireAtDate && !Number.isNaN(expireAtDate.getTime())
             const expireAtInput = document.getElementById('expireAt');
             const form = document.getElementById('userForm');
 
-            function updateExpireMode() {
+            function utcToLocal(isoString) {
+                if (!isoString) return '';
+                const d = new Date(isoString);
+                if (Number.isNaN(d.getTime())) return '';
+                const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+                return local.toISOString().slice(0, 16);
+            }
+
+            function initExpireAtLocal() {
+                const utc = expireAtLocalInput.dataset.utc;
+                if (utc) {
+                    expireAtLocalInput.value = utcToLocal(utc);
+                }
+            }
+
+            function updateExpireMode(skipInit) {
                 const selectedMode = document.querySelector('input[name="expireMode"]:checked').value;
 
                 if (selectedMode === 'datetime') {
                     expireDaysGroup.style.display = 'none';
                     expireDatetimeGroup.style.display = 'block';
                     expireDaysInput.value = '';
-                    syncExpireAt();
                 } else {
                     expireDaysGroup.style.display = 'block';
                     expireDatetimeGroup.style.display = 'none';
@@ -155,7 +166,7 @@ const expireAtLocalValue = expireAtDate && !Number.isNaN(expireAtDate.getTime())
             }
 
             expireModeInputs.forEach((input) => {
-                input.addEventListener('change', updateExpireMode);
+                input.addEventListener('change', () => updateExpireMode());
             });
 
             expireAtLocalInput.addEventListener('change', syncExpireAt);
@@ -174,6 +185,7 @@ const expireAtLocalValue = expireAtDate && !Number.isNaN(expireAtDate.getTime())
                 syncExpireAt();
             });
 
+            initExpireAtLocal();
             updateExpireMode();
         })();
     </script>
