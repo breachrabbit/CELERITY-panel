@@ -7,8 +7,9 @@
         <div class="card">
             <div class="card-header">
                 <h2><%= t('users.user') %> <%= user.userId %></h2>
-                <span class="badge badge-<%= user.enabled ? 'success' : 'secondary' %> badge-lg">
-                    <%= user.enabled ? t('common.active') : t('common.inactive') %>
+                <% const isExpired = user.expireAt && new Date(user.expireAt).getTime() < Date.now(); %>
+                <span class="badge badge-<%= isExpired ? 'danger' : (user.enabled ? 'success' : 'secondary') %> badge-lg">
+                    <%= isExpired ? t('common.expired') : (user.enabled ? t('common.active') : t('common.inactive')) %>
                 </span>
             </div>
             <div class="card-body">
@@ -74,7 +75,7 @@
                     </div>
                     <div class="detail-item">
                         <label><%= t('users.expires') %></label>
-                        <span class="value"><%= user.expireAt ? new Date(user.expireAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'ru-RU') : t('users.forever') %></span>
+                        <span class="value"><%= user.expireAt ? new Date(user.expireAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : t('users.forever') %></span>
                     </div>
                 </div>
                 
@@ -111,6 +112,10 @@
                         <%= t('users.enableUser') %>
                     </button>
                     <% } %>
+                    
+                    <a href="/panel/users/<%= user.userId %>/edit" class="btn btn-primary btn-block">
+                        <%= t('users.editUser') %>
+                    </a>
                     
                     <button class="btn btn-block" onclick="copySubscription()">
                         📋 <%= t('users.copySubscription') %>

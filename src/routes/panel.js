@@ -716,10 +716,35 @@ router.get('/users/add', requireAuth, async (req, res) => {
     });
 });
 
+// GET /panel/users/:userId/edit - Форма редактирования пользователя
+router.get('/users/:userId/edit', requireAuth, async (req, res) => {
+    try {
+        const [user, groups] = await Promise.all([
+            HyUser.findOne({ userId: req.params.userId }).populate('groups', 'name color'),
+            getActiveGroups(),
+        ]);
+
+        if (!user) {
+            return res.redirect('/panel/users');
+        }
+
+        render(res, 'user-form', {
+            title: `Редактирование ${user.userId}`,
+            page: 'users',
+            groups,
+            user,
+            isEdit: true,
+            error: null,
+        });
+    } catch (error) {
+        res.status(500).send('Ошибка: ' + error.message);
+    }
+});
+
 // POST /panel/users - Создание пользователя
 router.post('/users', requireAuth, async (req, res) => {
     try {
-        const { userId, username, trafficLimitGB, expireDays, enabled, maxDevices } = req.body;
+        const { userId, username, trafficLimitGB, expireDays, expireAt: expireAtRaw, enabled, maxDevices } = req.body;
         
         if (!userId) {
             return res.status(400).send('userId обязателен');
@@ -742,7 +767,21 @@ router.post('/users', requireAuth, async (req, res) => {
         
         // Expire
         let expireAt = null;
-        if (expireDays && parseInt(expireDays) > 0) {
+        const hasExpireAt = typeof expireAtRaw === 'string' && expireAtRaw.trim() !== '';
+
+        if (hasExpireAt) {
+            const parsedExpireAt = new Date(expireAtRaw);
+
+            if (Number.isNaN(parsedExpireAt.getTime())) {
+                return res.status(400).send('Некорректный формат даты/времени окончания');
+            }
+
+            if (parsedExpireAt.getTime() < Date.now()) {
+                return res.status(400).send('Дата/время окончания не может быть в прошлом');
+            }
+
+            expireAt = parsedExpireAt;
+        } else if (expireDays && parseInt(expireDays) > 0) {
             expireAt = new Date();
             expireAt.setDate(expireAt.getDate() + parseInt(expireDays));
         }
@@ -766,6 +805,98 @@ router.post('/users', requireAuth, async (req, res) => {
         });
         
         res.redirect(`/panel/users/${userId}`);
+    } catch (error) {
+        res.status(500).send('Ошибка: ' + error.message);
+    }
+});
+
+// POST /panel/users/:userId - Обновление пользователя
+router.post('/users/:userId', requireAuth, async (req, res) => {
+    try {
+        const { username, trafficLimitGB, expireDays, expireAt: expireAtRaw, enabled, maxDevices } = req.body;
+        const [user, availableGroups] = await Promise.all([
+            HyUser.findOne({ userId: req.params.userId }),
+            getActiveGroups(),
+        ]);
+
+        if (!user) {
+            return res.redirect('/panel/users');
+        }
+
+        let groups = [];
+        if (req.body.groups) {
+            groups = Array.isArray(req.body.groups) ? req.body.groups : [req.body.groups];
+        }
+
+        const trafficLimit = (parseInt(trafficLimitGB, 10) || 0) * 1024 * 1024 * 1024;
+        const userMaxDevices = parseInt(maxDevices, 10) || 0;
+        const draftUser = {
+            ...user.toObject(),
+            username: username || '',
+            groups,
+            enabled: enabled === 'on',
+            trafficLimit,
+            maxDevices: userMaxDevices,
+            expireAt: expireAtRaw,
+        };
+
+        let expireAt = null;
+        const hasExpireAt = typeof expireAtRaw === 'string' && expireAtRaw.trim() !== '';
+
+        if (hasExpireAt) {
+            const parsedExpireAt = new Date(expireAtRaw);
+
+            if (Number.isNaN(parsedExpireAt.getTime())) {
+                return render(res, 'user-form', {
+                    title: `Редактирование ${req.params.userId}`,
+                    page: 'users',
+                    groups: availableGroups,
+                    user: draftUser,
+                    isEdit: true,
+                    error: 'Некорректный формат даты/времени окончания',
+                });
+            }
+
+            if (parsedExpireAt.getTime() < Date.now()) {
+                return render(res, 'user-form', {
+                    title: `Редактирование ${req.params.userId}`,
+                    page: 'users',
+                    groups: availableGroups,
+                    user: draftUser,
+                    isEdit: true,
+                    error: 'Дата/время окончания не может быть в прошлом',
+                });
+            }
+
+            expireAt = parsedExpireAt;
+            draftUser.expireAt = parsedExpireAt;
+        } else if (expireDays && parseInt(expireDays, 10) > 0) {
+            expireAt = new Date();
+            expireAt.setDate(expireAt.getDate() + parseInt(expireDays, 10));
+            draftUser.expireAt = expireAt;
+        } else {
+            draftUser.expireAt = null;
+        }
+
+        const updates = {
+            enabled: enabled === 'on',
+            username: username || '',
+            groups,
+            trafficLimit,
+            expireAt,
+            maxDevices: userMaxDevices,
+        };
+
+        await HyUser.findOneAndUpdate({ userId: req.params.userId }, { $set: updates });
+
+        await cache.invalidateUser(req.params.userId);
+        if (user.subscriptionToken) {
+            await cache.invalidateSubscription(user.subscriptionToken);
+        }
+        await cache.clearDeviceIPs(req.params.userId);
+        await cache.invalidateDashboardCounts();
+
+        res.redirect(`/panel/users/${req.params.userId}`);
     } catch (error) {
         res.status(500).send('Ошибка: ' + error.message);
     }
@@ -1808,4 +1939,3 @@ router.post('/settings/test-webhook', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
-

@@ -2194,3 +2194,29 @@ html {
     color: var(--text-primary);
     background: var(--accent);
 }
+
+.form-group .datetime-input {
+    color-scheme: dark;
+    padding-right: 44px;
+}
+
+.form-group .datetime-input::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    padding: 4px;
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    filter: invert(94%) sepia(7%) saturate(154%) hue-rotate(192deg) brightness(91%) contrast(96%);
+    transition: all var(--transition);
+}
+
+.form-group .datetime-input::-webkit-calendar-picker-indicator:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--accent);
+}
+
+.form-group .datetime-input::-webkit-calendar-picker-indicator:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}

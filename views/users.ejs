@@ -58,7 +58,9 @@
                     </td>
                 </tr>
                 <% } %>
-                <% users.forEach(user => { %>
+                <% users.forEach(user => {
+                    const isExpired = user.expireAt && new Date(user.expireAt).getTime() < Date.now();
+                %>
                 <tr class="user-row" data-userid="<%= user.userId %>">
                     <td class="td-user">
                         <div class="user-info">
@@ -69,11 +71,15 @@
                         </div>
                     </td>
                     <td class="td-status">
+                        <% if (isExpired) { %>
+                            <span class="badge badge-danger"><%= t('common.expired') %></span>
+                        <% } else { %>
                         <label class="toggle-switch" title="<%= user.enabled ? t('users.disable') : t('users.enable') %>">
                             <input type="checkbox" <%= user.enabled ? 'checked' : '' %> 
                                    onchange="toggleUser('<%= user.userId %>', this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
+                        <% } %>
                     </td>
                     <td class="td-groups">
                         <% if (user.groups && user.groups.length > 0) { %>
@@ -135,6 +141,7 @@
             const used = ((user.traffic?.tx || 0) + (user.traffic?.rx || 0)) / (1024*1024*1024);
             const limit = user.trafficLimit ? user.trafficLimit / (1024*1024*1024) : 0;
             const percent = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+            const isExpired = user.expireAt && new Date(user.expireAt).getTime() < Date.now();
         %>
             <div class="mobile-user-card" data-userid="<%= user.userId %>">
                 <div class="mobile-node-header">
@@ -144,11 +151,15 @@
                             <code style="font-size: 11px; color: var(--text-muted);"><%= user.username %></code>
                         <% } %>
                     </div>
+                    <% if (isExpired) { %>
+                        <span class="badge badge-danger"><%= t('common.expired') %></span>
+                    <% } else { %>
                     <label class="toggle-switch" title="<%= user.enabled ? t('users.disable') : t('users.enable') %>">
                         <input type="checkbox" <%= user.enabled ? 'checked' : '' %> 
                                onchange="toggleUser('<%= user.userId %>', this.checked)">
                         <span class="toggle-slider"></span>
                     </label>
+                    <% } %>
                 </div>
                 
                 <div class="mobile-node-stats">

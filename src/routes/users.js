@@ -194,7 +194,7 @@ router.post('/', requireScope('users:write'), async (req, res) => {
  */
 router.put('/:userId', requireScope('users:write'), async (req, res) => {
     try {
-        const { enabled, groups, trafficLimit, username, expireAt } = req.body;
+        const { enabled, groups, trafficLimit, username, expireAt, maxDevices } = req.body;
         
         const user = await HyUser.findOne({ userId: req.params.userId });
         if (!user) {
@@ -221,6 +221,10 @@ router.put('/:userId', requireScope('users:write'), async (req, res) => {
         
         if (groups !== undefined) {
             updates.groups = groups;
+        }
+
+        if (maxDevices !== undefined) {
+            updates.maxDevices = maxDevices;
         }
         
         const updatedUser = await HyUser.findOneAndUpdate(
