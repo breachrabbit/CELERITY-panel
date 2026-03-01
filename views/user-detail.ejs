@@ -113,6 +113,10 @@
                     </button>
                     <% } %>
                     
+                    <a href="/panel/users/<%= user.userId %>/edit" class="btn btn-primary btn-block">
+                        <%= t('users.editUser') %>
+                    </a>
+                    
                     <button class="btn btn-block" onclick="copySubscription()">
                         📋 <%= t('users.copySubscription') %>
                     </button>
