@@ -312,19 +312,10 @@ class CascadeService {
             active: true,
         });
 
-        logger.info(`[Cascade] Portal ${portalNode.name} (${portalNode._id}): found ${portalLinks.length} active link(s)`);
-        if (portalLinks.length > 0) {
-            logger.info(`[Cascade] Links: ${portalLinks.map(l => `${l.name} (${l._id})`).join(', ')}`);
-        }
-
         const inboundTag = portalNode.xray?.inboundTag || 'vless-in';
         configGenerator.applyReversePortal(config, portalLinks, inboundTag);
 
         const finalConfig = JSON.stringify(config, null, 2);
-        
-        logger.info(`[Cascade] Portal config has reverse.portals: ${!!(config.reverse?.portals?.length)}`);
-        logger.info(`[Cascade] Portal config inbounds count: ${config.inbounds?.length}`);
-        logger.info(`[Cascade] Portal config routing rules count: ${config.routing?.rules?.length}`);
 
         if (portalNode.ssh?.password || portalNode.ssh?.privateKey) {
             const ssh = new NodeSSH(portalNode);
@@ -366,14 +357,29 @@ class CascadeService {
     }
 
     /**
-     * Generate and upload the Bridge config, create systemd service, and start it.
+     * Generate and upload the Bridge/Relay config, create systemd service, and start it.
+     * Detects if bridgeNode is also a portal (relay) and generates appropriate config.
      */
     async _deployBridgeConfig(link, bridgeNode, portalNode) {
         if (!bridgeNode.ssh?.password && !bridgeNode.ssh?.privateKey) {
             throw new Error(`Bridge node ${bridgeNode.name} has no SSH credentials`);
         }
 
-        const bridgeConfig = configGenerator.generateBridgeConfig(link, portalNode);
+        // Check if this bridgeNode is also a portal for other links (i.e., it's a relay)
+        const downstreamLinks = await CascadeLink.find({
+            portalNode: bridgeNode._id,
+            active: true,
+        });
+        const isRelay = downstreamLinks.length > 0;
+
+        let bridgeConfig;
+        if (isRelay) {
+            logger.info(`[Cascade] Node ${bridgeNode.name} is a RELAY (${downstreamLinks.length} downstream link(s))`);
+            bridgeConfig = configGenerator.generateRelayConfig(link, portalNode, downstreamLinks);
+        } else {
+            bridgeConfig = configGenerator.generateBridgeConfig(link, portalNode);
+        }
+
         const serviceUnit = configGenerator.generateBridgeSystemdService();
 
         const ssh = new NodeSSH(bridgeNode);
@@ -405,7 +411,7 @@ class CascadeService {
                 throw new Error(`Bridge service not active. Logs: ${(logs.stdout || logs.stderr || '').slice(0, 500)}`);
             }
 
-            logger.info(`[Cascade] Bridge config deployed to ${bridgeNode.name}`);
+            logger.info(`[Cascade] ${isRelay ? 'Relay' : 'Bridge'} config deployed to ${bridgeNode.name}`);
         } finally {
             ssh.disconnect();
         }

@@ -310,6 +310,80 @@
             </form>
         </div>
     </div>
+
+    <!-- Quick Link Modal (opened by drag-to-create on map) -->
+    <div class="modal-overlay" id="quickLinkModal">
+        <div class="modal-card modal-card-sm">
+            <div class="modal-header">
+                <h3><i class="ti ti-link"></i> <span id="quickLinkTitle"></span></h3>
+                <button class="modal-close" id="quickModalClose"><i class="ti ti-x"></i></button>
+            </div>
+            <form id="quickLinkForm" class="modal-body">
+                <input type="hidden" id="quickPortalId">
+                <input type="hidden" id="quickBridgeId">
+                <div class="quick-link-nodes">
+                    <div class="quick-node portal">
+                        <div class="quick-node-label"><%= t('network.quickLinkPortal') %></div>
+                        <div class="quick-node-name" id="quickPortalName"></div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-icon" id="quickSwapBtn" title="<%= t('network.swapNodes') %>">
+                        <i class="ti ti-arrows-exchange"></i>
+                    </button>
+                    <div class="quick-node bridge">
+                        <div class="quick-node-label"><%= t('network.quickLinkBridge') %></div>
+                        <div class="quick-node-name" id="quickBridgeName"></div>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:14px">
+                    <label><%= t('network.linkName') %></label>
+                    <input type="text" id="quickLinkName" class="form-input" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><%= t('network.tunnelPort') %></label>
+                        <input type="number" id="quickTunnelPort" class="form-input" value="10086" min="1" max="65535">
+                    </div>
+                    <div class="form-group">
+                        <label><%= t('network.tunnelProtocol') %></label>
+                        <select id="quickTunnelProtocol" class="form-input">
+                            <option value="vless">VLESS</option>
+                            <option value="vmess">VMess</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" id="quickModalCancel"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary" id="quickLinkSubmit">
+                        <i class="ti ti-plus"></i> <%= t('network.createLink') %>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reconnect Modal (change bridge/portal of an existing link) -->
+    <div class="modal-overlay" id="reconnectModal">
+        <div class="modal-card modal-card-sm">
+            <div class="modal-header">
+                <h3><i class="ti ti-arrows-exchange"></i> <span id="reconnectModalTitle"></span></h3>
+                <button class="modal-close" id="reconnectModalClose"><i class="ti ti-x"></i></button>
+            </div>
+            <div class="modal-body" id="reconnectModalBody">
+                <input type="hidden" id="reconnectLinkId">
+                <input type="hidden" id="reconnectMode">
+                <div class="form-group">
+                    <label id="reconnectNodeLabel"></label>
+                    <select id="reconnectNodeSelect" class="form-input"></select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" id="reconnectModalCancel"><%= t('common.cancel') %></button>
+                    <button type="button" class="btn btn-primary" id="reconnectModalSubmit">
+                        <i class="ti ti-check"></i> <%= t('common.save') %>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div><!-- /viewNetwork -->
 
 <div id="toast" class="toast"></div>
@@ -589,19 +663,27 @@ window._networkI18n = {
     drawerProtocolTransport: <%- JSON.stringify(t('network.drawerProtocolTransport')) %>,
     drawerLatency: <%- JSON.stringify(t('network.drawerLatency')) %>,
     confirmDeploy: <%- JSON.stringify(t('network.confirmDeploy')) %>,
-    confirmUndeploy: <%- JSON.stringify(t('network.confirmUndeploy')) %>,
     confirmDeleteLink: <%- JSON.stringify(t('network.confirmDeleteLink')) %>,
     deploying: <%- JSON.stringify(t('network.deploying')) %>,
-    undeploying: <%- JSON.stringify(t('network.undeploying')) %>,
     deleting: <%- JSON.stringify(t('network.deleting')) %>,
+    reconnecting: <%- JSON.stringify(t('network.reconnecting')) %>,
     deploySuccess: <%- JSON.stringify(t('network.deploySuccess')) %>,
-    undeploySuccess: <%- JSON.stringify(t('network.undeploySuccess')) %>,
     deleteSuccess: <%- JSON.stringify(t('network.deleteSuccess')) %>,
+    reconnectSuccess: <%- JSON.stringify(t('network.reconnectSuccess')) %>,
+    reconnectFailed: <%- JSON.stringify(t('network.reconnectFailed')) %>,
     deployFailed: <%- JSON.stringify(t('network.deployFailed')) %>,
     networkError: <%- JSON.stringify(t('network.networkError')) %>,
     deploy: <%- JSON.stringify(t('network.deploy')) %>,
-    undeploy: <%- JSON.stringify(t('network.undeploy')) %>,
     delete: <%- JSON.stringify(t('common.delete')) %>,
+    changeBridge: <%- JSON.stringify(t('network.changeBridge')) %>,
+    changePortal: <%- JSON.stringify(t('network.changePortal')) %>,
+    reconnectModal: <%- JSON.stringify(t('network.reconnectModal')) %>,
+    newBridgeNode: <%- JSON.stringify(t('network.newBridgeNode')) %>,
+    newPortalNode: <%- JSON.stringify(t('network.newPortalNode')) %>,
+    quickLinkTitle: <%- JSON.stringify(t('network.quickLinkTitle')) %>,
+    quickLinkPortal: <%- JSON.stringify(t('network.quickLinkPortal')) %>,
+    quickLinkBridge: <%- JSON.stringify(t('network.quickLinkBridge')) %>,
+    swapNodes: <%- JSON.stringify(t('network.swapNodes')) %>,
     rolePortal: <%- JSON.stringify(t('network.rolePortal')) %>,
     roleBridge: <%- JSON.stringify(t('network.roleBridge')) %>,
     roleRelay: <%- JSON.stringify(t('network.roleRelay')) %>,
@@ -613,6 +695,7 @@ function loadNetworkScripts() {
         'https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.4/cytoscape.min.js',
         'https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js',
         'https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js',
+        'https://cdn.jsdelivr.net/npm/cytoscape-edgehandles@4.0.1/cytoscape-edgehandles.min.js',
         '/js/network.js'
     ];
 

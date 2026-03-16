@@ -137,7 +137,7 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
 });
 
 /**
- * PUT /cascade/links/:id — update a cascade link
+ * PUT /cascade/links/:id — update link settings (non-topology fields)
  */
 router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
     try {
@@ -148,7 +148,7 @@ router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
         const allowedFields = [
             'name', 'tunnelPort', 'tunnelDomain', 'tunnelProtocol',
             'tunnelSecurity', 'tunnelTransport', 'tunnelUuid',
-            'tcpFastOpen', 'tcpKeepAlive', 'tcpNoDelay', 'active',
+            'tcpFastOpen', 'tcpKeepAlive', 'tcpNoDelay', 'active', 'priority',
         ];
 
         const updates = {};
@@ -166,6 +166,14 @@ router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
             updates.tunnelPort = port;
         }
 
+        // Geo-routing settings
+        if (req.body.geoRouting !== undefined) {
+            const gr = req.body.geoRouting;
+            updates['geoRouting.enabled'] = !!gr.enabled;
+            if (Array.isArray(gr.domains)) updates['geoRouting.domains'] = gr.domains.map(String);
+            if (Array.isArray(gr.geoip))   updates['geoRouting.geoip']   = gr.geoip.map(String);
+        }
+
         const link = await CascadeLink.findByIdAndUpdate(
             req.params.id,
             { $set: updates },
@@ -179,6 +187,70 @@ router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
         res.json(link);
     } catch (error) {
         logger.error(`[Cascade API] Update error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * PATCH /cascade/links/:id/reconnect — change portal or bridge node of an existing link.
+ * Undeploys the link first, updates the topology, resets status to pending.
+ */
+router.patch('/links/:id/reconnect', requireScope('nodes:write'), async (req, res) => {
+    try {
+        if (!isValidObjectId(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid link ID' });
+        }
+
+        const { portalNodeId, bridgeNodeId } = req.body;
+        if (!portalNodeId && !bridgeNodeId) {
+            return res.status(400).json({ error: 'portalNodeId or bridgeNodeId is required' });
+        }
+
+        if (portalNodeId && !isValidObjectId(portalNodeId)) {
+            return res.status(400).json({ error: 'Invalid portalNodeId' });
+        }
+        if (bridgeNodeId && !isValidObjectId(bridgeNodeId)) {
+            return res.status(400).json({ error: 'Invalid bridgeNodeId' });
+        }
+
+        const link = await CascadeLink.findById(req.params.id);
+        if (!link) return res.status(404).json({ error: 'Cascade link not found' });
+
+        // Validate new nodes exist
+        const [newPortal, newBridge] = await Promise.all([
+            portalNodeId ? HyNode.findById(portalNodeId) : Promise.resolve(null),
+            bridgeNodeId ? HyNode.findById(bridgeNodeId) : Promise.resolve(null),
+        ]);
+
+        if (portalNodeId && !newPortal) return res.status(404).json({ error: 'Portal node not found' });
+        if (bridgeNodeId && !newBridge) return res.status(404).json({ error: 'Bridge node not found' });
+
+        const effectivePortalId = portalNodeId || String(link.portalNode);
+        const effectiveBridgeId = bridgeNodeId || String(link.bridgeNode);
+        if (effectivePortalId === effectiveBridgeId) {
+            return res.status(400).json({ error: 'Portal and Bridge must be different nodes' });
+        }
+
+        // Undeploy before changing topology
+        if (['deployed', 'online', 'offline'].includes(link.status)) {
+            try { await cascadeService.undeployLink(link); } catch (_) {}
+        }
+
+        const updates = { status: 'pending', lastError: '' };
+        if (portalNodeId) updates.portalNode = portalNodeId;
+        if (bridgeNodeId) updates.bridgeNode = bridgeNodeId;
+
+        const updated = await CascadeLink.findByIdAndUpdate(
+            req.params.id,
+            { $set: updates },
+            { new: true }
+        ).populate('portalNode', 'name ip flag status')
+         .populate('bridgeNode', 'name ip flag status');
+
+        logger.info(`[Cascade API] Reconnected link ${updated.name}`);
+        res.json(updated);
+    } catch (error) {
+        logger.error(`[Cascade API] Reconnect error: ${error.message}`);
         res.status(500).json({ error: error.message });
     }
 });

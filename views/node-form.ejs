@@ -606,15 +606,9 @@
                     </td>
                     <td>
                         <div class="cascade-link-actions">
-                        <% if (['pending', 'offline', 'error'].includes(link.status)) { %>
                         <button class="btn btn-sm btn-success" onclick="cascadeAction('<%= link._id %>', 'deploy', this)">
                             <i class="ti ti-upload"></i> <%= t('network.deploy') %>
                         </button>
-                        <% } else { %>
-                        <button class="btn btn-sm btn-outline" onclick="cascadeAction('<%= link._id %>', 'undeploy', this)">
-                            <i class="ti ti-upload-off"></i> <%= t('network.undeploy') %>
-                        </button>
-                        <% } %>
                         <button class="btn btn-sm btn-danger btn-icon" onclick="cascadeDelete('<%= link._id %>', '<%= link.name.replace(/'/g, "\\'") %>')" title="<%= t('common.delete') %>">
                             <i class="ti ti-trash"></i>
                         </button>

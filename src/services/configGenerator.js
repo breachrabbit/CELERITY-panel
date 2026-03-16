@@ -459,11 +459,7 @@ WantedBy=multi-user.target
  * @param {string} clientInboundTag - Tag of the client-facing inbound (e.g. 'vless-in')
  */
 function applyReversePortal(config, portalLinks, clientInboundTag) {
-    if (!portalLinks || portalLinks.length === 0) {
-        console.log('[applyReversePortal] No portal links, skipping');
-        return;
-    }
-    console.log(`[applyReversePortal] Applying ${portalLinks.length} link(s), clientInboundTag=${clientInboundTag}`);
+    if (!portalLinks || portalLinks.length === 0) return;
 
     config.reverse = config.reverse || {};
     config.reverse.portals = config.reverse.portals || [];
@@ -592,6 +588,117 @@ function generateBridgeConfig(link, portalNode) {
 }
 
 /**
+ * Generate Xray JSON config for a Relay (intermediate hop) node.
+ * The Relay connects upstream to a Portal AND accepts downstream connections from Bridges,
+ * forwarding traffic through the chain instead of releasing to internet.
+ *
+ * @param {Object} upstreamLink - CascadeLink where this node is bridgeNode (connects TO portal)
+ * @param {Object} upstreamPortal - HyNode of the upstream portal
+ * @param {Array} downstreamLinks - CascadeLinks where this node is portalNode (accepts FROM bridges)
+ * @returns {string} JSON string ready to write to config.json
+ */
+function generateRelayConfig(upstreamLink, upstreamPortal, downstreamLinks) {
+    const upDomain = upstreamLink.tunnelDomain || 'reverse.tunnel.internal';
+    const upProtocol = upstreamLink.tunnelProtocol || 'vless';
+    const upLinkId = String(upstreamLink._id).slice(-8);
+
+    const config = {
+        log: { loglevel: 'warning' },
+        reverse: {
+            bridges: [{
+                tag: 'bridge-up',
+                domain: upDomain,
+            }],
+            portals: [],
+        },
+        inbounds: [],
+        outbounds: [
+            {
+                tag: 'tunnel-up',
+                protocol: upProtocol,
+                settings: {
+                    vnext: [{
+                        address: upstreamPortal.ip,
+                        port: upstreamLink.tunnelPort || 10086,
+                        users: [{
+                            id: upstreamLink.tunnelUuid,
+                            encryption: 'none',
+                        }],
+                    }],
+                },
+                streamSettings: buildCascadeTunnelStreamSettings(upstreamLink),
+            },
+            {
+                tag: 'blackhole',
+                protocol: 'blackhole',
+            },
+        ],
+        routing: {
+            domainStrategy: 'IPIfNonMatch',
+            rules: [
+                {
+                    type: 'field',
+                    domain: [`full:${upDomain}`],
+                    outboundTag: 'tunnel-up',
+                },
+                {
+                    type: 'field',
+                    ip: ['geoip:private'],
+                    outboundTag: 'blackhole',
+                },
+            ],
+        },
+    };
+
+    // Add portal entries and inbounds for each downstream link
+    for (const downLink of downstreamLinks) {
+        const downLinkId = String(downLink._id).slice(-8);
+        const downDomain = downLink.tunnelDomain || 'reverse.tunnel.internal';
+        const downProtocol = downLink.tunnelProtocol || 'vless';
+        const portalTag = `portal-down-${downLinkId}`;
+        const connectorTag = `conn-down-${downLinkId}`;
+
+        config.reverse.portals.push({
+            tag: portalTag,
+            domain: downDomain,
+        });
+
+        config.inbounds.push({
+            tag: connectorTag,
+            listen: '0.0.0.0',
+            port: downLink.tunnelPort || 10086,
+            protocol: downProtocol,
+            settings: {
+                clients: [{ id: downLink.tunnelUuid }],
+                decryption: 'none',
+            },
+            streamSettings: buildCascadeTunnelStreamSettings(downLink),
+        });
+
+        // Rule: connector + domain → portal (handshake)
+        config.routing.rules.push({
+            type: 'field',
+            inboundTag: [connectorTag],
+            domain: [`full:${downDomain}`],
+            outboundTag: portalTag,
+        });
+    }
+
+    // KEY: route traffic from upstream bridge to downstream portal(s)
+    // If multiple downstream portals, Xray's built-in mux balancing handles it
+    if (downstreamLinks.length > 0) {
+        const firstPortalTag = `portal-down-${String(downstreamLinks[0]._id).slice(-8)}`;
+        config.routing.rules.push({
+            type: 'field',
+            inboundTag: ['bridge-up'],
+            outboundTag: firstPortalTag,
+        });
+    }
+
+    return JSON.stringify(config, null, 2);
+}
+
+/**
  * Build streamSettings for the cascade tunnel connection between Portal and Bridge.
  * Supports tcp/ws/grpc transports and none/tls security.
  *
@@ -661,6 +768,7 @@ module.exports = {
     generateXraySystemdService,
     applyReversePortal,
     generateBridgeConfig,
+    generateRelayConfig,
     buildCascadeTunnelStreamSettings,
     generateBridgeSystemdService,
 };

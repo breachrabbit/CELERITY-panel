@@ -24,6 +24,16 @@ const cascadeLinkSchema = new mongoose.Schema({
     tcpKeepAlive: { type: Number, default: 100 },
     tcpNoDelay: { type: Boolean, default: true },
 
+    // Geo-routing: route specific domains/IPs through this bridge instead of the default
+    geoRouting: {
+        enabled: { type: Boolean, default: false },
+        domains: [{ type: String }],
+        geoip:   [{ type: String }],
+    },
+
+    // Lower priority value = preferred when multiple bridges are available
+    priority: { type: Number, default: 100 },
+
     active: { type: Boolean, default: true },
     status: {
         type: String,

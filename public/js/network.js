@@ -568,8 +568,6 @@
             '<div class="info-actions">' +
             '<button class="btn btn-sm btn-success" id="btnDeploy" onclick="window._cascadeDeploy(\'' + lid + '\')">' +
             '<i class="ti ti-upload"></i> ' + (i18n.deploy || 'Deploy') + '</button>' +
-            '<button class="btn btn-sm btn-outline" id="btnUndeploy" onclick="window._cascadeUndeploy(\'' + lid + '\')">' +
-            '<i class="ti ti-upload-off"></i> ' + (i18n.undeploy || 'Undeploy') + '</button>' +
             '<button class="btn btn-sm btn-danger" id="btnDelete" onclick="window._cascadeDelete(\'' + lid + '\')">' +
             '<i class="ti ti-trash"></i> ' + (i18n.delete || 'Delete') + '</button>' +
             '</div>';
@@ -687,7 +685,7 @@
     // ==================== CASCADE ACTIONS ====================
 
     function setActionLoading(msg) {
-        ['btnDeploy','btnUndeploy','btnDelete'].forEach(function (id) {
+        ['btnDeploy','btnDelete'].forEach(function (id) {
             const b = document.getElementById(id);
             if (b) b.disabled = true;
         });
@@ -701,7 +699,7 @@
     }
 
     function resetActionLoading() {
-        ['btnDeploy','btnUndeploy','btnDelete'].forEach(function (id) {
+        ['btnDeploy','btnDelete'].forEach(function (id) {
             const b = document.getElementById(id);
             if (b) b.disabled = false;
         });
