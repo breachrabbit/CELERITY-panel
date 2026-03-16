@@ -5,6 +5,7 @@
  * CascadeLink connections (Portal <-> Bridge pairs).
  */
 
+const net = require('net');
 const CascadeLink = require('../models/cascadeLinkModel');
 const HyNode = require('../models/hyNodeModel');
 const configGenerator = require('./configGenerator');
@@ -62,15 +63,20 @@ class CascadeService {
             await this._openFirewallPort(portalNode, link.tunnelPort || 10086);
 
             // Step 4: Verify tunnel (give Bridge time to connect)
+            const tunnelPort = link.tunnelPort || 10086;
             await new Promise(r => setTimeout(r, 3000));
-            const healthy = await this._checkTunnel(portalNode, link.tunnelPort || 10086);
+            const [healthy, latencyMs] = await Promise.all([
+                this._checkTunnel(portalNode, tunnelPort),
+                this._measureTcpLatency(portalNode.ip, tunnelPort),
+            ]);
 
             const newStatus = healthy ? 'online' : 'deployed';
             await CascadeLink.updateOne({ _id: linkId }, {
                 $set: {
-                    status: newStatus,
-                    lastError: '',
+                    status:          newStatus,
+                    lastError:       '',
                     lastHealthCheck: new Date(),
+                    latencyMs:       latencyMs,
                 },
             });
 
@@ -148,23 +154,30 @@ class CascadeService {
         const portalNode = await HyNode.findById(link.portalNode);
         if (!portalNode) return false;
 
+        const tunnelPort = link.tunnelPort || 10086;
+
         try {
-            const healthy = await this._checkTunnel(portalNode, link.tunnelPort || 10086);
+            const [healthy, latencyMs] = await Promise.all([
+                this._checkTunnel(portalNode, tunnelPort),
+                this._measureTcpLatency(portalNode.ip, tunnelPort),
+            ]);
+
             const prevStatus = link.status;
-            const newStatus = healthy ? 'online' : 'offline';
+            const newStatus  = healthy ? 'online' : 'offline';
 
             await CascadeLink.updateOne({ _id: link._id }, {
                 $set: {
-                    status: newStatus,
+                    status:          newStatus,
                     lastHealthCheck: new Date(),
-                    lastError: healthy ? '' : 'No ESTABLISHED tunnel connections',
+                    lastError:       healthy ? '' : 'No ESTABLISHED tunnel connections',
+                    latencyMs:       latencyMs,
                 },
             });
 
             if (prevStatus !== newStatus) {
                 const event = healthy ? 'cascade.online' : 'cascade.offline';
                 webhook.emit(event, { linkId: link._id, name: link.name });
-                logger.info(`[Cascade] Link ${link.name}: ${prevStatus} -> ${newStatus}`);
+                logger.info(`[Cascade] Link ${link.name}: ${prevStatus} -> ${newStatus}, latency=${latencyMs}ms`);
             }
 
             return healthy;
@@ -468,6 +481,38 @@ class CascadeService {
 
     async _invalidateTopologyCache() {
         await cacheDel(TOPOLOGY_CACHE_KEY);
+    }
+
+    /**
+     * Measure TCP handshake latency to host:port.
+     * Returns latency in ms, or null on timeout/error.
+     * @param {string} host
+     * @param {number} port
+     * @param {number} [timeoutMs=3000]
+     * @returns {Promise<number|null>}
+     */
+    async _measureTcpLatency(host, port, timeoutMs = 3000) {
+        return new Promise((resolve) => {
+            const start  = Date.now();
+            const socket = new net.Socket();
+            socket.setTimeout(timeoutMs);
+
+            socket.connect(port, host, function () {
+                const latency = Date.now() - start;
+                socket.destroy();
+                resolve(latency);
+            });
+
+            socket.on('error', function () {
+                socket.destroy();
+                resolve(null);
+            });
+
+            socket.on('timeout', function () {
+                socket.destroy();
+                resolve(null);
+            });
+        });
     }
 }
 

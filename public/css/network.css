@@ -40,28 +40,6 @@
     z-index: 1;
 }
 
-/* Moving scan beam */
-.network-container::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 120px;
-    background: linear-gradient(
-        180deg,
-        transparent 0%,
-        rgba(99, 255, 180, 0.018) 50%,
-        transparent 100%
-    );
-    animation: scanBeam 8s linear infinite;
-    pointer-events: none;
-    z-index: 2;
-}
-
-@keyframes scanBeam {
-    0%   { top: -120px; }
-    100% { top: 100%; }
-}
 
 /* ==================== LEGEND ==================== */
 
