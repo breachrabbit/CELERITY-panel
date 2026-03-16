@@ -1,12 +1,9 @@
 /* Network topology map styles */
 
 .network-page {
-    display: flex;
-    flex-direction: row;
     height: calc(100vh - 160px);
-    position: relative; /* required: drawer uses position:absolute relative to this */
+    position: relative;
     overflow: hidden;
-    gap: 0;
 }
 
 /* Cytoscape container */
@@ -119,76 +116,22 @@
     opacity: 0.7;
 }
 
-/* ==================== DRAWER ==================== */
+/* ==================== NODE INFO MODAL ==================== */
 
-.network-drawer {
-    position: relative; /* stays in flex flow */
-    width: 0;
-    height: 100%;
-    background: var(--card-bg, rgba(20, 20, 35, 0.97));
-    border-left: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-    overflow: hidden;
-    transition: width 0.25s ease;
+.modal-card-sm {
+    width: 360px;
+}
+
+.info-grid {
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;
-    backdrop-filter: blur(12px);
-    z-index: 10;
+    gap: 10px;
+    padding-bottom: 4px;
 }
 
-.network-drawer.open {
-    width: 300px;
-}
+.info-field { }
 
-.drawer-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
-    flex-shrink: 0;
-}
-
-.drawer-header h3 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary, #e2e8f0);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.drawer-close {
-    background: none;
-    border: none;
-    color: var(--text-secondary, #94a3b8);
-    cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 6px;
-    font-size: 16px;
-    line-height: 1;
-    transition: color 0.15s, background 0.15s;
-    flex-shrink: 0;
-    margin-left: 8px;
-}
-
-.drawer-close:hover {
-    color: var(--text-primary, #e2e8f0);
-    background: rgba(255, 255, 255, 0.06);
-}
-
-.drawer-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 14px 16px;
-}
-
-.drawer-field {
-    margin-bottom: 12px;
-}
-
-.drawer-label {
+.info-label {
     display: flex;
     align-items: center;
     gap: 5px;
@@ -196,30 +139,19 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-muted, #64748b);
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
-.drawer-label i {
-    font-size: 12px;
-}
+.info-label i { font-size: 12px; }
 
-.drawer-value {
+.info-value {
     font-size: 13px;
     color: var(--text-primary, #e2e8f0);
     font-family: 'JetBrains Mono', monospace;
     word-break: break-all;
 }
 
-.drawer-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
-}
-
-.drawer-status {
+.info-status {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -229,15 +161,14 @@
     font-weight: 500;
 }
 
-.drawer-status.online  { background: rgba(34, 197, 94, 0.12);  color: #22c55e; }
-.drawer-status.offline { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
-.drawer-status.pending { background: rgba(71, 85, 105, 0.2);   color: #94a3b8; }
-.drawer-status.deployed{ background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
-.drawer-status.error   { background: rgba(239, 68, 68, 0.12);  color: #ef4444; }
-.drawer-status.syncing { background: rgba(234, 179, 8, 0.12);  color: #eab308; }
+.info-status.online  { background: rgba(34, 197, 94, 0.12);  color: #22c55e; }
+.info-status.offline { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+.info-status.pending { background: rgba(71, 85, 105, 0.2);    color: #94a3b8; }
+.info-status.deployed{ background: rgba(59, 130, 246, 0.12);  color: #3b82f6; }
+.info-status.error   { background: rgba(239, 68, 68, 0.12);   color: #ef4444; }
+.info-status.syncing { background: rgba(234, 179, 8, 0.12);   color: #eab308; }
 
-/* Role badge inside status */
-.drawer-role-badge {
+.info-role-badge {
     display: inline-block;
     margin-left: 6px;
     padding: 1px 6px;
@@ -247,12 +178,20 @@
     letter-spacing: 0.5px;
     vertical-align: middle;
 }
-.drawer-role-badge.role-entry  { background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid #6366f1; }
-.drawer-role-badge.role-exit   { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid #f59e0b; }
-.drawer-role-badge.role-relay  { background: rgba(139,92,246,0.2); color: #c4b5fd; border: 1px solid #8b5cf6; }
+.info-role-badge.role-entry  { background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid #6366f1; }
+.info-role-badge.role-exit   { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid #f59e0b; }
+.info-role-badge.role-relay  { background: rgba(139,92,246,0.2); color: #c4b5fd; border: 1px solid #8b5cf6; }
 
-/* Deploy loading indicator in drawer */
-.drawer-loading {
+.info-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+}
+
+.info-loading {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -468,21 +407,7 @@
 
 @media (max-width: 768px) {
     .network-page {
-        flex-direction: column;
         height: calc(100vh - 140px);
-    }
-
-    .network-drawer {
-        width: 100%;
-        height: 0;
-        border-left: none;
-        border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-        transition: height 0.25s ease;
-    }
-
-    .network-drawer.open {
-        width: 100%;
-        height: 260px;
     }
 
     .network-legend {
@@ -492,7 +417,8 @@
         padding: 6px 10px;
     }
 
-    .modal-card {
+    .modal-card,
+    .modal-card-sm {
         width: 96vw;
     }
 

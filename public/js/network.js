@@ -63,7 +63,7 @@
         cy.on('tap', 'node', onNodeTap);
         cy.on('tap', 'edge', onEdgeTap);
         cy.on('tap', function (e) {
-            if (e.target === cy) closeDrawer();
+            if (e.target === cy) closeInfoModal();
         });
         cy.on('dragfree', 'node', onNodeDragEnd);
 
@@ -71,7 +71,10 @@
         document.getElementById('btnFitView').addEventListener('click', function () { cy.fit(50); });
         document.getElementById('btnRefresh').addEventListener('click', loadTopology);
         document.getElementById('btnAddLink').addEventListener('click', openAddLinkModal);
-        document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+        document.getElementById('nodeInfoClose').addEventListener('click', closeInfoModal);
+        document.getElementById('nodeInfoModal').addEventListener('click', function (e) {
+            if (e.target === this) closeInfoModal();
+        });
         document.getElementById('modalClose').addEventListener('click', closeModal);
         document.getElementById('modalCancel').addEventListener('click', closeModal);
         document.getElementById('addLinkForm').addEventListener('submit', onAddLinkSubmit);
@@ -364,90 +367,88 @@
 
     // ==================== INTERACTIONS ====================
 
+    function openInfoModal(title, bodyHtml) {
+        document.getElementById('nodeInfoTitleText').textContent = title;
+        document.getElementById('nodeInfoBody').innerHTML = bodyHtml;
+        document.getElementById('nodeInfoModal').classList.add('active');
+    }
+
+    function closeInfoModal() {
+        document.getElementById('nodeInfoModal').classList.remove('active');
+        cy.elements(':selected').unselect();
+    }
+
     function onNodeTap(evt) {
-        const node = evt.target;
-        const d = node.data();
+        const d = evt.target.data();
         const statusClass = d.status || 'offline';
-        const roleLabel = d.roleLabel ? `<span class="drawer-role-badge role-${d.cascadeRole}">${d.roleLabel}</span>` : '';
+        const roleLabel = d.roleLabel
+            ? '<span class="info-role-badge role-' + d.cascadeRole + '">' + d.roleLabel + '</span>'
+            : '';
 
-        const html = `
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-activity"></i> ${i18n.drawerStatus || 'Status'}</div>
-                <div class="drawer-status ${statusClass}">&#9679; ${d.status || 'unknown'}${roleLabel}</div>
-            </div>
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-network"></i> ${i18n.drawerIP || 'IP'}</div>
-                <div class="drawer-value">${d.ip || '—'}</div>
-            </div>
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-cpu"></i> ${i18n.drawerType || 'Type'}</div>
-                <div class="drawer-value">${d.type || '—'}</div>
-            </div>
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-topology-star-3"></i> ${i18n.drawerRole || 'Role'}</div>
-                <div class="drawer-value">${d.cascadeRole || 'standalone'}</div>
-            </div>
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-users"></i> ${i18n.drawerOnline || 'Online Users'}</div>
-                <div class="drawer-value">${d.onlineUsers || 0}</div>
-            </div>
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-plug"></i> ${i18n.drawerPort || 'Port'}</div>
-                <div class="drawer-value">${d.port || '—'}</div>
-            </div>
-            <div class="drawer-actions">
-                <a href="/panel/nodes/${d.id}" class="btn btn-sm btn-outline"><i class="ti ti-external-link"></i> ${i18n.openNode || 'Open Node'}</a>
-            </div>
-        `;
+        const html =
+            '<div class="info-grid">' +
+            '<div class="info-field"><div class="info-label"><i class="ti ti-activity"></i> ' + (i18n.drawerStatus || 'Status') + '</div>' +
+            '<div class="info-status ' + statusClass + '">\u25CF ' + (d.status || 'unknown') + roleLabel + '</div></div>' +
 
-        document.getElementById('drawerTitle').innerHTML = (d.flag ? d.flag + ' ' : '') + (d.label || '');
-        document.getElementById('drawerBody').innerHTML = html;
-        document.getElementById('nodeDrawer').classList.add('open');
+            '<div class="info-field"><div class="info-label"><i class="ti ti-network"></i> ' + (i18n.drawerIP || 'IP') + '</div>' +
+            '<div class="info-value">' + (d.ip || '—') + '</div></div>' +
+
+            '<div class="info-field"><div class="info-label"><i class="ti ti-cpu"></i> ' + (i18n.drawerType || 'Type') + '</div>' +
+            '<div class="info-value">' + (d.type || '—') + '</div></div>' +
+
+            '<div class="info-field"><div class="info-label"><i class="ti ti-topology-star-3"></i> ' + (i18n.drawerRole || 'Role') + '</div>' +
+            '<div class="info-value">' + (d.cascadeRole || 'standalone') + '</div></div>' +
+
+            '<div class="info-field"><div class="info-label"><i class="ti ti-users"></i> ' + (i18n.drawerOnline || 'Online Users') + '</div>' +
+            '<div class="info-value">' + (d.onlineUsers || 0) + '</div></div>' +
+
+            '<div class="info-field"><div class="info-label"><i class="ti ti-plug"></i> ' + (i18n.drawerPort || 'Port') + '</div>' +
+            '<div class="info-value">' + (d.port || '—') + '</div></div>' +
+            '</div>' +
+
+            '<div class="info-actions">' +
+            '<a href="/panel/nodes/' + d.id + '" class="btn btn-sm btn-outline"><i class="ti ti-external-link"></i> ' + (i18n.openNode || 'Open Node') + '</a>' +
+            '</div>';
+
+        openInfoModal((d.flag ? d.flag + ' ' : '') + (d.label || d.ip || ''), html);
     }
 
     function onEdgeTap(evt) {
-        const edge = evt.target;
-        const d = edge.data();
+        const d = evt.target.data();
         const statusClass = d.status || 'pending';
         const linkId = d.linkId;
 
-        const html = `
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-activity"></i> ${i18n.drawerStatus || 'Status'}</div>
-                <div class="drawer-status ${statusClass}">&#9679; ${d.status || 'pending'}</div>
-            </div>
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-plug"></i> ${i18n.drawerTunnelPort || 'Tunnel Port'}</div>
-                <div class="drawer-value">${d.tunnelPort || '—'}</div>
-            </div>
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-arrows-exchange"></i> ${i18n.drawerProtocolTransport || 'Protocol / Transport'}</div>
-                <div class="drawer-value">${(d.tunnelProtocol || 'vless').toUpperCase()} / ${d.tunnelTransport || 'tcp'}</div>
-            </div>
-            <div class="drawer-field">
-                <div class="drawer-label"><i class="ti ti-clock"></i> ${i18n.drawerLatency || 'Latency'}</div>
-                <div class="drawer-value">${d.latencyMs != null ? d.latencyMs + ' ms' : '—'}</div>
-            </div>
-            <div class="drawer-actions">
-                <button class="btn btn-sm btn-success" id="btnDeploy" onclick="window._cascadeDeploy('${linkId}')">
-                    <i class="ti ti-upload"></i> ${i18n.deploy || 'Deploy'}
-                </button>
-                <button class="btn btn-sm btn-outline" id="btnUndeploy" onclick="window._cascadeUndeploy('${linkId}')">
-                    <i class="ti ti-upload-off"></i> ${i18n.undeploy || 'Undeploy'}
-                </button>
-                <button class="btn btn-sm btn-danger" id="btnDelete" onclick="window._cascadeDelete('${linkId}')">
-                    <i class="ti ti-trash"></i> ${i18n.delete || 'Delete'}
-                </button>
-            </div>
-        `;
+        const html =
+            '<div class="info-grid">' +
+            '<div class="info-field"><div class="info-label"><i class="ti ti-activity"></i> ' + (i18n.drawerStatus || 'Status') + '</div>' +
+            '<div class="info-status ' + statusClass + '">\u25CF ' + (d.status || 'pending') + '</div></div>' +
 
-        document.getElementById('drawerTitle').textContent = d.label || 'Cascade Link';
-        document.getElementById('drawerBody').innerHTML = html;
-        document.getElementById('nodeDrawer').classList.add('open');
+            '<div class="info-field"><div class="info-label"><i class="ti ti-plug"></i> ' + (i18n.drawerTunnelPort || 'Tunnel Port') + '</div>' +
+            '<div class="info-value">' + (d.tunnelPort || '—') + '</div></div>' +
+
+            '<div class="info-field"><div class="info-label"><i class="ti ti-arrows-exchange"></i> ' + (i18n.drawerProtocolTransport || 'Protocol / Transport') + '</div>' +
+            '<div class="info-value">' + (d.tunnelProtocol || 'vless').toUpperCase() + ' / ' + (d.tunnelTransport || 'tcp') + '</div></div>' +
+
+            '<div class="info-field"><div class="info-label"><i class="ti ti-clock"></i> ' + (i18n.drawerLatency || 'Latency') + '</div>' +
+            '<div class="info-value">' + (d.latencyMs != null ? d.latencyMs + ' ms' : '—') + '</div></div>' +
+            '</div>' +
+
+            '<div class="info-actions">' +
+            '<button class="btn btn-sm btn-success" id="btnDeploy" onclick="window._cascadeDeploy(\'' + linkId + '\')">' +
+            '<i class="ti ti-upload"></i> ' + (i18n.deploy || 'Deploy') + '</button>' +
+
+            '<button class="btn btn-sm btn-outline" id="btnUndeploy" onclick="window._cascadeUndeploy(\'' + linkId + '\')">' +
+            '<i class="ti ti-upload-off"></i> ' + (i18n.undeploy || 'Undeploy') + '</button>' +
+
+            '<button class="btn btn-sm btn-danger" id="btnDelete" onclick="window._cascadeDelete(\'' + linkId + '\')">' +
+            '<i class="ti ti-trash"></i> ' + (i18n.delete || 'Delete') + '</button>' +
+            '</div>';
+
+        openInfoModal(d.label || 'Cascade Link', html);
     }
 
-    function closeDrawer() {
-        document.getElementById('nodeDrawer').classList.remove('open');
+    function closeInfoModal() {
+        document.getElementById('nodeInfoModal').classList.remove('active');
         cy.elements(':selected').unselect();
     }
 
@@ -556,13 +557,12 @@
             const btn = document.getElementById(id);
             if (btn) btn.disabled = true;
         });
-        const drawerBody = document.getElementById('drawerBody');
-        const existingLoader = drawerBody && drawerBody.querySelector('.drawer-loading');
-        if (!existingLoader && drawerBody) {
+        const body = document.getElementById('nodeInfoBody');
+        if (body && !body.querySelector('.info-loading')) {
             const loader = document.createElement('div');
-            loader.className = 'drawer-loading';
+            loader.className = 'info-loading';
             loader.innerHTML = '<i class="ti ti-loader-2 spin"></i> ' + msg;
-            drawerBody.appendChild(loader);
+            body.appendChild(loader);
         }
     }
 
@@ -571,7 +571,7 @@
             const btn = document.getElementById(id);
             if (btn) btn.disabled = false;
         });
-        const loader = document.querySelector('.drawer-loading');
+        const loader = document.querySelector('.info-loading');
         if (loader) loader.remove();
     }
 
@@ -588,9 +588,9 @@
             const res = await fetch('/api/cascade/links/' + linkId + '/deploy', { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                showToast(i18n.deploySuccess || 'Deployed');
-                loadTopology();
-                closeDrawer();
+            showToast(i18n.deploySuccess || 'Deployed');
+            loadTopology();
+            closeInfoModal();
             } else {
                 if (edge.length && prevStatus) edge.data('status', prevStatus);
                 showToast((i18n.deployFailed || 'Deploy failed') + ': ' + (data.error || ''), 'error');
@@ -614,7 +614,7 @@
             await fetch('/api/cascade/links/' + linkId + '/undeploy', { method: 'POST' });
             showToast(i18n.undeploySuccess || 'Undeployed');
             loadTopology();
-            closeDrawer();
+            closeInfoModal();
         } catch (err) {
             showToast((i18n.networkError || 'Error') + ': ' + err.message, 'error');
         } finally {
@@ -630,7 +630,7 @@
             await fetch('/api/cascade/links/' + linkId, { method: 'DELETE' });
             showToast(i18n.deleteSuccess || 'Deleted');
             loadTopology();
-            closeDrawer();
+            closeInfoModal();
         } catch (err) {
             showToast((i18n.networkError || 'Error') + ': ' + err.message, 'error');
         } finally {
