@@ -83,6 +83,77 @@ MONGO_PASSWORD=yourmongopassword   # openssl rand -hex 16
 - 💻 **SSH Terminal** — Direct node access from browser
 - 🔑 **API Keys** — Secure external access with scopes, IP allowlist, rate limiting
 - 🪝 **Webhooks** — Real-time event notifications with HMAC-SHA256 signing
+- 🗺 **Network Map** — Visual cascade topology with Forward/Reverse chain routing *(beta)*
+
+---
+
+## ⚠️ Beta Features
+
+### Network Map & Cascade Topology
+
+> **Status:** beta — fully functional, but manual verification after deploy is recommended.
+
+Cascade topology allows building server chains where clients connect to one node while traffic exits through another. This is useful in scenarios where the entry point must reside in a specific network or jurisdiction — for example, when connections must originate from local cloud provider IP ranges.
+
+#### Why Use This
+
+Many corporate and carrier networks apply IP-range filtering. Traffic to well-known local hosting providers may pass unrestricted, while connections to foreign IPs are blocked or throttled. Cascade topology solves this: clients connect to a server in a "trusted" IP range, and traffic is transparently proxied to an external server.
+
+#### Xray Mechanisms Used
+
+The panel generates Xray-core configurations using the following mechanisms:
+
+| Mechanism | Purpose |
+|-----------|---------|
+| **Reverse Proxy** | Xray bridge/portal — allows a server behind NAT to initiate a connection to a public node and receive traffic through it |
+| **Outbound Chaining** | Sequential proxying through multiple outbounds via `proxySettings.tag` |
+| **REALITY** | TLS handshake camouflage to look like a connection to a legitimate site; no domain or certificate required |
+| **Transport Layer Proxy** | `transportLayer: true` mode for correct REALITY application in hop chains |
+
+#### Link Modes
+
+**Reverse Proxy** — classic Xray reverse scheme. The Bridge server (typically abroad) initiates a persistent connection to the Portal server. Clients connect to Portal, traffic exits through Bridge.
+
+```
+Client ──▶ Portal (entry) ◀── tunnel ── Bridge (exit) ──▶ Internet
+                           (bridge initiates connection)
+```
+
+- Portal can be behind NAT or firewall — no incoming connections required
+- Suitable for scenarios where the entry point must be in a specific network
+
+**Forward Chain** — direct outbound chain. Portal establishes connections through relay nodes to the exit Bridge.
+
+```
+Client ──▶ Portal ──▶ Relay (opt.) ──▶ Bridge (exit) ──▶ Internet
+           (chained outbounds)
+```
+
+- All nodes in the chain must have a public IP
+- REALITY is supported on each hop to encrypt inter-server traffic
+
+#### REALITY Between Nodes
+
+Tunnel-REALITY is configured **independently** from the client-facing REALITY on the Portal node. This enables:
+
+- Encrypting inter-server traffic without drawing attention
+- Using different SNI/destination for clients vs. tunnels
+- Auto-generating x25519 keys and shortIds when creating links
+
+#### Post-Deploy Recommendations
+
+1. Check hop statuses on the Network Map
+2. Verify traffic exits through the expected Bridge (check exit IP)
+3. For Forward Chain — confirm each relay is reachable on its `tunnelPort`
+
+#### Limitations
+
+| Constraint | Reason |
+|------------|--------|
+| REALITY + WebSocket | WebSocket doesn't support uTLS fingerprint required by REALITY |
+| Forward Chain without public IP | Each hop must accept incoming connections |
+| Mixed modes in one chain | Reverse and Forward use different Xray mechanisms and cannot be combined |
+| Same port on relay for two hops | A relay that is both bridge and portal requires different ports for incoming and outgoing tunnels |
 
 ---
 

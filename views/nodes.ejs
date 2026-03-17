@@ -7,6 +7,7 @@
             </button>
             <button class="view-tab" id="tabNetwork" onclick="switchNodesView('network')">
                 <i class="ti ti-topology-star-3"></i> <%= t('network.title') %>
+                <span class="beta-badge" style="margin-left:4px"><%= t('network.betaBadge') %></span>
                 <% if (linksCount) { %><span class="tab-badge"><%= linksCount %></span><% } %>
             </button>
         </div>
@@ -235,6 +236,11 @@
                     <div class="legend-item"><span class="legend-role legend-bridge"></span><%= t('network.legendBridge') %></div>
                     <div class="legend-item"><span class="legend-role legend-relay"></span><%= t('network.legendRelay') %></div>
                 </div>
+                <div class="legend-divider"></div>
+                <div class="legend-section">
+                    <div class="legend-item"><span class="legend-line legend-line-forward"></span><%= t('network.legendForwardLine') %></div>
+                    <div class="legend-item"><span class="legend-line legend-line-reverse"></span><%= t('network.legendReverseLine') %></div>
+                </div>
             </div>
         </div>
 
@@ -255,11 +261,15 @@
     <div class="modal-overlay" id="addLinkModal">
         <div class="modal-card modal-card-lg">
             <div class="modal-header">
-                <h3><i class="ti ti-link"></i> <span id="linkModalTitle"><%= t('network.addLink') %></span></h3>
+                <h3><i class="ti ti-link"></i> <span id="linkModalTitle"><%= t('network.addLink') %></span> <span class="beta-badge"><%= t('network.betaBadge') %></span></h3>
                 <button class="modal-close" id="modalClose"><i class="ti ti-x"></i></button>
             </div>
             <form id="addLinkForm" class="modal-body">
                 <input type="hidden" name="linkId" id="linkIdInput" value="">
+                <div class="form-warning" id="formBetaNotice">
+                    <strong><%= t('network.betaTitle') %></strong>
+                    <%= t('network.betaDescription') %>
+                </div>
                 <div class="form-group">
                     <label><%= t('network.linkName') %></label>
                     <input type="text" name="name" class="form-input" required placeholder="YandexCloud → France">
@@ -278,6 +288,8 @@
                     </div>
                     <input type="hidden" name="mode" id="linkModeInput" value="reverse">
                     <div class="form-hint" id="modeHint"><%= t('network.modeReverseHint') %></div>
+                    <div class="form-hint" id="modeFlowHint" style="margin-top:3px; color:#94a3b8"><%= t('network.modeReverseFlow') %></div>
+                    <div class="form-warning" id="modeWarnHint" style="margin-top:6px"><%= t('network.modeReverseWarning') %></div>
                 </div>
 
                 <div class="form-row">
@@ -294,6 +306,8 @@
                     <div class="form-group">
                         <label><%= t('network.tunnelPort') %></label>
                         <input type="number" name="tunnelPort" class="form-input" value="10086" min="1" max="65535">
+                        <div class="form-hint" id="tunnelPortHint" style="margin-top:3px"><%= t('network.tunnelPortReverseHint') %></div>
+                        <div class="form-warning" id="portConflictHint" style="display:none;margin-top:5px"></div>
                     </div>
                     <div class="form-group">
                         <label><%= t('network.tunnelProtocol') %></label>
@@ -326,6 +340,7 @@
                 <!-- REALITY Settings (hidden by default) -->
                 <div class="form-section" id="realitySection" style="display:none">
                     <div class="form-section-title"><i class="ti ti-shield-lock"></i> REALITY</div>
+                    <div class="form-hint" style="margin-bottom:8px"><%= t('network.realityTunnelHint') %></div>
                     <div class="form-row">
                         <div class="form-group">
                             <label><%= t('network.realityDest') %></label>
@@ -828,6 +843,22 @@ window._networkI18n = {
     modeForward: <%- JSON.stringify(t('network.modeForward')) %>,
     modeReverseHint: <%- JSON.stringify(t('network.modeReverseHint')) %>,
     modeForwardHint: <%- JSON.stringify(t('network.modeForwardHint')) %>,
+    modeReverseFlow: <%- JSON.stringify(t('network.modeReverseFlow')) %>,
+    modeForwardFlow: <%- JSON.stringify(t('network.modeForwardFlow')) %>,
+    modeReverseWarning: <%- JSON.stringify(t('network.modeReverseWarning')) %>,
+    modeForwardWarning: <%- JSON.stringify(t('network.modeForwardWarning')) %>,
+    betaBadge: <%- JSON.stringify(t('network.betaBadge')) %>,
+    betaTitle: <%- JSON.stringify(t('network.betaTitle')) %>,
+    betaDescription: <%- JSON.stringify(t('network.betaDescription')) %>,
+    tunnelPortReverseHint: <%- JSON.stringify(t('network.tunnelPortReverseHint')) %>,
+    tunnelPortForwardHint: <%- JSON.stringify(t('network.tunnelPortForwardHint')) %>,
+    realityTunnelHint: <%- JSON.stringify(t('network.realityTunnelHint')) %>,
+    portConflictClientHint: <%- JSON.stringify(t('network.portConflictClientHint')) %>,
+    routeEntry: <%- JSON.stringify(t('network.routeEntry')) %>,
+    routeExit: <%- JSON.stringify(t('network.routeExit')) %>,
+    routeEncryption: <%- JSON.stringify(t('network.routeEncryption')) %>,
+    routePath: <%- JSON.stringify(t('network.routePath')) %>,
+    undeployLink: <%- JSON.stringify(t('network.undeployLink')) %>,
     confirmDeployChain: <%- JSON.stringify(t('network.confirmDeployChain')) %>,
     syncingChain: <%- JSON.stringify(t('network.syncingChain')) %>,
     chainDeploySuccess: <%- JSON.stringify(t('network.chainDeploySuccess')) %>,

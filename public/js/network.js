@@ -92,14 +92,15 @@
         initModeSwitcher('modeSwitcher', 'linkModeInput', 'modeHint');
         initModeSwitcher('quickModeSwitcher', 'quickLinkMode');
 
-        // Security change -> show/hide REALITY section
+        // Security change -> show/hide REALITY section + refresh warnings
         var secSel = document.getElementById('selectSecurity');
         if (secSel) secSel.addEventListener('change', function () {
             var rs = document.getElementById('realitySection');
             if (rs) rs.style.display = this.value === 'reality' ? '' : 'none';
+            updateLinkFormWarnings();
         });
 
-        // Transport change -> disable REALITY for ws (not supported by Xray)
+        // Transport change -> disable REALITY for ws + refresh warnings
         var transSel = document.getElementById('selectTransport');
         if (transSel) transSel.addEventListener('change', function () {
             var secSelect = document.getElementById('selectSecurity');
@@ -115,7 +116,18 @@
             } else {
                 realityOpt.disabled = false;
             }
+            updateLinkFormWarnings();
         });
+
+        // Portal/Bridge selects -> refresh port conflict hint
+        ['selectPortal', 'selectBridge'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.addEventListener('change', updateLinkFormWarnings);
+        });
+
+        // Tunnel port input -> refresh port conflict hint
+        var tpInput = document.querySelector('#addLinkForm [name="tunnelPort"]');
+        if (tpInput) tpInput.addEventListener('input', updateLinkFormWarnings);
 
         // Geo routing toggle
         var geoCheck = document.getElementById('geoRoutingEnabled');
@@ -692,8 +704,17 @@
         if (d.muxEnabled) extras.push('MUX');
         if (d.tunnelSecurity === 'reality') extras.push('REALITY');
 
+        const summary = buildRouteSummary(d);
+
         const html =
             '<div class="info-grid">' +
+            '<div class="info-summary">' +
+            '<span class="beta-badge">' + escHtml(i18n.betaBadge || 'BETA') + '</span>' +
+            field(i18n.routePath || 'Traffic path', escHtml(summary.chain)) +
+            field('ti-login-2',     i18n.routeEntry     || 'Entry',             escHtml(summary.entry)) +
+            field('ti-logout-2',    i18n.routeExit      || 'Exit',              escHtml(summary.exit)) +
+            field('ti-shield-lock', i18n.routeEncryption || 'Tunnel encryption', escHtml(summary.encryption)) +
+            '</div>' +
             field(i18n.drawerStatus || 'Status',
                 '<div class="info-status ' + sc + '">\u25CF ' + (d.status || 'pending') + '</div>') +
             field(i18n.linkMode || 'Mode', modeLabel) +
@@ -713,11 +734,62 @@
             '<i class="ti ti-upload"></i> ' + (i18n.deploy || 'Deploy') + '</button>' +
             '<button class="btn btn-sm btn-primary" id="btnDeployChain" onclick="window._cascadeDeployChain(\'' + lid + '\')">' +
             '<i class="ti ti-link"></i> ' + (i18n.syncChain || 'Sync Chain') + '</button>' +
+            '<button class="btn btn-sm btn-outline" id="btnUndeploy" onclick="window._cascadeUndeploy(\'' + lid + '\')">' +
+            '<i class="ti ti-player-stop"></i> ' + (i18n.undeployLink || 'Undeploy') + '</button>' +
             '<button class="btn btn-sm btn-danger" id="btnDelete" onclick="window._cascadeDelete(\'' + lid + '\')">' +
             '<i class="ti ti-trash"></i> ' + (i18n.delete || 'Delete') + '</button>' +
             '</div>';
 
         openInfoModal(d.label || 'Cascade Link', html);
+    }
+
+    function escHtml(v) {
+        return String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function buildRouteSummary(edgeData) {
+        const srcNode = cy.getElementById(edgeData.source);
+        const tgtNode = cy.getElementById(edgeData.target);
+        const entryLabel = srcNode.length
+            ? (srcNode.data('label') || srcNode.data('ip') || edgeData.source)
+            : edgeData.source;
+        const exitLabel = tgtNode.length
+            ? (tgtNode.data('label') || tgtNode.data('ip') || edgeData.target)
+            : edgeData.target;
+
+        // Walk the chain following edges with the same mode
+        const hops = ['Client', entryLabel];
+        const visited = new Set([edgeData.source]);
+        let curId = edgeData.target;
+        let safety = 0;
+        while (curId && !visited.has(curId) && safety++ < 8) {
+            visited.add(curId);
+            const node = cy.getElementById(curId);
+            const lbl = node.length ? (node.data('label') || node.data('ip') || curId) : curId;
+            hops.push(lbl);
+            const nextEdge = cy.edges().toArray().find(function (e) {
+                return e.data('mode') === edgeData.mode &&
+                    !e.data('isInternetEdge') &&
+                    e.data('source') === curId;
+            });
+            if (!nextEdge) break;
+            curId = nextEdge.data('target');
+        }
+        hops.push('Internet');
+
+        const sec = edgeData.tunnelSecurity || 'none';
+        const encLabel = sec === 'none'
+            ? 'None'
+            : sec.toUpperCase() + ' (' + (edgeData.tunnelProtocol || 'vless').toUpperCase() + ')';
+
+        return {
+            chain: hops.join(' → '),
+            entry: entryLabel,
+            exit: exitLabel,
+            encryption: encLabel,
+        };
     }
 
     /** Helper: render a drawer field row */
@@ -771,9 +843,13 @@
         if (linkIdInput) linkIdInput.value = '';
 
         try {
-            const res   = await fetch('/api/nodes');
-            if (!res.ok) throw new Error();
-            const nodes = await res.json();
+            const [nodesRes, linksRes] = await Promise.all([
+                fetch('/api/nodes'),
+                fetch('/api/cascade/links'),
+            ]);
+            if (!nodesRes.ok) throw new Error();
+            const nodes = await nodesRes.json();
+            _allLinks = linksRes.ok ? await linksRes.json() : [];
             const opts  = nodes.map(n =>
                 '<option value="' + n._id + '">' + (n.flag || '') + ' ' + n.name + ' (' + n.ip + ')</option>'
             ).join('');
@@ -784,6 +860,7 @@
             const err = '<option value="">' + (i18n.errorLoadingNodes || 'Error loading nodes') + '</option>';
             portalSelect.innerHTML = bridgeSelect.innerHTML = err;
         }
+        updateLinkFormWarnings();
         modal.classList.add('active');
     }
 
@@ -849,6 +926,7 @@
                 b.classList.toggle('active', b.getAttribute('data-mode') === form.mode.value);
             });
         }
+        updateLinkFormWarnings();
     }
 
     function closeModal() {
@@ -1137,8 +1215,69 @@
                 // Show/hide tunnel domain field (reverse only)
                 var domGroup = document.getElementById('tunnelDomainGroup');
                 if (domGroup) domGroup.style.display = mode === 'forward' ? 'none' : '';
+                updateLinkFormWarnings();
             });
         });
+    }
+
+    var _allLinks = [];
+
+    function updateLinkFormWarnings() {
+        var form = document.getElementById('addLinkForm');
+        if (!form) return;
+        var mode = (document.getElementById('linkModeInput') || {}).value || 'reverse';
+        var isForward = mode === 'forward';
+
+        var flowHint = document.getElementById('modeFlowHint');
+        if (flowHint) {
+            flowHint.textContent = isForward
+                ? (i18n.modeForwardFlow || 'Traffic path: Client → Portal → Relay → Bridge → Internet.')
+                : (i18n.modeReverseFlow || 'Traffic path: Client → Portal → Bridge → Internet. Tunnel initiated by Bridge.');
+        }
+
+        var warnHint = document.getElementById('modeWarnHint');
+        if (warnHint) {
+            warnHint.textContent = isForward
+                ? (i18n.modeForwardWarning || 'Forward Chain requires all hops to have a public IP. Verify exit after each sync.')
+                : (i18n.modeReverseWarning || 'After deploy, confirm the tunnel is up and traffic exits from the expected Bridge.');
+        }
+
+        var portHint = document.getElementById('tunnelPortHint');
+        if (portHint) {
+            portHint.textContent = isForward
+                ? (i18n.tunnelPortForwardHint || 'In Forward Chain this port is listened on the Bridge/Relay side of this hop.')
+                : (i18n.tunnelPortReverseHint || 'In Reverse mode this port is listened on the Portal node.');
+        }
+
+        // Port conflict check using cached links
+        var portConflict = document.getElementById('portConflictHint');
+        if (!portConflict) return;
+        portConflict.style.display = 'none';
+        portConflict.textContent = '';
+
+        var portalId = (form.portalNodeId || {}).value || '';
+        var bridgeId = (form.bridgeNodeId || {}).value || '';
+        var tunnelPort = parseInt((form.tunnelPort || {}).value, 10) || 10086;
+        var linkId = (document.getElementById('linkIdInput') || {}).value || '';
+        var checkNodeId = isForward ? bridgeId : portalId;
+        var checkField = isForward ? 'bridgeNode' : 'portalNode';
+
+        if (!checkNodeId || !_allLinks.length) return;
+
+        var conflict = _allLinks.find(function (l) {
+            if (!l || !l.active) return false;
+            if (linkId && String(l._id) === linkId) return false;
+            var nodeRef = l[checkField];
+            var nid = nodeRef && typeof nodeRef === 'object' ? (nodeRef._id || '') : (nodeRef || '');
+            return String(nid) === checkNodeId && Number(l.tunnelPort) === tunnelPort;
+        });
+
+        if (conflict) {
+            portConflict.style.display = '';
+            portConflict.textContent =
+                (i18n.portConflictClientHint || 'This tunnel port is already used by another active link on the listening side.') +
+                ' (' + (conflict.name || 'link') + ')';
+        }
     }
 
     // ==================== QUICK LINK MODAL ====================

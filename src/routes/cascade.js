@@ -198,17 +198,20 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
         if (!portalNode) return res.status(404).json({ error: 'Portal node not found' });
         if (!bridgeNode) return res.status(404).json({ error: 'Bridge node not found' });
 
-        // For forward mode: port conflict check on bridge; for reverse: on portal
-        const portCheckNodeField = linkMode === 'forward' ? 'bridgeNode' : 'portalNode';
-        const portCheckNodeId = linkMode === 'forward' ? bridgeNodeId : portalNodeId;
+        // Port conflict: for forward mode the listening side is the bridge; for reverse it is the portal.
+        // Also check the opposite side: for forward we check the portal too because the same node
+        // might be both a bridge for one link and a portal for another, sharing the same port.
+        const portCheckField = linkMode === 'forward' ? 'bridgeNode' : 'portalNode';
+        const portCheckId    = linkMode === 'forward' ? bridgeNodeId : portalNodeId;
         const existingLink = await CascadeLink.findOne({
-            [portCheckNodeField]: portCheckNodeId,
+            [portCheckField]: portCheckId,
             tunnelPort: port,
             active: true,
         });
         if (existingLink) {
+            const sideLabel = linkMode === 'forward' ? 'bridge/relay' : 'portal';
             return res.status(400).json({
-                error: `Port ${port} is already used by link "${existingLink.name}" on this node`,
+                error: `Port ${port} is already used by link "${existingLink.name}" on the ${sideLabel} node`,
             });
         }
 
