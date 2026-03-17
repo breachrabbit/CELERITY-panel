@@ -30,7 +30,71 @@ function isValidObjectId(id) {
 }
 
 function generateUuid() {
-    return require('crypto').randomUUID();
+    return crypto.randomUUID();
+}
+
+const REALITY_KEY_RE = /^[A-Za-z0-9_\-+/]{43,44}=?$/;
+const REALITY_SHORT_ID_RE = /^[0-9a-fA-F]{0,16}$/;
+
+function normalizeStringArray(value) {
+    if (Array.isArray(value)) return value.map(v => String(v).trim());
+    if (value === undefined || value === null || value === '') return [];
+    return [String(value).trim()];
+}
+
+function generateRealityKeyPair() {
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('x25519');
+    const pub = publicKey.export({ format: 'jwk' });
+    const priv = privateKey.export({ format: 'jwk' });
+
+    if (!pub?.x || !priv?.d) {
+        throw new Error('Failed to generate REALITY x25519 key pair');
+    }
+
+    return {
+        privateKey: priv.d,
+        publicKey: pub.x,
+    };
+}
+
+function resolveRealitySettings(input = {}) {
+    let privateKey = String(input.realityPrivateKey || '').trim();
+    let publicKey = String(input.realityPublicKey || '').trim();
+
+    // If either side is missing, generate a fresh pair so both values match.
+    if (!privateKey || !publicKey) {
+        const generated = generateRealityKeyPair();
+        privateKey = generated.privateKey;
+        publicKey = generated.publicKey;
+    }
+
+    if (!REALITY_KEY_RE.test(privateKey)) {
+        throw new Error('Invalid REALITY privateKey format (expected base64 x25519 key)');
+    }
+    if (!REALITY_KEY_RE.test(publicKey)) {
+        throw new Error('Invalid REALITY publicKey format (expected base64 x25519 key)');
+    }
+
+    const inputShortIds = normalizeStringArray(input.realityShortIds);
+    for (const sid of inputShortIds) {
+        if (!REALITY_SHORT_ID_RE.test(sid)) {
+            throw new Error('Invalid REALITY shortId format (expected hex string, max 16 chars)');
+        }
+    }
+
+    const hasRealShortId = inputShortIds.some(Boolean);
+    const shortIds = hasRealShortId
+        ? inputShortIds
+        : [crypto.randomBytes(8).toString('hex')];
+
+    return {
+        realityDest: String(input.realityDest || '').trim(),
+        realitySni: normalizeStringArray(input.realitySni).filter(Boolean),
+        realityPrivateKey: privateKey,
+        realityPublicKey: publicKey,
+        realityShortIds: shortIds,
+        realityFingerprint: String(input.realityFingerprint || 'chrome').trim() || 'chrome',
+    };
 }
 
 // ==================== LINKS CRUD ====================
@@ -171,31 +235,16 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
             priority: parseInt(priority) || 100,
         };
 
-        // REALITY fields with validation
+        // REALITY fields with auto-generated x25519 keys + shortId when omitted
         if (sec === 'reality') {
-            if (!realityPrivateKey || !realityPublicKey) {
-                return res.status(400).json({ error: 'REALITY requires both privateKey and publicKey' });
-            }
-            // x25519 keys are 43-44 char base64; shortIds are hex strings up to 16 chars
-            if (!/^[A-Za-z0-9_\-+/]{43,44}=?$/.test(realityPrivateKey)) {
-                return res.status(400).json({ error: 'Invalid REALITY privateKey format (expected base64 x25519 key)' });
-            }
-            if (!/^[A-Za-z0-9_\-+/]{43,44}=?$/.test(realityPublicKey)) {
-                return res.status(400).json({ error: 'Invalid REALITY publicKey format (expected base64 x25519 key)' });
-            }
-            const shortIds = Array.isArray(realityShortIds) ? realityShortIds : (realityShortIds ? [realityShortIds] : ['']);
-            for (const sid of shortIds) {
-                if (sid && !/^[0-9a-fA-F]{0,16}$/.test(sid)) {
-                    return res.status(400).json({ error: 'Invalid REALITY shortId format (expected hex string, max 16 chars)' });
-                }
-            }
-
-            linkData.realityDest = realityDest || '';
-            linkData.realitySni = Array.isArray(realitySni) ? realitySni : (realitySni ? [realitySni] : []);
-            linkData.realityPrivateKey = realityPrivateKey;
-            linkData.realityPublicKey = realityPublicKey;
-            linkData.realityShortIds = shortIds;
-            linkData.realityFingerprint = realityFingerprint || 'chrome';
+            Object.assign(linkData, resolveRealitySettings({
+                realityDest,
+                realitySni,
+                realityPrivateKey,
+                realityPublicKey,
+                realityShortIds,
+                realityFingerprint,
+            }));
         }
 
         // Geo-routing
@@ -217,9 +266,22 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
 
         await invalidateCascadeCache();
 
-        if (req.body.autoDeploy) {
+        const connectedLinksCount = await CascadeLink.countDocuments({
+            active: true,
+            _id: { $ne: link._id },
+            $or: [
+                { portalNode: portalNodeId },
+                { bridgeNode: portalNodeId },
+                { portalNode: bridgeNodeId },
+                { bridgeNode: bridgeNodeId },
+            ],
+        });
+
+        // Auto-sync the full chain either when explicitly requested or when
+        // this new link extends an already existing chain.
+        if (req.body.autoDeploy || connectedLinksCount > 0) {
             cascadeService.deployChain(portalNodeId).catch(err => {
-                logger.warn(`[Cascade API] Auto-deploy failed: ${err.message}`);
+                logger.warn(`[Cascade API] Auto chain sync failed: ${err.message}`);
             });
         }
 
@@ -260,10 +322,18 @@ router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
         // Fetch current link once for all validation checks
         let currentLink = null;
         const needsCurrentLink = updates.tunnelPort !== undefined ||
-            updates.tunnelSecurity === 'reality' || updates.tunnelTransport ||
-            updates.realityPrivateKey || updates.realityPublicKey;
+            updates.mode !== undefined ||
+            updates.tunnelSecurity !== undefined ||
+            updates.tunnelTransport !== undefined ||
+            updates.realityDest !== undefined ||
+            updates.realityFingerprint !== undefined ||
+            updates.realityPrivateKey !== undefined ||
+            updates.realityPublicKey !== undefined ||
+            req.body.realitySni !== undefined ||
+            req.body.realityShortIds !== undefined;
         if (needsCurrentLink) {
             currentLink = await CascadeLink.findById(req.params.id);
+            if (!currentLink) return res.status(404).json({ error: 'Cascade link not found' });
         }
 
         if (updates.tunnelPort !== undefined) {
@@ -301,14 +371,6 @@ router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
             }
         }
 
-        // Validate REALITY key formats on update
-        if (updates.realityPrivateKey && !/^[A-Za-z0-9_\-+/]{43,44}=?$/.test(updates.realityPrivateKey)) {
-            return res.status(400).json({ error: 'Invalid REALITY privateKey format' });
-        }
-        if (updates.realityPublicKey && !/^[A-Za-z0-9_\-+/]{43,44}=?$/.test(updates.realityPublicKey)) {
-            return res.status(400).json({ error: 'Invalid REALITY publicKey format' });
-        }
-
         // Geo-routing settings
         if (req.body.geoRouting !== undefined) {
             const gr = req.body.geoRouting;
@@ -319,18 +381,22 @@ router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
 
         // REALITY array fields
         if (req.body.realitySni !== undefined) {
-            updates.realitySni = Array.isArray(req.body.realitySni)
-                ? req.body.realitySni : (req.body.realitySni ? [req.body.realitySni] : []);
+            updates.realitySni = normalizeStringArray(req.body.realitySni).filter(Boolean);
         }
         if (req.body.realityShortIds !== undefined) {
-            const shortIds = Array.isArray(req.body.realityShortIds)
-                ? req.body.realityShortIds : (req.body.realityShortIds ? [req.body.realityShortIds] : ['']);
-            for (const sid of shortIds) {
-                if (sid && !/^[0-9a-fA-F]{0,16}$/.test(sid)) {
-                    return res.status(400).json({ error: 'Invalid REALITY shortId format (hex, max 16 chars)' });
-                }
-            }
-            updates.realityShortIds = shortIds;
+            updates.realityShortIds = normalizeStringArray(req.body.realityShortIds);
+        }
+
+        const effectiveSec = updates.tunnelSecurity || currentLink?.tunnelSecurity || 'none';
+        if (effectiveSec === 'reality') {
+            Object.assign(updates, resolveRealitySettings({
+                realityDest: updates.realityDest !== undefined ? updates.realityDest : currentLink?.realityDest,
+                realitySni: updates.realitySni !== undefined ? updates.realitySni : currentLink?.realitySni,
+                realityPrivateKey: updates.realityPrivateKey !== undefined ? updates.realityPrivateKey : currentLink?.realityPrivateKey,
+                realityPublicKey: updates.realityPublicKey !== undefined ? updates.realityPublicKey : currentLink?.realityPublicKey,
+                realityShortIds: updates.realityShortIds !== undefined ? updates.realityShortIds : currentLink?.realityShortIds,
+                realityFingerprint: updates.realityFingerprint !== undefined ? updates.realityFingerprint : currentLink?.realityFingerprint,
+            }));
         }
 
         const link = await CascadeLink.findByIdAndUpdate(

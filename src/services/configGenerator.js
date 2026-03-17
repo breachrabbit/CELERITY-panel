@@ -902,7 +902,8 @@ function buildCascadeTunnelStreamSettings(link, opts = {}) {
                 serverName: (link.realitySni && link.realitySni[0]) || '',
                 fingerprint: link.realityFingerprint || 'chrome',
                 publicKey: link.realityPublicKey || '',
-                shortId: (link.realityShortIds && link.realityShortIds[0]) || '',
+                shortId: (link.realityShortIds || []).find(id => id && id.length > 0) ||
+                    ((link.realityShortIds && link.realityShortIds[0]) || ''),
             };
         }
     }
