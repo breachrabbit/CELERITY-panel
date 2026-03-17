@@ -455,6 +455,8 @@ class CascadeService {
 
         const bridgeConfig = configGenerator.generateForwardBridgeConfig(link);
         const serviceUnit = configGenerator.generateBridgeSystemdService();
+        
+        logger.debug(`[Cascade] Forward Bridge config for ${bridgeNode.name}:\n${bridgeConfig}`);
 
         const ssh = new NodeSSH(bridgeNode);
         try {

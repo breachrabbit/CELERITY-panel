@@ -890,6 +890,7 @@ function buildMuxConfig(link) {
 /**
  * Generate systemd service unit for a bridge Xray instance.
  * Uses a separate config path to avoid conflicts with a standalone Xray install.
+ * Runs as root to allow binding to privileged ports (443).
  */
 function generateBridgeSystemdService() {
     return `[Unit]
@@ -897,10 +898,6 @@ Description=Xray Bridge (Cascade Tunnel)
 After=network.target nss-lookup.target
 
 [Service]
-User=nobody
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-NoNewPrivileges=true
 Type=simple
 ExecStart=/usr/local/bin/xray run -config /usr/local/etc/xray-bridge/config.json
 Restart=on-failure
@@ -922,6 +919,49 @@ WantedBy=multi-user.target
  */
 function generateForwardBridgeConfig(link) {
     const protocol = link.tunnelProtocol || 'vless';
+    const transport = link.tunnelTransport || 'tcp';
+    const security = link.tunnelSecurity || 'none';
+
+    // Build streamSettings for server side (inbound)
+    const streamSettings = { network: transport };
+    
+    // Security
+    if (security === 'tls') {
+        streamSettings.security = 'tls';
+        streamSettings.tlsSettings = {
+            certificates: [{
+                certificateFile: '/usr/local/etc/xray/cert.pem',
+                keyFile: '/usr/local/etc/xray/key.pem',
+            }],
+        };
+    } else if (security === 'reality') {
+        streamSettings.security = 'reality';
+        streamSettings.realitySettings = {
+            show: false,
+            dest: link.realityDest || 'www.google.com:443',
+            serverNames: link.realitySni?.length > 0 ? link.realitySni : ['www.google.com'],
+            privateKey: link.realityPrivateKey || '',
+            shortIds: link.realityShortIds?.length > 0 ? link.realityShortIds : [''],
+        };
+    }
+    // For 'none' security, don't add security field at all
+
+    // Transport settings
+    if (transport === 'ws') {
+        streamSettings.wsSettings = {
+            path: link.wsPath || '/cascade',
+        };
+    } else if (transport === 'grpc') {
+        streamSettings.grpcSettings = {
+            serviceName: link.grpcServiceName || 'cascade',
+        };
+    } else if (transport === 'xhttp') {
+        streamSettings.network = 'splithttp';
+        streamSettings.splithttpSettings = {
+            path: link.xhttpPath || '/cascade',
+        };
+    }
+    // For TCP, no additional settings needed
 
     const inbound = {
         tag: 'forward-in',
@@ -935,12 +975,7 @@ function generateForwardBridgeConfig(link) {
             }],
             decryption: 'none',
         },
-        streamSettings: buildCascadeTunnelStreamSettings(link, false),
-        sniffing: {
-            enabled: true,
-            destOverride: ['http', 'tls', 'quic'],
-            routeOnly: true,
-        },
+        streamSettings,
     };
 
     const config = {
@@ -950,27 +985,20 @@ function generateForwardBridgeConfig(link) {
         inbounds: [inbound],
         outbounds: [
             {
-                tag: 'freedom',
+                tag: 'direct',
                 protocol: 'freedom',
-                settings: { domainStrategy: 'UseIPv4' },
             },
             {
-                tag: 'blackhole',
+                tag: 'block',
                 protocol: 'blackhole',
             },
         ],
         routing: {
-            domainStrategy: 'IPIfNonMatch',
             rules: [
                 {
                     type: 'field',
                     ip: ['geoip:private'],
-                    outboundTag: 'blackhole',
-                },
-                {
-                    type: 'field',
-                    inboundTag: ['forward-in'],
-                    outboundTag: 'freedom',
+                    outboundTag: 'block',
                 },
             ],
         },
