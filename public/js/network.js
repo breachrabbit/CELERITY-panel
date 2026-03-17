@@ -783,8 +783,16 @@
         btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Generating...';
 
         try {
-            // Call backend API to generate key pair
-            var res = await fetch('/api/cascade/generate-reality-keys', { method: 'POST' });
+            // Get the bridge node ID (target) to generate keys via xray command
+            var bridgeSelect = document.querySelector('select[name="bridgeId"]');
+            var nodeId = bridgeSelect ? bridgeSelect.value : null;
+            
+            // Call backend API to generate key pair (preferably on server via xray x25519)
+            var res = await fetch('/api/cascade/generate-reality-keys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nodeId: nodeId })
+            });
             if (!res.ok) throw new Error('Failed to generate keys');
             var keys = await res.json();
             
@@ -794,7 +802,10 @@
             if (privateKeyInput && keys.privateKey) privateKeyInput.value = keys.privateKey;
             if (publicKeyInput && keys.publicKey) publicKeyInput.value = keys.publicKey;
             
-            showToast('Key pair generated successfully');
+            var genMsg = keys.generatedOn === 'local' 
+                ? 'Keys generated locally' 
+                : 'Keys generated on ' + keys.generatedOn + ' via xray';
+            showToast(genMsg);
         } catch (err) {
             showToast('Failed to generate keys: ' + err.message, 'error');
         } finally {

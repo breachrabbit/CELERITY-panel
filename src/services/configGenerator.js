@@ -827,19 +827,23 @@ function buildCascadeTunnelStreamSettings(link, isClient = false) {
                 }],
             };
     } else if (security === 'reality') {
+        // shortId must match one on the server side
+        const defaultShortId = '0123456789abcdef';
+        const shortIds = link.realityShortIds?.filter(id => id && id.length > 0) || [];
+        
         if (isClient) {
             stream.realitySettings = {
                 fingerprint: link.realityFingerprint || 'chrome',
                 serverName: link.realitySni?.[0] || 'www.google.com',
                 publicKey: link.realityPublicKey || '',
-                shortId: link.realityShortIds?.[0] || '',
+                shortId: shortIds[0] || defaultShortId,
             };
         } else {
             stream.realitySettings = {
                 dest: link.realityDest || 'www.google.com:443',
                 serverNames: link.realitySni?.length > 0 ? link.realitySni : ['www.google.com'],
                 privateKey: link.realityPrivateKey || '',
-                shortIds: link.realityShortIds?.length > 0 ? link.realityShortIds : [''],
+                shortIds: shortIds.length > 0 ? shortIds : [defaultShortId],
             };
         }
     }
@@ -936,12 +940,14 @@ function generateForwardBridgeConfig(link) {
         };
     } else if (security === 'reality') {
         streamSettings.security = 'reality';
+        // shortIds must be hex strings (0-16 chars), empty array means accept any
+        const shortIds = link.realityShortIds?.filter(id => id && id.length > 0) || [];
         streamSettings.realitySettings = {
             show: false,
             dest: link.realityDest || 'www.google.com:443',
             serverNames: link.realitySni?.length > 0 ? link.realitySni : ['www.google.com'],
             privateKey: link.realityPrivateKey || '',
-            shortIds: link.realityShortIds?.length > 0 ? link.realityShortIds : [''],
+            shortIds: shortIds.length > 0 ? shortIds : ['0123456789abcdef'], // default shortId
         };
     }
     // For 'none' security, don't add security field at all

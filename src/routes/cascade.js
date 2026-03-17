@@ -34,26 +34,69 @@ function generateUuid() {
 }
 
 /**
- * Generate X25519 key pair for REALITY
+ * Generate X25519 key pair for REALITY (Xray format)
  * POST /cascade/generate-reality-keys
+ * 
+ * Uses `xray x25519` command on a server if nodeId is provided,
+ * otherwise generates locally (may not work with all Xray versions).
  */
 router.post('/generate-reality-keys', requireScope('nodes:write'), async (req, res) => {
     try {
-        const { generateKeyPairSync } = require('crypto');
-        const keyPair = generateKeyPairSync('x25519', {
-            publicKeyEncoding: { type: 'spki', format: 'der' },
-            privateKeyEncoding: { type: 'pkcs8', format: 'der' },
-        });
+        const { nodeId } = req.body;
         
-        // Extract raw 32-byte keys from DER format
-        // X25519 public key: last 32 bytes of SPKI
-        // X25519 private key: last 32 bytes of PKCS8
-        const publicKeyRaw = keyPair.publicKey.slice(-32);
-        const privateKeyRaw = keyPair.privateKey.slice(-32);
+        // If nodeId provided, generate on that server using xray command
+        if (nodeId && isValidObjectId(nodeId)) {
+            const node = await HyNode.findById(nodeId);
+            if (node && (node.ssh?.password || node.ssh?.privateKey)) {
+                const NodeSSH = require('../services/nodeSSH');
+                const ssh = new NodeSSH(node);
+                try {
+                    await ssh.connect();
+                    const result = await ssh.exec('xray x25519 2>/dev/null || /usr/local/bin/xray x25519');
+                    ssh.disconnect();
+                    
+                    // Parse output: "Private key: xxx\nPublic key: xxx"
+                    const lines = result.stdout.split('\n');
+                    let privateKey = '', publicKey = '';
+                    for (const line of lines) {
+                        if (line.includes('Private key:')) {
+                            privateKey = line.split(':')[1]?.trim() || '';
+                        } else if (line.includes('Public key:')) {
+                            publicKey = line.split(':')[1]?.trim() || '';
+                        }
+                    }
+                    
+                    if (privateKey && publicKey) {
+                        return res.json({ privateKey, publicKey, generatedOn: node.name });
+                    }
+                } catch (sshErr) {
+                    logger.warn(`[Cascade API] SSH key generation failed: ${sshErr.message}`);
+                }
+            }
+        }
+        
+        // Fallback: generate locally using Node.js crypto
+        // Note: Local generation may not work with all Xray versions
+        const { generateKeyPairSync } = require('crypto');
+        const keyPair = generateKeyPairSync('x25519');
+        
+        // X25519 PKCS8 DER structure: fixed header (16 bytes) + 0x04 0x20 + 32 bytes raw key
+        // X25519 SPKI DER structure: fixed header (12 bytes) + 32 bytes raw key
+        const pkcs8 = keyPair.privateKey.export({ type: 'pkcs8', format: 'der' });
+        const spki = keyPair.publicKey.export({ type: 'spki', format: 'der' });
+        
+        // Extract raw 32-byte keys (last 32 bytes)
+        const privateKeyRaw = pkcs8.slice(pkcs8.length - 32);
+        const publicKeyRaw = spki.slice(spki.length - 32);
+        
+        // Warn if we're falling back to local generation
+        logger.warn('[Cascade API] Generated REALITY keys locally. For best compatibility, select a bridge node with Xray installed.');
         
         res.json({
             privateKey: privateKeyRaw.toString('base64'),
             publicKey: publicKeyRaw.toString('base64'),
+            generatedOn: 'local',
+            warning: 'Keys generated locally. If deploy fails, try selecting a bridge node first and regenerate.',
         });
     } catch (error) {
         logger.error(`[Cascade API] Generate REALITY keys error: ${error.message}`);
@@ -185,11 +228,23 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
 
         // REALITY settings (for tunnelSecurity === 'reality')
         if (tunnelSecurity === 'reality') {
+            // Validate required REALITY fields
+            if (!realityPrivateKey || !realityPublicKey) {
+                return res.status(400).json({ 
+                    error: 'REALITY requires privateKey and publicKey. Use "Generate Key Pair" button.' 
+                });
+            }
             linkData.realityDest = realityDest || 'www.google.com:443';
-            linkData.realitySni = Array.isArray(realitySni) ? realitySni : ['www.google.com'];
-            linkData.realityPrivateKey = realityPrivateKey || '';
-            linkData.realityPublicKey = realityPublicKey || '';
-            linkData.realityShortIds = Array.isArray(realityShortIds) ? realityShortIds : [''];
+            linkData.realitySni = Array.isArray(realitySni) && realitySni.length > 0 
+                ? realitySni.filter(s => s && s.length > 0) 
+                : ['www.google.com'];
+            linkData.realityPrivateKey = realityPrivateKey;
+            linkData.realityPublicKey = realityPublicKey;
+            // Filter empty shortIds and provide default if none
+            const validShortIds = Array.isArray(realityShortIds) 
+                ? realityShortIds.filter(id => id && id.length > 0)
+                : [];
+            linkData.realityShortIds = validShortIds.length > 0 ? validShortIds : ['0123456789abcdef'];
             linkData.realityFingerprint = realityFingerprint || 'chrome';
         }
 
