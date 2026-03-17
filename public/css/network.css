@@ -196,8 +196,8 @@
     letter-spacing: 0.5px;
     vertical-align: middle;
 }
-.info-role-badge.role-portal  { background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid #6366f1; }
-.info-role-badge.role-bridge  { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid #f59e0b; }
+.info-role-badge.role-portal { background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid #6366f1; }
+.info-role-badge.role-bridge { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid #f59e0b; }
 .info-role-badge.role-relay  { background: rgba(139,92,246,0.2); color: #c4b5fd; border: 1px solid #8b5cf6; }
 
 .info-actions {

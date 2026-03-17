@@ -124,7 +124,7 @@ async function getActiveNodes(user) {
         const beforeCascadeFilter = nodes.length;
         nodes = nodes.filter(n => n.cascadeRole !== 'bridge' && n.cascadeRole !== 'relay');
         if (nodes.length < beforeCascadeFilter) {
-            logger.debug(`[Sub] Filtered out ${beforeCascadeFilter - nodes.length} exit/relay nodes from subscription`);
+            logger.debug(`[Sub] Filtered out ${beforeCascadeFilter - nodes.length} bridge/relay nodes from subscription`);
         }
     }
 

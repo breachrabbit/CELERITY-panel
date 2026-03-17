@@ -710,7 +710,7 @@ router.post('/nodes/:id/setup', requireAuth, async (req, res) => {
                 result.logs.push('[Bridge] Xray installed. Create a cascade link to deploy bridge config.');
             }
         } else if (node.type === 'xray') {
-            // Standalone and Portal nodes: full setup with Agent
+            // Standalone and Entry (Portal) nodes: full setup with Agent
             result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true });
         } else {
             result = await nodeSetup.setupNode(node, {
@@ -726,7 +726,7 @@ router.post('/nodes/:id/setup', requireAuth, async (req, res) => {
             if (node.cascadeRole === 'bridge') updateFields.status = 'offline';
             await HyNode.findByIdAndUpdate(req.params.id, { $set: updateFields });
 
-            // After portal/standalone setup, auto-redeploy any cascade links
+            // After entry/standalone setup, auto-redeploy any cascade links
             if (node.type === 'xray' && node.cascadeRole !== 'bridge') {
                 const CascadeLink = require('../models/cascadeLinkModel');
                 const linkCount = await CascadeLink.countDocuments({
