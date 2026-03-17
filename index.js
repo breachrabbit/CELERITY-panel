@@ -33,6 +33,7 @@ const cascadeRoutes = require('./src/routes/cascade');
 const subscriptionRoutes = require('./src/routes/subscription');
 const authRoutes = require('./src/routes/auth');
 const panelRoutes = require('./src/routes/panel');
+const mcpRoutes = require('./src/routes/mcp');
 
 const helmet = require('helmet');
 const app = express();
@@ -221,6 +222,7 @@ app.use('/api', subscriptionRoutes);
 app.use('/api/users', requireAuth, usersRoutes);
 app.use('/api/nodes', requireAuth, nodesRoutes);
 app.use('/api/cascade', requireAuth, cascadeRoutes);
+app.use('/api/mcp', requireAuth, mcpRoutes);
 
 app.get('/api/groups', requireAuth, requireScope('stats:read'), async (req, res) => {
     try {
