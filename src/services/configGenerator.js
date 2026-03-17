@@ -1116,15 +1116,6 @@ function applyForwardHopInbound(config, hopLinks) {
     config.inbounds = config.inbounds || [];
     config.routing = config.routing || { rules: [] };
     config.routing.rules = config.routing.rules || [];
-    config.outbounds = config.outbounds || [];
-
-    // If this node is also a portal in a forward chain, route incoming cascade
-    // traffic to the LAST local forward outbound (the next downstream hop).
-    // Otherwise, this is the final exit hop and traffic goes directly out.
-    const localForwardOutbounds = config.outbounds.filter(o => typeof o.tag === 'string' && o.tag.startsWith('fwd-'));
-    const localForwardExitTag = localForwardOutbounds.length > 0
-        ? localForwardOutbounds[localForwardOutbounds.length - 1].tag
-        : 'direct';
 
     for (const link of hopLinks) {
         const linkIdShort = String(link._id).slice(-8);
@@ -1147,12 +1138,13 @@ function applyForwardHopInbound(config, hopLinks) {
             },
         });
 
-        // Relay node: route to the next downstream forward hop.
-        // Tail/bridge node: no downstream hop exists, so exit directly.
+        // proxySettings.tag builds the full chained path on the entry node.
+        // Intermediate hops act as transport proxies and should forward the
+        // decoded stream directly to the next target address.
         config.routing.rules.push({
             type: 'field',
             inboundTag: [inboundTag],
-            outboundTag: localForwardExitTag,
+            outboundTag: 'direct',
         });
     }
 }
