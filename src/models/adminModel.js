@@ -103,4 +103,32 @@ adminSchema.statics.createAdminWithHash = async function(username, passwordHash,
     });
 };
 
+adminSchema.statics.setTwoFactorEnabled = async function(username, secretEncrypted, enabledAt = new Date()) {
+    return this.findOneAndUpdate(
+        { username: username.toLowerCase().trim() },
+        {
+            twoFactor: {
+                enabled: true,
+                secretEncrypted,
+                enabledAt,
+            },
+        },
+        { new: true }
+    );
+};
+
+adminSchema.statics.clearTwoFactor = async function(username) {
+    return this.findOneAndUpdate(
+        { username: username.toLowerCase().trim() },
+        {
+            twoFactor: {
+                enabled: false,
+                secretEncrypted: null,
+                enabledAt: null,
+            },
+        },
+        { new: true }
+    );
+};
+
 module.exports = mongoose.model('Admin', adminSchema);

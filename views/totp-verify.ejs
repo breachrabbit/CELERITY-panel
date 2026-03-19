@@ -9,17 +9,36 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="login-page">
+    <%
+        const isSetupMode = mode === 'setup';
+        const isSettingsMode = mode === 'settings';
+        const isEnrollmentMode = isSetupMode || isSettingsMode;
+        const defaultTitle = isSetupMode
+            ? (typeof t !== 'undefined' ? t('auth.totpSetupTitle') : 'Set up two-factor authentication')
+            : isSettingsMode
+                ? (typeof t !== 'undefined' ? t('auth.totpSettingsTitle') : 'Confirm TOTP setup')
+                : (typeof t !== 'undefined' ? t('auth.totpTitle') : 'Two-factor verification');
+        const defaultDescription = isEnrollmentMode
+            ? (typeof t !== 'undefined' ? t('auth.totpSetupDescription') : 'Scan the QR code and enter the 6-digit code from your authenticator app.')
+            : (typeof t !== 'undefined' ? t('auth.totpLoginDescription') : 'Enter the code from your authenticator app to finish login.');
+        const customFormAction = typeof formAction !== 'undefined' ? formAction : null;
+        const customButtonText = typeof buttonText !== 'undefined' ? buttonText : null;
+        const customTitle = typeof title !== 'undefined' ? title : null;
+        const customDescription = typeof description !== 'undefined' ? description : null;
+        const resolvedFormAction = customFormAction || (
+            isSetupMode ? '/panel/setup/totp' : isSettingsMode ? '/panel/settings/totp' : '/panel/login/totp'
+        );
+        const resolvedButtonText = customButtonText || (typeof t !== 'undefined' ? t('auth.totpVerifyButton') : 'Verify');
+        const resolvedTitle = customTitle || defaultTitle;
+        const resolvedDescription = customDescription || defaultDescription;
+    %>
     <div class="login-container">
         <div class="login-box">
             <div class="login-header">
                 <span class="logo-icon large">⚡</span>
                 <h1>C3 CELERITY</h1>
                 <p style="margin-top: 12px; color: var(--text-secondary);">
-                    <% if (mode === 'setup') { %>
-                        <%= typeof t !== 'undefined' ? t('auth.totpSetupTitle') : 'Set up two-factor authentication' %>
-                    <% } else { %>
-                        <%= typeof t !== 'undefined' ? t('auth.totpTitle') : 'Two-factor verification' %>
-                    <% } %>
+                    <%= resolvedTitle %>
                 </p>
             </div>
 
@@ -27,9 +46,9 @@
             <div class="alert alert-error"><%= error %></div>
             <% } %>
 
-            <% if (mode === 'setup') { %>
+            <% if (isEnrollmentMode) { %>
             <div class="alert alert-info" style="margin-bottom: 1rem;">
-                <%= typeof t !== 'undefined' ? t('auth.totpSetupDescription') : 'Scan the QR code and enter the 6-digit code from your authenticator app.' %>
+                <%= resolvedDescription %>
             </div>
             <div style="display:flex; justify-content:center; margin-bottom: 1rem;">
                 <img src="<%= qrDataUrl %>" alt="TOTP QR" style="width: 220px; height: 220px; border-radius: 10px; background: #fff; padding: 10px;">
@@ -41,11 +60,11 @@
             </div>
             <% } else { %>
             <div class="alert alert-info" style="margin-bottom: 1rem;">
-                <%= typeof t !== 'undefined' ? t('auth.totpLoginDescription') : 'Enter the code from your authenticator app to finish login.' %>
+                <%= resolvedDescription %>
             </div>
             <% } %>
 
-            <form method="POST" action="<%= mode === 'setup' ? '/panel/setup/totp' : '/panel/login/totp' %>" class="login-form">
+            <form method="POST" action="<%= resolvedFormAction %>" class="login-form">
                 <div class="form-group">
                     <label for="token"><%= typeof t !== 'undefined' ? t('auth.totpCode') : 'Verification code' %></label>
                     <input
@@ -61,7 +80,7 @@
                         autofocus
                     >
                 </div>
-                <button type="submit" class="btn btn-primary btn-block"><%= typeof t !== 'undefined' ? t('auth.totpVerifyButton') : 'Verify' %></button>
+                <button type="submit" class="btn btn-primary btn-block"><%= resolvedButtonText %></button>
             </form>
         </div>
     </div>

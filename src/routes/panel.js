@@ -296,6 +296,7 @@ const render = (res, template, data = {}) => {
 
 const SETUP_2FA_PENDING_TTL_MS = 10 * 60 * 1000;
 const LOGIN_2FA_PENDING_TTL_MS = 10 * 60 * 1000;
+const SETTINGS_2FA_PENDING_TTL_MS = 10 * 60 * 1000;
 
 function clearSetup2faPending(req) {
     if (req.session) {
@@ -306,6 +307,12 @@ function clearSetup2faPending(req) {
 function clearLogin2faPending(req) {
     if (req.session) {
         delete req.session.login2faPending;
+    }
+}
+
+function clearSettings2faPending(req) {
+    if (req.session) {
+        delete req.session.settings2faPending;
     }
 }
 
@@ -321,6 +328,14 @@ function isLogin2faPendingValid(req) {
     if (!pending) return false;
     if (!pending.createdAt) return false;
     return (Date.now() - pending.createdAt) < LOGIN_2FA_PENDING_TTL_MS;
+}
+
+function isSettings2faPendingValid(req) {
+    const pending = req.session?.settings2faPending;
+    if (!pending) return false;
+    if (!pending.createdAt) return false;
+    if (!pending.intent || !['enable', 'rotate'].includes(pending.intent)) return false;
+    return (Date.now() - pending.createdAt) < SETTINGS_2FA_PENDING_TTL_MS;
 }
 
 async function renderSetupTotpPage(res, pending, error = null) {
@@ -340,11 +355,47 @@ async function renderSetupTotpPage(res, pending, error = null) {
     });
 }
 
+async function renderSettingsTotpPage(res, pending, error = null) {
+    const t = typeof res.locals.t === 'function' ? res.locals.t : null;
+    const isRotate = pending.intent === 'rotate';
+    const secret = totpService.decryptSecret(pending.secretEncrypted);
+    const otpauthUrl = totpService.buildOtpAuthUrl({
+        secret,
+        username: pending.username,
+    });
+    const qrDataUrl = await totpService.generateQrDataUrl(otpauthUrl);
+
+    const title = t ? t('auth.totpSettingsTitle') : 'Confirm TOTP setup';
+    const description = isRotate
+        ? (t ? t('settings.totpRotateVerifyDescription') : 'Отсканируйте новый QR-код и введите код из нового устройства, чтобы завершить перевыпуск.')
+        : (t ? t('settings.totpEnableVerifyDescription') : 'Отсканируйте QR-код и введите код из приложения-аутентификатора, чтобы завершить подключение.');
+
+    return res.render('totp-verify', {
+        mode: 'settings',
+        error,
+        intent: pending.intent,
+        formAction: '/panel/settings/totp',
+        title,
+        description,
+        buttonText: t ? t('auth.totpVerifyButton') : 'Verify',
+        username: pending.username,
+        secret,
+        qrDataUrl,
+    });
+}
+
 function renderLoginTotpPage(res, error = null) {
     return res.render('totp-verify', {
         mode: 'login',
         error,
     });
+}
+
+function redirectSettingsSecurity(res, { message = null, error = null } = {}) {
+    const params = new URLSearchParams({ tab: 'security' });
+    if (message) params.set('message', message);
+    if (error) params.set('error', error);
+    return res.redirect(`/panel/settings?${params.toString()}`);
 }
 
 const totpVerifyLimiter = rateLimit({
@@ -358,6 +409,10 @@ const totpVerifyLimiter = rateLimit({
 
         if (req.path.includes('/setup') && isSetup2faPendingValid(req)) {
             return renderSetupTotpPage(res, req.session.setup2faPending, message);
+        }
+
+        if (req.path.includes('/settings/totp') && isSettings2faPendingValid(req)) {
+            return renderSettingsTotpPage(res, req.session.settings2faPending, message);
         }
 
         if (isLogin2faPendingValid(req)) {
@@ -1752,6 +1807,176 @@ router.post('/settings/password', requireAuth, async (req, res) => {
     } catch (error) {
         logger.error('[Panel] Password change error:', error.message);
         res.redirect('/panel/settings?error=' + encodeURIComponent('Ошибка: ' + error.message));
+    }
+});
+
+// POST /panel/settings/totp/start - Start enable/rotate flow
+router.post('/settings/totp/start', requireAuth, totpVerifyLimiter, async (req, res) => {
+    try {
+        const intent = String(req.body.intent || '').trim();
+        const currentPassword = String(req.body.currentPassword || '');
+        const currentTotpCode = String(req.body.currentTotpCode || '').trim();
+
+        if (!['enable', 'rotate'].includes(intent)) {
+            clearSettings2faPending(req);
+            return redirectSettingsSecurity(res, { error: 'Некорректное действие TOTP' });
+        }
+
+        if (!currentPassword) {
+            clearSettings2faPending(req);
+            return redirectSettingsSecurity(res, { error: 'Введите текущий пароль' });
+        }
+
+        const admin = await Admin.verifyPassword(req.session.adminUsername, currentPassword);
+        if (!admin) {
+            clearSettings2faPending(req);
+            return redirectSettingsSecurity(res, { error: 'Неверный текущий пароль' });
+        }
+
+        if (intent === 'enable') {
+            if (admin.twoFactor?.enabled) {
+                clearSettings2faPending(req);
+                return redirectSettingsSecurity(res, { error: 'TOTP уже включен' });
+            }
+
+            const enrollment = await totpService.generateEnrollmentData({ username: admin.username });
+            req.session.settings2faPending = {
+                username: admin.username,
+                intent: 'enable',
+                secretEncrypted: enrollment.secretEncrypted,
+                createdAt: Date.now(),
+            };
+
+            return res.redirect('/panel/settings/totp');
+        }
+
+        if (!admin.twoFactor?.enabled || !admin.twoFactor?.secretEncrypted) {
+            clearSettings2faPending(req);
+            return redirectSettingsSecurity(res, { error: 'Для перевыпуска TOTP должен быть включен' });
+        }
+
+        if (!currentTotpCode) {
+            clearSettings2faPending(req);
+            return redirectSettingsSecurity(res, { error: 'Введите текущий TOTP-код' });
+        }
+
+        const currentSecret = totpService.decryptSecret(admin.twoFactor.secretEncrypted);
+        const isCurrentCodeValid = await totpService.verifyToken({ secret: currentSecret, token: currentTotpCode });
+        if (!isCurrentCodeValid) {
+            clearSettings2faPending(req);
+            return redirectSettingsSecurity(res, { error: 'Неверный текущий TOTP-код' });
+        }
+
+        const enrollment = await totpService.generateEnrollmentData({ username: admin.username });
+        req.session.settings2faPending = {
+            username: admin.username,
+            intent: 'rotate',
+            secretEncrypted: enrollment.secretEncrypted,
+            createdAt: Date.now(),
+        };
+
+        return res.redirect('/panel/settings/totp');
+    } catch (error) {
+        clearSettings2faPending(req);
+        logger.error('[Panel] Settings TOTP start error:', error.message);
+        return redirectSettingsSecurity(res, { error: 'Ошибка запуска TOTP-flow' });
+    }
+});
+
+// GET /panel/settings/totp - Confirm new TOTP secret
+router.get('/settings/totp', requireAuth, async (req, res) => {
+    if (!isSettings2faPendingValid(req)) {
+        clearSettings2faPending(req);
+        return redirectSettingsSecurity(res, { error: 'Сессия подтверждения TOTP истекла' });
+    }
+
+    const pending = req.session.settings2faPending;
+    if (pending.username !== req.session.adminUsername) {
+        clearSettings2faPending(req);
+        return redirectSettingsSecurity(res, { error: 'Некорректная сессия подтверждения TOTP' });
+    }
+
+    return renderSettingsTotpPage(res, pending);
+});
+
+// POST /panel/settings/totp - Finish enable/rotate flow
+router.post('/settings/totp', requireAuth, totpVerifyLimiter, async (req, res) => {
+    try {
+        if (!isSettings2faPendingValid(req)) {
+            clearSettings2faPending(req);
+            return redirectSettingsSecurity(res, { error: 'Сессия подтверждения TOTP истекла' });
+        }
+
+        const pending = req.session.settings2faPending;
+        if (pending.username !== req.session.adminUsername) {
+            clearSettings2faPending(req);
+            return redirectSettingsSecurity(res, { error: 'Некорректная сессия подтверждения TOTP' });
+        }
+
+        const token = String(req.body.token || '').trim();
+        if (!token) {
+            return renderSettingsTotpPage(res, pending, 'Введите код подтверждения');
+        }
+
+        const secret = totpService.decryptSecret(pending.secretEncrypted);
+        const isValid = await totpService.verifyToken({ secret, token });
+        if (!isValid) {
+            logger.warn(`[Panel] Failed settings TOTP confirmation for ${pending.username} (IP: ${req.ip})`);
+            return renderSettingsTotpPage(res, pending, 'Неверный код подтверждения');
+        }
+
+        await Admin.setTwoFactorEnabled(req.session.adminUsername, pending.secretEncrypted, new Date());
+        clearSettings2faPending(req);
+
+        logger.info(`[Panel] Settings TOTP ${pending.intent} completed for ${req.session.adminUsername}`);
+        const successMessage = pending.intent === 'rotate'
+            ? 'Новый TOTP-секрет успешно подключен'
+            : 'TOTP успешно подключен';
+
+        return redirectSettingsSecurity(res, { message: successMessage });
+    } catch (error) {
+        logger.error('[Panel] Settings TOTP confirmation error:', error.message);
+        if (isSettings2faPendingValid(req)) {
+            return renderSettingsTotpPage(res, req.session.settings2faPending, 'Ошибка: ' + error.message);
+        }
+        clearSettings2faPending(req);
+        return redirectSettingsSecurity(res, { error: 'Ошибка подтверждения TOTP' });
+    }
+});
+
+// POST /panel/settings/totp/disable - Disable TOTP for current admin
+router.post('/settings/totp/disable', requireAuth, totpVerifyLimiter, async (req, res) => {
+    try {
+        const currentPassword = String(req.body.currentPassword || '');
+        const currentTotpCode = String(req.body.currentTotpCode || '').trim();
+
+        if (!currentPassword || !currentTotpCode) {
+            return redirectSettingsSecurity(res, { error: 'Введите текущий пароль и TOTP-код' });
+        }
+
+        const admin = await Admin.verifyPassword(req.session.adminUsername, currentPassword);
+        if (!admin) {
+            return redirectSettingsSecurity(res, { error: 'Неверный текущий пароль' });
+        }
+
+        if (!admin.twoFactor?.enabled || !admin.twoFactor?.secretEncrypted) {
+            return redirectSettingsSecurity(res, { error: 'TOTP уже отключен' });
+        }
+
+        const currentSecret = totpService.decryptSecret(admin.twoFactor.secretEncrypted);
+        const isCurrentCodeValid = await totpService.verifyToken({ secret: currentSecret, token: currentTotpCode });
+        if (!isCurrentCodeValid) {
+            return redirectSettingsSecurity(res, { error: 'Неверный текущий TOTP-код' });
+        }
+
+        await Admin.clearTwoFactor(req.session.adminUsername);
+        clearSettings2faPending(req);
+
+        logger.info(`[Panel] Settings TOTP disabled for ${req.session.adminUsername}`);
+        return redirectSettingsSecurity(res, { message: 'TOTP успешно отключен' });
+    } catch (error) {
+        logger.error('[Panel] Settings TOTP disable error:', error.message);
+        return redirectSettingsSecurity(res, { error: 'Ошибка отключения TOTP' });
     }
 });
 
