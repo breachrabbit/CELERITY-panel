@@ -162,16 +162,14 @@ function parseXrayFormFields(body) {
 
 // Rate limiter для защиты от brute-force
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 минут
-    max: 5, // максимум 5 попыток
-    message: 'Слишком много попыток входа. Попробуйте через 15 минут.',
+    windowMs: 15 * 60 * 1000,
+    max: 5,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
         logger.warn(`[Panel] Rate limit exceeded for IP: ${req.ip}`);
-        res.status(429).render('login', { 
-            error: 'Слишком много попыток входа. Попробуйте через 15 минут.' 
-        });
+        const message = res.locals.t?.('auth.tooManyAttempts') || 'Too many login attempts. Try again in 15 minutes.';
+        res.status(429).render('login', { error: message });
     },
 });
 
@@ -405,7 +403,7 @@ const totpVerifyLimiter = rateLimit({
     legacyHeaders: false,
     handler: async (req, res) => {
         logger.warn(`[Panel] TOTP verify rate limit exceeded (IP: ${req.ip})`);
-        const message = 'Слишком много попыток подтверждения. Попробуйте позже.';
+        const message = res.locals.t?.('auth.tooManyTotpAttempts') || 'Too many verification attempts. Try again later.';
 
         if (req.path.includes('/setup') && isSetup2faPendingValid(req)) {
             return renderSetupTotpPage(res, req.session.setup2faPending, message);
@@ -535,14 +533,14 @@ router.post('/setup/totp', totpVerifyLimiter, async (req, res) => {
         const pending = req.session.setup2faPending;
         const token = String(req.body.token || '').trim();
         if (!token) {
-            return renderSetupTotpPage(res, pending, 'Введите код подтверждения');
+            return renderSetupTotpPage(res, pending, res.locals.t?.('auth.totpRequired') || 'Enter verification code');
         }
 
         const secret = totpService.decryptSecret(pending.secretEncrypted);
         const isValid = await totpService.verifyToken({ secret, token });
         if (!isValid) {
             logger.warn(`[Panel] Failed setup 2FA confirmation for ${pending.username} (IP: ${req.ip})`);
-            return renderSetupTotpPage(res, pending, 'Неверный код подтверждения');
+            return renderSetupTotpPage(res, pending, res.locals.t?.('auth.invalidTotp') || 'Invalid verification code');
         }
 
         await Admin.createAdminWithHash(pending.username, pending.passwordHash, {
@@ -582,7 +580,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     if (!admin) {
         logger.warn(`[Panel] Failed login attempt: ${username} from IP: ${req.ip}`);
-        return res.render('login', { error: 'Неверный логин или пароль' });
+        return res.render('login', { error: res.locals.t?.('auth.invalidCredentials') || 'Invalid username or password' });
     }
 
     clearSetup2faPending(req);
@@ -631,14 +629,14 @@ router.post('/login/totp', totpVerifyLimiter, async (req, res) => {
     const pending = req.session.login2faPending;
     const token = String(req.body.token || '').trim();
     if (!token) {
-        return renderLoginTotpPage(res, 'Введите код подтверждения');
+        return renderLoginTotpPage(res, res.locals.t?.('auth.totpRequired') || 'Enter verification code');
     }
 
     const secret = totpService.decryptSecret(pending.secretEncrypted);
     const isValid = await totpService.verifyToken({ secret, token });
     if (!isValid) {
         logger.warn(`[Panel] Failed login 2FA confirmation for ${pending.username} (IP: ${req.ip})`);
-        return renderLoginTotpPage(res, 'Неверный код подтверждения');
+        return renderLoginTotpPage(res, res.locals.t?.('auth.invalidTotp') || 'Invalid verification code');
     }
 
     clearLogin2faPending(req);
@@ -1799,41 +1797,39 @@ router.post('/settings/password', requireAuth, async (req, res) => {
         }
 
         if (newPassword !== confirmPassword) {
-            return redirectSettingsSecurity(res, { error: 'Пароли не совпадают' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('settings.passwordsMismatch') || 'Passwords do not match' });
         }
 
-        // Проверяем текущий пароль
         const admin = await Admin.verifyPassword(req.session.adminUsername, currentPassword);
         if (!admin) {
-            return redirectSettingsSecurity(res, { error: 'Неверный текущий пароль' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.invalidCurrentPassword') || 'Invalid current password' });
         }
 
         if (admin.twoFactor?.enabled) {
             if (!admin.twoFactor.secretEncrypted) {
                 logger.warn(`[Panel] Missing TOTP secret for enabled 2FA on password change: ${req.session.adminUsername} (IP: ${req.ip})`);
-                return redirectSettingsSecurity(res, { error: 'Ошибка настройки TOTP. Обратитесь к администратору' });
+                return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpConfigError') || 'TOTP configuration error' });
             }
 
             if (!currentTotpCode) {
-                return redirectSettingsSecurity(res, { error: 'Введите текущий TOTP-код' });
+                return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.enterCurrentTotp') || 'Enter current TOTP code' });
             }
 
             const currentSecret = totpService.decryptSecret(admin.twoFactor.secretEncrypted);
             const isCurrentCodeValid = await totpService.verifyToken({ secret: currentSecret, token: currentTotpCode });
             if (!isCurrentCodeValid) {
-                return redirectSettingsSecurity(res, { error: 'Неверный текущий TOTP-код' });
+                return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.invalidCurrentTotp') || 'Invalid current TOTP code' });
             }
         }
 
-        // Меняем пароль
         await Admin.changePassword(req.session.adminUsername, newPassword);
 
         logger.info(`[Panel] Password changed for: ${req.session.adminUsername}`);
 
-        return redirectSettingsSecurity(res, { message: 'Пароль успешно изменён' });
+        return redirectSettingsSecurity(res, { message: res.locals.t?.('auth.passwordChanged') || 'Password successfully changed' });
     } catch (error) {
         logger.error('[Panel] Password change error:', error.message);
-        return redirectSettingsSecurity(res, { error: 'Ошибка: ' + error.message });
+        return redirectSettingsSecurity(res, { error: error.message });
     }
 });
 
@@ -1846,24 +1842,24 @@ router.post('/settings/totp/start', requireAuth, totpVerifyLimiter, async (req, 
 
         if (!['enable', 'rotate'].includes(intent)) {
             clearSettings2faPending(req);
-            return redirectSettingsSecurity(res, { error: 'Некорректное действие TOTP' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpFlowError') || 'Invalid TOTP action' });
         }
 
         if (!currentPassword) {
             clearSettings2faPending(req);
-            return redirectSettingsSecurity(res, { error: 'Введите текущий пароль' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.enterCurrentPassword') || 'Enter current password' });
         }
 
         const admin = await Admin.verifyPassword(req.session.adminUsername, currentPassword);
         if (!admin) {
             clearSettings2faPending(req);
-            return redirectSettingsSecurity(res, { error: 'Неверный текущий пароль' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.invalidCurrentPassword') || 'Invalid current password' });
         }
 
         if (intent === 'enable') {
             if (admin.twoFactor?.enabled) {
                 clearSettings2faPending(req);
-                return redirectSettingsSecurity(res, { error: 'TOTP уже включен' });
+                return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpAlreadyEnabled') || 'TOTP is already enabled' });
             }
 
             const enrollment = await totpService.generateEnrollmentData({ username: admin.username });
@@ -1879,19 +1875,19 @@ router.post('/settings/totp/start', requireAuth, totpVerifyLimiter, async (req, 
 
         if (!admin.twoFactor?.enabled || !admin.twoFactor?.secretEncrypted) {
             clearSettings2faPending(req);
-            return redirectSettingsSecurity(res, { error: 'Для перевыпуска TOTP должен быть включен' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpRequiredForRotate') || 'TOTP must be enabled to rotate' });
         }
 
         if (!currentTotpCode) {
             clearSettings2faPending(req);
-            return redirectSettingsSecurity(res, { error: 'Введите текущий TOTP-код' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.enterCurrentTotp') || 'Enter current TOTP code' });
         }
 
         const currentSecret = totpService.decryptSecret(admin.twoFactor.secretEncrypted);
         const isCurrentCodeValid = await totpService.verifyToken({ secret: currentSecret, token: currentTotpCode });
         if (!isCurrentCodeValid) {
             clearSettings2faPending(req);
-            return redirectSettingsSecurity(res, { error: 'Неверный текущий TOTP-код' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.invalidCurrentTotp') || 'Invalid current TOTP code' });
         }
 
         const enrollment = await totpService.generateEnrollmentData({ username: admin.username });
@@ -1906,7 +1902,7 @@ router.post('/settings/totp/start', requireAuth, totpVerifyLimiter, async (req, 
     } catch (error) {
         clearSettings2faPending(req);
         logger.error('[Panel] Settings TOTP start error:', error.message);
-        return redirectSettingsSecurity(res, { error: 'Ошибка запуска TOTP-flow' });
+        return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpFlowError') || 'Error starting TOTP flow' });
     }
 });
 
@@ -1914,13 +1910,13 @@ router.post('/settings/totp/start', requireAuth, totpVerifyLimiter, async (req, 
 router.get('/settings/totp', requireAuth, async (req, res) => {
     if (!isSettings2faPendingValid(req)) {
         clearSettings2faPending(req);
-        return redirectSettingsSecurity(res, { error: 'Сессия подтверждения TOTP истекла' });
+        return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpPendingExpired') || 'TOTP session expired' });
     }
 
     const pending = req.session.settings2faPending;
     if (pending.username !== req.session.adminUsername) {
         clearSettings2faPending(req);
-        return redirectSettingsSecurity(res, { error: 'Некорректная сессия подтверждения TOTP' });
+        return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpPendingExpired') || 'Invalid TOTP session' });
     }
 
     return renderSettingsTotpPage(res, pending);
@@ -1931,25 +1927,25 @@ router.post('/settings/totp', requireAuth, totpVerifyLimiter, async (req, res) =
     try {
         if (!isSettings2faPendingValid(req)) {
             clearSettings2faPending(req);
-            return redirectSettingsSecurity(res, { error: 'Сессия подтверждения TOTP истекла' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpPendingExpired') || 'TOTP session expired' });
         }
 
         const pending = req.session.settings2faPending;
         if (pending.username !== req.session.adminUsername) {
             clearSettings2faPending(req);
-            return redirectSettingsSecurity(res, { error: 'Некорректная сессия подтверждения TOTP' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpPendingExpired') || 'Invalid TOTP session' });
         }
 
         const token = String(req.body.token || '').trim();
         if (!token) {
-            return renderSettingsTotpPage(res, pending, 'Введите код подтверждения');
+            return renderSettingsTotpPage(res, pending, res.locals.t?.('auth.totpRequired') || 'Enter verification code');
         }
 
         const secret = totpService.decryptSecret(pending.secretEncrypted);
         const isValid = await totpService.verifyToken({ secret, token });
         if (!isValid) {
             logger.warn(`[Panel] Failed settings TOTP confirmation for ${pending.username} (IP: ${req.ip})`);
-            return renderSettingsTotpPage(res, pending, 'Неверный код подтверждения');
+            return renderSettingsTotpPage(res, pending, res.locals.t?.('auth.invalidTotp') || 'Invalid verification code');
         }
 
         await Admin.setTwoFactorEnabled(req.session.adminUsername, pending.secretEncrypted, new Date());
@@ -1957,17 +1953,17 @@ router.post('/settings/totp', requireAuth, totpVerifyLimiter, async (req, res) =
 
         logger.info(`[Panel] Settings TOTP ${pending.intent} completed for ${req.session.adminUsername}`);
         const successMessage = pending.intent === 'rotate'
-            ? 'Новый TOTP-секрет успешно подключен'
-            : 'TOTP успешно подключен';
+            ? (res.locals.t?.('auth.totpRotated') || 'New TOTP secret configured')
+            : (res.locals.t?.('auth.totpEnabled') || 'TOTP enabled');
 
         return redirectSettingsSecurity(res, { message: successMessage });
     } catch (error) {
         logger.error('[Panel] Settings TOTP confirmation error:', error.message);
         if (isSettings2faPendingValid(req)) {
-            return renderSettingsTotpPage(res, req.session.settings2faPending, 'Ошибка: ' + error.message);
+            return renderSettingsTotpPage(res, req.session.settings2faPending, error.message);
         }
         clearSettings2faPending(req);
-        return redirectSettingsSecurity(res, { error: 'Ошибка подтверждения TOTP' });
+        return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpConfirmError') || 'TOTP confirmation error' });
     }
 });
 
@@ -1978,32 +1974,32 @@ router.post('/settings/totp/disable', requireAuth, totpVerifyLimiter, async (req
         const currentTotpCode = String(req.body.currentTotpCode || '').trim();
 
         if (!currentPassword || !currentTotpCode) {
-            return redirectSettingsSecurity(res, { error: 'Введите текущий пароль и TOTP-код' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.enterPasswordAndTotp') || 'Enter password and TOTP code' });
         }
 
         const admin = await Admin.verifyPassword(req.session.adminUsername, currentPassword);
         if (!admin) {
-            return redirectSettingsSecurity(res, { error: 'Неверный текущий пароль' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.invalidCurrentPassword') || 'Invalid current password' });
         }
 
         if (!admin.twoFactor?.enabled || !admin.twoFactor?.secretEncrypted) {
-            return redirectSettingsSecurity(res, { error: 'TOTP уже отключен' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpAlreadyDisabled') || 'TOTP is already disabled' });
         }
 
         const currentSecret = totpService.decryptSecret(admin.twoFactor.secretEncrypted);
         const isCurrentCodeValid = await totpService.verifyToken({ secret: currentSecret, token: currentTotpCode });
         if (!isCurrentCodeValid) {
-            return redirectSettingsSecurity(res, { error: 'Неверный текущий TOTP-код' });
+            return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.invalidCurrentTotp') || 'Invalid current TOTP code' });
         }
 
         await Admin.clearTwoFactor(req.session.adminUsername);
         clearSettings2faPending(req);
 
         logger.info(`[Panel] Settings TOTP disabled for ${req.session.adminUsername}`);
-        return redirectSettingsSecurity(res, { message: 'TOTP успешно отключен' });
+        return redirectSettingsSecurity(res, { message: res.locals.t?.('auth.totpDisabled') || 'TOTP disabled' });
     } catch (error) {
         logger.error('[Panel] Settings TOTP disable error:', error.message);
-        return redirectSettingsSecurity(res, { error: 'Ошибка отключения TOTP' });
+        return redirectSettingsSecurity(res, { error: res.locals.t?.('auth.totpDisableError') || 'Error disabling TOTP' });
     }
 });
 
