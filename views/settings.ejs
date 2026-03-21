@@ -366,6 +366,10 @@
                             <span><%= admin?.lastLogin ? new Date(admin.lastLogin).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU') : t('settings.never') %></span>
                         </div>
                         <div class="setting-item">
+                            <label><%= t('settings.twoFactorStatus') || 'Two-factor authentication' %></label>
+                            <span><%= admin?.twoFactor?.enabled ? t('common.enabled') : t('common.disabled') %></span>
+                        </div>
+                        <div class="setting-item">
                             <label><%= t('settings.ipWhitelist') %></label>
                             <span><%= config.PANEL_IP_WHITELIST || t('settings.ipWhitelistDisabled') %></span>
                         </div>
@@ -395,11 +399,11 @@
         </div>
         
         <div class="col-6">
-            <div class="card">
+            <div class="card" style="height: 100%;">
                 <div class="card-header">
                     <h2><i class="ti ti-key"></i> <%= t('settings.changePassword') %></h2>
                 </div>
-                <div class="card-body">
+                <div class="card-body" style="height: calc(100% - 56px);">
                     <form method="POST" action="/panel/settings/password">
                         <div class="form-group">
                             <label><%= t('settings.currentPassword') %></label>
@@ -413,10 +417,78 @@
                             <label><%= t('settings.confirmPassword') %></label>
                             <input type="password" name="confirmPassword" minlength="6" required>
                         </div>
+                        <% if (admin?.twoFactor?.enabled) { %>
+                        <div class="form-group">
+                            <label><%= t('settings.totpCurrentCodeLabel') || 'Текущий TOTP-код' %></label>
+                            <input type="text" name="currentTotpCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" autocomplete="one-time-code" required>
+                        </div>
+                        <% } %>
                         <button type="submit" class="btn btn-primary"><i class="ti ti-key"></i> <%= t('settings.changePasswordBtn') %></button>
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+            <h2><i class="ti ti-shield-lock"></i> <%= t('settings.totpManagementTitle') || 'TOTP' %></h2>
+        </div>
+        <div class="card-body">
+            <div class="settings-list" style="margin-bottom: 1rem;">
+                <div class="setting-item">
+                    <label><%= t('settings.totpStatusLabel') || 'Статус' %></label>
+                    <span><%= admin?.twoFactor?.enabled ? t('common.enabled') : t('common.disabled') %></span>
+                </div>
+                <div class="setting-item">
+                    <label><%= t('settings.totpEnabledAtLabel') || 'Дата подключения' %></label>
+                    <span><%= admin?.twoFactor?.enabledAt ? new Date(admin.twoFactor.enabledAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU') : t('settings.never') %></span>
+                </div>
+            </div>
+
+            <% if (!admin?.twoFactor?.enabled) { %>
+            <p class="hint" style="margin-bottom: 1rem;"><%= t('settings.totpEnableHint') || 'Подтвердите текущий пароль, затем подключите новое устройство по QR-коду.' %></p>
+            <form method="POST" action="/panel/settings/totp/start">
+                <input type="hidden" name="intent" value="enable">
+                <div class="form-group">
+                    <label><%= t('settings.currentPassword') %></label>
+                    <input type="password" name="currentPassword" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="ti ti-qrcode"></i> <%= t('settings.totpEnableAction') || 'Подключить TOTP' %></button>
+            </form>
+            <% } else { %>
+            <p class="hint" style="margin-bottom: 1rem;"><%= t('settings.totpProtectedHint') || 'Для отключения или перевыпуска нужно подтвердить текущий пароль и текущий TOTP-код.' %></p>
+
+            <div class="row">
+                <div class="col-6">
+                    <form method="POST" action="/panel/settings/totp/start" style="margin-bottom: 0;">
+                        <input type="hidden" name="intent" value="rotate">
+                        <div class="form-group">
+                            <label><%= t('settings.currentPassword') %></label>
+                            <input type="password" name="currentPassword" autocomplete="current-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label><%= t('settings.totpCurrentCodeLabel') || 'Текущий TOTP-код' %></label>
+                            <input type="text" name="currentTotpCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="ti ti-refresh"></i> <%= t('settings.totpRotateAction') || 'Перевыпустить секрет' %></button>
+                    </form>
+                </div>
+                <div class="col-6">
+                    <form method="POST" action="/panel/settings/totp/disable">
+                        <div class="form-group">
+                            <label><%= t('settings.currentPassword') %></label>
+                            <input type="password" name="currentPassword" autocomplete="current-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label><%= t('settings.totpCurrentCodeLabel') || 'Текущий TOTP-код' %></label>
+                            <input type="text" name="currentTotpCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required>
+                        </div>
+                        <button type="submit" class="btn btn-danger"><i class="ti ti-lock-open"></i> <%= t('settings.totpDisableAction') || 'Отключить TOTP' %></button>
+                    </form>
+                </div>
+            </div>
+            <% } %>
         </div>
     </div>
 
@@ -1135,8 +1207,9 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
     });
 });
 
-// Restore tab from localStorage
-const savedTab = localStorage.getItem('settings-tab');
+// Restore tab from query string or localStorage
+const queryTab = new URLSearchParams(window.location.search).get('tab');
+const savedTab = queryTab || localStorage.getItem('settings-tab');
 if (savedTab) {
     const tab = document.querySelector(`.settings-tab[data-tab="${savedTab}"]`);
     if (tab) tab.click();
