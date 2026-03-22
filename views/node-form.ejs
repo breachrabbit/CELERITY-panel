@@ -57,8 +57,6 @@ function renderDocsIcon(section) {
     return `<a class="docs-hint-link" href="${href}" target="_blank" rel="noopener noreferrer" title="${label}" aria-label="${label}">ⓘ</a>`;
 }
 const acmeAdvancedEnabled = !!(
-    node?.acme?.email ||
-    (node?.acme?.ca && node.acme.ca !== 'letsencrypt') ||
     (node?.acme?.listenHost && node.acme.listenHost !== '0.0.0.0') ||
     node?.acme?.type ||
     node?.acme?.httpAltPort ||
@@ -1236,8 +1234,10 @@ const aclInlineRulesValue = (node?.aclRules && node.aclRules.length > 0)
     </div>
     <div class="card-body">
         <p class="hint"><%- t('nodes.configHint') %></p>
-        <pre class="code-block"><code><%= nodeConfigPreview || '' %></code></pre>
-        <button class="btn btn-sm" onclick="copyConfig()"><%= t('common.copy') %></button>
+        <div class="code-block-wrap">
+            <pre class="code-block" id="nodeConfigCode"><code><%= nodeConfigPreview || '' %></code></pre>
+            <button type="button" class="config-copy-btn" id="nodeConfigCopyBtn" onclick="copyConfig(this)"><%= t('common.copy') %></button>
+        </div>
     </div>
 </div>
 <% } %>
@@ -1289,6 +1289,38 @@ const aclInlineRulesValue = (node?.aclRules && node.aclRules.length > 0)
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+.code-block-wrap {
+    position: relative;
+}
+.code-block {
+    margin: 0;
+    padding: 40px 14px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow: auto;
+    white-space: pre;
+}
+.config-copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+.config-copy-btn.is-copied {
+    color: var(--success);
+    border-color: var(--success);
 }
 .input-with-button {
     display: flex;
@@ -1656,10 +1688,52 @@ async function loadCurrentConfig() {
     <% } %>
 }
 
-function copyConfig() {
-    const code = document.querySelector('.code-block code').textContent;
-    navigator.clipboard.writeText(code);
-    alert(i18nConfig.copied);
+function fallbackCopyText(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    let ok = false;
+    try {
+        ok = document.execCommand('copy');
+    } catch (_) {
+        ok = false;
+    }
+    document.body.removeChild(ta);
+    return ok;
+}
+
+async function copyConfig(btn) {
+    const code = document.querySelector('#nodeConfigCode code')?.textContent || '';
+    if (!code) return;
+
+    let copied = false;
+    if (navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(code);
+            copied = true;
+        } catch (_) {
+            copied = fallbackCopyText(code);
+        }
+    } else {
+        copied = fallbackCopyText(code);
+    }
+
+    if (!btn) return;
+    if (!btn.dataset.orig) {
+        btn.dataset.orig = btn.textContent;
+    }
+
+    if (copied) {
+        btn.textContent = `${i18nConfig.copied} ✓`;
+        btn.classList.add('is-copied');
+        setTimeout(() => {
+            btn.textContent = btn.dataset.orig;
+            btn.classList.remove('is-copied');
+        }, 1500);
+    }
 }
 
 // ==================== Management actions ====================
