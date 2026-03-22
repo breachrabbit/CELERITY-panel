@@ -1318,6 +1318,23 @@ html {
     line-height: 1.5;
 }
 
+.docs-hint-link {
+    display: inline-block;
+    margin-right: 6px;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.docs-hint-link:hover,
+.docs-hint-link:focus {
+    text-decoration: underline;
+}
+
+.optional-fields-wrap {
+    margin-top: 12px;
+}
+
 .form-actions {
     display: flex;
     gap: 12px;
@@ -1326,18 +1343,47 @@ html {
     border-top: 1px solid var(--border);
 }
 
-.checkbox-label {
+label.checkbox-label,
+.form-group label.checkbox-label {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     cursor: pointer;
     font-weight: 500;
+    line-height: 1.35;
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+    vertical-align: middle;
 }
 
-.checkbox-label input {
+label.checkbox-label > input[type="checkbox"],
+.form-group label.checkbox-label > input[type="checkbox"] {
     width: 20px;
     height: 20px;
+    margin: 0;
+    padding: 0;
+    flex: 0 0 auto;
     accent-color: var(--accent);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transform: none;
+}
+
+label.checkbox-label > input[type="checkbox"]:hover,
+label.checkbox-label > input[type="checkbox"]:focus,
+.form-group label.checkbox-label > input[type="checkbox"]:hover,
+.form-group label.checkbox-label > input[type="checkbox"]:focus {
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+}
+
+label.checkbox-label > .checkbox-text,
+.form-group label.checkbox-label > .checkbox-text {
+    line-height: 1.35;
 }
 
 /* Login Page */
