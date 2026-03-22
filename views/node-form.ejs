@@ -1233,7 +1233,7 @@ const aclInlineRulesValue = (node?.aclRules && node.aclRules.length > 0)
         <h2><%= t('nodes.nodeConfig') %></h2>
     </div>
     <div class="card-body">
-        <p class="hint"><%- t('nodes.configHint') %></p>
+        <p class="hint config-hint"><%- t('nodes.configHint') %></p>
         <div class="code-block-wrap">
             <pre class="code-block" id="nodeConfigCode"><code><%= nodeConfigPreview || '' %></code></pre>
             <button type="button" class="config-copy-btn" id="nodeConfigCopyBtn" onclick="copyConfig(this)"><%= t('common.copy') %></button>
@@ -1293,10 +1293,11 @@ const aclInlineRulesValue = (node?.aclRules && node.aclRules.length > 0)
 
 .code-block-wrap {
     position: relative;
+    margin-top: 10px;
 }
 .code-block {
     margin: 0;
-    padding: 40px 14px 14px;
+    padding: 14px;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -1321,6 +1322,9 @@ const aclInlineRulesValue = (node?.aclRules && node.aclRules.length > 0)
 .config-copy-btn.is-copied {
     color: var(--success);
     border-color: var(--success);
+}
+.config-hint {
+    margin-bottom: 0;
 }
 .input-with-button {
     display: flex;
