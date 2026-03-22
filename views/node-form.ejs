@@ -465,6 +465,7 @@ const aclInlineRulesValue = (node?.aclRules && node.aclRules.length > 0)
                 </small>
                 <div class="form-group">
                     <label class="checkbox-label">
+                        <input type="hidden" name="sniff.enable" value="0">
                         <input type="checkbox" name="sniff.enable" <%= sniffBaseEnabled ? 'checked' : '' %>>
                         <span class="checkbox-text"><%= t('nodes.sniffEnable') %></span>
                     </label>
@@ -505,6 +506,7 @@ const aclInlineRulesValue = (node?.aclRules && node.aclRules.length > 0)
                 <h3><%= t('nodes.sectionAcl') %></h3>
                 <small class="section-hint"><%- renderDocsIcon('acl') %><%= t('nodes.sectionAclHint') %></small>
                 <label class="checkbox-label">
+                    <input type="hidden" name="acl.enabled" value="0">
                     <input type="checkbox" id="aclEnabled" name="acl.enabled" <%= aclSectionEnabled ? 'checked' : '' %> onchange="toggleAclFields()">
                     <span class="checkbox-text"><%= t('nodes.enableAcl') %></span>
                 </label>

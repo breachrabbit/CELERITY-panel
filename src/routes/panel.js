@@ -163,7 +163,7 @@ function parseXrayFormFields(body) {
 
 function parseBool(body, key, defaultValue = false) {
     if (body[key] === undefined) return defaultValue;
-    const v = body[key];
+    const v = Array.isArray(body[key]) ? body[key][body[key].length - 1] : body[key];
     return v === 'on' || v === 'true' || v === true || v === '1';
 }
 
@@ -1205,6 +1205,51 @@ router.post('/nodes', requireAuth, async (req, res) => {
     }
 });
 
+// POST /panel/nodes/preview-config - generate config preview from current form values
+router.post('/nodes/preview-config', requireAuth, async (req, res) => {
+    try {
+        const nodeType = req.body.type === 'xray' ? 'xray' : 'hysteria';
+        if (nodeType !== 'hysteria') {
+            return res.status(400).json({ success: false, error: 'Preview config supports only Hysteria nodes' });
+        }
+
+        const hyFields = parseHysteriaFormFields(req.body);
+        const hyValidationError = validateHysteriaFormFields(hyFields);
+        if (hyValidationError) {
+            return res.status(400).json({ success: false, error: hyValidationError });
+        }
+        delete hyFields.acmeDnsConfigValid;
+
+        const nodeData = {
+            type: 'hysteria',
+            port: parseInt(req.body.port, 10) || 443,
+            domain: (req.body.domain || '').trim(),
+            sni: (req.body.sni || '').trim(),
+            useTlsFiles: parseBool(req.body, 'useTlsFiles', false),
+            obfs: {
+                type: req.body['obfs.type'] || '',
+                password: req.body['obfs.password'] || '',
+            },
+            statsPort: parseInt(req.body.statsPort, 10) || 9999,
+            statsSecret: req.body.statsSecret || '',
+            outbounds: [],
+            aclRules: hyFields.aclRules || [],
+            ...hyFields,
+        };
+
+        const settings = await Settings.get();
+        const authInsecure = settings?.nodeAuth?.insecure ?? true;
+        const authUrl = `${config.BASE_URL}/api/auth`;
+        const useTlsFiles = nodeData.useTlsFiles || !nodeData.domain;
+
+        const generatedConfig = configGenerator.generateNodeConfig(nodeData, authUrl, { authInsecure, useTlsFiles });
+        return res.json({ success: true, config: generatedConfig });
+    } catch (error) {
+        logger.error('[Panel] Preview config generation error:', error.message);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /panel/nodes/:id - Edit node form
 router.get('/nodes/:id', requireAuth, async (req, res) => {
     try {
@@ -1321,51 +1366,6 @@ router.post('/nodes/:id', requireAuth, async (req, res) => {
     } catch (error) {
         logger.error(`[Panel] Update node error: ${error.message}`);
         res.redirect(`/panel/nodes/${nodeId}?error=${encodeURIComponent(error.message)}`);
-    }
-});
-
-// POST /panel/nodes/preview-config - generate config preview from current form values
-router.post('/nodes/preview-config', requireAuth, async (req, res) => {
-    try {
-        const nodeType = req.body.type === 'xray' ? 'xray' : 'hysteria';
-        if (nodeType !== 'hysteria') {
-            return res.status(400).json({ success: false, error: 'Preview config supports only Hysteria nodes' });
-        }
-
-        const hyFields = parseHysteriaFormFields(req.body);
-        const hyValidationError = validateHysteriaFormFields(hyFields);
-        if (hyValidationError) {
-            return res.status(400).json({ success: false, error: hyValidationError });
-        }
-        delete hyFields.acmeDnsConfigValid;
-
-        const nodeData = {
-            type: 'hysteria',
-            port: parseInt(req.body.port, 10) || 443,
-            domain: (req.body.domain || '').trim(),
-            sni: (req.body.sni || '').trim(),
-            useTlsFiles: parseBool(req.body, 'useTlsFiles', false),
-            obfs: {
-                type: req.body['obfs.type'] || '',
-                password: req.body['obfs.password'] || '',
-            },
-            statsPort: parseInt(req.body.statsPort, 10) || 9999,
-            statsSecret: req.body.statsSecret || '',
-            outbounds: [],
-            aclRules: hyFields.aclRules || [],
-            ...hyFields,
-        };
-
-        const settings = await Settings.get();
-        const authInsecure = settings?.nodeAuth?.insecure ?? true;
-        const authUrl = `${config.BASE_URL}/api/auth`;
-        const useTlsFiles = nodeData.useTlsFiles || !nodeData.domain;
-
-        const generatedConfig = configGenerator.generateNodeConfig(nodeData, authUrl, { authInsecure, useTlsFiles });
-        return res.json({ success: true, config: generatedConfig });
-    } catch (error) {
-        logger.error('[Panel] Preview config generation error:', error.message);
-        return res.status(500).json({ success: false, error: error.message });
     }
 });
 
