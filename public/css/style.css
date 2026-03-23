@@ -257,6 +257,7 @@ html {
     flex: 1;
     margin-left: 260px;
     min-height: 100vh;
+    min-width: 0;
     background: var(--bg-primary);
 }
 
@@ -306,6 +307,7 @@ html {
 
 .main-content {
     padding: 32px;
+    min-width: 0;
 }
 
 /* Stats Grid */
@@ -1238,6 +1240,7 @@ html {
 /* Forms */
 .form-group {
     margin-bottom: 20px;
+    min-width: 0;
 }
 
 .form-group label:not(.checkbox-label) {
@@ -1287,13 +1290,13 @@ html {
 
 .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 16px;
 }
 
 .form-row-3 {
     display: grid;
-    grid-template-columns: 2fr 2fr 1fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
     gap: 16px;
 }
 
