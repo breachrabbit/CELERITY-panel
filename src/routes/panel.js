@@ -35,7 +35,7 @@ const cache = require('../services/cacheService');
 const nodeSetup = require('../services/nodeSetup');
 const NodeSSH = require('../services/nodeSSH');
 const sshKeyService = require('../services/sshKeyService');
-const { getActiveGroups, invalidateGroupsCache, invalidateSettingsCache } = require('../utils/helpers');
+const { getActiveGroups, invalidateGroupsCache, invalidateSettingsCache, parseDurationSeconds } = require('../utils/helpers');
 const config = require('../../config');
 const logger = require('../utils/logger');
 const path = require('path');
@@ -262,7 +262,7 @@ function parseHysteriaFormFields(body) {
         string: {
             content: normalizeTextareaNewlines(body['masquerade.string.content'] || 'Service Unavailable'),
             headers: parseHeaderMap(body['masquerade.string.headers'], { 'content-type': 'text/plain' }),
-            statusCode: parseInt(body['masquerade.string.statusCode']) || 503,
+            statusCode: parseInt(body['masquerade.string.statusCode'], 10) || 503,
         },
         listenHTTP: (body['masquerade.listenHTTP'] || '').trim(),
         listenHTTPS: (body['masquerade.listenHTTPS'] || '').trim(),
@@ -278,8 +278,6 @@ function parseHysteriaFormFields(body) {
             type: acmeAdvancedEnabled ? (body['acme.type'] || '').trim() : '',
             httpAltPort: acmeAdvancedEnabled ? parseIntegerOrDefault(body['acme.httpAltPort'], 0) : 0,
             tlsAltPort: acmeAdvancedEnabled ? parseIntegerOrDefault(body['acme.tlsAltPort'], 0) : 0,
-            disableHTTPChallenge: false,
-            disableTLSALPNChallenge: false,
             dnsName: acmeAdvancedEnabled ? (body['acme.dns.name'] || '').trim() : '',
             dnsConfig: acmeAdvancedEnabled ? acmeDnsConfigParsed.value : {},
         },
@@ -336,22 +334,10 @@ function parseHysteriaFormFields(body) {
             geoUpdateInterval: aclEnabled ? (body['acl.geoUpdateInterval'] || '').trim() : '',
         },
         aclRules,
+        useTlsFiles: parseBool(body, 'useTlsFiles', false),
     };
 }
 
-function parseDurationSeconds(raw) {
-    const v = String(raw || '').trim().toLowerCase();
-    if (!v) return 0;
-    const m = v.match(/^(\d+(\.\d+)?)(ms|s|m|h)?$/);
-    if (!m) return NaN;
-    const n = Number(m[1]);
-    const unit = m[3] || 's';
-    if (unit === 'ms') return n / 1000;
-    if (unit === 's') return n;
-    if (unit === 'm') return n * 60;
-    if (unit === 'h') return n * 3600;
-    return NaN;
-}
 
 function isValidPortList(raw) {
     const value = String(raw || '').trim().toLowerCase();
@@ -1018,7 +1004,7 @@ router.post('/setup', async (req, res) => {
         return res.redirect('/panel/totp');
     } catch (error) {
         logger.error('[Panel] Admin creation error:', error.message);
-        return res.render('setup', { error: 'Ошибка: ' + error.message, enableTotp: req.body.enableTotp === 'on' });
+        return res.render('setup', { error: `${res.locals.t?.('common.error') || 'Error'}: ${error.message}`, enableTotp: req.body.enableTotp === 'on' });
     }
 });
 
@@ -1246,7 +1232,7 @@ router.post('/totp', totpVerifyLimiter, async (req, res) => {
             return renderPanelTotpPage(res, pending, error.message);
         }
 
-        return renderPanelTotpPage(res, pending, 'Ошибка: ' + error.message);
+        return renderPanelTotpPage(res, pending, `${res.locals.t?.('common.error') || 'Error'}: ${error.message}`);
     }
 });
 
@@ -2014,7 +2000,7 @@ router.get('/users/:userId/edit', requireAuth, async (req, res) => {
             error: null,
         });
     } catch (error) {
-        res.status(500).send('Ошибка: ' + error.message);
+        res.status(500).send(`${res.locals.t?.('common.error') || 'Error'}: ${error.message}`);
     }
 });
 
@@ -2090,7 +2076,7 @@ router.post('/users', requireAuth, async (req, res) => {
         
         res.redirect(`/panel/users/${userId}`);
     } catch (error) {
-        res.status(500).send('Ошибка: ' + error.message);
+        res.status(500).send(`${res.locals.t?.('common.error') || 'Error'}: ${error.message}`);
     }
 });
 
@@ -2193,7 +2179,7 @@ router.post('/users/:userId', requireAuth, async (req, res) => {
 
         res.redirect(`/panel/users/${req.params.userId}`);
     } catch (error) {
-        res.status(500).send('Ошибка: ' + error.message);
+        res.status(500).send(`${res.locals.t?.('common.error') || 'Error'}: ${error.message}`);
     }
 });
 
@@ -2455,7 +2441,7 @@ router.post('/settings', requireAuth, async (req, res) => {
         res.redirect('/panel/settings?message=' + encodeURIComponent('Настройки сохранены'));
     } catch (error) {
         logger.error('[Panel] Settings save error:', error.message);
-        res.redirect('/panel/settings?error=' + encodeURIComponent('Ошибка: ' + error.message));
+        res.redirect('/panel/settings?error=' + encodeURIComponent(`${res.locals.t?.('common.error') || 'Error'}: ${error.message}`));
     }
 });
 
@@ -3118,7 +3104,7 @@ router.post('/nodes/:id/outbounds', requireAuth, async (req, res) => {
         res.redirect(`/panel/nodes/${req.params.id}/outbounds?message=` + encodeURIComponent('Outbounds сохранены'));
     } catch (error) {
         logger.error('[Panel] Outbounds save error:', error.message);
-        res.redirect(`/panel/nodes/${req.params.id}/outbounds?error=` + encodeURIComponent('Ошибка: ' + error.message));
+        res.redirect(`/panel/nodes/${req.params.id}/outbounds?error=` + encodeURIComponent(`${res.locals.t?.('common.error') || 'Error'}: ${error.message}`));
     }
 });
 

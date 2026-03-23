@@ -61,6 +61,86 @@ const manageNodeSchema = z.object({
             username: z.string().optional(),
             password: z.string().optional(),
         }).optional(),
+        // Hysteria 2 advanced configuration
+        hopInterval: z.string().optional().describe('Port-hopping interval, e.g. "30s"'),
+        acme: z.object({
+            email: z.string().optional(),
+            ca: z.string().optional(),
+            listenHost: z.string().optional(),
+            type: z.enum(['', 'http', 'tls', 'dns']).optional(),
+            httpAltPort: z.number().optional(),
+            tlsAltPort: z.number().optional(),
+            dnsName: z.string().optional(),
+            dnsConfig: z.record(z.unknown()).optional(),
+        }).optional(),
+        masquerade: z.object({
+            type: z.enum(['proxy', 'string']).optional(),
+            proxy: z.object({
+                url: z.string().optional(),
+                rewriteHost: z.boolean().optional(),
+                insecure: z.boolean().optional(),
+            }).optional(),
+            string: z.object({
+                content: z.string().optional(),
+                headers: z.record(z.string()).optional(),
+                statusCode: z.number().optional(),
+            }).optional(),
+            listenHTTP: z.string().optional(),
+            listenHTTPS: z.string().optional(),
+            forceHTTPS: z.boolean().optional(),
+        }).optional(),
+        bandwidth: z.object({
+            up: z.string().optional(),
+            down: z.string().optional(),
+        }).optional(),
+        ignoreClientBandwidth: z.boolean().optional(),
+        speedTest: z.boolean().optional(),
+        disableUDP: z.boolean().optional(),
+        udpIdleTimeout: z.string().optional().describe('UDP idle timeout, e.g. "60s"'),
+        sniff: z.object({
+            enabled: z.boolean().optional(),
+            enable: z.boolean().optional().describe('Enable sniffing within the protocol'),
+            timeout: z.string().optional().describe('Sniff timeout, e.g. "2s"'),
+            rewriteDomain: z.boolean().optional(),
+            tcpPorts: z.string().optional().describe('TCP ports to sniff, e.g. "80,443,8000-9000"'),
+            udpPorts: z.string().optional().describe('UDP ports to sniff, e.g. "443,80,53"'),
+        }).optional(),
+        quic: z.object({
+            enabled: z.boolean().optional(),
+            initStreamReceiveWindow: z.number().optional(),
+            maxStreamReceiveWindow: z.number().optional(),
+            initConnReceiveWindow: z.number().optional(),
+            maxConnReceiveWindow: z.number().optional(),
+            maxIdleTimeout: z.string().optional(),
+            maxIncomingStreams: z.number().optional(),
+            disablePathMTUDiscovery: z.boolean().optional(),
+        }).optional(),
+        resolver: z.object({
+            enabled: z.boolean().optional(),
+            type: z.enum(['udp', 'tcp', 'tls', 'https']).optional(),
+            udpAddr: z.string().optional(),
+            udpTimeout: z.string().optional(),
+            tcpAddr: z.string().optional(),
+            tcpTimeout: z.string().optional(),
+            tlsAddr: z.string().optional(),
+            tlsTimeout: z.string().optional(),
+            tlsSni: z.string().optional(),
+            tlsInsecure: z.boolean().optional(),
+            httpsAddr: z.string().optional(),
+            httpsTimeout: z.string().optional(),
+            httpsSni: z.string().optional(),
+            httpsInsecure: z.boolean().optional(),
+        }).optional(),
+        acl: z.object({
+            enabled: z.boolean().optional(),
+            type: z.enum(['inline', 'file']).optional(),
+            file: z.string().optional(),
+            geoip: z.string().optional(),
+            geosite: z.string().optional(),
+            geoUpdateInterval: z.string().optional(),
+        }).optional(),
+        aclRules: z.array(z.string()).optional().describe('Inline ACL rules (stored on node root, not inside acl)'),
+        useTlsFiles: z.boolean().optional().describe('Whether to use TLS cert/key files instead of ACME'),
     }).optional(),
     setupOptions: z.object({
         installHysteria: z.boolean().default(true),
@@ -156,7 +236,7 @@ async function manageNode(args, emit) {
             if (existing) return { error: 'Node with this IP already exists', code: 409 };
 
             const statsSecret = cryptoService.generateNodeSecret();
-            const node = new HyNode({
+            const nodeData = {
                 name: data.name,
                 ip: data.ip,
                 type: data.type || 'hysteria',
@@ -172,7 +252,16 @@ async function manageNode(args, emit) {
                 status: 'offline',
                 cascadeRole: data.cascadeRole || 'standalone',
                 country: data.country || '',
-            });
+            };
+            const hy2Keys = [
+                'hopInterval', 'acme', 'masquerade', 'bandwidth',
+                'ignoreClientBandwidth', 'speedTest', 'disableUDP',
+                'udpIdleTimeout', 'sniff', 'quic', 'resolver', 'acl', 'aclRules', 'useTlsFiles',
+            ];
+            for (const k of hy2Keys) {
+                if (data[k] !== undefined) nodeData[k] = data[k];
+            }
+            const node = new HyNode(nodeData);
             await node.save();
             await invalidateNodesCache();
             logger.info(`[MCP] Created node ${data.name} (${data.ip})`);
@@ -181,7 +270,12 @@ async function manageNode(args, emit) {
 
         case 'update': {
             if (!id) throw new Error('id is required for update');
-            const allowed = ['name', 'domain', 'sni', 'port', 'portRange', 'groups', 'active', 'country', 'cascadeRole', 'type'];
+            const allowed = [
+                'name', 'domain', 'sni', 'port', 'portRange', 'groups', 'active', 'country', 'cascadeRole', 'type',
+                'hopInterval', 'acme', 'masquerade', 'bandwidth',
+                'ignoreClientBandwidth', 'speedTest', 'disableUDP',
+                'udpIdleTimeout', 'sniff', 'quic', 'resolver', 'acl', 'aclRules', 'useTlsFiles',
+            ];
             const updates = {};
             for (const k of allowed) {
                 if (data[k] !== undefined) updates[k] = data[k];

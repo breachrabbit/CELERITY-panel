@@ -15,7 +15,7 @@ const HyUser = require('../models/hyUserModel');
 const HyNode = require('../models/hyNodeModel');
 const cache = require('../services/cacheService');
 const logger = require('../utils/logger');
-const { getNodesByGroups, getSettings } = require('../utils/helpers');
+const { getNodesByGroups, getSettings, parseDurationSeconds, normalizeHopInterval } = require('../utils/helpers');
 
 // ==================== HELPERS ====================
 
@@ -218,27 +218,6 @@ function getNodeConfigs(node) {
     return configs;
 }
 
-function parseHopIntervalSeconds(hopInterval) {
-    const raw = String(hopInterval || '').trim().toLowerCase();
-    if (!raw) return 0;
-    const m = raw.match(/^(\d+(\.\d+)?)(ms|s|m|h)?$/);
-    if (!m) return 0;
-    const value = Number(m[1]);
-    if (!Number.isFinite(value) || value <= 0) return 0;
-    const unit = m[3] || 's';
-    if (unit === 'ms') return value / 1000;
-    if (unit === 's') return value;
-    if (unit === 'm') return value * 60;
-    if (unit === 'h') return value * 3600;
-    return 0;
-}
-
-function normalizeHopInterval(hopInterval) {
-    const sec = parseHopIntervalSeconds(hopInterval);
-    if (sec <= 0) return '';
-    const normalized = Math.max(Math.ceil(sec), 5);
-    return `${normalized}s`;
-}
 
 // ==================== URI GENERATION ====================
 
@@ -433,7 +412,7 @@ function generateClashYAML(user, nodes) {
       - h3`;
 
                 if (cfg.portRange) proxy += `\n    ports: ${cfg.portRange}`;
-                const hopIntervalSec = parseHopIntervalSeconds(normalizeHopInterval(cfg.hopInterval));
+                const hopIntervalSec = parseDurationSeconds(normalizeHopInterval(cfg.hopInterval));
                 if (hopIntervalSec > 0) proxy += `\n    hop-interval: ${hopIntervalSec}`;
                 if (cfg.obfs === 'salamander' && cfg.obfsPassword) {
                     proxy += `\n    obfs: salamander\n    obfs-password: "${cfg.obfsPassword}"`;

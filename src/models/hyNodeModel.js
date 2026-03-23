@@ -34,8 +34,6 @@ const acmeOptionsSchema = new mongoose.Schema({
     type: { type: String, enum: ['', 'http', 'tls', 'dns'], default: '' },
     httpAltPort: { type: Number, default: 0 },
     tlsAltPort: { type: Number, default: 0 },
-    disableHTTPChallenge: { type: Boolean, default: false },
-    disableTLSALPNChallenge: { type: Boolean, default: false },
     dnsName: { type: String, default: '' },
     dnsConfig: { type: Object, default: {} },
 }, { _id: false });

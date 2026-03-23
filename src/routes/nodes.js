@@ -80,6 +80,10 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
             name, ip, domain, sni, port, portRange, statsPort,
             groups, ssh, paths, settings, rankingCoefficient,
             type, xray, cascadeRole, country,
+            hopInterval, acme, masquerade, bandwidth,
+            ignoreClientBandwidth, speedTest, disableUDP,
+            udpIdleTimeout, sniff, quic, resolver, acl,
+            aclRules, useTlsFiles,
         } = req.body;
         
         if (!name || !ip) {
@@ -124,6 +128,12 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
             nodeData.xray = xray;
         }
 
+        // Hysteria 2 advanced configuration fields
+        const hy2Fields = { hopInterval, acme, masquerade, bandwidth, ignoreClientBandwidth, speedTest, disableUDP, udpIdleTimeout, sniff, quic, resolver, acl, aclRules, useTlsFiles };
+        for (const [key, value] of Object.entries(hy2Fields)) {
+            if (value !== undefined) nodeData[key] = value;
+        }
+
         const node = new HyNode(nodeData);
         await node.save();
         
@@ -148,6 +158,10 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
             'name', 'domain', 'sni', 'port', 'portRange', 'statsPort',
             'groups', 'ssh', 'paths', 'settings', 'active', 'rankingCoefficient',
             'type', 'xray', 'cascadeRole', 'country',
+            'hopInterval', 'acme', 'masquerade', 'bandwidth',
+            'ignoreClientBandwidth', 'speedTest', 'disableUDP',
+            'udpIdleTimeout', 'sniff', 'quic', 'resolver', 'acl',
+            'aclRules', 'useTlsFiles',
         ];
         
         const updates = {};
