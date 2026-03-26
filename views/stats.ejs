@@ -85,15 +85,11 @@
     </div>
 </div>
 
-<!-- Nodes Chart -->
+<!-- Nodes Online Chart -->
 <div class="card chart-card chart-card-wide mt-2">
     <div class="card-header">
         <h2><i class="ti ti-server"></i> <%= t('stats.nodesUsage') %></h2>
         <div class="header-actions">
-            <select id="nodeMetric" class="filter-select" onchange="updateNodesChartMetric()">
-                <option value="online"><%= t('stats.online') || 'Online' %></option>
-                <option value="traffic"><%= t('stats.traffic') || 'Traffic' %></option>
-            </select>
             <select id="nodeSelector" class="filter-select">
                 <option value="all"><%= t('stats.allNodes') %></option>
             </select>
@@ -101,6 +97,21 @@
     </div>
     <div class="card-body chart-body chart-body-tall">
         <canvas id="nodesChart"></canvas>
+    </div>
+</div>
+
+<!-- Nodes Traffic Chart -->
+<div class="card chart-card chart-card-wide mt-2">
+    <div class="card-header">
+        <h2><i class="ti ti-arrows-transfer-down"></i> <%= t('stats.nodesTraffic') %></h2>
+        <div class="header-actions">
+            <select id="nodeTrafficSelector" class="filter-select">
+                <option value="all"><%= t('stats.allNodes') %></option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body chart-body chart-body-tall">
+        <canvas id="nodesTrafficChart"></canvas>
     </div>
 </div>
 
@@ -118,8 +129,8 @@
                         <th><%= t('stats.currentOnline') %></th>
                         <th><%= t('stats.avgOnline') %></th>
                         <th><%= t('stats.peakOnline') %></th>
-                        <th>TX</th>
-                        <th>RX</th>
+                        <th><%= t('stats.tx') %></th>
+                        <th><%= t('stats.rx') %></th>
                         <th><%= t('common.status') %></th>
                     </tr>
                 </thead>
@@ -308,6 +319,7 @@ let _lastNodesData = null;
 let onlineChart = null;
 let trafficChart = null;
 let nodesChart = null;
+let nodesTrafficChart = null;
 
 // Current period
 let currentPeriod = '1h';
@@ -397,7 +409,7 @@ function initCharts() {
         options: getChartOptions('traffic')
     });
     
-    // Nodes Chart
+    // Nodes Online Chart
     const nodesCtx = document.getElementById('nodesChart').getContext('2d');
     nodesChart = new Chart(nodesCtx, {
         type: 'line',
@@ -406,6 +418,17 @@ function initCharts() {
             datasets: []
         },
         options: getChartOptions('nodes')
+    });
+
+    // Nodes Traffic Chart
+    const nodesTrafficCtx = document.getElementById('nodesTrafficChart').getContext('2d');
+    nodesTrafficChart = new Chart(nodesTrafficCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: []
+        },
+        options: getChartOptions('nodesTraffic')
     });
 }
 
@@ -419,7 +442,7 @@ function getChartOptions(type) {
         },
         plugins: {
             legend: {
-                display: type === 'nodes',
+                display: type === 'nodes' || type === 'nodesTraffic',
                 position: 'top',
                 labels: {
                     usePointStyle: true,
@@ -546,46 +569,45 @@ function updateNodesChart(data) {
     if (!data.labels || data.labels.length === 0 || !data.nodes) {
         return;
     }
-    
-    const metric = document.getElementById('nodeMetric')?.value || 'online';
-    
-    nodesChart.data.labels = data.labels.map(l => new Date(l));
-    
-    // Build datasets based on selected metric
+
+    const labels = data.labels.map(l => new Date(l));
+
+    // Online chart
+    nodesChart.data.labels = labels;
     nodesChart.data.datasets = data.nodes.map((node, i) => ({
         label: node.name,
-        data: node.data.map(d => metric === 'traffic' ? (d.tx || 0) + (d.rx || 0) : d.online),
+        data: node.data.map(d => d.online),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
         backgroundColor: 'transparent',
         tension: 0.4,
         pointRadius: 0,
         pointHoverRadius: 4,
     }));
-
-    // Adjust y-axis formatter for traffic mode
-    nodesChart.options.scales.y.ticks = metric === 'traffic'
-        ? { callback: v => formatBytes(v) }
-        : {};
-    nodesChart.options.plugins.tooltip.callbacks.label = metric === 'traffic'
-        ? ctx => `${ctx.dataset.label}: ${formatBytes(ctx.raw)}`
-        : ctx => `${ctx.dataset.label}: ${ctx.raw}`;
-    
     nodesChart.update('none');
-    
-    // Update node selector
-    const selector = document.getElementById('nodeSelector');
-    selector.innerHTML = `<option value="all">${i18n.connections}</option>`;
-    data.nodes.forEach((node, i) => {
-        selector.innerHTML += `<option value="${i}">${node.name}</option>`;
-    });
-}
 
-// Re-render chart when metric toggle changes -- no network request
-function updateNodesChartMetric() {
-    if (_lastNodesData) {
-        updateNodesChart(_lastNodesData);
-        updateNodesTable(_lastNodesData);
-    }
+    // Traffic chart
+    nodesTrafficChart.data.labels = labels;
+    nodesTrafficChart.data.datasets = data.nodes.map((node, i) => ({
+        label: node.name,
+        data: node.data.map(d => (d.tx || 0) + (d.rx || 0)),
+        borderColor: colors.nodeColors[i % colors.nodeColors.length],
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+    }));
+    nodesTrafficChart.options.scales.y.ticks = { callback: v => formatBytes(v) };
+    nodesTrafficChart.options.plugins.tooltip.callbacks.label = ctx => `${ctx.dataset.label}: ${formatBytes(ctx.raw)}`;
+    nodesTrafficChart.update('none');
+
+    // Populate both selectors
+    [document.getElementById('nodeSelector'), document.getElementById('nodeTrafficSelector')].forEach(sel => {
+        if (!sel) return;
+        sel.innerHTML = `<option value="all">${i18n.connections}</option>`;
+        data.nodes.forEach((node, i) => {
+            sel.innerHTML += `<option value="${i}">${node.name}</option>`;
+        });
+    });
 }
 
 function updateNodesTable(data) {
@@ -655,6 +677,40 @@ function formatBytes(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+function filterChart(chart, allDatasets, selectedIdx) {
+    if (selectedIdx === 'all') {
+        chart.data.datasets = allDatasets;
+    } else {
+        const i = parseInt(selectedIdx);
+        chart.data.datasets = allDatasets[i] ? [allDatasets[i]] : [];
+    }
+    chart.update('none');
+}
+
+document.getElementById('nodeSelector')?.addEventListener('change', function() {
+    if (!_lastNodesData) return;
+    const all = _lastNodesData.nodes.map((node, i) => ({
+        label: node.name,
+        data: node.data.map(d => d.online),
+        borderColor: colors.nodeColors[i % colors.nodeColors.length],
+        backgroundColor: 'transparent',
+        tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+    }));
+    filterChart(nodesChart, all, this.value);
+});
+
+document.getElementById('nodeTrafficSelector')?.addEventListener('change', function() {
+    if (!_lastNodesData) return;
+    const all = _lastNodesData.nodes.map((node, i) => ({
+        label: node.name,
+        data: node.data.map(d => (d.tx || 0) + (d.rx || 0)),
+        borderColor: colors.nodeColors[i % colors.nodeColors.length],
+        backgroundColor: 'transparent',
+        tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+    }));
+    filterChart(nodesTrafficChart, all, this.value);
+});
 
 </script>
 

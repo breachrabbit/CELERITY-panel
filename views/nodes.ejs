@@ -200,6 +200,11 @@
                         <div class="mobile-node-title">
                             <% if (node.flag) { %><span><%= node.flag %></span><% } %>
                             <strong><%= node.name %></strong>
+                            <% if (node.type === 'xray') { %>
+                            <img src="/img/xray.svg" alt="Xray" title="Xray VLESS" style="width:14px;height:14px;vertical-align:middle;opacity:0.7;">
+                            <% } else { %>
+                            <img src="/img/hysteria.svg" alt="Hysteria" title="Hysteria 2" style="width:14px;height:14px;vertical-align:middle;opacity:0.7;">
+                            <% } %>
                             <code style="font-size: 11px;"><%= node.ip %></code>
                         </div>
                         <span class="badge badge-<%= node.status === 'online' ? 'success' : (node.status === 'error' ? 'danger' : 'warning') %>">

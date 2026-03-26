@@ -86,11 +86,13 @@
                         <tr class="node-row<%= idx >= 20 ? ' node-collapsed' : '' %>" data-nodeid="<%= node._id %>">
                             <td>
                                 <div class="node-cell">
-                                    <% if (node.flag) { %><span class="node-flag" style="margin-right:4px"><%= node.flag %></span><% } %>
-                                    <strong><%= node.name %></strong>
-                                    <img src="/img/<%= node.type === 'xray' ? 'xray' : 'hysteria' %>.svg"
-                                         alt="<%= node.type === 'xray' ? 'Xray' : 'Hysteria' %>"
-                                         style="width:14px;height:14px;vertical-align:middle;margin-left:4px;opacity:0.7;">
+                                    <span class="node-name-row">
+                                        <% if (node.flag) { %><span class="node-flag"><%= node.flag %></span><% } %>
+                                        <strong><%= node.name %></strong>
+                                        <img src="/img/<%= node.type === 'xray' ? 'xray' : 'hysteria' %>.svg"
+                                             alt="<%= node.type === 'xray' ? 'Xray' : 'Hysteria' %>"
+                                             style="width:14px;height:14px;vertical-align:middle;opacity:0.7;">
+                                    </span>
                                     <code class="node-ip"><%= node.ip %></code>
                                 </div>
                             </td>
@@ -139,11 +141,13 @@
                         <div class="mobile-node-card<%= idx >= 20 ? ' node-collapsed' : '' %>" data-nodeid="<%= node._id %>">
                         <div class="mobile-node-header">
                             <div class="mobile-node-title">
-                                <% if (node.flag) { %><span class="node-flag" style="margin-right:4px"><%= node.flag %></span><% } %>
-                                <strong><%= node.name %></strong>
-                                <img src="/img/<%= node.type === 'xray' ? 'xray' : 'hysteria' %>.svg"
-                                     alt="<%= node.type === 'xray' ? 'Xray' : 'Hysteria' %>"
-                                     style="width:13px;height:13px;vertical-align:middle;margin-left:3px;opacity:0.7;">
+                                <span class="node-name-row">
+                                    <% if (node.flag) { %><span class="node-flag"><%= node.flag %></span><% } %>
+                                    <strong><%= node.name %></strong>
+                                    <img src="/img/<%= node.type === 'xray' ? 'xray' : 'hysteria' %>.svg"
+                                         alt="<%= node.type === 'xray' ? 'Xray' : 'Hysteria' %>"
+                                         style="width:13px;height:13px;vertical-align:middle;opacity:0.7;">
+                                </span>
                                 <code><%= node.ip %></code>
                             </div>
                                 <span class="status-indicator status-<%= node.status %>">
