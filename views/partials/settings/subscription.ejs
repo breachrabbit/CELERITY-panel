@@ -29,7 +29,7 @@
                         </div>
                         <div id="logoDefaultPreview" style="color: var(--text-muted); font-size: 13px; <%= settings?.subscription?.logoUrl ? 'display:none;' : '' %>">
                             <i class="ti ti-rocket" style="font-size: 32px;"></i>
-                            <div style="font-size: 11px; margin-top: 4px;">по умолчанию</div>
+                            <div style="font-size: 11px; margin-top: 4px;"><%= t('settings.subLogoDefault') %></div>
                         </div>
                     </div>
                 </div>
@@ -38,7 +38,7 @@
                     <label><%= t('settings.subPageTitle') || 'Заголовок страницы' %></label>
                     <input type="text" name="subscription.pageTitle"
                            value="<%= settings?.subscription?.pageTitle || '' %>"
-                           placeholder="Подключение">
+                           placeholder="<%= t('settings.subPageTitlePlaceholder') %>">
                     <small class="hint"><%= t('settings.subPageTitleHint') || 'Текст над логотипом. По умолчанию: «Подключение».' %></small>
                 </div>
 
@@ -46,7 +46,7 @@
 
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 1rem;">
                     <i class="ti ti-info-circle"></i>
-                    Ссылки ниже отображаются в клиентах Hiddify / Clash как кнопки в карточке профиля.
+                    <%= t('settings.subHiddifyProfileHint') %>
                 </p>
 
                 <div class="settings-grid">
@@ -98,8 +98,7 @@
                     </div>
                     <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0.75rem; line-height: 1.5;">
                         <i class="ti ti-info-circle"></i>
-                        Используйте <code>{url}</code> в URL для подстановки ссылки подписки (например: <code>hiddify://import/{url}</code>).
-                        Для Shadowrocket: <code>sub://{url_b64}</code>. Для query-параметров: <code>{url_encoded}</code>.
+                        <%= t('settings.subButtonsHint') %>
                     </p>
                     <input type="hidden" name="subscription.buttonsJson" id="subButtonsJson" value="">
                     <div id="subButtonsList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;"></div>
@@ -109,10 +108,10 @@
                         </button>
                         <div style="position: relative; display: inline-block;">
                             <button type="button" class="btn btn-secondary" style="font-size: 13px;" onclick="this.nextElementSibling.classList.toggle('open')">
-                                <i class="ti ti-template"></i> Шаблон
+                                <i class="ti ti-template"></i> <%= t('settings.subTemplate') %>
                             </button>
                             <div class="tpl-dropdown">
-                                <div class="tpl-section">Клиенты</div>
+                                <div class="tpl-section"><%= t('settings.subTplClients') %></div>
                                 <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Hiddify" data-url="hiddify://import/{url}" data-icon="ti-download"><i class="ti ti-download"></i> Hiddify</div>
                                 <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Streisand" data-url="streisand://import/{url}" data-icon="ti-shield"><i class="ti ti-shield"></i> Streisand</div>
                                 <div class="tpl-item" onclick="subFromTemplate(this)" data-label="V2RayNG" data-url="v2rayng://install-sub?url={url_encoded}" data-icon="ti-brand-android"><i class="ti ti-brand-android"></i> V2RayNG</div>
@@ -120,10 +119,10 @@
                                 <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Clash" data-url="clash://install-config?url={url_encoded}" data-icon="ti-bolt"><i class="ti ti-bolt"></i> Clash / Stash</div>
                                 <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Sing-box" data-url="sing-box://import-remote-profile?url={url_encoded}" data-icon="ti-box-multiple"><i class="ti ti-box-multiple"></i> Sing-box</div>
                                 <div class="tpl-item" onclick="subFromTemplate(this)" data-label="HAPP" data-url="{url}" data-icon="ti-rocket"><i class="ti ti-rocket"></i> HAPP</div>
-                                <div class="tpl-section">Ссылки</div>
-                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Поддержка" data-url="https://t.me/" data-icon="ti-brand-telegram"><i class="ti ti-brand-telegram"></i> Telegram</div>
+                                <div class="tpl-section"><%= t('settings.subTplLinks') %></div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="<%= t('settings.subTplSupport') %>" data-url="https://t.me/" data-icon="ti-brand-telegram"><i class="ti ti-brand-telegram"></i> Telegram</div>
                                 <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Email" data-url="mailto:" data-icon="ti-mail"><i class="ti ti-mail"></i> Email</div>
-                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Сайт" data-url="https://" data-icon="ti-world"><i class="ti ti-world"></i> Сайт</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="<%= t('settings.subTplWebsite') %>" data-url="https://" data-icon="ti-world"><i class="ti ti-world"></i> <%= t('settings.subTplWebsite') %></div>
                             </div>
                         </div>
                     </div>
@@ -159,6 +158,15 @@
 
             <script>
             (function() {
+                var subI18n = {
+                    search: <%- JSON.stringify(t('settings.subIconSearch')) %>,
+                    btnLabelPh: <%- JSON.stringify(t('settings.subBtnLabelPlaceholder')) %>,
+                    btnUrlPh: <%- JSON.stringify(t('settings.subBtnUrlPlaceholder')) %>,
+                    btnLabelTitle: <%- JSON.stringify(t('settings.subBtnLabelTitle')) %>,
+                    btnUrlTitle: <%- JSON.stringify(t('settings.subBtnUrlTitle')) %>,
+                    pickIcon: <%- JSON.stringify(t('settings.subPickIcon')) %>,
+                    deleteBtn: <%- JSON.stringify(t('settings.subDeleteBtn')) %>,
+                };
                 var ICONS = [
                     'ti-download','ti-external-link','ti-link','ti-share','ti-send','ti-copy','ti-cloud-download',
                     'ti-brand-telegram','ti-brand-whatsapp','ti-brand-discord','ti-brand-twitter','ti-brand-github',
@@ -187,7 +195,7 @@
 
                 var picker = document.createElement('div');
                 picker.className = 'icon-picker';
-                picker.innerHTML = '<input type="text" class="icon-picker-search" placeholder="Поиск...">'
+                picker.innerHTML = '<input type="text" class="icon-picker-search" placeholder=' + JSON.stringify(subI18n.search) + '>'
                     + '<div class="icon-picker-grid"></div>';
                 document.body.appendChild(picker);
 
@@ -231,7 +239,7 @@
                     if (!pickerTarget) return;
                     pickerTarget.row._btnIcon = ic;
                     pickerTarget.btn.innerHTML = '<i class="ti ' + ic + '"></i>';
-                    pickerTarget.btn.title = ic;
+                    pickerTarget.btn.title = subI18n.pickIcon;
                     picker.classList.remove('open');
                     pickerTarget = null;
                     syncJson();
@@ -281,25 +289,25 @@
 
                     var labelInp = document.createElement('input');
                     labelInp.type = 'text';
-                    labelInp.placeholder = 'Hiddify';
+                    labelInp.placeholder = subI18n.btnLabelPh;
                     labelInp.value = data.label || '';
                     labelInp.style.cssText = 'min-width:0;';
-                    labelInp.title = 'Название кнопки';
+                    labelInp.title = subI18n.btnLabelTitle;
                     labelInp.oninput = syncJson;
                     row._labelInp = labelInp;
 
                     var urlInp = document.createElement('input');
                     urlInp.type = 'text';
-                    urlInp.placeholder = 'hiddify://import/{url}';
+                    urlInp.placeholder = subI18n.btnUrlPh;
                     urlInp.value = data.url || '';
                     urlInp.style.cssText = 'min-width:0; font-size:12px;';
-                    urlInp.title = 'URL — переменные: {url}, {url_b64}, {url_encoded}';
+                    urlInp.title = subI18n.btnUrlTitle;
                     urlInp.oninput = syncJson;
                     row._urlInp = urlInp;
 
                     var iconBtn = document.createElement('div');
                     iconBtn.className = 'icon-pick-btn';
-                    iconBtn.title = iconVal || 'Выбрать иконку';
+                    iconBtn.title = subI18n.pickIcon;
                     iconBtn.innerHTML = iconDisplay;
                     iconBtn.onclick = function() { openPicker(iconBtn, row); };
 
@@ -307,7 +315,7 @@
                     delBtn.type = 'button';
                     delBtn.className = 'btn btn-danger';
                     delBtn.style.cssText = 'padding:0.4rem 0.6rem; flex-shrink:0;';
-                    delBtn.title = 'Удалить';
+                    delBtn.title = subI18n.deleteBtn;
                     delBtn.innerHTML = '<i class="ti ti-trash" style="font-size:14px;"></i>';
                     delBtn.onclick = function() { row.remove(); updateCount(); syncJson(); };
 

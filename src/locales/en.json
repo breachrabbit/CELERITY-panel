@@ -711,7 +711,22 @@
     "subUpdateIntervalHint": "How often clients auto-refresh the subscription. Sent as the Profile-Update-Interval response header. Range: 1–168 hours.",
     "subButtons": "Buttons on subscription page",
     "subButtonsHint": "Use {url} in the URL field to insert the subscription link (e.g. hiddify://import/{url}). For Shadowrocket use sub://{url_b64}. For query params use {url_encoded}. Icons: tabler.io/icons (e.g. ti-download).",
-    "subAddButton": "Add button"
+    "subAddButton": "Add button",
+    "subLogoDefault": "Default",
+    "subHiddifyProfileHint": "The links below appear in Hiddify / Clash as profile card buttons.",
+    "subPageTitlePlaceholder": "Connection",
+    "subTemplate": "Template",
+    "subTplClients": "Clients",
+    "subTplLinks": "Links",
+    "subTplSupport": "Support",
+    "subTplWebsite": "Website",
+    "subIconSearch": "Search…",
+    "subBtnLabelPlaceholder": "Hiddify",
+    "subBtnUrlPlaceholder": "hiddify://import/{url}",
+    "subBtnLabelTitle": "Button label",
+    "subBtnUrlTitle": "URL — placeholders: {url}, {url_b64}, {url_encoded}",
+    "subPickIcon": "Choose icon",
+    "subDeleteBtn": "Remove"
   },
   "setup": {
     "title": "Initial Setup",
