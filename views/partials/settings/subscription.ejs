@@ -101,6 +101,7 @@
                         Используйте <code>{url}</code> в URL для подстановки ссылки подписки (например: <code>hiddify://import/{url}</code>).
                         Для Shadowrocket: <code>sub://{url_b64}</code>. Для query-параметров: <code>{url_encoded}</code>.
                     </p>
+                    <input type="hidden" name="subscription.buttonsJson" id="subButtonsJson" value="">
                     <div id="subButtonsList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;"></div>
                     <button type="button" id="subAddBtn" class="btn btn-secondary" style="font-size: 13px;" onclick="subAddButton()">
                         <i class="ti ti-plus"></i> <%= t('settings.subAddButton') || 'Добавить кнопку' %>
@@ -155,6 +156,7 @@
                 var list = document.getElementById('subButtonsList');
                 var addBtnEl = document.getElementById('subAddBtn');
                 var countEl = document.getElementById('subBtnCount');
+                var jsonField = document.getElementById('subButtonsJson');
 
                 var picker = document.createElement('div');
                 picker.className = 'icon-picker';
@@ -182,8 +184,8 @@
 
                 pickerSearch.addEventListener('input', function() { renderPickerIcons(this.value); });
 
-                function openPicker(btn, hiddenInput) {
-                    pickerTarget = { btn: btn, input: hiddenInput };
+                function openPicker(btn, row) {
+                    pickerTarget = { btn: btn, row: row };
                     pickerSearch.value = '';
                     renderPickerIcons('');
                     picker.classList.add('open');
@@ -200,10 +202,12 @@
 
                 function selectIcon(ic) {
                     if (!pickerTarget) return;
-                    pickerTarget.input.value = ic;
+                    pickerTarget.row._btnIcon = ic;
                     pickerTarget.btn.innerHTML = '<i class="ti ' + ic + '"></i>';
+                    pickerTarget.btn.title = ic;
                     picker.classList.remove('open');
                     pickerTarget = null;
+                    syncJson();
                 }
 
                 document.addEventListener('mousedown', function(e) {
@@ -212,8 +216,16 @@
                     }
                 });
 
-                function esc(s) {
-                    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                function syncJson() {
+                    var btns = [];
+                    list.querySelectorAll('.sub-btn-row').forEach(function(row) {
+                        btns.push({
+                            label: row._labelInp.value,
+                            url: row._urlInp.value,
+                            icon: row._btnIcon || ''
+                        });
+                    });
+                    jsonField.value = JSON.stringify(btns);
                 }
 
                 function updateCount() {
@@ -222,50 +234,39 @@
                     addBtnEl.disabled = rows.length >= MAX_BUTTONS;
                 }
 
-                function reindex() {
-                    list.querySelectorAll('.sub-btn-row').forEach(function(row, i) {
-                        row.querySelectorAll('[data-field]').forEach(function(inp) {
-                            inp.name = 'subscription.buttons[' + i + '][' + inp.dataset.field + ']';
-                        });
-                    });
-                    updateCount();
-                }
-
                 window.subAddButton = function(data) {
                     if (list.querySelectorAll('.sub-btn-row').length >= MAX_BUTTONS) return;
                     data = data || {};
                     var iconVal = data.icon || '';
-                    var iconDisplay = iconVal ? '<i class="ti ' + esc(iconVal) + '"></i>' : '<i class="ti ti-plus" style="opacity:.4"></i>';
+                    var iconDisplay = iconVal ? '<i class="ti ' + iconVal + '"></i>' : '<i class="ti ti-plus" style="opacity:.4"></i>';
 
                     var row = document.createElement('div');
                     row.className = 'sub-btn-row';
+                    row._btnIcon = iconVal;
 
                     var labelInp = document.createElement('input');
                     labelInp.type = 'text';
-                    labelInp.dataset.field = 'label';
                     labelInp.placeholder = 'Hiddify';
                     labelInp.value = data.label || '';
                     labelInp.style.cssText = 'min-width:0;';
                     labelInp.title = 'Название кнопки';
+                    labelInp.oninput = syncJson;
+                    row._labelInp = labelInp;
 
                     var urlInp = document.createElement('input');
                     urlInp.type = 'text';
-                    urlInp.dataset.field = 'url';
                     urlInp.placeholder = 'hiddify://import/{url}';
                     urlInp.value = data.url || '';
                     urlInp.style.cssText = 'min-width:0; font-size:12px;';
                     urlInp.title = 'URL — переменные: {url}, {url_b64}, {url_encoded}';
-
-                    var iconInp = document.createElement('input');
-                    iconInp.type = 'hidden';
-                    iconInp.dataset.field = 'icon';
-                    iconInp.value = iconVal;
+                    urlInp.oninput = syncJson;
+                    row._urlInp = urlInp;
 
                     var iconBtn = document.createElement('div');
                     iconBtn.className = 'icon-pick-btn';
                     iconBtn.title = iconVal || 'Выбрать иконку';
                     iconBtn.innerHTML = iconDisplay;
-                    iconBtn.onclick = function() { openPicker(iconBtn, iconInp); };
+                    iconBtn.onclick = function() { openPicker(iconBtn, row); };
 
                     var delBtn = document.createElement('button');
                     delBtn.type = 'button';
@@ -273,21 +274,19 @@
                     delBtn.style.cssText = 'padding:0.4rem 0.6rem; flex-shrink:0;';
                     delBtn.title = 'Удалить';
                     delBtn.innerHTML = '<i class="ti ti-trash" style="font-size:14px;"></i>';
-                    delBtn.onclick = function() { row.remove(); reindex(); };
+                    delBtn.onclick = function() { row.remove(); updateCount(); syncJson(); };
 
                     row.appendChild(labelInp);
                     row.appendChild(urlInp);
-                    row.appendChild(iconInp);
                     row.appendChild(iconBtn);
                     row.appendChild(delBtn);
                     list.appendChild(row);
-                    reindex();
+                    updateCount();
+                    syncJson();
                 };
 
-                window.reindexSubButtons = reindex;
-
                 initialButtons.forEach(function(b) { window.subAddButton(b); });
-                updateCount();
+                if (!initialButtons.length) syncJson();
             })();
             </script>
         </div>
