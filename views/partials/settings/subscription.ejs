@@ -103,9 +103,30 @@
                     </p>
                     <input type="hidden" name="subscription.buttonsJson" id="subButtonsJson" value="">
                     <div id="subButtonsList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;"></div>
-                    <button type="button" id="subAddBtn" class="btn btn-secondary" style="font-size: 13px;" onclick="subAddButton()">
-                        <i class="ti ti-plus"></i> <%= t('settings.subAddButton') || 'Добавить кнопку' %>
-                    </button>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" id="subAddBtn" class="btn btn-secondary" style="font-size: 13px;" onclick="subAddButton()">
+                            <i class="ti ti-plus"></i> <%= t('settings.subAddButton') || 'Добавить кнопку' %>
+                        </button>
+                        <div style="position: relative; display: inline-block;">
+                            <button type="button" class="btn btn-secondary" style="font-size: 13px;" onclick="this.nextElementSibling.classList.toggle('open')">
+                                <i class="ti ti-template"></i> Шаблон
+                            </button>
+                            <div class="tpl-dropdown">
+                                <div class="tpl-section">Клиенты</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Hiddify" data-url="hiddify://import/{url}" data-icon="ti-download"><i class="ti ti-download"></i> Hiddify</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="V2RayNG" data-url="v2rayng://install-sub?url={url_encoded}" data-icon="ti-brand-android"><i class="ti ti-brand-android"></i> V2RayNG</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Shadowrocket" data-url="sub://{url_b64}" data-icon="ti-brand-apple"><i class="ti ti-brand-apple"></i> Shadowrocket</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Streisand" data-url="streisand://import/{url}" data-icon="ti-shield"><i class="ti ti-shield"></i> Streisand</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Clash" data-url="clash://install-config?url={url_encoded}" data-icon="ti-bolt"><i class="ti ti-bolt"></i> Clash / Stash</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Sing-box" data-url="sing-box://import-remote-profile?url={url_encoded}" data-icon="ti-box-multiple"><i class="ti ti-box-multiple"></i> Sing-box</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="HAPP" data-url="https://web.happ-proxy.com/" data-icon="ti-rocket"><i class="ti ti-rocket"></i> HAPP</div>
+                                <div class="tpl-section">Ссылки</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Поддержка" data-url="https://t.me/" data-icon="ti-brand-telegram"><i class="ti ti-brand-telegram"></i> Telegram</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Email" data-url="mailto:" data-icon="ti-mail"><i class="ti ti-mail"></i> Email</div>
+                                <div class="tpl-item" onclick="subFromTemplate(this)" data-label="Сайт" data-url="https://" data-icon="ti-world"><i class="ti ti-world"></i> Сайт</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
@@ -128,6 +149,12 @@
             .icon-picker-grid::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
             .icon-pick-cell { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:6px; cursor:pointer; font-size:17px; color:var(--text-muted,#aaa); transition: background .1s, color .1s; }
             .icon-pick-cell:hover { background:var(--primary); color:#fff; }
+            .tpl-dropdown { display:none; position:absolute; left:0; top:calc(100% + 4px); min-width:220px; background:var(--bg-secondary,#1c1c2e); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,.4); z-index:100; padding:6px 0; }
+            .tpl-dropdown.open { display:block; }
+            .tpl-section { padding:6px 14px 4px; font-size:11px; color:var(--text-muted,#888); text-transform:uppercase; letter-spacing:.04em; }
+            .tpl-item { display:flex; align-items:center; gap:8px; padding:7px 14px; font-size:13px; cursor:pointer; color:var(--text); transition: background .1s; }
+            .tpl-item:hover { background:var(--primary); color:#fff; }
+            .tpl-item i { font-size:16px; width:20px; text-align:center; }
             </style>
 
             <script>
@@ -214,7 +241,15 @@
                     if (picker.classList.contains('open') && !picker.contains(e.target) && (!pickerTarget || e.target !== pickerTarget.btn)) {
                         picker.classList.remove('open');
                     }
+                    document.querySelectorAll('.tpl-dropdown.open').forEach(function(d) {
+                        if (!d.contains(e.target) && e.target !== d.previousElementSibling) d.classList.remove('open');
+                    });
                 });
+
+                window.subFromTemplate = function(el) {
+                    subAddButton({ label: el.dataset.label, url: el.dataset.url, icon: el.dataset.icon });
+                    el.closest('.tpl-dropdown').classList.remove('open');
+                };
 
                 function syncJson() {
                     var btns = [];
