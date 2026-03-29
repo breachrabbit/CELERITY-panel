@@ -52,6 +52,8 @@ router.get('/settings', async (req, res) => {
             settings.backup.s3.secretAccessKey = cryptoService.decryptSafe(settings.backup.s3.secretAccessKey);
         }
 
+        logger.debug('[Panel] GET settings buttons from DB:', JSON.stringify(settings?.subscription?.buttons));
+
         render(res, 'settings', {
             title: res.locals.locales.settings.title,
             page: 'settings',
@@ -120,23 +122,16 @@ router.post('/settings', async (req, res) => {
             const rawInterval = parseInt(req.body['subscription.updateInterval'], 10);
             updates['subscription.updateInterval'] = isNaN(rawInterval) ? 12 : Math.min(168, Math.max(1, rawInterval));
 
-            const buttonsMap = {};
-            for (const key of Object.keys(req.body)) {
-                const m = key.match(/^subscription\.buttons\[(\d+)\]\.(label|url|icon)$/);
-                if (m) {
-                    const idx = parseInt(m[1], 10);
-                    const field = m[2];
-                    if (!buttonsMap[idx]) buttonsMap[idx] = {};
-                    buttonsMap[idx][field] = req.body[key] || '';
-                }
-            }
-            const buttons = Object.keys(buttonsMap)
-                .sort((a, b) => a - b)
-                .map(idx => buttonsMap[idx])
-                .filter(b => b.label && b.url)
+            const rawJson = req.body['subscription.buttonsJson'];
+            logger.debug('[Panel] buttonsJson raw:', rawJson);
+            let parsedButtons = [];
+            try { parsedButtons = JSON.parse(rawJson || '[]'); } catch (e) { logger.debug('[Panel] buttonsJson parse error:', e.message); }
+            if (!Array.isArray(parsedButtons)) parsedButtons = [];
+            updates['subscription.buttons'] = parsedButtons
+                .filter(b => b && b.label && b.url)
                 .slice(0, 10)
-                .map(b => ({ label: b.label.trim(), url: b.url.trim(), icon: (b.icon || '').trim() }));
-            updates['subscription.buttons'] = buttons;
+                .map(b => ({ label: String(b.label).trim(), url: String(b.url).trim(), icon: String(b.icon || '').trim() }));
+            logger.debug('[Panel] buttons to save:', JSON.stringify(updates['subscription.buttons']));
         }
 
         // Backup settings
