@@ -1,8 +1,13 @@
+{
+    servers {
+        protocols h1 h2
+    }
+}
+
 {$PANEL_DOMAIN} {
     encode gzip zstd
 
     reverse_proxy backend:3000 {
-        # Force HTTP/1.1 to backend (Express doesn't support h2c)
         transport http {
             versions 1.1
         }
