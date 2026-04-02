@@ -785,7 +785,7 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
                     ${loc.configs.map((cfg, i) => `
                     <div class="config">
                         <span class="config-name">${cfg.name}</span>
-                        <button class="copy-btn" onclick="copyUri(${locIdx}_${i}, this)">Копировать</button>
+                        <button class="copy-btn" onclick="copyUri(this)">Копировать</button>
                     </div>
                     `).join('')}
                 </div>
@@ -807,8 +807,7 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
             doCopy(text, btn);
         }
         
-        function copyUri(index, btn) {
-            // Находим правильный индекс
+        function copyUri(btn) {
             const allBtns = document.querySelectorAll('.location-configs .copy-btn');
             let idx = 0;
             for (let i = 0; i < allBtns.length; i++) {
