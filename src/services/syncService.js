@@ -132,7 +132,7 @@ class SyncService {
             const failures = (prevNode?.healthFailures || 0) + 1;
 
             if (failures >= HEALTH_FAILURE_THRESHOLD && prevNode?.status === 'online') {
-                await HyNode.updateOne({ _id: node._id }, { $set: { status: 'offline' } });
+                await HyNode.updateOne({ _id: node._id }, { $set: { status: 'offline', onlineUsers: 0 } });
                 webhook.emit(webhook.EVENTS.NODE_OFFLINE, { nodeId: node._id, name: node.name, lastError: error.message });
                 logger.warn(`[Agent] ${node.name}: marked offline after ${failures} consecutive failures`);
             }
@@ -487,7 +487,7 @@ class SyncService {
             const failures = (prevNode?.healthFailures || 0) + 1;
 
             if (failures >= HEALTH_FAILURE_THRESHOLD && prevNode?.status === 'online') {
-                await HyNode.updateOne({ _id: node._id }, { $set: { status: 'offline' } });
+                await HyNode.updateOne({ _id: node._id }, { $set: { status: 'offline', onlineUsers: 0 } });
                 webhook.emit(webhook.EVENTS.NODE_OFFLINE, { nodeId: node._id, name: node.name, lastError: error.message });
                 logger.warn(`[Agent] ${node.name}: marked offline after ${failures} consecutive failures`);
             }
@@ -774,7 +774,7 @@ class SyncService {
             const failures = (prevNode?.healthFailures || 0) + 1;
 
             if (failures >= HEALTH_FAILURE_THRESHOLD && prevNode?.status === 'online') {
-                await HyNode.updateOne({ _id: node._id }, { $set: { status: 'offline' } });
+                await HyNode.updateOne({ _id: node._id }, { $set: { status: 'offline', onlineUsers: 0 } });
                 webhook.emit(webhook.EVENTS.NODE_OFFLINE, { nodeId: node._id, name: node.name, lastError: error.message });
                 logger.warn(`[Stats] ${node.name}: marked offline after ${failures} consecutive failures`);
             }
