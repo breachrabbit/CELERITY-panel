@@ -32,6 +32,7 @@ const {
 } = require('./helpers');
 
 const sniScanner = require('../../services/sniScanner');
+const RESERVED_CASCADE_OUTBOUND = '__cascade_sidecar__';
 
 function shellQuote(value) {
     return `'${String(value).replace(/'/g, `'\\''`)}'`;
@@ -188,13 +189,23 @@ async function runHybridSidecarSmokeCheck(node) {
         logs.push(`[INFO] hysteria config: ${runtime.hysteriaConfigPath}`);
         logs.push(`[INFO] SOCKS port: ${runtime.socksPort}`);
 
-        const hysteriaState = await ssh.exec('systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || echo unknown');
+        const hysteriaState = await ssh.exec('(systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || true) | head -n 1');
         const hysteriaStatus = String(hysteriaState.stdout || '').trim();
         pushCheck('hysteria service active', hysteriaStatus === 'active', `status=${hysteriaStatus || 'unknown'}`);
 
-        const sidecarState = await ssh.exec(`systemctl is-active ${shellQuote(runtime.serviceName)} 2>/dev/null || echo unknown`);
+        const sidecarState = await ssh.exec(`(systemctl is-active ${shellQuote(runtime.serviceName)} 2>/dev/null || true) | head -n 1`);
         const sidecarStatus = String(sidecarState.stdout || '').trim();
-        pushCheck('sidecar service active', sidecarStatus === 'active', `status=${sidecarStatus || 'unknown'}`);
+        let sidecarDetails = `status=${sidecarStatus || 'unknown'}`;
+        if (sidecarStatus !== 'active') {
+            const sidecarJournal = await ssh.exec(`journalctl -u ${shellQuote(runtime.serviceName)} -n 12 --no-pager 2>/dev/null || true`);
+            const journalTail = String(sidecarJournal.stdout || sidecarJournal.stderr || '')
+                .trim()
+                .split('\n')
+                .slice(-3)
+                .join(' | ');
+            if (journalTail) sidecarDetails += `; logs=${journalTail}`;
+        }
+        pushCheck('sidecar service active', sidecarStatus === 'active', sidecarDetails);
 
         const sidecarConfig = await ssh.exec(`[ -f ${shellQuote(runtime.sidecarConfigPath)} ] && echo yes || echo no`);
         pushCheck('sidecar config exists', String(sidecarConfig.stdout || '').trim() === 'yes', runtime.sidecarConfigPath);
@@ -1044,6 +1055,7 @@ router.post('/nodes/:id/outbounds', async (req, res) => {
                 const type = (types[i] || '').trim();
                 
                 if (!name || !type) continue;
+                if (name === RESERVED_CASCADE_OUTBOUND) continue;
                 if (!['direct', 'block', 'socks5', 'http'].includes(type)) continue;
                 
                 outbounds.push({
@@ -1063,6 +1075,7 @@ router.post('/nodes/:id/outbounds', async (req, res) => {
                 ? aclRaw.split('\n').map(r => r.trim()).filter(Boolean)
                 : [];
         }
+        aclRules = aclRules.filter(rule => !String(rule || '').startsWith(`${RESERVED_CASCADE_OUTBOUND}(`));
         
         await HyNode.findByIdAndUpdate(req.params.id, {
             $set: { outbounds, aclRules },

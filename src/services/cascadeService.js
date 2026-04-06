@@ -470,15 +470,7 @@ class CascadeService {
         try {
             await ssh.connect();
 
-            // Ensure Xray is installed
-            const xrayCheck = await ssh.exec('command -v xray');
-            if (!xrayCheck.stdout || !xrayCheck.stdout.trim()) {
-                logger.info(`[Cascade] Installing Xray on relay ${node.name}`);
-                await ssh.exec(
-                    'curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh ' +
-                    '&& chmod +x /tmp/xray-install.sh && bash /tmp/xray-install.sh install 2>&1 && rm -f /tmp/xray-install.sh'
-                );
-            }
+            await this._ensureXrayInstalled(ssh, node.name);
 
             await ssh.exec('mkdir -p /usr/local/etc/xray-bridge');
             await ssh.uploadContent(relayConfig, '/usr/local/etc/xray-bridge/config.json');
@@ -506,15 +498,7 @@ class CascadeService {
         try {
             await ssh.connect();
 
-            // Ensure Xray is installed
-            const xrayCheck = await ssh.exec('command -v xray');
-            if (!xrayCheck.stdout || !xrayCheck.stdout.trim()) {
-                logger.info(`[Cascade] Installing Xray on bridge ${node.name}`);
-                await ssh.exec(
-                    'curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh ' +
-                    '&& chmod +x /tmp/xray-install.sh && bash /tmp/xray-install.sh install 2>&1 && rm -f /tmp/xray-install.sh'
-                );
-            }
+            await this._ensureXrayInstalled(ssh, node.name);
 
             await ssh.exec('mkdir -p /usr/local/etc/xray-bridge');
             await ssh.uploadContent(bridgeConfig, '/usr/local/etc/xray-bridge/config.json');
@@ -558,14 +542,7 @@ class CascadeService {
         try {
             await ssh.connect();
 
-            const xrayCheck = await ssh.exec('command -v xray');
-            if (!xrayCheck.stdout || !xrayCheck.stdout.trim()) {
-                logger.info(`[Cascade] Installing Xray on forward-hop ${node.name}`);
-                await ssh.exec(
-                    'curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh ' +
-                    '&& chmod +x /tmp/xray-install.sh && bash /tmp/xray-install.sh install 2>&1 && rm -f /tmp/xray-install.sh'
-                );
-            }
+            await this._ensureXrayInstalled(ssh, node.name);
 
             await ssh.exec('mkdir -p /usr/local/etc/xray-bridge');
             await ssh.uploadContent(hopConfig, '/usr/local/etc/xray-bridge/config.json');
@@ -902,6 +879,52 @@ WantedBy=multi-user.target
 `;
     }
 
+    _trimExecOutput(result, max = 700) {
+        const stdout = String(result?.stdout || '').trim();
+        const stderr = String(result?.stderr || '').trim();
+        const merged = [stdout, stderr].filter(Boolean).join('\n');
+        if (!merged) return '';
+        return merged.length > max ? `${merged.slice(0, max)}...` : merged;
+    }
+
+    async _execChecked(ssh, command, stepLabel) {
+        const result = await ssh.exec(command);
+        if ((result?.code || 0) !== 0) {
+            const details = this._trimExecOutput(result);
+            throw new Error(`${stepLabel} failed (exit ${result?.code ?? 'n/a'})${details ? `: ${details}` : ''}`);
+        }
+        return result;
+    }
+
+    async _ensureXrayInstalled(ssh, nodeName) {
+        const check = await ssh.exec('command -v xray >/dev/null 2>&1');
+        if ((check?.code || 0) === 0) return;
+
+        logger.info(`[Cascade] Installing Xray on ${nodeName}`);
+        await this._execChecked(ssh, `
+set -e
+if ! command -v curl >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update -y && apt-get install -y curl ca-certificates unzip
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y curl ca-certificates unzip
+    elif command -v yum >/dev/null 2>&1; then
+        yum install -y curl ca-certificates unzip
+    elif command -v apk >/dev/null 2>&1; then
+        apk add --no-cache curl ca-certificates unzip
+    else
+        echo "curl package manager not found" >&2
+        exit 1
+    fi
+fi
+curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh
+chmod +x /tmp/xray-install.sh
+bash /tmp/xray-install.sh install 2>&1
+rm -f /tmp/xray-install.sh
+command -v xray >/dev/null 2>&1
+`, `xray install on ${nodeName}`);
+    }
+
     async _deployHysteriaPortalConfig(portalNode, opts = {}) {
         if (!appConfig.FEATURE_CASCADE_HYBRID) {
             throw new Error(`${HYBRID_DISABLED_ERROR}. Portal node "${portalNode.name}" has type "${portalNode.type}".`);
@@ -999,25 +1022,23 @@ WantedBy=multi-user.target
 
             if (needsSidecar) {
                 const serviceUnitName = `${sidecar.serviceName}.service`;
-                const xrayCheck = await ssh.exec('command -v xray');
-                if (!xrayCheck.stdout || !xrayCheck.stdout.trim()) {
-                    logger.info(`[Cascade] Installing Xray sidecar on ${portalNode.name}`);
-                    await ssh.exec(
-                        'curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh ' +
-                        '&& chmod +x /tmp/xray-install.sh && bash /tmp/xray-install.sh install 2>&1 && rm -f /tmp/xray-install.sh'
-                    );
-                }
-
-                await ssh.exec(`mkdir -p ${shellQuote(path.dirname(sidecar.configPath))}`);
+                await this._ensureXrayInstalled(ssh, portalNode.name);
+                await this._execChecked(ssh, `mkdir -p ${shellQuote(path.dirname(sidecar.configPath))}`, `sidecar dir create on ${portalNode.name}`);
                 await ssh.uploadContent(sidecarConfig, sidecar.configPath);
                 await ssh.uploadContent(
                     this._generateCascadeSidecarServiceUnit(sidecar.configPath),
                     `/etc/systemd/system/${serviceUnitName}`
                 );
-                await ssh.exec(`systemctl daemon-reload && systemctl enable ${shellQuote(serviceUnitName)} && systemctl restart ${shellQuote(serviceUnitName)}`);
-                const sidecarState = await ssh.exec(`systemctl is-active ${shellQuote(serviceUnitName)}`);
+                await this._execChecked(
+                    ssh,
+                    `systemctl daemon-reload && systemctl enable ${shellQuote(serviceUnitName)} && systemctl restart ${shellQuote(serviceUnitName)}`,
+                    `sidecar service restart on ${portalNode.name}`
+                );
+                const sidecarState = await ssh.exec(`(systemctl is-active ${shellQuote(serviceUnitName)} 2>/dev/null || true) | head -n 1`);
                 if ((sidecarState.stdout || '').trim() !== 'active') {
-                    throw new Error(`Sidecar service ${serviceUnitName} is not active on ${portalNode.name}`);
+                    const journal = await ssh.exec(`journalctl -u ${shellQuote(serviceUnitName)} -n 20 --no-pager 2>/dev/null || true`);
+                    const logTail = this._trimExecOutput(journal);
+                    throw new Error(`Sidecar service ${serviceUnitName} is not active on ${portalNode.name}${logTail ? `. Logs: ${logTail}` : ''}`);
                 }
             } else {
                 const serviceUnitName = `${sidecar.serviceName}.service`;
@@ -1147,15 +1168,7 @@ WantedBy=multi-user.target
         try {
             await ssh.connect();
 
-            // Ensure Xray is installed
-            const xrayCheck = await ssh.exec('command -v xray');
-            if (!xrayCheck.stdout || !xrayCheck.stdout.trim()) {
-                logger.info(`[Cascade] Installing Xray on bridge ${bridgeNode.name}`);
-                await ssh.exec(
-                    'curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh ' +
-                    '&& chmod +x /tmp/xray-install.sh && bash /tmp/xray-install.sh install 2>&1 && rm -f /tmp/xray-install.sh'
-                );
-            }
+            await this._ensureXrayInstalled(ssh, bridgeNode.name);
 
             await ssh.exec('mkdir -p /usr/local/etc/xray-bridge');
             await ssh.uploadContent(bridgeConfig, '/usr/local/etc/xray-bridge/config.json');

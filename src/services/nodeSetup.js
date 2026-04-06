@@ -405,6 +405,31 @@ function uploadFile(conn, content, remotePath) {
     });
 }
 
+function shellQuote(value) {
+    return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function generateCascadeSidecarServiceUnit(configPath) {
+    return `[Unit]
+Description=Xray Cascade Sidecar
+After=network.target nss-lookup.target hysteria-server.service
+
+[Service]
+User=nobody
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+Type=simple
+ExecStart=/usr/local/bin/xray run -config ${configPath}
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+`;
+}
+
 async function setupNode(node, options = {}) {
     const { installHysteria = true, setupPortHopping = true, restartService = true } = options;
     
@@ -547,6 +572,49 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
         logs.push('--- Config content ---');
         logs.push(hysteriaConfig);
         logs.push('--- End config ---');
+
+        if (config.FEATURE_CASCADE_HYBRID && (node?.cascadeSidecar?.enabled !== false)) {
+            const rawSidecar = node?.cascadeSidecar || {};
+            const socksPort = Number(rawSidecar.socksPort) > 0 ? Number(rawSidecar.socksPort) : 11080;
+            const rawServiceName = String(rawSidecar.serviceName || 'xray-cascade').trim() || 'xray-cascade';
+            const serviceName = rawServiceName.endsWith('.service')
+                ? (rawServiceName.slice(0, -8) || 'xray-cascade')
+                : rawServiceName;
+            const serviceUnitName = `${serviceName}.service`;
+            const sidecarConfigPath = (typeof rawSidecar.configPath === 'string' && rawSidecar.configPath.trim().startsWith('/'))
+                ? rawSidecar.configPath.trim()
+                : '/usr/local/etc/xray-cascade/config.json';
+
+            log(`Preparing hybrid sidecar runtime (${serviceUnitName}, socks:${socksPort})...`);
+            try {
+                const xrayInstallResult = await execSSH(conn, XRAY_INSTALL_SCRIPT);
+                logs.push(xrayInstallResult.output);
+                if (!xrayInstallResult.success) {
+                    log(`Hybrid sidecar warning: Xray install failed (${xrayInstallResult.error || `exit ${xrayInstallResult.code}`})`);
+                } else {
+                    const sidecarConfig = configGenerator.generateXrayCascadeSidecarConfig(socksPort);
+                    const sidecarDir = path.dirname(sidecarConfigPath);
+                    await execSSH(conn, `mkdir -p ${shellQuote(sidecarDir)}`);
+                    await uploadFile(conn, sidecarConfig, sidecarConfigPath);
+                    await uploadFile(conn, generateCascadeSidecarServiceUnit(sidecarConfigPath), `/etc/systemd/system/${serviceUnitName}`);
+
+                    const sidecarStart = await execSSH(conn, `
+systemctl daemon-reload
+systemctl enable ${shellQuote(serviceUnitName)}
+systemctl restart ${shellQuote(serviceUnitName)}
+systemctl is-active ${shellQuote(serviceUnitName)} || true
+                    `);
+                    logs.push(sidecarStart.output);
+                    if (!sidecarStart.success || !String(sidecarStart.output || '').includes('active')) {
+                        log(`Hybrid sidecar warning: ${serviceUnitName} is not active after setup`);
+                    } else {
+                        log(`Hybrid sidecar ready: ${serviceUnitName}`);
+                    }
+                }
+            } catch (sidecarErr) {
+                log(`Hybrid sidecar warning: ${sidecarErr.message}`);
+            }
+        }
         
         if (setupPortHopping && node.portRange) {
             log(`Setting up port hopping (${node.portRange})...`);
