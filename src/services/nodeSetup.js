@@ -247,11 +247,8 @@ fi
 
 # Save rules
 if command -v netfilter-persistent &> /dev/null; then
-    netfilter-persistent save 2>/dev/null
+    timeout 15s netfilter-persistent save 2>/dev/null || true
     echo "Done: Rules saved with netfilter-persistent"
-elif [ -f /etc/debian_version ]; then
-    apt-get install -y iptables-persistent 2>/dev/null || true
-    netfilter-persistent save 2>/dev/null || true
 elif command -v iptables-save &> /dev/null; then
     mkdir -p /etc/iptables
     iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
@@ -394,26 +391,55 @@ function connectSSH(node) {
     });
 }
 
-function execSSH(conn, command) {
+function execSSH(conn, command, timeoutMs = 0) {
     return new Promise((resolve, reject) => {
         conn.exec(command, (err, stream) => {
             if (err) return reject(err);
             
             let stdout = '';
             let stderr = '';
+            let done = false;
+            let timer = null;
+
+            const finish = (result) => {
+                if (done) return;
+                done = true;
+                if (timer) clearTimeout(timer);
+                resolve(result);
+            };
+
+            if (timeoutMs > 0) {
+                timer = setTimeout(() => {
+                    try { stream.close(); } catch (_) {}
+                    finish({
+                        success: false,
+                        output: `${stdout}${stderr ? '\n[STDERR]:\n' + stderr : ''}\n[TIMEOUT]: command exceeded ${timeoutMs}ms`,
+                        code: 124,
+                        error: `Timeout after ${timeoutMs}ms`,
+                    });
+                }, timeoutMs);
+            }
             
             stream.on('close', (code) => {
                 const output = stdout + (stderr ? '\n[STDERR]:\n' + stderr : '');
                 
                 if (code === 0) {
-                    resolve({ success: true, output, code });
+                    finish({ success: true, output, code });
                 } else {
-                    resolve({ success: false, output, code, error: `Exit code: ${code}` });
+                    finish({ success: false, output, code, error: `Exit code: ${code}` });
                 }
             });
             
             stream.on('data', (data) => { stdout += data.toString(); });
             stream.stderr.on('data', (data) => { stderr += data.toString(); });
+            stream.on('error', (streamErr) => {
+                finish({
+                    success: false,
+                    output: stdout + (stderr ? '\n[STDERR]:\n' + stderr : ''),
+                    code: 255,
+                    error: streamErr?.message || 'Stream error',
+                });
+            });
         });
     });
 }
@@ -673,7 +699,7 @@ systemctl is-active ${shellQuote(serviceUnitName)} || true
             log(`Setting up port hopping (${node.portRange})...`);
             const portHoppingScript = getPortHoppingScript(node.portRange, node.port || 443);
             if (portHoppingScript) {
-                const hopResult = await execSSH(conn, portHoppingScript);
+                const hopResult = await execSSH(conn, portHoppingScript, 180000);
                 logs.push(hopResult.output);
                 
                 if (!hopResult.success) {
