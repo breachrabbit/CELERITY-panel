@@ -801,20 +801,107 @@ fi
 
 if ! command -v xray &> /dev/null; then
     echo "Xray not found. Installing via official script..."
-    curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh
-    chmod +x /tmp/xray-install.sh
-    bash /tmp/xray-install.sh install 2>&1
-    INSTALL_EXIT=$?
-    rm -f /tmp/xray-install.sh
-    if [ $INSTALL_EXIT -ne 0 ]; then
-        echo "ERROR: Xray installation script exited with code $INSTALL_EXIT"
+    INSTALL_OK=0
+
+    for ATTEMPT in 1 2 3; do
+        echo "Attempt $ATTEMPT/3: downloading Xray installer..."
+        if ! curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 300 \
+            https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh; then
+            echo "WARN: Failed to download installer on attempt $ATTEMPT"
+            rm -f /tmp/xray-install.sh
+            if [ "$ATTEMPT" -lt 3 ]; then
+                sleep $((ATTEMPT * 3))
+                continue
+            fi
+            break
+        fi
+
+        chmod +x /tmp/xray-install.sh
+        echo "Attempt $ATTEMPT/3: running installer..."
+        bash /tmp/xray-install.sh install 2>&1
+        INSTALL_EXIT=$?
+        rm -f /tmp/xray-install.sh
+
+        if [ $INSTALL_EXIT -eq 0 ] && command -v xray &> /dev/null; then
+            INSTALL_OK=1
+            break
+        fi
+
+        echo "WARN: Xray installation attempt $ATTEMPT failed (exit: $INSTALL_EXIT)"
+        if [ "$ATTEMPT" -lt 3 ]; then
+            sleep $((ATTEMPT * 3))
+        fi
+    done
+
+    if [ "$INSTALL_OK" -ne 1 ]; then
+        echo "Official installer failed, trying mirror fallback..."
+        ARCH=$(uname -m)
+        XRAY_VERSION="v26.3.27"
+
+        if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
+            XRAY_PKG="Xray-linux-64.zip"
+        elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+            XRAY_PKG="Xray-linux-arm64-v8a.zip"
+        else
+            echo "ERROR: Unsupported architecture for Xray fallback: $ARCH"
+            exit 1
+        fi
+
+        if ! command -v unzip &> /dev/null; then
+            echo "unzip not found, installing..."
+            apt-get update && apt-get install -y unzip || yum install -y unzip || apk add unzip
+        fi
+
+        TMP_DIR=$(mktemp -d)
+        ZIP_PATH="$TMP_DIR/xray.zip"
+        DOWNLOADED=0
+
+        for XRAY_URL in \
+            "https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
+            "https://mirror.ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
+            "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG"; do
+            echo "Fallback download URL: $XRAY_URL"
+            if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 600 "$XRAY_URL" -o "$ZIP_PATH"; then
+                DOWNLOADED=1
+                break
+            fi
+        done
+
+        if [ "$DOWNLOADED" -ne 1 ]; then
+            rm -rf "$TMP_DIR"
+            echo "ERROR: Fallback download failed from all mirrors"
+            exit 1
+        fi
+
+        if ! unzip -o "$ZIP_PATH" -d "$TMP_DIR/xray" >/dev/null 2>&1; then
+            rm -rf "$TMP_DIR"
+            echo "ERROR: Failed to unpack fallback Xray archive"
+            exit 1
+        fi
+
+        if [ ! -f "$TMP_DIR/xray/xray" ]; then
+            rm -rf "$TMP_DIR"
+            echo "ERROR: xray binary missing in fallback archive"
+            exit 1
+        fi
+
+        install -m 0755 "$TMP_DIR/xray/xray" /usr/local/bin/xray
+        mkdir -p /usr/local/share/xray
+        [ -f "$TMP_DIR/xray/geoip.dat" ] && install -m 0644 "$TMP_DIR/xray/geoip.dat" /usr/local/share/xray/geoip.dat || true
+        [ -f "$TMP_DIR/xray/geosite.dat" ] && install -m 0644 "$TMP_DIR/xray/geosite.dat" /usr/local/share/xray/geosite.dat || true
+        rm -rf "$TMP_DIR"
+
+        if command -v xray &> /dev/null; then
+            INSTALL_OK=1
+            echo "Done: Xray installed via fallback mirror ($(xray version | head -1))"
+        fi
+    fi
+
+    if [ "$INSTALL_OK" -ne 1 ]; then
+        echo "ERROR: Xray installation failed after retries and mirror fallback"
         exit 1
     fi
-    # Verify installation
-    if ! command -v xray &> /dev/null; then
-        echo "ERROR: xray command not found after installation"
-        exit 1
-    fi
+
     echo "Done: Xray installed ($(xray version | head -1))"
 else
     echo "Done: Xray already installed ($(xray version | head -1))"

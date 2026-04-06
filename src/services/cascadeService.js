@@ -917,10 +917,84 @@ if ! command -v curl >/dev/null 2>&1; then
         exit 1
     fi
 fi
-curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh
-chmod +x /tmp/xray-install.sh
-bash /tmp/xray-install.sh install 2>&1
-rm -f /tmp/xray-install.sh
+INSTALL_OK=0
+for ATTEMPT in 1 2 3; do
+    if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 300 \
+        https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh; then
+        chmod +x /tmp/xray-install.sh
+        if bash /tmp/xray-install.sh install 2>&1; then
+            if command -v xray >/dev/null 2>&1; then
+                INSTALL_OK=1
+                rm -f /tmp/xray-install.sh
+                break
+            fi
+        fi
+    fi
+    rm -f /tmp/xray-install.sh
+    if [ "$ATTEMPT" -lt 3 ]; then
+        sleep $((ATTEMPT * 3))
+    fi
+done
+
+if [ "$INSTALL_OK" -ne 1 ]; then
+    ARCH=$(uname -m)
+    XRAY_VERSION="v26.3.27"
+    if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
+        XRAY_PKG="Xray-linux-64.zip"
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        XRAY_PKG="Xray-linux-arm64-v8a.zip"
+    else
+        echo "Unsupported architecture for Xray fallback: $ARCH" >&2
+        exit 1
+    fi
+
+    if ! command -v unzip >/dev/null 2>&1; then
+        if command -v apt-get >/dev/null 2>&1; then
+            apt-get update -y && apt-get install -y unzip
+        elif command -v dnf >/dev/null 2>&1; then
+            dnf install -y unzip
+        elif command -v yum >/dev/null 2>&1; then
+            yum install -y unzip
+        elif command -v apk >/dev/null 2>&1; then
+            apk add --no-cache unzip
+        else
+            echo "unzip package manager not found" >&2
+            exit 1
+        fi
+    fi
+
+    TMP_DIR=$(mktemp -d)
+    ZIP_PATH="$TMP_DIR/xray.zip"
+    DOWNLOADED=0
+    for XRAY_URL in \
+        "https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
+        "https://mirror.ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
+        "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG"; do
+        if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 600 "$XRAY_URL" -o "$ZIP_PATH"; then
+            DOWNLOADED=1
+            break
+        fi
+    done
+    if [ "$DOWNLOADED" -ne 1 ]; then
+        rm -rf "$TMP_DIR"
+        echo "Fallback Xray archive download failed from all mirrors" >&2
+        exit 1
+    fi
+
+    unzip -o "$ZIP_PATH" -d "$TMP_DIR/xray" >/dev/null 2>&1
+    if [ ! -f "$TMP_DIR/xray/xray" ]; then
+        rm -rf "$TMP_DIR"
+        echo "Fallback Xray archive does not contain xray binary" >&2
+        exit 1
+    fi
+
+    install -m 0755 "$TMP_DIR/xray/xray" /usr/local/bin/xray
+    mkdir -p /usr/local/share/xray
+    [ -f "$TMP_DIR/xray/geoip.dat" ] && install -m 0644 "$TMP_DIR/xray/geoip.dat" /usr/local/share/xray/geoip.dat || true
+    [ -f "$TMP_DIR/xray/geosite.dat" ] && install -m 0644 "$TMP_DIR/xray/geosite.dat" /usr/local/share/xray/geosite.dat || true
+    rm -rf "$TMP_DIR"
+fi
+
 command -v xray >/dev/null 2>&1
 `, `xray install on ${nodeName}`);
     }
