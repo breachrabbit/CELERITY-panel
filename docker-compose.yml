@@ -4,7 +4,7 @@
 services:
   # Redis - кэширование
   redis:
-    image: redis:7-alpine
+    image: public.ecr.aws/docker/library/redis:7-alpine
     container_name: hysteria-redis
     restart: always
     command: redis-server --maxmemory 1gb --maxmemory-policy allkeys-lru --save ""
@@ -19,7 +19,7 @@ services:
 
   # MongoDB
   mongo:
-    image: mongo:7
+    image: public.ecr.aws/docker/library/mongo:7
     container_name: hysteria-mongo
     restart: always
     volumes:
@@ -39,7 +39,7 @@ services:
 
   # Caddy - reverse proxy с автоматическим SSL
   caddy:
-    image: caddy:2-alpine
+    image: public.ecr.aws/docker/library/caddy:2-alpine
     container_name: hysteria-caddy
     restart: always
     ports:

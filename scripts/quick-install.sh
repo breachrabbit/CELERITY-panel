@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.0.0"
-REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/ClickDevTech/hysteria-panel/main}"
+SCRIPT_VERSION="1.1.0"
+REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/main}"
+REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://github.com/breachrabbit/CELERITY-panel/archive/refs/heads/main.tar.gz}"
 
 DOMAIN=""
 ACME_EMAIL=""
 INSTALL_DIR=""
 COMPOSE_FILE="docker-compose.hub.yml"
+SOURCE_FALLBACK_COMPOSE="docker-compose.yml"
 SKIP_START=0
 SKIP_DOCKER_INSTALL=0
 
@@ -107,6 +109,38 @@ ensure_project_files() {
     fi
 
     mkdir -p logs backups greenlock.d
+}
+
+ensure_source_checkout() {
+    local project_dir="$1"
+    cd "$project_dir"
+
+    if [[ -f "./docker-compose.yml" && -f "./Dockerfile" && -f "./package.json" && -d "./src" ]]; then
+        log "Source files are already present for fallback build"
+        return
+    fi
+
+    need_cmd curl
+    need_cmd tar
+
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    local archive_file="${tmp_dir}/repo.tar.gz"
+
+    log "Downloading source fallback bundle"
+    curl -fsSL "${REPO_TARBALL_URL}" -o "$archive_file"
+    tar -xzf "$archive_file" -C "$tmp_dir"
+
+    local extracted_dir
+    extracted_dir="$(find "$tmp_dir" -maxdepth 1 -type d -name 'hysteria-panel-*' | head -n 1)"
+    if [[ -z "$extracted_dir" ]]; then
+        rm -rf "$tmp_dir"
+        fail "Failed to unpack source fallback bundle"
+    fi
+
+    cp -a "${extracted_dir}/." "$project_dir/"
+    rm -rf "$tmp_dir"
+    log "Source fallback files are ready"
 }
 
 upsert_env() {
@@ -224,15 +258,30 @@ ensure_compose() {
 }
 
 run_compose() {
+    if try_compose "$@"; then
+        return 0
+    fi
+
+    if docker compose version >/dev/null 2>&1; then
+        fail "Failed to run: docker compose $*"
+    fi
+    if command -v docker-compose >/dev/null 2>&1; then
+        fail "Failed to run: docker-compose $*"
+    fi
+    fail "Docker Compose is unavailable"
+}
+
+try_compose() {
     if docker compose version >/dev/null 2>&1; then
         if docker compose "$@"; then
             return 0
         fi
         if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
-            sudo docker compose "$@"
-            return 0
+            if sudo docker compose "$@"; then
+                return 0
+            fi
         fi
-        fail "Failed to run: docker compose $*"
+        return 1
     fi
 
     if command -v docker-compose >/dev/null 2>&1; then
@@ -240,13 +289,38 @@ run_compose() {
             return 0
         fi
         if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
-            sudo docker-compose "$@"
-            return 0
+            if sudo docker-compose "$@"; then
+                return 0
+            fi
         fi
-        fail "Failed to run: docker-compose $*"
+        return 1
     fi
 
-    fail "Docker Compose is unavailable"
+    return 127
+}
+
+pull_images_with_fallback() {
+    local project_dir="$1"
+    local pull_log
+    pull_log="$(mktemp)"
+
+    if try_compose -f "$COMPOSE_FILE" pull > >(tee "$pull_log") 2>&1; then
+        rm -f "$pull_log"
+        return 0
+    fi
+
+    if [[ "$COMPOSE_FILE" == "docker-compose.hub.yml" ]] && grep -Eiq "unauthenticated pull rate limit|toomanyrequests" "$pull_log"; then
+        warn "Docker Hub rate-limit detected. Switching to source-build fallback."
+        ensure_source_checkout "$project_dir"
+        COMPOSE_FILE="$SOURCE_FALLBACK_COMPOSE"
+        log "Fallback compose file: ${COMPOSE_FILE}"
+        rm -f "$pull_log"
+        run_compose -f "$COMPOSE_FILE" pull
+        return 0
+    fi
+
+    rm -f "$pull_log"
+    fail "Failed to pull images with compose file: ${COMPOSE_FILE}"
 }
 
 parse_args() {
@@ -328,7 +402,7 @@ main() {
     ensure_compose
 
     log "Pulling images"
-    run_compose -f "$COMPOSE_FILE" pull
+    pull_images_with_fallback "$target_dir"
     log "Starting services"
     run_compose -f "$COMPOSE_FILE" up -d
 

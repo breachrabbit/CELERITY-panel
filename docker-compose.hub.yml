@@ -5,7 +5,7 @@
 services:
   # Redis - caching
   redis:
-    image: redis:7-alpine
+    image: public.ecr.aws/docker/library/redis:7-alpine
     container_name: hysteria-redis
     restart: always
     command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save ""
@@ -20,7 +20,7 @@ services:
 
   # MongoDB
   mongo:
-    image: mongo:7
+    image: public.ecr.aws/docker/library/mongo:7
     container_name: hysteria-mongo
     restart: always
     volumes:

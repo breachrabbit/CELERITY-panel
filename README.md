@@ -28,7 +28,7 @@
 
 **One-command installer (domain only):**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ClickDevTech/hysteria-panel/main/scripts/quick-install.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/main/scripts/quick-install.sh) \
   --domain panel.example.com
 ```
 
@@ -38,6 +38,7 @@ What it does automatically:
 - generates required secrets in `.env`
 - enables `FEATURE_CASCADE_HYBRID=true`
 - starts the stack via `docker-compose.hub.yml`
+- auto-switches to source-build fallback when Docker Hub pull rate-limit is hit
 
 **1. Install Docker** (if not installed):
 ```bash
@@ -49,12 +50,12 @@ curl -fsSL https://get.docker.com | sh
 mkdir hysteria-panel && cd hysteria-panel
 
 # Download required files
-curl -O https://raw.githubusercontent.com/ClickDevTech/hysteria-panel/main/docker-compose.hub.yml
-curl -O https://raw.githubusercontent.com/ClickDevTech/hysteria-panel/main/docker.env.example
+curl -O https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/main/docker-compose.hub.yml
+curl -O https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/main/docker.env.example
 
 # Create Greenlock SSL config (required for HTTPS)
 mkdir -p greenlock.d
-curl -o greenlock.d/config.json https://raw.githubusercontent.com/ClickDevTech/hysteria-panel/main/greenlock.d/config.json
+curl -o greenlock.d/config.json https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/main/greenlock.d/config.json
 
 cp docker.env.example .env
 nano .env  # Set your domain, email, and secrets
@@ -63,7 +64,7 @@ docker compose -f docker-compose.hub.yml up -d
 
 **Alternative: Build from source** (for development or customization)
 ```bash
-git clone https://github.com/ClickDevTech/hysteria-panel.git
+git clone https://github.com/breachrabbit/CELERITY-panel.git
 cd hysteria-panel
 cp docker.env.example .env
 nano .env  # Set your domain, email, and secrets

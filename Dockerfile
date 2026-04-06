@@ -1,5 +1,5 @@
 # Hysteria Backend - Docker Image
-FROM node:20-alpine
+FROM public.ecr.aws/docker/library/node:20-alpine
 
 WORKDIR /app
 
@@ -24,4 +24,3 @@ EXPOSE 8444 80 443
 
 # Запуск
 CMD ["node", "index.js"]
-
