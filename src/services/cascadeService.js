@@ -1045,7 +1045,7 @@ command -v xray >/dev/null 2>&1
                 await ssh.exec(`systemctl stop ${shellQuote(serviceUnitName)} 2>/dev/null || true; systemctl disable ${shellQuote(serviceUnitName)} 2>/dev/null || true`);
             }
 
-            await ssh.exec('systemctl restart hysteria-server');
+            await ssh.exec('systemctl restart hysteria-server 2>/dev/null || systemctl restart hysteria 2>/dev/null');
         } finally {
             ssh.disconnect();
         }

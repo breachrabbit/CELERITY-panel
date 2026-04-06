@@ -5,6 +5,8 @@
 const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
+const dns = require('dns').promises;
 const logger = require('../utils/logger');
 const config = require('../../config');
 const cryptoService = require('./cryptoService');
@@ -455,6 +457,33 @@ WantedBy=multi-user.target
 `;
 }
 
+async function resolvePanelFirewallIp() {
+    const host = String(config.PANEL_DOMAIN || config.BASE_URL || '')
+        .replace(/^https?:\/\//, '')
+        .split('/')[0]
+        .split(':')[0]
+        .trim();
+
+    if (!host) {
+        return { ip: '0.0.0.0/0', source: 'empty-host' };
+    }
+
+    if (net.isIP(host)) {
+        return { ip: host, source: 'direct-ip' };
+    }
+
+    try {
+        const resolved = await dns.lookup(host, { family: 4 });
+        if (resolved?.address) {
+            return { ip: resolved.address, source: `dns:${host}` };
+        }
+    } catch (_) {
+        // handled by fallback below
+    }
+
+    return { ip: '0.0.0.0/0', source: `dns-failed:${host}` };
+}
+
 async function setupNode(node, options = {}) {
     const { installHysteria = true, setupPortHopping = true, restartService = true } = options;
     
@@ -615,29 +644,28 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
                 const xrayInstallResult = await execSSH(conn, XRAY_INSTALL_SCRIPT);
                 logs.push(xrayInstallResult.output);
                 if (!xrayInstallResult.success) {
-                    log(`Hybrid sidecar warning: Xray install failed (${xrayInstallResult.error || `exit ${xrayInstallResult.code}`})`);
-                } else {
-                    const sidecarConfig = configGenerator.generateXrayCascadeSidecarConfig(socksPort);
-                    const sidecarDir = path.dirname(sidecarConfigPath);
-                    await execSSH(conn, `mkdir -p ${shellQuote(sidecarDir)}`);
-                    await uploadFile(conn, sidecarConfig, sidecarConfigPath);
-                    await uploadFile(conn, generateCascadeSidecarServiceUnit(sidecarConfigPath), `/etc/systemd/system/${serviceUnitName}`);
+                    throw new Error(`Xray install failed (${xrayInstallResult.error || `exit ${xrayInstallResult.code}`})`);
+                }
 
-                    const sidecarStart = await execSSH(conn, `
+                const sidecarConfig = configGenerator.generateXrayCascadeSidecarConfig(socksPort);
+                const sidecarDir = path.dirname(sidecarConfigPath);
+                await execSSH(conn, `mkdir -p ${shellQuote(sidecarDir)}`);
+                await uploadFile(conn, sidecarConfig, sidecarConfigPath);
+                await uploadFile(conn, generateCascadeSidecarServiceUnit(sidecarConfigPath), `/etc/systemd/system/${serviceUnitName}`);
+
+                const sidecarStart = await execSSH(conn, `
 systemctl daemon-reload
 systemctl enable ${shellQuote(serviceUnitName)}
 systemctl restart ${shellQuote(serviceUnitName)}
 systemctl is-active ${shellQuote(serviceUnitName)} || true
                     `);
-                    logs.push(sidecarStart.output);
-                    if (!sidecarStart.success || !String(sidecarStart.output || '').includes('active')) {
-                        log(`Hybrid sidecar warning: ${serviceUnitName} is not active after setup`);
-                    } else {
-                        log(`Hybrid sidecar ready: ${serviceUnitName}`);
-                    }
+                logs.push(sidecarStart.output);
+                if (!sidecarStart.success || !String(sidecarStart.output || '').includes('active')) {
+                    throw new Error(`${serviceUnitName} is not active after setup`);
                 }
+                log(`Hybrid sidecar ready: ${serviceUnitName}`);
             } catch (sidecarErr) {
-                log(`Hybrid sidecar warning: ${sidecarErr.message}`);
+                throw new Error(`Hybrid sidecar setup failed: ${sidecarErr.message}`);
             }
         }
         
@@ -685,22 +713,26 @@ echo "Done: Firewall configured"
             log('Restarting Hysteria service...');
             const restartResult = await execSSH(conn, `
 echo "=== [6/6] Restarting Hysteria service ==="
-systemctl enable hysteria-server 2>/dev/null || true
-systemctl restart hysteria-server
+systemctl enable hysteria-server 2>/dev/null || systemctl enable hysteria 2>/dev/null || true
+systemctl restart hysteria-server 2>/dev/null || systemctl restart hysteria 2>/dev/null
 sleep 3
 echo "Service status:"
-systemctl status hysteria-server --no-pager -l || true
+systemctl status hysteria-server --no-pager -l 2>/dev/null || systemctl status hysteria --no-pager -l 2>/dev/null || true
 echo ""
 echo "Journal logs (last 20 lines):"
-journalctl -u hysteria-server -n 20 --no-pager || true
+journalctl -u hysteria-server -u hysteria -n 20 --no-pager || true
             `);
             logs.push(restartResult.output);
             
             if (!restartResult.success) {
-                log(`Service restart warning: ${restartResult.error}`);
-            } else {
-                log('Service restarted');
+                throw new Error(`Hysteria service restart failed: ${restartResult.error || `exit ${restartResult.code}`}`);
             }
+            const activeResult = await execSSH(conn, '(systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || true) | head -n 1');
+            const activeState = String(activeResult.output || '').trim();
+            if (activeState !== 'active') {
+                throw new Error(`Hysteria service is not active after restart (state: ${activeState || 'unknown'})`);
+            }
+            log('Service restarted');
         }
         
         log('Setup completed successfully!');
@@ -722,7 +754,7 @@ async function checkNodeStatus(node) {
         const conn = await connectSSH(node);
         
         try {
-            const result = await execSSH(conn, 'systemctl is-active hysteria-server');
+            const result = await execSSH(conn, '(systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || true) | head -n 1');
             return result.output.trim() === 'active' ? 'online' : 'offline';
         } finally {
             conn.end();
@@ -737,7 +769,7 @@ async function getNodeLogs(node, lines = 50) {
         const conn = await connectSSH(node);
         
         try {
-            const result = await execSSH(conn, `journalctl -u hysteria-server -n ${lines} --no-pager`);
+            const result = await execSSH(conn, `journalctl -u hysteria-server -u hysteria -n ${lines} --no-pager`);
             return { success: true, logs: result.output };
         } finally {
             conn.end();
@@ -977,10 +1009,14 @@ journalctl -u xray -n 15 --no-pager || true
             `);
             logs.push(restartResult.output);
             if (!restartResult.success) {
-                log(`Service restart warning: ${restartResult.error}`);
-            } else {
-                log('Xray service started');
+                throw new Error(`Xray service restart failed: ${restartResult.error || `exit ${restartResult.code}`}`);
             }
+            const activeResult = await execSSH(conn, '(systemctl is-active xray 2>/dev/null || true) | head -n 1');
+            const activeState = String(activeResult.output || '').trim();
+            if (activeState !== 'active') {
+                throw new Error(`Xray service is not active after restart (state: ${activeState || 'unknown'})`);
+            }
+            log('Xray service started');
         }
 
         log('Xray setup completed successfully!');
@@ -1162,11 +1198,19 @@ EOFSVC
 
 echo "=== [5/5] Opening firewall for panel IP ${panelIp} ==="
 if command -v iptables &> /dev/null; then
-    iptables -I INPUT -p tcp -s ${panelIp} --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+    if [ "${panelIp}" = "0.0.0.0/0" ]; then
+        iptables -I INPUT -p tcp --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+    else
+        iptables -I INPUT -p tcp -s ${panelIp} --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+    fi
     echo "Done: iptables rule added"
 fi
 if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
-    ufw allow from ${panelIp} to any port ${agentPort} proto tcp 2>/dev/null || true
+    if [ "${panelIp}" = "0.0.0.0/0" ]; then
+        ufw allow ${agentPort}/tcp 2>/dev/null || true
+    else
+        ufw allow from ${panelIp} to any port ${agentPort} proto tcp 2>/dev/null || true
+    fi
     echo "Done: ufw rule added"
 fi
 
@@ -1214,9 +1258,12 @@ async function setupXrayNodeWithAgent(node, options = {}) {
         }
 
         // Determine panel IP from config (the IP the node can reach the panel from)
-        const panelIpRaw = config.BASE_URL || '';
-        const panelIp = panelIpRaw.replace(/^https?:\/\//, '').split(':')[0].split('/')[0] || '0.0.0.0';
+        const panelIpInfo = await resolvePanelFirewallIp();
+        const panelIp = panelIpInfo.ip;
         log(`Panel IP for firewall: ${panelIp}`);
+        if (panelIp === '0.0.0.0/0') {
+            log(`Warning: failed to resolve panel host (${panelIpInfo.source}), firewall rule will be opened to all sources`);
+        }
 
         log('Installing CC Agent...');
         const agentResult = await installCCAgent(conn, node, agentToken, panelIp, log);

@@ -880,6 +880,7 @@ router.get('/nodes/:id/download-ssh-key', async (req, res) => {
 
 // GET /panel/nodes/:id/stats - Node system stats via SSH
 router.get('/nodes/:id/stats', async (req, res) => {
+    let ssh;
     try {
         const node = await HyNode.findById(req.params.id);
         
@@ -891,18 +892,21 @@ router.get('/nodes/:id/stats', async (req, res) => {
             return res.status(400).json({ success: false, error: 'SSH данные не настроены' });
         }
         
-        const ssh = new NodeSSH(node);
+        ssh = new NodeSSH(node);
         await ssh.connect();
         const stats = await ssh.getSystemStats();
         
         res.json(stats);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (ssh) ssh.disconnect();
     }
 });
 
 // GET /panel/nodes/:id/speed - Node network speed
 router.get('/nodes/:id/speed', async (req, res) => {
+    let ssh;
     try {
         const node = await HyNode.findById(req.params.id);
         
@@ -914,18 +918,21 @@ router.get('/nodes/:id/speed', async (req, res) => {
             return res.status(400).json({ success: false, error: 'SSH данные не настроены' });
         }
         
-        const ssh = new NodeSSH(node);
+        ssh = new NodeSSH(node);
         await ssh.connect();
         const speed = await ssh.getNetworkSpeed();
         
         res.json(speed);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (ssh) ssh.disconnect();
     }
 });
 
 // GET /panel/nodes/:id/get-config - Read current config from node
 router.get('/nodes/:id/get-config', async (req, res) => {
+    let conn;
     try {
         const node = await HyNode.findById(req.params.id);
         
@@ -937,12 +944,11 @@ router.get('/nodes/:id/get-config', async (req, res) => {
             return res.status(400).json({ success: false, error: 'SSH данные не настроены' });
         }
         
-        const conn = await nodeSetup.connectSSH(node);
+        conn = await nodeSetup.connectSSH(node);
         const configPath = node.type === 'xray'
             ? '/usr/local/etc/xray/config.json'
             : (node.paths?.config || '/etc/hysteria/config.yaml');
-        const result = await nodeSetup.execSSH(conn, `cat ${configPath}`);
-        conn.end();
+        const result = await nodeSetup.execSSH(conn, `cat ${shellQuote(configPath)}`);
         
         if (result.success) {
             res.json({ success: true, config: result.output });
@@ -951,6 +957,8 @@ router.get('/nodes/:id/get-config', async (req, res) => {
         }
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        if (conn) conn.end();
     }
 });
 
@@ -1196,6 +1204,7 @@ router.get('/stats/api/ssh-pool', async (req, res) => {
 
 // POST /nodes/:id/restart - Restart node service via SSH
 router.post('/nodes/:id/restart', async (req, res) => {
+    let conn;
     try {
         const node = await HyNode.findById(req.params.id);
         if (!node) {
@@ -1206,12 +1215,14 @@ router.post('/nodes/:id/restart', async (req, res) => {
             return res.status(400).json({ error: 'SSH credentials not configured' });
         }
 
-        const conn = await nodeSetup.connectSSH(node);
-        const serviceName = node.type === 'xray' ? 'xray' : 'hysteria-server';
-        const result = await nodeSetup.execSSH(conn, `systemctl restart ${serviceName} && sleep 2 && systemctl is-active ${serviceName}`);
-        conn.end();
+        conn = await nodeSetup.connectSSH(node);
+        const restartCmd = node.type === 'xray'
+            ? 'systemctl restart xray && sleep 2 && (systemctl is-active xray 2>/dev/null || true) | head -n 1'
+            : '(systemctl restart hysteria-server 2>/dev/null || systemctl restart hysteria 2>/dev/null) && sleep 2 && (systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || true) | head -n 1';
+        const result = await nodeSetup.execSSH(conn, restartCmd);
 
-        const isActive = result.output.trim().includes('active');
+        const serviceState = String(result.output || '').trim().split('\n')[0].trim();
+        const isActive = result.success && serviceState === 'active';
 
         await HyNode.findByIdAndUpdate(req.params.id, {
             $set: { status: isActive ? 'online' : 'error', lastSync: new Date() }
@@ -1220,6 +1231,8 @@ router.post('/nodes/:id/restart', async (req, res) => {
         res.json({ success: isActive, output: result.output });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    } finally {
+        if (conn) conn.end();
     }
 });
 
