@@ -37,6 +37,121 @@ function shellQuote(value) {
     return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
+const setupJobs = new Map();
+const SETUP_JOB_TTL_MS = 1000 * 60 * 60; // keep finished jobs for 1 hour
+
+function cleanupSetupJobs() {
+    const now = Date.now();
+    for (const [nodeId, job] of setupJobs.entries()) {
+        if (!job) continue;
+        if (job.state === 'running') continue;
+        if ((now - (job.finishedAt || job.startedAt || now)) > SETUP_JOB_TTL_MS) {
+            setupJobs.delete(nodeId);
+        }
+    }
+}
+
+function getSetupJob(nodeId) {
+    cleanupSetupJobs();
+    return setupJobs.get(String(nodeId)) || null;
+}
+
+function setSetupJob(nodeId, patch) {
+    const key = String(nodeId);
+    const prev = setupJobs.get(key) || {};
+    const next = { ...prev, ...patch };
+    setupJobs.set(key, next);
+    return next;
+}
+
+async function runNodeSetupJob(nodeId) {
+    const key = String(nodeId);
+    let node = await HyNode.findById(nodeId);
+    if (!node) {
+        setSetupJob(key, {
+            state: 'error',
+            error: 'Нода не найдена',
+            finishedAt: Date.now(),
+            logs: ['Node not found'],
+        });
+        return;
+    }
+
+    logger.info(`[Panel] Background setup started for node ${node.name} (type: ${node.type || 'hysteria'}, role: ${node.cascadeRole || 'standalone'})`);
+
+    try {
+        let result;
+        if (node.type === 'xray' && node.cascadeRole === 'bridge') {
+            result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true });
+            if (result.success) {
+                result.logs = result.logs || [];
+                result.logs.push('[Bridge] Xray installed. Create a cascade link to deploy bridge config.');
+            }
+        } else if (node.type === 'xray') {
+            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true });
+        } else {
+            result = await nodeSetup.setupNode(node, {
+                installHysteria: true,
+                setupPortHopping: true,
+                restartService: true,
+            });
+        }
+
+        const logs = Array.isArray(result.logs) ? result.logs : [];
+
+        if (result.success) {
+            const updateFields = { status: 'online', lastSync: new Date(), lastError: '', healthFailures: 0 };
+            if (node.type !== 'xray') updateFields.useTlsFiles = result.useTlsFiles;
+            if (node.cascadeRole === 'bridge') updateFields.status = 'offline';
+            await HyNode.findByIdAndUpdate(node._id, { $set: updateFields });
+
+            const CascadeLink = require('../../models/cascadeLinkModel');
+            const linkCount = await CascadeLink.countDocuments({
+                $or: [{ portalNode: node._id }, { bridgeNode: node._id }],
+                active: true,
+            });
+            if (linkCount > 0) {
+                logs.push(`[Cascade] Re-deploying ${linkCount} cascade link(s)...`);
+                cascadeService.redeployAllLinksForNode(node._id).catch(err => {
+                    logger.error(`[Cascade] Auto-redeploy after setup: ${err.message}`);
+                });
+            }
+
+            setSetupJob(key, {
+                state: 'success',
+                message: 'Нода успешно настроена',
+                logs,
+                finishedAt: Date.now(),
+                error: '',
+            });
+            logger.info(`[Panel] Background setup completed for node ${node.name}`);
+        } else {
+            await HyNode.findByIdAndUpdate(node._id, {
+                $set: { status: 'error', lastError: result.error, healthFailures: 0 },
+            });
+            setSetupJob(key, {
+                state: 'error',
+                error: result.error || 'Setup failed',
+                logs,
+                finishedAt: Date.now(),
+            });
+            logger.warn(`[Panel] Background setup failed for node ${node.name}: ${result.error}`);
+        }
+    } catch (error) {
+        logger.error(`[Panel] Background setup exception: ${error.message}`);
+        await HyNode.findByIdAndUpdate(node._id, {
+            $set: { status: 'error', lastError: error.message, healthFailures: 0 },
+        });
+        const existingLogs = getSetupJob(key)?.logs || [];
+        setSetupJob(key, {
+            state: 'error',
+            error: error.message,
+            logs: [...existingLogs, `Exception: ${error.message}`],
+            finishedAt: Date.now(),
+        });
+    }
+}
+
 function getHybridSidecarRuntime(node) {
     const raw = node?.cascadeSidecar || {};
     const socksPort = Number(raw.socksPort) > 0 ? Number(raw.socksPort) : 11080;
@@ -604,55 +719,86 @@ router.post('/nodes/:id/setup', async (req, res) => {
         if (!node.ssh?.password && !node.ssh?.privateKey) {
             return res.status(400).json({ success: false, error: 'SSH данные не настроены', logs: [] });
         }
-        
-        logger.info(`[Panel] Starting setup for node ${node.name} (type: ${node.type || 'hysteria'}, role: ${node.cascadeRole || 'standalone'})`);
-        
-        let result;
-        if (node.type === 'xray' && node.cascadeRole === 'bridge') {
-            result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true });
-            if (result.success) {
-                result.logs = result.logs || [];
-                result.logs.push('[Bridge] Xray installed. Create a cascade link to deploy bridge config.');
-            }
-        } else if (node.type === 'xray') {
-            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true });
-        } else {
-            result = await nodeSetup.setupNode(node, {
-                installHysteria: true,
-                setupPortHopping: true,
-                restartService: true,
+
+        const job = getSetupJob(req.params.id);
+        if (job?.state === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Setup уже выполняется',
+                logs: job.logs || [],
+                startedAt: job.startedAt,
             });
         }
-        
-        if (result.success) {
-            const updateFields = { status: 'online', lastSync: new Date(), lastError: '', healthFailures: 0 };
-            if (node.type !== 'xray') updateFields.useTlsFiles = result.useTlsFiles;
-            if (node.cascadeRole === 'bridge') updateFields.status = 'offline';
-            await HyNode.findByIdAndUpdate(req.params.id, { $set: updateFields });
 
-            const CascadeLink = require('../../models/cascadeLinkModel');
-            const linkCount = await CascadeLink.countDocuments({
-                $or: [{ portalNode: node._id }, { bridgeNode: node._id }],
-                active: true,
-            });
-            if (linkCount > 0) {
-                result.logs = result.logs || [];
-                result.logs.push(`[Cascade] Re-deploying ${linkCount} cascade link(s)...`);
-                cascadeService.redeployAllLinksForNode(node._id).catch(err => {
-                    logger.error(`[Cascade] Auto-redeploy after setup: ${err.message}`);
-                });
-            }
+        const startedAt = Date.now();
+        setSetupJob(req.params.id, {
+            state: 'running',
+            startedAt,
+            finishedAt: null,
+            logs: [`[${new Date(startedAt).toISOString()}] Setup queued...`],
+            error: '',
+            message: '',
+        });
 
-            res.json({ success: true, message: 'Нода успешно настроена', logs: result.logs || [] });
-        } else {
-            await HyNode.findByIdAndUpdate(req.params.id, { 
-                $set: { status: 'error', lastError: result.error, healthFailures: 0 } 
+        setImmediate(() => {
+            runNodeSetupJob(req.params.id).catch((err) => {
+                logger.error(`[Panel] setup background runner fatal: ${err.message}`);
             });
-            res.status(500).json({ success: false, error: result.error, logs: result.logs || [] });
-        }
+        });
+
+        res.status(202).json({
+            success: true,
+            running: true,
+            state: 'running',
+            message: 'Setup запущен в фоне',
+            logs: getSetupJob(req.params.id)?.logs || [],
+            startedAt,
+        });
     } catch (error) {
         logger.error(`[Panel] Setup error: ${error.message}`);
         res.status(500).json({ success: false, error: error.message, logs: [`Exception: ${error.message}`] });
+    }
+});
+
+// GET /panel/nodes/:id/setup-status - Poll background setup status
+router.get('/nodes/:id/setup-status', async (req, res) => {
+    try {
+        const node = await HyNode.findById(req.params.id).select('status lastError lastSync');
+        if (!node) {
+            return res.status(404).json({ success: false, error: 'Нода не найдена' });
+        }
+
+        const job = getSetupJob(req.params.id);
+        if (!job) {
+            return res.json({
+                success: true,
+                state: 'idle',
+                running: false,
+                logs: [],
+                nodeStatus: node.status || 'unknown',
+                lastError: node.lastError || '',
+                lastSync: node.lastSync || null,
+            });
+        }
+
+        return res.json({
+            success: true,
+            state: job.state,
+            running: job.state === 'running',
+            message: job.message || '',
+            error: job.error || '',
+            logs: Array.isArray(job.logs) ? job.logs : [],
+            startedAt: job.startedAt || null,
+            finishedAt: job.finishedAt || null,
+            nodeStatus: node.status || 'unknown',
+            lastError: node.lastError || '',
+            lastSync: node.lastSync || null,
+        });
+    } catch (error) {
+        logger.error(`[Panel] setup-status error: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

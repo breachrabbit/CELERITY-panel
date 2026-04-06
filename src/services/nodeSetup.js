@@ -663,6 +663,11 @@ echo "Checking system..."
 echo "OS: $(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || uname -a)"
 echo "Arch: $(uname -m)"
 
+# Xray installer may call tput; ensure TERM exists in non-interactive SSH sessions
+if [ -z "\${TERM:-}" ]; then
+    export TERM=dumb
+fi
+
 # Check if curl is available
 if ! command -v curl &> /dev/null; then
     echo "curl not found, installing..."

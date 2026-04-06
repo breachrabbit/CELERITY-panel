@@ -799,14 +799,40 @@ async function setupNode() {
     btn.disabled = true;
     btn.innerHTML = '<span class="action-icon"><i class="ti ti-loader-2"></i></span><span>...</span>';
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.setupRunning + '</div>';
+
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     try {
-        const res = await fetch('/panel/nodes/<%= node._id %>/setup', { method: 'POST' });
-        const data = await res.json();
-        if (data.logs) showLogs(data.logs);
-        if (data.success) {
-            document.getElementById('setupResult').innerHTML = '<div class="alert alert-success"><i class="ti ti-check"></i> ' + data.message + '</div>';
-        } else {
-            document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + (data.error || i18n.error) + '</div>';
+        const startRes = await fetch('/panel/nodes/<%= node._id %>/setup', { method: 'POST' });
+        const startData = await startRes.json();
+        if (startData.logs) showLogs(startData.logs);
+        if (!startRes.ok && !startData.running) {
+            throw new Error(startData.error || i18n.error);
+        }
+
+        const started = Date.now();
+        const maxWaitMs = 30 * 60 * 1000;
+
+        while (true) {
+            if ((Date.now() - started) > maxWaitMs) {
+                throw new Error('Setup timeout: background task did not finish in expected time');
+            }
+
+            const statusRes = await fetch('/panel/nodes/<%= node._id %>/setup-status', { cache: 'no-store' });
+            const statusData = await statusRes.json();
+            if (statusData.logs) showLogs(statusData.logs);
+
+            if (statusData.state === 'running' || statusData.state === 'idle') {
+                await wait(2000);
+                continue;
+            }
+
+            if (statusData.state === 'success') {
+                document.getElementById('setupResult').innerHTML = '<div class="alert alert-success"><i class="ti ti-check"></i> ' + (statusData.message || i18n.setupDone || 'Setup completed') + '</div>';
+            } else {
+                document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + (statusData.error || i18n.error) + '</div>';
+            }
+            break;
         }
     } catch (err) {
         document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
