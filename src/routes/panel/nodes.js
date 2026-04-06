@@ -38,6 +38,28 @@ function shellQuote(value) {
     return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
+function normalizeServiceState(value) {
+    return String(value || '').trim().split('\n')[0].trim();
+}
+
+function pickPreferredServiceState(...states) {
+    const normalized = states.map(normalizeServiceState);
+    if (normalized.includes('active')) return 'active';
+    const firstKnown = normalized.find(s => s && s !== 'unknown');
+    return firstKnown || 'unknown';
+}
+
+async function getHysteriaServiceState(ssh) {
+    const [serverRes, legacyRes] = await Promise.all([
+        ssh.exec('(systemctl is-active hysteria-server 2>/dev/null || true) | head -n 1'),
+        ssh.exec('(systemctl is-active hysteria 2>/dev/null || true) | head -n 1'),
+    ]);
+    const hysteriaServer = normalizeServiceState(serverRes.stdout);
+    const hysteria = normalizeServiceState(legacyRes.stdout);
+    const status = pickPreferredServiceState(hysteriaServer, hysteria);
+    return { status, hysteriaServer, hysteria };
+}
+
 const setupJobs = new Map();
 const SETUP_JOB_TTL_MS = 1000 * 60 * 60; // keep finished jobs for 1 hour
 
@@ -189,9 +211,18 @@ async function runHybridSidecarSmokeCheck(node) {
         logs.push(`[INFO] hysteria config: ${runtime.hysteriaConfigPath}`);
         logs.push(`[INFO] SOCKS port: ${runtime.socksPort}`);
 
-        const hysteriaState = await ssh.exec('(systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || true) | head -n 1');
-        const hysteriaStatus = String(hysteriaState.stdout || '').trim();
-        pushCheck('hysteria service active', hysteriaStatus === 'active', `status=${hysteriaStatus || 'unknown'}`);
+        const { status: hysteriaStatus, hysteriaServer, hysteria } = await getHysteriaServiceState(ssh);
+        let hysteriaDetails = `status=${hysteriaStatus || 'unknown'}; hysteria-server=${hysteriaServer || 'n/a'}; hysteria=${hysteria || 'n/a'}`;
+        if (hysteriaStatus !== 'active') {
+            const hysteriaJournal = await ssh.exec('journalctl -u hysteria-server -u hysteria -n 12 --no-pager 2>/dev/null || true');
+            const journalTail = String(hysteriaJournal.stdout || hysteriaJournal.stderr || '')
+                .trim()
+                .split('\n')
+                .slice(-3)
+                .join(' | ');
+            if (journalTail) hysteriaDetails += `; logs=${journalTail}`;
+        }
+        pushCheck('hysteria service active', hysteriaStatus === 'active', hysteriaDetails);
 
         const sidecarState = await ssh.exec(`(systemctl is-active ${shellQuote(runtime.serviceName)} 2>/dev/null || true) | head -n 1`);
         const sidecarStatus = String(sidecarState.stdout || '').trim();
@@ -215,7 +246,23 @@ async function runHybridSidecarSmokeCheck(node) {
 
         const sidecarRule = await ssh.exec(`grep -n "__cascade_sidecar__" ${shellQuote(runtime.hysteriaConfigPath)} 2>/dev/null | head -n 1`);
         const sidecarRuleLine = String(sidecarRule.stdout || '').trim();
-        pushCheck('overlay marker in hysteria config', !!sidecarRuleLine, sidecarRuleLine || 'not found');
+        const CascadeLink = require('../../models/cascadeLinkModel');
+        const overlayRequired = !!(await CascadeLink.exists({
+            active: true,
+            $or: [
+                { portalNode: node._id },
+                { bridgeNode: node._id, mode: 'forward' },
+            ],
+        }));
+        if (overlayRequired) {
+            pushCheck('overlay marker in hysteria config', !!sidecarRuleLine, sidecarRuleLine || 'not found');
+        } else {
+            pushCheck(
+                'overlay marker in hysteria config',
+                true,
+                sidecarRuleLine || 'not required (no active portal/forward-hop links)'
+            );
+        }
 
         const listenCheck = await ssh.exec(`ss -ltnH '( sport = :${runtime.socksPort} )' | wc -l`);
         const listeners = parseInt(String(listenCheck.stdout || '0').trim(), 10) || 0;
@@ -1218,7 +1265,7 @@ router.post('/nodes/:id/restart', async (req, res) => {
         conn = await nodeSetup.connectSSH(node);
         const restartCmd = node.type === 'xray'
             ? 'systemctl restart xray && sleep 2 && (systemctl is-active xray 2>/dev/null || true) | head -n 1'
-            : '(systemctl restart hysteria-server 2>/dev/null || systemctl restart hysteria 2>/dev/null) && sleep 2 && (systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || true) | head -n 1';
+            : '(systemctl restart hysteria-server 2>/dev/null || systemctl restart hysteria 2>/dev/null) && sleep 2 && H1=$(systemctl is-active hysteria-server 2>/dev/null || true) && H2=$(systemctl is-active hysteria 2>/dev/null || true) && if [ "$H1" = "active" ] || [ "$H2" = "active" ]; then echo active; elif [ -n "$H1" ] && [ "$H1" != "unknown" ]; then echo "$H1"; elif [ -n "$H2" ]; then echo "$H2"; else echo unknown; fi';
         const result = await nodeSetup.execSSH(conn, restartCmd);
 
         const serviceState = String(result.output || '').trim().split('\n')[0].trim();

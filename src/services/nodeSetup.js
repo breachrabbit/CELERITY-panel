@@ -727,7 +727,19 @@ journalctl -u hysteria-server -u hysteria -n 20 --no-pager || true
             if (!restartResult.success) {
                 throw new Error(`Hysteria service restart failed: ${restartResult.error || `exit ${restartResult.code}`}`);
             }
-            const activeResult = await execSSH(conn, '(systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || true) | head -n 1');
+            const activeResult = await execSSH(conn, `
+H1=$(systemctl is-active hysteria-server 2>/dev/null || true)
+H2=$(systemctl is-active hysteria 2>/dev/null || true)
+if [ "$H1" = "active" ] || [ "$H2" = "active" ]; then
+    echo active
+elif [ -n "$H1" ] && [ "$H1" != "unknown" ]; then
+    echo "$H1"
+elif [ -n "$H2" ]; then
+    echo "$H2"
+else
+    echo unknown
+fi
+            `);
             const activeState = String(activeResult.output || '').trim();
             if (activeState !== 'active') {
                 throw new Error(`Hysteria service is not active after restart (state: ${activeState || 'unknown'})`);
@@ -754,7 +766,19 @@ async function checkNodeStatus(node) {
         const conn = await connectSSH(node);
         
         try {
-            const result = await execSSH(conn, '(systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || true) | head -n 1');
+            const result = await execSSH(conn, `
+H1=$(systemctl is-active hysteria-server 2>/dev/null || true)
+H2=$(systemctl is-active hysteria 2>/dev/null || true)
+if [ "$H1" = "active" ] || [ "$H2" = "active" ]; then
+    echo active
+elif [ -n "$H1" ] && [ "$H1" != "unknown" ]; then
+    echo "$H1"
+elif [ -n "$H2" ]; then
+    echo "$H2"
+else
+    echo unknown
+fi
+            `);
             return result.output.trim() === 'active' ? 'online' : 'offline';
         } finally {
             conn.end();

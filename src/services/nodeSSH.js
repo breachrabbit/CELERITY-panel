@@ -233,8 +233,20 @@ class NodeSSH {
             await new Promise(resolve => setTimeout(resolve, 3000));
             
             // Check 1: systemctl is-active
-            const result = await this.exec('systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || echo "unknown"');
-            const status = result.stdout.trim();
+            const result = await this.exec(`
+                H1=$(systemctl is-active hysteria-server 2>/dev/null || true)
+                H2=$(systemctl is-active hysteria 2>/dev/null || true)
+                if [ "$H1" = "active" ] || [ "$H2" = "active" ]; then
+                    echo active
+                elif [ -n "$H1" ] && [ "$H1" != "unknown" ]; then
+                    echo "$H1"
+                elif [ -n "$H2" ]; then
+                    echo "$H2"
+                else
+                    echo unknown
+                fi
+            `);
+            const status = result.stdout.trim().split('\n')[0].trim();
             
             logger.debug(`[SSH] ${this.node.name} hysteria status: ${status}`);
             
@@ -301,8 +313,20 @@ class NodeSSH {
             
             await new Promise(resolve => setTimeout(resolve, 3000));
             
-            const statusResult = await this.exec('systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null');
-            const isActive = statusResult.stdout.trim() === 'active';
+            const statusResult = await this.exec(`
+                H1=$(systemctl is-active hysteria-server 2>/dev/null || true)
+                H2=$(systemctl is-active hysteria 2>/dev/null || true)
+                if [ "$H1" = "active" ] || [ "$H2" = "active" ]; then
+                    echo active
+                elif [ -n "$H1" ] && [ "$H1" != "unknown" ]; then
+                    echo "$H1"
+                elif [ -n "$H2" ]; then
+                    echo "$H2"
+                else
+                    echo unknown
+                fi
+            `);
+            const isActive = statusResult.stdout.trim().split('\n')[0].trim() === 'active';
             
             if (isActive) {
                 logger.info(`[SSH] Hysteria restarted and running on ${this.node.name}`);
