@@ -126,25 +126,17 @@ ensure_source_checkout() {
     local tmp_dir
     tmp_dir="$(mktemp -d)"
     local archive_file="${tmp_dir}/repo.tar.gz"
-    local root_dir_name
 
     log "Downloading source fallback bundle"
     curl -fsSL "${REPO_TARBALL_URL}" -o "$archive_file"
-
-    if ! root_dir_name="$(tar -tzf "$archive_file" | head -n 1 | cut -d/ -f1)"; then
+    if ! tar -xzf "$archive_file" -C "$tmp_dir"; then
         rm -rf "$tmp_dir"
-        fail "Failed to inspect source fallback bundle"
+        fail "Failed to unpack source fallback bundle"
     fi
-    if [[ -z "$root_dir_name" ]]; then
-        rm -rf "$tmp_dir"
-        fail "Source fallback bundle is empty"
-    fi
-
-    tar -xzf "$archive_file" -C "$tmp_dir"
 
     local extracted_dir
-    extracted_dir="${tmp_dir}/${root_dir_name}"
-    if [[ ! -d "$extracted_dir" ]]; then
+    extracted_dir="$(find "$tmp_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+    if [[ -z "$extracted_dir" || ! -d "$extracted_dir" ]]; then
         rm -rf "$tmp_dir"
         fail "Failed to unpack source fallback bundle"
     fi
