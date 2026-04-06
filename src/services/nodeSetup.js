@@ -849,35 +849,61 @@ if ! command -v curl &> /dev/null; then
     apt-get update && apt-get install -y curl || yum install -y curl || apk add curl
 fi
 
+# Ensure CA certificates exist for HTTPS downloads
+if ! command -v update-ca-certificates &> /dev/null && ! [ -f /etc/ssl/certs/ca-certificates.crt ]; then
+    echo "ca-certificates may be missing, trying to install..."
+    apt-get update && apt-get install -y ca-certificates || yum install -y ca-certificates || apk add ca-certificates || true
+fi
+
 if ! command -v xray &> /dev/null; then
     echo "Xray not found. Installing via official script..."
     INSTALL_OK=0
+    INSTALLER_URLS="
+https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh
+https://github.com/XTLS/Xray-install/raw/main/install-release.sh
+"
 
     for ATTEMPT in 1 2 3; do
         echo "Attempt $ATTEMPT/3: downloading Xray installer..."
-        if ! curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 300 \
-            https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh; then
-            echo "WARN: Failed to download installer on attempt $ATTEMPT"
+
+        for INSTALLER_URL in $INSTALLER_URLS; do
+            echo "Installer URL: $INSTALLER_URL"
             rm -f /tmp/xray-install.sh
-            if [ "$ATTEMPT" -lt 3 ]; then
-                sleep $((ATTEMPT * 3))
+            if ! curl -fL --retry 8 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 300 \
+                "$INSTALLER_URL" -o /tmp/xray-install.sh; then
+                echo "WARN: Failed to download installer from $INSTALLER_URL"
                 continue
             fi
-            break
-        fi
 
-        chmod +x /tmp/xray-install.sh
-        echo "Attempt $ATTEMPT/3: running installer..."
-        bash /tmp/xray-install.sh install 2>&1
-        INSTALL_EXIT=$?
-        rm -f /tmp/xray-install.sh
+            if [ ! -s /tmp/xray-install.sh ]; then
+                echo "WARN: Installer is empty ($INSTALLER_URL)"
+                rm -f /tmp/xray-install.sh
+                continue
+            fi
 
-        if [ $INSTALL_EXIT -eq 0 ] && command -v xray &> /dev/null; then
-            INSTALL_OK=1
-            break
-        fi
+            SCRIPT_SIZE=$(wc -c < /tmp/xray-install.sh | tr -d ' ')
+            if [ "\${SCRIPT_SIZE:-0}" -lt 10000 ] || ! grep -qi "xray" /tmp/xray-install.sh; then
+                echo "WARN: Installer content looks invalid (size=\${SCRIPT_SIZE:-0})"
+                echo "First lines:"
+                head -n 5 /tmp/xray-install.sh || true
+                rm -f /tmp/xray-install.sh
+                continue
+            fi
 
-        echo "WARN: Xray installation attempt $ATTEMPT failed (exit: $INSTALL_EXIT)"
+            chmod +x /tmp/xray-install.sh
+            echo "Attempt $ATTEMPT/3: running installer..."
+            INSTALL_EXIT=0
+            bash /tmp/xray-install.sh install 2>&1 || INSTALL_EXIT=$?
+            rm -f /tmp/xray-install.sh
+
+            if [ $INSTALL_EXIT -eq 0 ] && command -v xray &> /dev/null; then
+                INSTALL_OK=1
+                break 2
+            fi
+
+            echo "WARN: Installer run failed from $INSTALLER_URL (exit: $INSTALL_EXIT)"
+        done
+
         if [ "$ATTEMPT" -lt 3 ]; then
             sleep $((ATTEMPT * 3))
         fi
@@ -907,11 +933,23 @@ if ! command -v xray &> /dev/null; then
         DOWNLOADED=0
 
         for XRAY_URL in \
+            "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
             "https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
             "https://mirror.ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
-            "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG"; do
+            "https://ghproxy.net/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG"; do
             echo "Fallback download URL: $XRAY_URL"
-            if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 600 "$XRAY_URL" -o "$ZIP_PATH"; then
+            rm -f "$ZIP_PATH"
+            if curl -fL --retry 10 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 900 \
+                --speed-time 30 --speed-limit 32768 "$XRAY_URL" -o "$ZIP_PATH"; then
+                ZIP_SIZE=$(wc -c < "$ZIP_PATH" | tr -d ' ')
+                if [ "\${ZIP_SIZE:-0}" -lt 5000000 ]; then
+                    echo "WARN: Downloaded archive looks too small (\${ZIP_SIZE:-0} bytes), trying next mirror"
+                    continue
+                fi
+                if ! unzip -tq "$ZIP_PATH" >/dev/null 2>&1; then
+                    echo "WARN: Archive integrity check failed, trying next mirror"
+                    continue
+                fi
                 DOWNLOADED=1
                 break
             fi

@@ -918,19 +918,40 @@ if ! command -v curl >/dev/null 2>&1; then
     fi
 fi
 INSTALL_OK=0
+INSTALLER_URLS="
+https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh
+https://github.com/XTLS/Xray-install/raw/main/install-release.sh
+"
 for ATTEMPT in 1 2 3; do
-    if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 300 \
-        https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh; then
-        chmod +x /tmp/xray-install.sh
-        if bash /tmp/xray-install.sh install 2>&1; then
-            if command -v xray >/dev/null 2>&1; then
-                INSTALL_OK=1
-                rm -f /tmp/xray-install.sh
-                break
-            fi
+    for INSTALLER_URL in $INSTALLER_URLS; do
+        rm -f /tmp/xray-install.sh
+        if ! curl -fL --retry 8 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 300 \
+            "$INSTALLER_URL" -o /tmp/xray-install.sh; then
+            continue
         fi
-    fi
-    rm -f /tmp/xray-install.sh
+
+        if [ ! -s /tmp/xray-install.sh ]; then
+            rm -f /tmp/xray-install.sh
+            continue
+        fi
+
+        SCRIPT_SIZE=$(wc -c < /tmp/xray-install.sh | tr -d ' ')
+        if [ "\${SCRIPT_SIZE:-0}" -lt 10000 ] || ! grep -qi "xray" /tmp/xray-install.sh; then
+            rm -f /tmp/xray-install.sh
+            continue
+        fi
+
+        chmod +x /tmp/xray-install.sh
+        INSTALL_EXIT=0
+        bash /tmp/xray-install.sh install 2>&1 || INSTALL_EXIT=$?
+        rm -f /tmp/xray-install.sh
+
+        if [ $INSTALL_EXIT -eq 0 ] && command -v xray >/dev/null 2>&1; then
+            INSTALL_OK=1
+            break 2
+        fi
+    done
+
     if [ "$ATTEMPT" -lt 3 ]; then
         sleep $((ATTEMPT * 3))
     fi
@@ -967,10 +988,20 @@ if [ "$INSTALL_OK" -ne 1 ]; then
     ZIP_PATH="$TMP_DIR/xray.zip"
     DOWNLOADED=0
     for XRAY_URL in \
+        "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
         "https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
         "https://mirror.ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
-        "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG"; do
-        if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 600 "$XRAY_URL" -o "$ZIP_PATH"; then
+        "https://ghproxy.net/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG"; do
+        rm -f "$ZIP_PATH"
+        if curl -fL --retry 10 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 900 \
+            --speed-time 30 --speed-limit 32768 "$XRAY_URL" -o "$ZIP_PATH"; then
+            ZIP_SIZE=$(wc -c < "$ZIP_PATH" | tr -d ' ')
+            if [ "\${ZIP_SIZE:-0}" -lt 5000000 ]; then
+                continue
+            fi
+            if ! unzip -tq "$ZIP_PATH" >/dev/null 2>&1; then
+                continue
+            fi
             DOWNLOADED=1
             break
         fi
