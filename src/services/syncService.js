@@ -517,6 +517,44 @@ class SyncService {
             { _id: node._id },
             { $set: { status: 'syncing' } }
         );
+
+        if (config.FEATURE_CASCADE_HYBRID) {
+            try {
+                const CascadeLink = require('../models/cascadeLinkModel');
+                const hasCascadeLinks = await CascadeLink.exists({
+                    active: true,
+                    $or: [
+                        { portalNode: node._id },
+                        { bridgeNode: node._id, mode: 'forward' },
+                    ],
+                });
+                if (hasCascadeLinks) {
+                    const cascadeService = require('./cascadeService');
+                    await cascadeService._deployPortalConfig(node);
+                    await HyNode.updateOne(
+                        { _id: node._id },
+                        {
+                            $set: {
+                                status: 'online',
+                                lastSync: new Date(),
+                                lastError: '',
+                                healthFailures: 0,
+                            },
+                        }
+                    );
+                    logger.info(`[Sync] Node ${node.name}: cascade overlay reapplied`);
+                    return true;
+                }
+            } catch (error) {
+                logger.error(`[Sync] Node ${node.name}: cascade overlay sync error: ${error.message}`);
+                await HyNode.updateOne(
+                    { _id: node._id },
+                    { $set: { status: 'error', lastError: error.message, healthFailures: 0 } }
+                );
+                webhook.emit(webhook.EVENTS.NODE_ERROR, { nodeId: node._id, name: node.name, error: error.message });
+                return false;
+            }
+        }
         
         const ssh = new NodeSSH(node);
         

@@ -395,6 +395,11 @@ const i18n = {
     checking: <%- JSON.stringify(t("nodes.checking")) %>,
     resettingStatus: <%- JSON.stringify(t("nodes.resettingStatus")) %>,
     statusReset: <%- JSON.stringify(t("nodes.statusReset")) %>,
+    hybridSmokeCheck: <%- JSON.stringify(t("nodes.hybridSmokeCheck")) %>,
+    hybridSmokeRunning: <%- JSON.stringify(t("nodes.hybridSmokeRunning")) %>,
+    hybridSmokeDone: <%- JSON.stringify(t("nodes.hybridSmokeDone")) %>,
+    hybridSmokeFailed: <%- JSON.stringify(t("nodes.hybridSmokeFailed")) %>,
+    hybridSmokeSummary: <%- JSON.stringify(t("nodes.hybridSmokeSummary")) %>,
     autoSetup: <%- JSON.stringify(t("nodes.autoSetup")) %>,
     error: <%- JSON.stringify(t("common.error")) %>,
     confirmDeployCascade: <%- JSON.stringify(t("nodes.confirmDeployCascade")) %>,
@@ -437,14 +442,11 @@ function switchProto(proto) {
 
     if (proto === 'xray') {
         xraySection.style.display = '';
-        if (cascadeSection) cascadeSection.style.display = '';
         labelXray.classList.add('active');
         labelHysteria.classList.remove('active');
         hysteriaOnlyEls.forEach(el => el.style.display = 'none');
-        onCascadeRoleChange();
     } else {
         xraySection.style.display = 'none';
-        if (cascadeSection) cascadeSection.style.display = 'none';
         labelHysteria.classList.add('active');
         labelXray.classList.remove('active');
         hysteriaOnlyEls.forEach(el => el.style.display = '');
@@ -457,7 +459,10 @@ function switchProto(proto) {
         toggleQuicFields();
         toggleResolverFields();
         toggleAclFields();
+        toggleCascadeSidecarFields();
     }
+    if (cascadeSection) cascadeSection.style.display = '';
+    onCascadeRoleChange();
     checkXrayPortConflict();
 }
 
@@ -513,6 +518,23 @@ function toggleObfsPassword() {
 function toggleCustomConfig() {
     const checked = document.getElementById('useCustomConfig').checked;
     document.getElementById('customConfigSection').style.display = checked ? 'block' : 'none';
+    toggleCascadeSidecarCustomHint();
+}
+
+function toggleCascadeSidecarCustomHint() {
+    const hint = document.getElementById('sidecarCustomConfigHint');
+    if (!hint) return;
+    const customConfigEnabled = !!document.getElementById('useCustomConfig')?.checked;
+    const sidecarEnabled = !!document.getElementById('cascadeSidecarEnabled')?.checked;
+    hint.style.display = (customConfigEnabled && sidecarEnabled) ? '' : 'none';
+}
+
+function toggleCascadeSidecarFields() {
+    const wrap = document.getElementById('cascadeSidecarFieldsWrap');
+    if (!wrap) return;
+    const enabled = !!document.getElementById('cascadeSidecarEnabled')?.checked;
+    wrap.style.display = enabled ? '' : 'none';
+    toggleCascadeSidecarCustomHint();
 }
 
 function toggleAcmeByDomain() {
@@ -810,6 +832,43 @@ async function getNodeLogs() {
     }
 }
 
+async function runHybridSmokeCheck() {
+    const btn = document.getElementById('btnHybridSmoke');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="action-icon"><i class="ti ti-loader-2"></i></span><span>...</span>';
+    }
+    document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.hybridSmokeRunning + '</div>';
+
+    try {
+        const res = await fetch('/panel/nodes/<%= node._id %>/smoke-check-hybrid', { method: 'POST' });
+        const data = await res.json();
+
+        if (Array.isArray(data.logs)) {
+            showLogs(data.logs);
+        }
+
+        const summary = data?.summary;
+        const summaryText = summary
+            ? (i18n.hybridSmokeSummary + ': PASS=' + summary.passed + ', FAIL=' + summary.failed)
+            : '';
+
+        if (res.ok && data.success) {
+            document.getElementById('setupResult').innerHTML = '<div class="alert alert-success"><i class="ti ti-check"></i> ' + i18n.hybridSmokeDone + (summaryText ? ('<br><small>' + summaryText + '</small>') : '') + '</div>';
+        } else {
+            const errText = data?.error || i18n.hybridSmokeFailed;
+            document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + errText + (summaryText ? ('<br><small>' + summaryText + '</small>') : '') + '</div>';
+        }
+    } catch (err) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + i18n.error + ': ' + err.message + '</div>';
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="action-icon"><i class="ti ti-heart-rate-monitor"></i></span><span>' + i18n.hybridSmokeCheck + '</span>';
+        }
+    }
+}
+
 async function checkStatus() {
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.checking + '</div>';
     try {
@@ -916,6 +975,8 @@ async function generateXrayKeys() {
     toggleQuicFields();
     toggleResolverFields();
     toggleAclFields();
+    toggleCascadeSidecarFields();
+    toggleCascadeSidecarCustomHint();
     if (proto === 'xray') {
         updateXrayTransportUI();
         updateXraySecurityUI();

@@ -80,6 +80,25 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="card" style="margin-top: 1rem;">
+                    <div class="card-header">
+                        <h2><i class="ti ti-topology-star-3"></i> <%= t('settings.hybridCascadeSettings') %></h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="settings-list">
+                            <input type="hidden" name="featureFlags.cascadeHybrid" value="off">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="featureFlags.cascadeHybrid"
+                                       <%= (settings?.featureFlags?.cascadeHybrid ?? config.FEATURE_CASCADE_HYBRID) ? 'checked' : '' %>>
+                                <span><%= t('settings.hybridCascadeEnabled') %></span>
+                            </label>
+                            <small class="hint" style="display: block; margin-top: 0.25rem;">
+                                <%= t('settings.hybridCascadeHint') %>
+                            </small>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="col-6">

@@ -167,6 +167,66 @@ Object.assign(locals, {
                 </div>
             </div>
 
+            <%# ========== 11. Hysteria: Hybrid Cascade Sidecar ========== %>
+            <div class="form-section hysteria-only" id="cascadeSidecarSection" style="<%= node?.type === 'xray' ? 'display:none' : '' %>">
+                <h3><%= t('nodes.hybridCascadeSidecar') %></h3>
+                <small class="section-hint"><%= t('nodes.hybridCascadeSidecarHint') %></small>
+
+                <% if (!config.FEATURE_CASCADE_HYBRID) { %>
+                <div class="alert alert-warning" style="margin-top:8px;">
+                    <i class="ti ti-alert-triangle"></i>
+                    <%= t('nodes.hybridCascadeDisabledHint') %>
+                </div>
+                <% } %>
+
+                <div class="form-group" style="margin-top:8px;">
+                    <label class="checkbox-label">
+                        <input type="hidden" name="cascadeSidecar.enabled" value="0">
+                        <input type="checkbox"
+                               id="cascadeSidecarEnabled"
+                               name="cascadeSidecar.enabled"
+                               value="1"
+                               <%= (node?.cascadeSidecar?.enabled ?? true) ? 'checked' : '' %>
+                               onchange="toggleCascadeSidecarFields()">
+                        <span class="checkbox-text"><%= t('nodes.hybridCascadeSidecarEnabled') %></span>
+                    </label>
+                </div>
+
+                <div class="optional-fields-wrap" id="cascadeSidecarFieldsWrap" style="<%= (node?.cascadeSidecar?.enabled ?? true) ? '' : 'display:none' %>">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cascadeSidecarSocksPort"><%= t('nodes.hybridCascadeSocksPort') %></label>
+                            <input type="number"
+                                   id="cascadeSidecarSocksPort"
+                                   name="cascadeSidecar.socksPort"
+                                   value="<%= node?.cascadeSidecar?.socksPort || 11080 %>"
+                                   min="1" max="65535" placeholder="11080">
+                        </div>
+                        <div class="form-group">
+                            <label for="cascadeSidecarServiceName"><%= t('nodes.hybridCascadeServiceName') %></label>
+                            <input type="text"
+                                   id="cascadeSidecarServiceName"
+                                   name="cascadeSidecar.serviceName"
+                                   value="<%= node?.cascadeSidecar?.serviceName || 'xray-cascade' %>"
+                                   placeholder="xray-cascade">
+                            <small><%= t('nodes.hybridCascadeServiceNameHint') %></small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cascadeSidecarConfigPath"><%= t('nodes.hybridCascadeConfigPath') %></label>
+                        <input type="text"
+                               id="cascadeSidecarConfigPath"
+                               name="cascadeSidecar.configPath"
+                               value="<%= node?.cascadeSidecar?.configPath || '/usr/local/etc/xray-cascade/config.json' %>"
+                               placeholder="/usr/local/etc/xray-cascade/config.json">
+                    </div>
+                    <div class="alert alert-warning" id="sidecarCustomConfigHint" style="display:none;">
+                        <i class="ti ti-alert-triangle"></i>
+                        <%= t('nodes.hybridCascadeCustomConfigConflict') %>
+                    </div>
+                </div>
+            </div>
+
             <%# ========== Active + Submit ========== %>
             <div class="form-group" style="margin-top:24px;">
                 <label class="checkbox-label">

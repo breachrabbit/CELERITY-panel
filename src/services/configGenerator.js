@@ -652,6 +652,51 @@ WantedBy=multi-user.target
 // ==================== XRAY CASCADE (Reverse Proxy) ====================
 
 /**
+ * Generate base Xray config for a local cascade sidecar on Hysteria nodes.
+ * The sidecar accepts local SOCKS traffic from Hysteria and applies
+ * reverse/forward cascade rules exactly like a regular Xray portal.
+ *
+ * @param {number} socksPort - Local SOCKS listen port
+ * @returns {string} JSON string
+ */
+function generateXrayCascadeSidecarConfig(socksPort = 11080) {
+    const port = Number(socksPort) || 11080;
+
+    const config = {
+        log: {
+            loglevel: 'warning',
+        },
+        inbounds: [
+            {
+                tag: 'hy-cascade-in',
+                listen: '127.0.0.1',
+                port,
+                protocol: 'socks',
+                settings: {
+                    auth: 'noauth',
+                    udp: true,
+                },
+                sniffing: {
+                    enabled: true,
+                    destOverride: ['http', 'tls', 'quic'],
+                    routeOnly: true,
+                },
+            },
+        ],
+        outbounds: [
+            { protocol: 'freedom', tag: 'direct' },
+            { protocol: 'blackhole', tag: 'blackhole' },
+        ],
+        routing: {
+            domainStrategy: 'IPIfNonMatch',
+            rules: [],
+        },
+    };
+
+    return JSON.stringify(config, null, 2);
+}
+
+/**
  * Apply reverse-portal configuration to an existing Xray config object.
  * Adds portal entries, bridge-connector inbounds, and routing rules for
  * every active CascadeLink where this node is the Portal (entry).
@@ -1306,6 +1351,7 @@ module.exports = {
     generateXrayConfig,
     buildXrayStreamSettings,
     generateXraySystemdService,
+    generateXrayCascadeSidecarConfig,
     applyReversePortal,
     generateBridgeConfig,
     generateRelayConfig,

@@ -46,7 +46,7 @@
 <% } %>
 
 <%# ========== Cascade Links (edit only, xray) ========== %>
-<% if (node && node.type === 'xray') { %>
+<% if (node) { %>
 <div class="card mt-3">
     <div class="card-header">
         <h2><i class="ti ti-topology-star-3" style="margin-right:6px"></i> <%= t('nodes.cascadeLinks') %></h2>
@@ -174,6 +174,12 @@
                 <span class="action-icon"><i class="ti ti-file-text"></i></span>
                 <span><%= t('nodes.viewLogs') %></span>
             </button>
+            <% if (node.type !== 'xray') { %>
+            <button class="action-btn" onclick="runHybridSmokeCheck()" id="btnHybridSmoke" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
+                <span class="action-icon"><i class="ti ti-heart-rate-monitor"></i></span>
+                <span><%= t('nodes.hybridSmokeCheck') %></span>
+            </button>
+            <% } %>
             <button class="action-btn" onclick="checkStatus()">
                 <span class="action-icon"><i class="ti ti-search"></i></span>
                 <span><%= t('nodes.checkStatus') %></span>

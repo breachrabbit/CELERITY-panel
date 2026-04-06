@@ -42,6 +42,11 @@ const settingsSchema = new mongoose.Schema({
         // Enable if panel uses HTTP or self-signed certificate
         insecure: { type: Boolean, default: true },
     },
+
+    featureFlags: {
+        // Hybrid cascade (Xray + Hysteria sidecar) toggle from admin panel
+        cascadeHybrid: { type: Boolean, default: process.env.FEATURE_CASCADE_HYBRID === 'true' },
+    },
     
     backup: {
         enabled: { type: Boolean, default: false },
@@ -107,4 +112,3 @@ settingsSchema.statics.update = async function(updates) {
 };
 
 module.exports = mongoose.model('Settings', settingsSchema);
-

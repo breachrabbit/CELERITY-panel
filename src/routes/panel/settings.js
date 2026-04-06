@@ -44,6 +44,11 @@ router.get('/settings', async (req, res) => {
         // Convert to plain object before mutating to avoid Mongoose change tracking
         const settings = settingsDoc ? settingsDoc.toObject() : settingsDoc;
 
+        if (!settings.featureFlags) settings.featureFlags = {};
+        if (typeof settings.featureFlags.cascadeHybrid !== 'boolean') {
+            settings.featureFlags.cascadeHybrid = !!config.FEATURE_CASCADE_HYBRID;
+        }
+
         // Decrypt secrets for form display (stored encrypted since P1-encrypt-secrets)
         if (settings?.webhook?.secret) {
             settings.webhook.secret = cryptoService.decryptSafe(settings.webhook.secret);
@@ -96,6 +101,10 @@ router.post('/settings', async (req, res) => {
             // Node Auth
             'nodeAuth.insecure': req.body['nodeAuth.insecure'] === 'on',
         };
+
+        if (req.body['featureFlags.cascadeHybrid'] !== undefined) {
+            updates['featureFlags.cascadeHybrid'] = req.body['featureFlags.cascadeHybrid'] === 'on';
+        }
         
         // Webhook settings (only when the dedicated webhook form is submitted)
         if (req.body['_webhookSettings'] !== undefined) {

@@ -291,6 +291,14 @@ async function reloadSettings() {
         rateLimitSettings.authPerSecond = settings.rateLimit.authPerSecond || 200;
         logger.info(`[Settings] Rate limits: sub=${rateLimitSettings.subscriptionPerMinute}/min`);
     }
+
+    const hybridFromSettings = settings?.featureFlags?.cascadeHybrid;
+    if (typeof hybridFromSettings === 'boolean') {
+        config.FEATURE_CASCADE_HYBRID = hybridFromSettings;
+    } else {
+        config.FEATURE_CASCADE_HYBRID = process.env.FEATURE_CASCADE_HYBRID === 'true';
+    }
+    logger.info(`[Settings] Hybrid cascade: ${config.FEATURE_CASCADE_HYBRID ? 'enabled' : 'disabled'}`);
 }
 module.exports = { reloadSettings };
 
@@ -483,6 +491,26 @@ async function startServer() {
             }));
             await HyUser.bulkWrite(bulkOps, { ordered: false });
             logger.info(`[Migration] Generated xrayUuid for ${usersWithoutUuid.length} existing users`);
+        }
+
+        // Migration: ensure all nodes have cascadeSidecar defaults (for hybrid cascade runtime)
+        const sidecarMigration = await HyNode.updateMany(
+            {},
+            [
+                {
+                    $set: {
+                        cascadeSidecar: {
+                            enabled: { $ifNull: ['$cascadeSidecar.enabled', true] },
+                            socksPort: { $ifNull: ['$cascadeSidecar.socksPort', 11080] },
+                            serviceName: { $ifNull: ['$cascadeSidecar.serviceName', 'xray-cascade'] },
+                            configPath: { $ifNull: ['$cascadeSidecar.configPath', '/usr/local/etc/xray-cascade/config.json'] },
+                        },
+                    },
+                },
+            ]
+        );
+        if (sidecarMigration.modifiedCount > 0) {
+            logger.info(`[Migration] Applied cascadeSidecar defaults to ${sidecarMigration.modifiedCount} node(s)`);
         }
 
         await reloadSettings();

@@ -26,6 +26,19 @@
 
 > Updating an existing installation? See [Safe Production Updates](docs/safe-update.md).
 
+**One-command installer (domain only):**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ClickDevTech/hysteria-panel/main/scripts/quick-install.sh) \
+  --domain panel.example.com
+```
+
+What it does automatically:
+- installs Docker if needed
+- downloads compose/env files when run outside the repo
+- generates required secrets in `.env`
+- enables `FEATURE_CASCADE_HYBRID=true`
+- starts the stack via `docker-compose.hub.yml`
+
 **1. Install Docker** (if not installed):
 ```bash
 curl -fsSL https://get.docker.com | sh
@@ -209,6 +222,8 @@ Tunnel-REALITY is configured **independently** from the client-facing REALITY on
 | Forward Chain without public IP | Each hop must accept incoming connections |
 | Mixed modes in one chain | Reverse and Forward use different Xray mechanisms and cannot be combined |
 | Same port on relay for two hops | A relay that is both bridge and portal requires different ports for incoming and outgoing tunnels |
+| Hybrid cascade disabled | Mixed `Xray/Hysteria` links require `FEATURE_CASCADE_HYBRID=true` |
+| Hybrid + custom Hysteria config | Hybrid overlay rewrites generated Hysteria config and is blocked when `useCustomConfig` is enabled |
 
 ---
 
@@ -864,6 +879,7 @@ volumes:
 | `PANEL_IP_WHITELIST` | ❌ | IP whitelist for panel |
 | `SYNC_INTERVAL` | ❌ | Sync interval in minutes (default: 2) |
 | `API_DOCS_ENABLED` | ❌ | Enable interactive API docs at `/api/docs` |
+| `FEATURE_CASCADE_HYBRID` | ❌ | Enable hybrid cascade (`Xray + Hysteria sidecar`) |
 | `LOG_LEVEL` | ❌ | Logging level (default: info) |
 
 ---

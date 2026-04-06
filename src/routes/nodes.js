@@ -21,6 +21,55 @@ async function invalidateNodesCache() {
     await cache.invalidateDashboardCounts();
 }
 
+function parseCascadeSidecar(value) {
+    const fail = (msg) => {
+        throw new Error(`Invalid cascadeSidecar: ${msg}`);
+    };
+
+    if (value === undefined) return undefined;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        fail('must be an object');
+    }
+
+    const out = {};
+
+    if (value.enabled !== undefined) {
+        out.enabled = typeof value.enabled === 'string'
+            ? ['true', '1', 'on', 'yes'].includes(value.enabled.toLowerCase())
+            : !!value.enabled;
+    }
+
+    if (value.socksPort !== undefined) {
+        const socksPort = parseInt(value.socksPort, 10);
+        if (!Number.isInteger(socksPort) || socksPort < 1 || socksPort > 65535) {
+            fail('socksPort must be between 1 and 65535');
+        }
+        out.socksPort = socksPort;
+    }
+
+    if (value.serviceName !== undefined) {
+        const serviceName = String(value.serviceName || '').trim();
+        if (!serviceName || !/^[A-Za-z0-9_.@-]+$/.test(serviceName)) {
+            fail('serviceName contains invalid characters');
+        }
+        out.serviceName = serviceName;
+    }
+
+    if (value.configPath !== undefined) {
+        const configPath = String(value.configPath || '').trim();
+        if (!configPath.startsWith('/')) {
+            fail('configPath must be an absolute path');
+        }
+        out.configPath = configPath;
+    }
+
+    return out;
+}
+
+function isInputValidationError(error) {
+    return String(error?.message || '').startsWith('Invalid cascadeSidecar: ');
+}
+
 /**
  * GET /nodes - Список всех нод
  */
@@ -83,7 +132,7 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
             hopInterval, acme, masquerade, bandwidth,
             ignoreClientBandwidth, speedTest, disableUDP,
             udpIdleTimeout, sniff, quic, resolver, acl,
-            aclRules, useTlsFiles,
+            aclRules, useTlsFiles, cascadeSidecar,
         } = req.body;
         
         if (!name || !ip) {
@@ -128,6 +177,11 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
             nodeData.xray = xray;
         }
 
+        const parsedSidecar = parseCascadeSidecar(cascadeSidecar);
+        if (parsedSidecar !== undefined) {
+            nodeData.cascadeSidecar = parsedSidecar;
+        }
+
         // Hysteria 2 advanced configuration fields
         const hy2Fields = { hopInterval, acme, masquerade, bandwidth, ignoreClientBandwidth, speedTest, disableUDP, udpIdleTimeout, sniff, quic, resolver, acl, aclRules, useTlsFiles };
         for (const [key, value] of Object.entries(hy2Fields)) {
@@ -145,6 +199,9 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
         res.status(201).json(node);
     } catch (error) {
         logger.error(`[Nodes API] Create node error: ${error.message}`);
+        if (isInputValidationError(error)) {
+            return res.status(400).json({ error: error.message });
+        }
         res.status(500).json({ error: error.message });
     }
 });
@@ -161,7 +218,7 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
             'hopInterval', 'acme', 'masquerade', 'bandwidth',
             'ignoreClientBandwidth', 'speedTest', 'disableUDP',
             'udpIdleTimeout', 'sniff', 'quic', 'resolver', 'acl',
-            'aclRules', 'useTlsFiles',
+            'aclRules', 'useTlsFiles', 'cascadeSidecar',
         ];
         
         const updates = {};
@@ -169,6 +226,8 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
             if (req.body[key] !== undefined) {
                 updates[key] = key === 'ssh'
                     ? cryptoService.encryptSshCredentials(req.body[key])
+                    : key === 'cascadeSidecar'
+                        ? parseCascadeSidecar(req.body[key])
                     : req.body[key];
             }
         }
@@ -191,6 +250,9 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
         res.json(node);
     } catch (error) {
         logger.error(`[Nodes API] Update error: ${error.message}`);
+        if (isInputValidationError(error)) {
+            return res.status(400).json({ error: error.message });
+        }
         res.status(500).json({ error: error.message });
     }
 });

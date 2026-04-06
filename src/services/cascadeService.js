@@ -6,8 +6,11 @@
  */
 
 const net = require('net');
+const path = require('path');
+const appConfig = require('../../config');
 const CascadeLink = require('../models/cascadeLinkModel');
 const HyNode = require('../models/hyNodeModel');
+const Settings = require('../models/settingsModel');
 const configGenerator = require('./configGenerator');
 const NodeSSH = require('./nodeSSH');
 const cache = require('./cacheService');
@@ -16,6 +19,8 @@ const webhook = require('./webhookService');
 
 const TOPOLOGY_CACHE_KEY = 'c3:cascade:topology';
 const TOPOLOGY_CACHE_TTL = 15;
+const HYBRID_DISABLED_ERROR = 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System';
+const CASCADE_SIDECAR_OUTBOUND = '__cascade_sidecar__';
 
 /**
  * Safe Redis helpers — cache module exposes .redis but may not be connected.
@@ -30,7 +35,34 @@ async function cacheDel(key) {
     try { if (cache.redis?.del) await cache.redis.del(key); } catch {}
 }
 
+function shellQuote(value) {
+    return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
 class CascadeService {
+    _isXrayNode(node) {
+        return node && node.type === 'xray';
+    }
+
+    _needsHybridCascade(portalNode, bridgeNode) {
+        return !this._isXrayNode(portalNode) || !this._isXrayNode(bridgeNode);
+    }
+
+    _resolveCascadeStack(portalNode, bridgeNode) {
+        const portalType = String(portalNode?.type || '').toLowerCase();
+        const bridgeType = String(bridgeNode?.type || '').toLowerCase();
+        if (portalType === 'xray' && bridgeType === 'xray') return 'xray';
+        if (portalType === 'hysteria' && bridgeType === 'hysteria') return 'hysteria2';
+        return 'hybrid';
+    }
+
+    _assertLinkCompatibility(link, portalNode, bridgeNode) {
+        if (this._needsHybridCascade(portalNode, bridgeNode) && !appConfig.FEATURE_CASCADE_HYBRID) {
+            const linkName = link?.name ? ` "${link.name}"` : '';
+            throw new Error(`${HYBRID_DISABLED_ERROR}. Cannot deploy link${linkName} (${portalNode?.type || 'unknown'} -> ${bridgeNode?.type || 'unknown'}).`);
+        }
+    }
+
     /**
      * Deploy a single cascade link: upload configs to both Portal and Bridge,
      * restart services, and verify tunnel establishment.
@@ -53,6 +85,8 @@ class CascadeService {
         }
 
         try {
+            this._assertLinkCompatibility(link, portalNode, bridgeNode);
+
             if (link.mode === 'forward') {
                 await this._deployForwardLink(link, portalNode, bridgeNode);
             } else {
@@ -140,7 +174,11 @@ class CascadeService {
         }
 
         if (bridgeNode && (bridgeNode.ssh?.password || bridgeNode.ssh?.privateKey)) {
-            if (link.mode === 'forward' && bridgeNode.type === 'xray' && bridgeNode.active) {
+            const bridgeCanBeRegenerated = bridgeNode.active && (
+                bridgeNode.type === 'xray' ||
+                (appConfig.FEATURE_CASCADE_HYBRID && bridgeNode.type !== 'xray')
+            );
+            if (link.mode === 'forward' && bridgeCanBeRegenerated) {
                 try {
                     await this._deployPortalConfig(bridgeNode, { excludeLinkIds: [link._id] });
                 } catch (err) {
@@ -214,6 +252,13 @@ class CascadeService {
         const chainMode = modes.values().next().value;
         const deployOrder = chainMode === 'forward' ? [...orderedNodes].reverse() : orderedNodes;
         logger.info(`[Cascade] Chain mode: ${chainMode}, deploy order: ${deployOrder.map(n => n.name).join(' → ')}`);
+
+        // Guard against mixed-protocol links when hybrid mode is disabled.
+        for (const l of orderedLinks) {
+            const portal = l.portalNode?._id ? l.portalNode : null;
+            const bridge = l.bridgeNode?._id ? l.bridgeNode : null;
+            this._assertLinkCompatibility(l, portal, bridge);
+        }
 
         // 2. Deploy configs in order
         for (let i = 0; i < deployOrder.length; i++) {
@@ -367,6 +412,17 @@ class CascadeService {
         const chainMode = (asPortalLinks[0]?.mode || asBridgeLinks[0]?.mode) || 'reverse';
 
         if (chainMode === 'forward') {
+            if (node.type !== 'xray' && appConfig.FEATURE_CASCADE_HYBRID) {
+                // Hybrid mode: one sidecar config handles both portal and hop roles.
+                await this._deployPortalConfig(node);
+                if (isBridge) {
+                    for (const link of asBridgeLinks) {
+                        await this._openFirewallPort(node, link.tunnelPort || 10086);
+                    }
+                }
+                return;
+            }
+
             if (isPortal) {
                 await this._deployPortalConfig(node);
             }
@@ -481,6 +537,11 @@ class CascadeService {
     async _deployForwardHopConfig(node, hopLinks) {
         if (!node.ssh?.password && !node.ssh?.privateKey) {
             throw new Error(`Forward hop node ${node.name} has no SSH credentials`);
+        }
+
+        if (appConfig.FEATURE_CASCADE_HYBRID && node.type !== 'xray') {
+            await this._deployPortalConfig(node);
+            return;
         }
 
         // Existing Xray server: cascade inbounds are added via _deployPortalConfig
@@ -611,10 +672,12 @@ class CascadeService {
                 .select('name ip domain flag type status onlineUsers cascadeRole mapPosition country port ssh')
                 .lean(),
             CascadeLink.find({ active: true })
-                .populate('portalNode', 'name ip')
-                .populate('bridgeNode', 'name ip')
+                .populate('portalNode', 'name ip type')
+                .populate('bridgeNode', 'name ip type')
                 .lean(),
         ]);
+
+        const nodeById = new Map(allNodes.map(n => [String(n._id), n]));
 
         const nodes = allNodes.map(n => ({
             data: {
@@ -636,23 +699,32 @@ class CascadeService {
                 : undefined,
         }));
 
-        const edges = allLinks.map(l => ({
-            data: {
-                id: `link-${l._id}`,
-                linkId: String(l._id),
-                source: String(l.portalNode?._id || l.portalNode),
-                target: String(l.bridgeNode?._id || l.bridgeNode),
-                label: l.name,
-                status: l.status,
-                tunnelPort: l.tunnelPort,
-                latencyMs: l.latencyMs,
-                tunnelProtocol: l.tunnelProtocol,
-                tunnelTransport: l.tunnelTransport,
-                mode: l.mode || 'reverse',
-                muxEnabled: l.muxEnabled || false,
-                tunnelSecurity: l.tunnelSecurity || 'none',
-            },
-        }));
+        const edges = allLinks.map(l => {
+            const source = String(l.portalNode?._id || l.portalNode);
+            const target = String(l.bridgeNode?._id || l.bridgeNode);
+            const portalType = l.portalNode?.type || nodeById.get(source)?.type || '';
+            const bridgeType = l.bridgeNode?.type || nodeById.get(target)?.type || '';
+            return {
+                data: {
+                    id: `link-${l._id}`,
+                    linkId: String(l._id),
+                    source,
+                    target,
+                    label: l.name,
+                    status: l.status,
+                    tunnelPort: l.tunnelPort,
+                    latencyMs: l.latencyMs,
+                    tunnelProtocol: l.tunnelProtocol,
+                    tunnelTransport: l.tunnelTransport,
+                    mode: l.mode || 'reverse',
+                    muxEnabled: l.muxEnabled || false,
+                    tunnelSecurity: l.tunnelSecurity || 'none',
+                    portalType,
+                    bridgeType,
+                    cascadeStack: this._resolveCascadeStack({ type: portalType }, { type: bridgeType }),
+                },
+            };
+        });
 
         // Add virtual "Internet" node and edges from exit/standalone nodes
         const exitNodes = allNodes.filter(n =>
@@ -690,6 +762,7 @@ class CascadeService {
                         latencyMs: null,
                         tunnelProtocol: null,
                         tunnelTransport: null,
+                        cascadeStack: null,
                         isInternetEdge: true,
                     },
                 });
@@ -788,14 +861,188 @@ class CascadeService {
 
     // ==================== INTERNAL HELPERS ====================
 
+    _getCascadeSidecarRuntime(node) {
+        const raw = node?.cascadeSidecar || {};
+        const socksPort = Number(raw.socksPort) > 0 ? Number(raw.socksPort) : 11080;
+        const rawServiceName = /^[A-Za-z0-9_.@-]+$/.test(raw.serviceName || '')
+            ? String(raw.serviceName)
+            : 'xray-cascade';
+        const serviceName = rawServiceName.endsWith('.service')
+            ? rawServiceName.slice(0, -8) || 'xray-cascade'
+            : rawServiceName;
+        const configPath = (typeof raw.configPath === 'string' && raw.configPath.trim().startsWith('/'))
+            ? raw.configPath.trim()
+            : '/usr/local/etc/xray-cascade/config.json';
+        return {
+            enabled: raw.enabled !== false,
+            socksPort,
+            serviceName,
+            configPath,
+        };
+    }
+
+    _generateCascadeSidecarServiceUnit(configPath) {
+        return `[Unit]
+Description=Xray Cascade Sidecar
+After=network.target nss-lookup.target hysteria-server.service
+
+[Service]
+User=nobody
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+Type=simple
+ExecStart=/usr/local/bin/xray run -config ${configPath}
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+`;
+    }
+
+    async _deployHysteriaPortalConfig(portalNode, opts = {}) {
+        if (!appConfig.FEATURE_CASCADE_HYBRID) {
+            throw new Error(`${HYBRID_DISABLED_ERROR}. Portal node "${portalNode.name}" has type "${portalNode.type}".`);
+        }
+
+        const excludeSet = new Set((opts.excludeLinkIds || []).map(String));
+        const sidecar = this._getCascadeSidecarRuntime(portalNode);
+
+        const allPortalLinks = (await CascadeLink.find({
+            portalNode: portalNode._id,
+            active: true,
+        }).populate('bridgeNode')).filter(l => !excludeSet.has(String(l._id)));
+        const reverseLinks = allPortalLinks.filter(l => l.mode !== 'forward');
+        const forwardLinks = await this._getForwardChainLinks(portalNode._id, excludeSet);
+        const forwardHopLinks = (await CascadeLink.find({
+            bridgeNode: portalNode._id,
+            mode: 'forward',
+            active: true,
+        })).filter(l => !excludeSet.has(String(l._id)));
+
+        const needsSidecar = reverseLinks.length > 0 || forwardLinks.length > 0 || forwardHopLinks.length > 0;
+
+        const settings = await Settings.get();
+        const authInsecure = settings?.nodeAuth?.insecure ?? true;
+        const authUrl = `${appConfig.BASE_URL}/api/auth`;
+        const useTlsFiles = !!(portalNode.useTlsFiles || !portalNode.domain);
+
+        const nodeForConfig = portalNode.toObject ? portalNode.toObject() : { ...portalNode };
+        const outbounds = Array.isArray(nodeForConfig.outbounds) ? nodeForConfig.outbounds : [];
+        const aclRules = Array.isArray(nodeForConfig.aclRules) ? nodeForConfig.aclRules : [];
+        const hasCustomConfig = !!(portalNode.useCustomConfig && String(portalNode.customConfig || '').trim());
+        if (hasCustomConfig) {
+            throw new Error(`Hybrid cascade is not supported while custom config is enabled on node "${portalNode.name}". Disable custom config first.`);
+        }
+
+        if (needsSidecar) {
+            if (!sidecar.enabled) {
+                throw new Error(`Cascade sidecar is disabled on node "${portalNode.name}". Enable node.cascadeSidecar.enabled to use hybrid cascade.`);
+            }
+            const sidecarOutbound = {
+                name: CASCADE_SIDECAR_OUTBOUND,
+                type: 'socks5',
+                addr: `127.0.0.1:${sidecar.socksPort}`,
+                username: '',
+                password: '',
+                insecure: false,
+            };
+            nodeForConfig.outbounds = [
+                sidecarOutbound,
+                ...outbounds.filter(ob => ob && ob.name !== CASCADE_SIDECAR_OUTBOUND),
+            ];
+            nodeForConfig.acl = { ...(nodeForConfig.acl || {}), enabled: true, type: 'inline' };
+            nodeForConfig.aclRules = [
+                `${CASCADE_SIDECAR_OUTBOUND}(all)`,
+                ...aclRules.filter(r => !String(r || '').startsWith(`${CASCADE_SIDECAR_OUTBOUND}(`)),
+            ];
+        } else {
+            nodeForConfig.outbounds = outbounds.filter(ob => ob && ob.name !== CASCADE_SIDECAR_OUTBOUND);
+            nodeForConfig.aclRules = aclRules.filter(r => !String(r || '').startsWith(`${CASCADE_SIDECAR_OUTBOUND}(`));
+        }
+
+        const hysteriaConfig = configGenerator.generateNodeConfig(nodeForConfig, authUrl, {
+            authInsecure,
+            useTlsFiles,
+        });
+
+        let sidecarConfig = '';
+        if (needsSidecar) {
+            const configObj = JSON.parse(configGenerator.generateXrayCascadeSidecarConfig(sidecar.socksPort));
+            const inboundTag = 'hy-cascade-in';
+            if (reverseLinks.length > 0) {
+                configGenerator.applyReversePortal(configObj, reverseLinks, inboundTag);
+            }
+            if (forwardLinks.length > 0) {
+                configGenerator.applyForwardChain(configObj, forwardLinks, inboundTag);
+            }
+            if (forwardHopLinks.length > 0) {
+                configGenerator.applyForwardHopInbound(configObj, forwardHopLinks);
+            }
+            configGenerator.ensurePrivateIpBlock(configObj);
+            sidecarConfig = JSON.stringify(configObj, null, 2);
+        }
+
+        if (!portalNode.ssh?.password && !portalNode.ssh?.privateKey) {
+            throw new Error(`Portal node ${portalNode.name} has no SSH credentials`);
+        }
+
+        const ssh = new NodeSSH(portalNode);
+        try {
+            await ssh.connect();
+
+            const hyConfigPath = portalNode.paths?.config || '/etc/hysteria/config.yaml';
+            await ssh.uploadContent(hysteriaConfig, hyConfigPath);
+            logger.info(`[Cascade] Hysteria portal config uploaded to ${portalNode.name} at ${hyConfigPath}`);
+
+            if (needsSidecar) {
+                const serviceUnitName = `${sidecar.serviceName}.service`;
+                const xrayCheck = await ssh.exec('command -v xray');
+                if (!xrayCheck.stdout || !xrayCheck.stdout.trim()) {
+                    logger.info(`[Cascade] Installing Xray sidecar on ${portalNode.name}`);
+                    await ssh.exec(
+                        'curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o /tmp/xray-install.sh ' +
+                        '&& chmod +x /tmp/xray-install.sh && bash /tmp/xray-install.sh install 2>&1 && rm -f /tmp/xray-install.sh'
+                    );
+                }
+
+                await ssh.exec(`mkdir -p ${shellQuote(path.dirname(sidecar.configPath))}`);
+                await ssh.uploadContent(sidecarConfig, sidecar.configPath);
+                await ssh.uploadContent(
+                    this._generateCascadeSidecarServiceUnit(sidecar.configPath),
+                    `/etc/systemd/system/${serviceUnitName}`
+                );
+                await ssh.exec(`systemctl daemon-reload && systemctl enable ${shellQuote(serviceUnitName)} && systemctl restart ${shellQuote(serviceUnitName)}`);
+                const sidecarState = await ssh.exec(`systemctl is-active ${shellQuote(serviceUnitName)}`);
+                if ((sidecarState.stdout || '').trim() !== 'active') {
+                    throw new Error(`Sidecar service ${serviceUnitName} is not active on ${portalNode.name}`);
+                }
+            } else {
+                const serviceUnitName = `${sidecar.serviceName}.service`;
+                await ssh.exec(`systemctl stop ${shellQuote(serviceUnitName)} 2>/dev/null || true; systemctl disable ${shellQuote(serviceUnitName)} 2>/dev/null || true`);
+            }
+
+            await ssh.exec('systemctl restart hysteria-server');
+        } finally {
+            ssh.disconnect();
+        }
+    }
+
     /**
      * Regenerate and upload a node's full Xray config, including
      * reverse-portal and/or forward-chain settings from its active cascade links.
+     * For Hysteria nodes in hybrid mode this deploys a local Xray sidecar.
      * @param {Object} portalNode - HyNode document
      * @param {Object} [opts]
      * @param {Array<string>} [opts.excludeLinkIds] - Link IDs to exclude (used during undeploy)
      */
     async _deployPortalConfig(portalNode, opts = {}) {
+        if (portalNode.type !== 'xray') {
+            return this._deployHysteriaPortalConfig(portalNode, opts);
+        }
+
         const syncService = require('./syncService');
         const users = await syncService._getUsersForNode(portalNode);
 
@@ -839,12 +1086,8 @@ class CascadeService {
             const ssh = new NodeSSH(portalNode);
             try {
                 await ssh.connect();
-                // Xray nodes use different config path than Hysteria
-                const configPath = portalNode.type === 'xray'
-                    ? '/usr/local/etc/xray/config.json'
-                    : (portalNode.paths?.config || '/etc/hysteria/config.yaml');
-                await ssh.uploadContent(finalConfig, configPath);
-                logger.info(`[Cascade] Portal config uploaded to ${portalNode.name} at ${configPath}`);
+                await ssh.uploadContent(finalConfig, '/usr/local/etc/xray/config.json');
+                logger.info(`[Cascade] Portal config uploaded to ${portalNode.name} at /usr/local/etc/xray/config.json`);
             } finally {
                 ssh.disconnect();
             }

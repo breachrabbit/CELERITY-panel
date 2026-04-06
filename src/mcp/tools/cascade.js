@@ -4,6 +4,7 @@
  */
 
 const { z } = require('zod');
+const config = require('../../../config');
 const CascadeLink = require('../../models/cascadeLinkModel');
 const HyNode = require('../../models/hyNodeModel');
 const cascadeService = require('../../services/cascadeService');
@@ -12,6 +13,26 @@ const logger = require('../../utils/logger');
 
 async function invalidateCascadeCache() {
     await cache.invalidateAllSubscriptions();
+}
+
+const HYBRID_DISABLED_ERROR = 'Hybrid cascade requires FEATURE_CASCADE_HYBRID=true';
+
+function isXrayNode(node) {
+    return node && node.type === 'xray';
+}
+
+function getHybridCompatibilityError(portalNode, bridgeNode) {
+    const needsHybrid = !isXrayNode(portalNode) || !isXrayNode(bridgeNode);
+    if (!needsHybrid || config.FEATURE_CASCADE_HYBRID) return '';
+    return `${HYBRID_DISABLED_ERROR}. Unsupported link type: ${portalNode?.type || 'unknown'} -> ${bridgeNode?.type || 'unknown'}`;
+}
+
+function resolveCascadeStackByTypes(portalType, bridgeType) {
+    const src = String(portalType || '').toLowerCase();
+    const dst = String(bridgeType || '').toLowerCase();
+    if (src === 'xray' && dst === 'xray') return 'xray';
+    if (src === 'hysteria' && dst === 'hysteria') return 'hysteria2';
+    return 'hybrid';
 }
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -89,6 +110,10 @@ async function manageCascade(args, emit) {
             if (!bridgeNode) return { error: 'Bridge node not found', code: 404 };
             if (data.portalNodeId === data.bridgeNodeId) {
                 return { error: 'Portal and Bridge must be different nodes', code: 400 };
+            }
+            const hybridError = getHybridCompatibilityError(portalNode, bridgeNode);
+            if (hybridError) {
+                return { error: hybridError, code: 400 };
             }
 
             const port = data.tunnelPort || 10086;
@@ -220,8 +245,8 @@ async function getTopology() {
     const [nodes, links] = await Promise.all([
         HyNode.find({ active: true }).select('name ip status cascadeRole country type').lean(),
         CascadeLink.find({})
-            .populate('portalNode', 'name ip status')
-            .populate('bridgeNode', 'name ip status')
+            .populate('portalNode', 'name ip status type')
+            .populate('bridgeNode', 'name ip status type')
             .lean(),
     ]);
 
@@ -233,6 +258,7 @@ async function getTopology() {
             status: l.status,
             mode: l.mode,
             tunnelPort: l.tunnelPort,
+            cascadeStack: resolveCascadeStackByTypes(l.portalNode?.type, l.bridgeNode?.type),
             portal: l.portalNode ? { _id: l.portalNode._id, name: l.portalNode.name } : null,
             bridge: l.bridgeNode ? { _id: l.bridgeNode._id, name: l.bridgeNode.name } : null,
         })),

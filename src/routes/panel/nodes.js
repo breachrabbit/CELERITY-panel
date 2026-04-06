@@ -33,6 +33,87 @@ const {
 
 const sniScanner = require('../../services/sniScanner');
 
+function shellQuote(value) {
+    return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function getHybridSidecarRuntime(node) {
+    const raw = node?.cascadeSidecar || {};
+    const socksPort = Number(raw.socksPort) > 0 ? Number(raw.socksPort) : 11080;
+    const rawServiceName = String(raw.serviceName || 'xray-cascade').trim() || 'xray-cascade';
+    const serviceName = rawServiceName.endsWith('.service') ? rawServiceName : `${rawServiceName}.service`;
+    const sidecarConfigPath = String(raw.configPath || '/usr/local/etc/xray-cascade/config.json').trim() || '/usr/local/etc/xray-cascade/config.json';
+    const hysteriaConfigPath = String(node?.paths?.config || '/etc/hysteria/config.yaml').trim() || '/etc/hysteria/config.yaml';
+    return {
+        socksPort,
+        serviceName,
+        sidecarConfigPath,
+        hysteriaConfigPath,
+    };
+}
+
+async function runHybridSidecarSmokeCheck(node) {
+    const runtime = getHybridSidecarRuntime(node);
+    const checks = [];
+    const logs = [];
+    let ssh;
+
+    const pushCheck = (name, ok, details) => {
+        checks.push({ name, ok, details: details || '' });
+        logs.push(`[${ok ? 'PASS' : 'FAIL'}] ${name}${details ? ` — ${details}` : ''}`);
+    };
+
+    try {
+        ssh = new NodeSSH(node);
+        await ssh.connect();
+
+        logs.push(`[INFO] Node: ${node.name} (${node.ip})`);
+        logs.push(`[INFO] sidecar service: ${runtime.serviceName}`);
+        logs.push(`[INFO] sidecar config: ${runtime.sidecarConfigPath}`);
+        logs.push(`[INFO] hysteria config: ${runtime.hysteriaConfigPath}`);
+        logs.push(`[INFO] SOCKS port: ${runtime.socksPort}`);
+
+        const hysteriaState = await ssh.exec('systemctl is-active hysteria-server 2>/dev/null || systemctl is-active hysteria 2>/dev/null || echo unknown');
+        const hysteriaStatus = String(hysteriaState.stdout || '').trim();
+        pushCheck('hysteria service active', hysteriaStatus === 'active', `status=${hysteriaStatus || 'unknown'}`);
+
+        const sidecarState = await ssh.exec(`systemctl is-active ${shellQuote(runtime.serviceName)} 2>/dev/null || echo unknown`);
+        const sidecarStatus = String(sidecarState.stdout || '').trim();
+        pushCheck('sidecar service active', sidecarStatus === 'active', `status=${sidecarStatus || 'unknown'}`);
+
+        const sidecarConfig = await ssh.exec(`[ -f ${shellQuote(runtime.sidecarConfigPath)} ] && echo yes || echo no`);
+        pushCheck('sidecar config exists', String(sidecarConfig.stdout || '').trim() === 'yes', runtime.sidecarConfigPath);
+
+        const hysteriaConfig = await ssh.exec(`[ -f ${shellQuote(runtime.hysteriaConfigPath)} ] && echo yes || echo no`);
+        pushCheck('hysteria config exists', String(hysteriaConfig.stdout || '').trim() === 'yes', runtime.hysteriaConfigPath);
+
+        const sidecarRule = await ssh.exec(`grep -n "__cascade_sidecar__" ${shellQuote(runtime.hysteriaConfigPath)} 2>/dev/null | head -n 1`);
+        const sidecarRuleLine = String(sidecarRule.stdout || '').trim();
+        pushCheck('overlay marker in hysteria config', !!sidecarRuleLine, sidecarRuleLine || 'not found');
+
+        const listenCheck = await ssh.exec(`ss -ltnH '( sport = :${runtime.socksPort} )' | wc -l`);
+        const listeners = parseInt(String(listenCheck.stdout || '0').trim(), 10) || 0;
+        pushCheck('sidecar listens on SOCKS port', listeners > 0, `port=${runtime.socksPort}, listeners=${listeners}`);
+
+        const xrayBinary = await ssh.exec('command -v xray >/dev/null 2>&1 && echo yes || echo no');
+        pushCheck('xray binary present', String(xrayBinary.stdout || '').trim() === 'yes', '/usr/local/bin/xray');
+    } finally {
+        if (ssh) ssh.disconnect();
+    }
+
+    const passed = checks.filter(c => c.ok).length;
+    const failed = checks.length - passed;
+    logs.push(`[SUMMARY] PASS=${passed} FAIL=${failed}`);
+
+    return {
+        success: failed === 0,
+        checks,
+        summary: { passed, failed, total: checks.length },
+        logs,
+        runtime,
+    };
+}
+
 // ==================== DASHBOARD ====================
 
 // GET /panel - Dashboard
@@ -549,19 +630,17 @@ router.post('/nodes/:id/setup', async (req, res) => {
             if (node.cascadeRole === 'bridge') updateFields.status = 'offline';
             await HyNode.findByIdAndUpdate(req.params.id, { $set: updateFields });
 
-            if (node.type === 'xray' && node.cascadeRole !== 'bridge') {
-                const CascadeLink = require('../../models/cascadeLinkModel');
-                const linkCount = await CascadeLink.countDocuments({
-                    $or: [{ portalNode: node._id }, { bridgeNode: node._id }],
-                    active: true,
+            const CascadeLink = require('../../models/cascadeLinkModel');
+            const linkCount = await CascadeLink.countDocuments({
+                $or: [{ portalNode: node._id }, { bridgeNode: node._id }],
+                active: true,
+            });
+            if (linkCount > 0) {
+                result.logs = result.logs || [];
+                result.logs.push(`[Cascade] Re-deploying ${linkCount} cascade link(s)...`);
+                cascadeService.redeployAllLinksForNode(node._id).catch(err => {
+                    logger.error(`[Cascade] Auto-redeploy after setup: ${err.message}`);
                 });
-                if (linkCount > 0) {
-                    result.logs = result.logs || [];
-                    result.logs.push(`[Cascade] Re-deploying ${linkCount} cascade link(s)...`);
-                    cascadeService.redeployAllLinksForNode(node._id).catch(err => {
-                        logger.error(`[Cascade] Auto-redeploy after setup: ${err.message}`);
-                    });
-                }
             }
 
             res.json({ success: true, message: 'Нода успешно настроена', logs: result.logs || [] });
@@ -739,6 +818,31 @@ router.get('/nodes/:id/logs', async (req, res) => {
     } catch (error) {
         logger.error(`[Panel] Get logs error for node ${req.params.id}: ${error.message}`);
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /panel/nodes/:id/smoke-check-hybrid - Run hybrid cascade smoke-check on Hysteria node
+router.post('/nodes/:id/smoke-check-hybrid', async (req, res) => {
+    try {
+        const node = await HyNode.findById(req.params.id);
+        if (!node) {
+            return res.status(404).json({ success: false, error: 'Node not found' });
+        }
+        if (node.type === 'xray') {
+            return res.status(400).json({ success: false, error: 'Smoke-check is supported only for Hysteria nodes' });
+        }
+        if (!node.ssh?.password && !node.ssh?.privateKey) {
+            return res.status(400).json({ success: false, error: 'SSH credentials not configured' });
+        }
+
+        const result = await runHybridSidecarSmokeCheck(node);
+        logger.info(
+            `[Panel] Hybrid smoke-check for ${node.name}: PASS=${result.summary.passed}, FAIL=${result.summary.failed}`
+        );
+        return res.json(result);
+    } catch (error) {
+        logger.error(`[Panel] Hybrid smoke-check error for node ${req.params.id}: ${error.message}`);
+        return res.status(500).json({ success: false, error: error.message });
     }
 });
 

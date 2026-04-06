@@ -88,6 +88,7 @@
                     <% } %>
                     <% nodes.forEach(node => { 
                         const groupIds = (node.groups || []).map(g => g._id?.toString() || g.toString()).join(',');
+                        const sidecarEnabled = node.type !== 'xray' ? (node.cascadeSidecar?.enabled ?? true) : false;
                     %>
                     <tr class="node-row"
                         data-status="<%= node.status %>"
@@ -110,6 +111,12 @@
                                     <% } %>
                                     <% if (node.cascadeRole && node.cascadeRole !== 'standalone') { %>
                                     <span class="badge-cascade <%= node.cascadeRole %>"><%= node.cascadeRole.toUpperCase() %></span>
+                                    <% } %>
+                                    <% if (node.type !== 'xray' && config.FEATURE_CASCADE_HYBRID) { %>
+                                    <span class="badge-sidecar <%= sidecarEnabled ? 'sidecar-on' : 'sidecar-off' %>"
+                                          title="<%= t('nodes.hybridSidecarBadgeTitle') %>">
+                                        <%= sidecarEnabled ? t('nodes.hybridSidecarBadgeOn') : t('nodes.hybridSidecarBadgeOff') %>
+                                    </span>
                                     <% } %>
                                     <% if (node.domain) { %>
                                     <br><small class="text-muted"><%= node.domain %></small>
@@ -189,6 +196,7 @@
             <% } %>
             <% nodes.forEach(node => { 
                 const groupIds = (node.groups || []).map(g => g._id?.toString() || g.toString()).join(',');
+                const sidecarEnabled = node.type !== 'xray' ? (node.cascadeSidecar?.enabled ?? true) : false;
             %>
                 <div class="mobile-node-card node-row-mobile"
                      data-status="<%= node.status %>"
@@ -206,6 +214,12 @@
                             <img src="/img/hysteria.svg" alt="Hysteria" title="Hysteria 2" style="width:14px;height:14px;vertical-align:middle;opacity:0.7;">
                             <% } %>
                             <code style="font-size: 11px;"><%= node.ip %></code>
+                            <% if (node.type !== 'xray' && config.FEATURE_CASCADE_HYBRID) { %>
+                            <span class="badge-sidecar <%= sidecarEnabled ? 'sidecar-on' : 'sidecar-off' %>"
+                                  title="<%= t('nodes.hybridSidecarBadgeTitle') %>">
+                                <%= sidecarEnabled ? t('nodes.hybridSidecarBadgeOn') : t('nodes.hybridSidecarBadgeOff') %>
+                            </span>
+                            <% } %>
                         </div>
                         <span class="badge badge-<%= node.status === 'online' ? 'success' : (node.status === 'error' ? 'danger' : 'warning') %>">
                             <%= node.status %>
@@ -326,6 +340,20 @@
                     <div class="form-group">
                         <label><%= t('network.bridgeNode') %></label>
                         <select name="bridgeNodeId" class="form-input" id="selectBridge" required></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1 1 100%">
+                        <label><%= t('network.cascadeStack') %></label>
+                        <div class="cascade-stack-card" id="cascadeStackCard">
+                            <div class="cascade-stack-main">
+                                <span class="cascade-stack-badge stack-unknown" id="cascadeStackBadge"><%= t('network.stackAuto') %></span>
+                                <span id="cascadeStackText"><%= t('network.stackSelectNodes') %></span>
+                            </div>
+                            <div class="form-hint" id="cascadeStackHint"><%= t('network.stackHintDefault') %></div>
+                            <div class="form-warning" id="cascadeStackWarning" style="display:none"></div>
+                            <div class="form-hint" id="overlayProtocolHint" style="margin-top:4px"><%= t('network.overlayProtocolHint') %></div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-row">
@@ -671,11 +699,73 @@
 .badge-cascade.portal { background: #6366f120; border: 1px solid #6366f1; color: #818cf8; }
 .badge-cascade.bridge { background: #f59e0b20; border: 1px solid #f59e0b; color: #fbbf24; }
 .badge-cascade.relay  { background: #8b5cf620; border: 1px solid #8b5cf6; color: #a78bfa; }
+.badge-sidecar {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+.badge-sidecar.sidecar-on {
+    background: #10b98120;
+    border: 1px solid #10b981;
+    color: #34d399;
+}
+.badge-sidecar.sidecar-off {
+    background: #64748b22;
+    border: 1px solid #64748b;
+    color: #94a3b8;
+}
 /* Drag-and-drop ghost row */
 .sortable-ghost { opacity: 0.4; background: var(--accent, #6366f1) !important; }
 .drag-handle { cursor: grab; user-select: none; white-space: nowrap; vertical-align: middle; }
 .drag-handle:active { cursor: grabbing; }
 .ranking-num { font-size: 11px; color: var(--text-muted); margin-right: 2px; }
+.cascade-stack-card {
+    border: 1px solid var(--border, #334155);
+    background: var(--bg-secondary, rgba(255,255,255,0.02));
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+.cascade-stack-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.cascade-stack-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    border: 1px solid transparent;
+}
+.cascade-stack-badge.stack-xray {
+    color: #60a5fa;
+    border-color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.18);
+}
+.cascade-stack-badge.stack-hysteria2 {
+    color: #4ade80;
+    border-color: #15803d;
+    background: rgba(22, 163, 74, 0.18);
+}
+.cascade-stack-badge.stack-hybrid {
+    color: #fbbf24;
+    border-color: #b45309;
+    background: rgba(217, 119, 6, 0.2);
+}
+.cascade-stack-badge.stack-unknown {
+    color: #cbd5e1;
+    border-color: #475569;
+    background: rgba(71, 85, 105, 0.2);
+}
 </style>
 
 <script>
@@ -884,6 +974,7 @@ window._networkI18n = {
     openNode: <%- JSON.stringify(t('network.openNode')) %>,
     drawerTunnelPort: <%- JSON.stringify(t('network.drawerTunnelPort')) %>,
     drawerProtocolTransport: <%- JSON.stringify(t('network.drawerProtocolTransport')) %>,
+    drawerStack: <%- JSON.stringify(t('network.drawerStack')) %>,
     drawerLatency: <%- JSON.stringify(t('network.drawerLatency')) %>,
     confirmDeploy: <%- JSON.stringify(t('network.confirmDeploy')) %>,
     confirmDeleteLink: <%- JSON.stringify(t('network.confirmDeleteLink')) %>,
@@ -926,6 +1017,23 @@ window._networkI18n = {
     betaDescription: <%- JSON.stringify(t('network.betaDescription')) %>,
     tunnelPortReverseHint: <%- JSON.stringify(t('network.tunnelPortReverseHint')) %>,
     tunnelPortForwardHint: <%- JSON.stringify(t('network.tunnelPortForwardHint')) %>,
+    cascadeStack: <%- JSON.stringify(t('network.cascadeStack')) %>,
+    stackAuto: <%- JSON.stringify(t('network.stackAuto')) %>,
+    stackSelectNodes: <%- JSON.stringify(t('network.stackSelectNodes')) %>,
+    stackHintDefault: <%- JSON.stringify(t('network.stackHintDefault')) %>,
+    stackTypeXray: <%- JSON.stringify(t('network.stackTypeXray')) %>,
+    stackTypeHysteria: <%- JSON.stringify(t('network.stackTypeHysteria')) %>,
+    stackTypeHybrid: <%- JSON.stringify(t('network.stackTypeHybrid')) %>,
+    stackHintXray: <%- JSON.stringify(t('network.stackHintXray')) %>,
+    stackHintHysteria: <%- JSON.stringify(t('network.stackHintHysteria')) %>,
+    stackHintHybrid: <%- JSON.stringify(t('network.stackHintHybrid')) %>,
+    stackHintHybridDisabled: <%- JSON.stringify(t('network.stackHintHybridDisabled')) %>,
+    stackShortXray: <%- JSON.stringify(t('network.stackShortXray')) %>,
+    stackShortHysteria: <%- JSON.stringify(t('network.stackShortHysteria')) %>,
+    stackShortHybrid: <%- JSON.stringify(t('network.stackShortHybrid')) %>,
+    overlayProtocolHint: <%- JSON.stringify(t('network.overlayProtocolHint')) %>,
+    sidecarOn: <%- JSON.stringify(t('nodes.hybridSidecarBadgeOn')) %>,
+    sidecarOff: <%- JSON.stringify(t('nodes.hybridSidecarBadgeOff')) %>,
     realityTunnelHint: <%- JSON.stringify(t('network.realityTunnelHint')) %>,
     portConflictClientHint: <%- JSON.stringify(t('network.portConflictClientHint')) %>,
     routeEntry: <%- JSON.stringify(t('network.routeEntry')) %>,
@@ -949,6 +1057,10 @@ window._networkI18n = {
     internetDesc: <%- JSON.stringify(t('network.internetDesc')) %>,
     internetExitDesc: <%- JSON.stringify(t('network.internetExitDesc')) %>,
     internetExit: <%- JSON.stringify(t('network.internetExit')) %>
+};
+
+window._networkOptions = {
+    featureCascadeHybrid: <%= config.FEATURE_CASCADE_HYBRID ? 'true' : 'false' %>
 };
 
 function loadNetworkScripts() {

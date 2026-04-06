@@ -13,6 +13,8 @@
     }
 
     const i18n = window._networkI18n || {};
+    const NETWORK_OPTIONS = window._networkOptions || {};
+    const FEATURE_CASCADE_HYBRID = !!NETWORK_OPTIONS.featureCascadeHybrid;
 
     const STATUS_COLORS = {
         online:   '#22c55e',
@@ -55,8 +57,62 @@
         internet: '',
     };
 
+    function normalizeNodeType(nodeType) {
+        const t = String(nodeType || '').toLowerCase();
+        if (t === 'xray' || t === 'hysteria') return t;
+        return '';
+    }
+
+    function resolveCascadeStack(portalType, bridgeType) {
+        const src = normalizeNodeType(portalType);
+        const dst = normalizeNodeType(bridgeType);
+        if (!src || !dst) return 'unknown';
+        if (src === 'xray' && dst === 'xray') return 'xray';
+        if (src === 'hysteria' && dst === 'hysteria') return 'hysteria2';
+        return 'hybrid';
+    }
+
+    function getStackMeta(stack) {
+        switch (stack) {
+            case 'xray':
+                return {
+                    key: 'xray',
+                    badgeClass: 'stack-xray',
+                    label: i18n.stackTypeXray || 'XRAY',
+                    shortLabel: i18n.stackShortXray || 'XR',
+                    hint: i18n.stackHintXray || 'Pure Xray cascade.',
+                };
+            case 'hysteria2':
+                return {
+                    key: 'hysteria2',
+                    badgeClass: 'stack-hysteria2',
+                    label: i18n.stackTypeHysteria || 'HYSTERIA 2',
+                    shortLabel: i18n.stackShortHysteria || 'HY2',
+                    hint: i18n.stackHintHysteria || 'Hysteria-to-Hysteria cascade with sidecar overlay.',
+                };
+            case 'hybrid':
+                return {
+                    key: 'hybrid',
+                    badgeClass: 'stack-hybrid',
+                    label: i18n.stackTypeHybrid || 'HYBRID',
+                    shortLabel: i18n.stackShortHybrid || 'HYB',
+                    hint: i18n.stackHintHybrid || 'Mixed Xray/Hysteria cascade with sidecar overlay.',
+                };
+            default:
+                return {
+                    key: 'unknown',
+                    badgeClass: 'stack-unknown',
+                    label: i18n.stackAuto || 'AUTO',
+                    shortLabel: i18n.stackAuto || 'AUTO',
+                    hint: i18n.stackHintDefault || 'Stack profile is auto-detected from node types.',
+                };
+        }
+    }
+
     let cy = null;
     let linkModalMode = 'create';
+    let _allNodes = [];
+    let _nodesById = new Map();
 
     // ==================== INIT ====================
 
@@ -259,9 +315,12 @@
     }
 
     function buildEdgeLabel(d) {
+        if (d.isInternetEdge) return '';
         const parts = [];
         const modePrefix = d.mode === 'forward' ? 'F' : 'R';
         parts.push(modePrefix);
+        const stackMeta = getStackMeta(d.cascadeStack || resolveCascadeStack(d.portalType, d.bridgeType));
+        if (stackMeta.shortLabel) parts.push(stackMeta.shortLabel);
         if (d.tunnelProtocol) parts.push(d.tunnelProtocol.toUpperCase());
         if (d.tunnelPort)     parts.push(':' + d.tunnelPort);
         if (d.latencyMs != null) parts.push(d.latencyMs + 'ms');
@@ -378,7 +437,13 @@
                     'font-size':           '9px',
                     'font-family':         'JetBrains Mono, monospace',
                     'color':               '#64748b',
-                    'text-background-color':   '#0a0f1e',
+                    'text-background-color': function (e) {
+                        const stack = e.data('cascadeStack');
+                        if (stack === 'xray') return '#0b1f3f';
+                        if (stack === 'hysteria2') return '#0d2a1b';
+                        if (stack === 'hybrid') return '#3a2606';
+                        return '#0a0f1e';
+                    },
                     'text-background-opacity': 0.9,
                     'text-background-padding': '3px',
                     'text-background-shape':   'round-rectangle',
@@ -698,6 +763,7 @@
         const modeLabel = d.mode === 'forward'
             ? '<span class="info-mode-badge forward">' + (i18n.modeForward || 'Forward Chain') + '</span>'
             : '<span class="info-mode-badge reverse">' + (i18n.modeReverse || 'Reverse Proxy') + '</span>';
+        const stackMeta = getStackMeta(d.cascadeStack || resolveCascadeStack(d.portalType, d.bridgeType));
 
         const secLabel = (d.tunnelSecurity || 'none').toUpperCase();
         const extras = [];
@@ -718,6 +784,7 @@
             field(i18n.drawerStatus || 'Status',
                 '<div class="info-status ' + sc + '">\u25CF ' + (d.status || 'pending') + '</div>') +
             field(i18n.linkMode || 'Mode', modeLabel) +
+            field('ti-layers-intersect', i18n.drawerStack || 'Cascade Stack', escHtml(stackMeta.label)) +
             field('ti-plug',           i18n.drawerTunnelPort        || 'Tunnel Port',         d.tunnelPort || '—') +
             field('ti-arrows-exchange',i18n.drawerProtocolTransport || 'Protocol / Transport',
                 (d.tunnelProtocol || 'vless').toUpperCase() + ' / ' + (d.tunnelTransport || 'tcp') + ' / ' + secLabel) +
@@ -780,9 +847,11 @@
         hops.push('Internet');
 
         const sec = edgeData.tunnelSecurity || 'none';
-        const encLabel = sec === 'none'
-            ? 'None'
+        const stackMeta = getStackMeta(edgeData.cascadeStack || resolveCascadeStack(edgeData.portalType, edgeData.bridgeType));
+        const encBase = sec === 'none'
+            ? 'NONE'
             : sec.toUpperCase() + ' (' + (edgeData.tunnelProtocol || 'vless').toUpperCase() + ')';
+        const encLabel = encBase + ' · ' + stackMeta.label;
 
         return {
             chain: hops.join(' → '),
@@ -849,14 +918,32 @@
             ]);
             if (!nodesRes.ok) throw new Error();
             const nodes = await nodesRes.json();
+            _allNodes = Array.isArray(nodes) ? nodes : [];
+            _nodesById = new Map(_allNodes.map(n => [String(n._id), n]));
             _allLinks = linksRes.ok ? await linksRes.json() : [];
-            const opts  = nodes.map(n =>
-                '<option value="' + n._id + '">' + (n.flag || '') + ' ' + n.name + ' (' + n.ip + ')</option>'
-            ).join('');
+            const opts  = _allNodes.map(function (n) {
+                const type = normalizeNodeType(n.type);
+                const typeBadge = type === 'xray'
+                    ? (i18n.stackTypeXray || 'XRAY')
+                    : (i18n.stackTypeHysteria || 'HYSTERIA 2');
+                const sidecarBadge = type === 'xray'
+                    ? ''
+                    : (n.cascadeSidecar?.enabled === false
+                        ? (i18n.sidecarOff || 'SIDECAR OFF')
+                        : (i18n.sidecarOn || 'SIDECAR ON'));
+                const badges = [typeBadge, sidecarBadge].filter(Boolean).join(', ');
+                const nodeLabel = ((n.flag || '') + ' ' + (n.name || n.ip || '')).trim();
+                return '<option value="' + n._id + '">' +
+                    escHtml(nodeLabel) + ' (' + escHtml(n.ip || '') + ')' +
+                    (badges ? ' [' + escHtml(badges) + ']' : '') +
+                    '</option>';
+            }).join('');
 
             portalSelect.innerHTML = '<option value="">' + (i18n.selectPortal || '— Select Portal —') + '</option>' + opts;
             bridgeSelect.innerHTML = '<option value="">' + (i18n.selectBridge || '— Select Bridge —') + '</option>' + opts;
         } catch (_) {
+            _allNodes = [];
+            _nodesById = new Map();
             const err = '<option value="">' + (i18n.errorLoadingNodes || 'Error loading nodes') + '</option>';
             portalSelect.innerHTML = bridgeSelect.innerHTML = err;
         }
@@ -956,6 +1043,7 @@
         if (geoFields) geoFields.style.display = 'none';
         var domGroup = document.getElementById('tunnelDomainGroup');
         if (domGroup) domGroup.style.display = '';
+        updateLinkFormWarnings();
     }
 
     async function onAddLinkSubmit(e) {
@@ -1011,6 +1099,16 @@
             return;
         }
 
+        const portalNode = _nodesById.get(String(data.portalNodeId));
+        const bridgeNode = _nodesById.get(String(data.bridgeNodeId));
+        const stack = resolveCascadeStack(portalNode?.type, bridgeNode?.type);
+        if (stack !== 'unknown' && stack !== 'xray' && !FEATURE_CASCADE_HYBRID) {
+            showToast(i18n.stackHintHybridDisabled || 'Hybrid cascade is disabled in Settings -> System.', 'error');
+            updateLinkFormWarnings();
+            return;
+        }
+
+        if (btn) btn.dataset.formBusy = '1';
         btn.disabled = true;
         btn.innerHTML = '<i class="ti ti-loader-2 spin"></i>';
 
@@ -1030,8 +1128,10 @@
         } catch (err) {
             showToast((i18n.networkError || 'Error') + ': ' + err.message, 'error');
         } finally {
+            if (btn) delete btn.dataset.formBusy;
             btn.disabled = false;
             btn.innerHTML = (linkId ? '' : '<i class="ti ti-plus"></i> ') + (linkId ? (i18n.save || 'Save') : (i18n.createLink || 'Create'));
+            updateLinkFormWarnings();
         }
     }
 
@@ -1222,6 +1322,60 @@
 
     var _allLinks = [];
 
+    function renderCascadeStackPanel(portalId, bridgeId) {
+        var badge = document.getElementById('cascadeStackBadge');
+        var text = document.getElementById('cascadeStackText');
+        var hint = document.getElementById('cascadeStackHint');
+        var warning = document.getElementById('cascadeStackWarning');
+        var submit = document.getElementById('linkModalSubmit');
+        var overlayHint = document.getElementById('overlayProtocolHint');
+        if (!badge && !text && !hint && !warning && !submit && !overlayHint) return;
+
+        var stack = 'unknown';
+        var portalType = '';
+        var bridgeType = '';
+        if (portalId && bridgeId) {
+            var portalNode = _nodesById.get(String(portalId));
+            var bridgeNode = _nodesById.get(String(bridgeId));
+            portalType = portalNode?.type || '';
+            bridgeType = bridgeNode?.type || '';
+            stack = resolveCascadeStack(portalType, bridgeType);
+        }
+
+        var meta = getStackMeta(stack);
+        if (badge) {
+            badge.className = 'cascade-stack-badge ' + meta.badgeClass;
+            badge.textContent = meta.label;
+        }
+        if (text) {
+            text.textContent = stack === 'unknown'
+                ? (i18n.stackSelectNodes || 'Select Portal and Bridge to detect stack')
+                : meta.label;
+        }
+        if (hint) {
+            hint.textContent = stack === 'unknown'
+                ? (i18n.stackHintDefault || 'Stack profile is auto-detected from node types.')
+                : meta.hint;
+        }
+        if (overlayHint) {
+            overlayHint.textContent = i18n.overlayProtocolHint ||
+                'Protocol controls the overlay tunnel (Xray sidecar for Hysteria/Hybrid stacks).';
+        }
+
+        var needsHybrid = stack !== 'unknown' && stack !== 'xray';
+        var hasHybridIssue = needsHybrid && !FEATURE_CASCADE_HYBRID;
+        if (warning) {
+            warning.style.display = hasHybridIssue ? '' : 'none';
+            warning.textContent = hasHybridIssue
+                ? (i18n.stackHintHybridDisabled || 'Hybrid cascade is disabled in Settings -> System.')
+                : '';
+        }
+
+        if (submit && submit.dataset.formBusy !== '1') {
+            submit.disabled = hasHybridIssue;
+        }
+    }
+
     function updateLinkFormWarnings() {
         var form = document.getElementById('addLinkForm');
         if (!form) return;
@@ -1257,6 +1411,7 @@
 
         var portalId = (form.portalNodeId || {}).value || '';
         var bridgeId = (form.bridgeNodeId || {}).value || '';
+        renderCascadeStackPanel(portalId, bridgeId);
         var tunnelPort = parseInt((form.tunnelPort || {}).value, 10) || 10086;
         var linkId = (document.getElementById('linkIdInput') || {}).value || '';
         var checkNodeId = isForward ? bridgeId : portalId;
@@ -1310,6 +1465,15 @@
         };
         if (!data.name || !data.portalNodeId || !data.bridgeNodeId) {
             alert(i18n.fillRequired || 'Please fill in all required fields');
+            return;
+        }
+        var quickPortalType = _nodesById.get(String(data.portalNodeId))?.type ||
+            (cy && cy.getElementById(data.portalNodeId).length ? cy.getElementById(data.portalNodeId).data('type') : '');
+        var quickBridgeType = _nodesById.get(String(data.bridgeNodeId))?.type ||
+            (cy && cy.getElementById(data.bridgeNodeId).length ? cy.getElementById(data.bridgeNodeId).data('type') : '');
+        var quickStack = resolveCascadeStack(quickPortalType, quickBridgeType);
+        if (quickStack !== 'unknown' && quickStack !== 'xray' && !FEATURE_CASCADE_HYBRID) {
+            showToast(i18n.stackHintHybridDisabled || 'Hybrid cascade is disabled in Settings -> System.', 'error');
             return;
         }
         var btn = document.getElementById('quickLinkSubmit');

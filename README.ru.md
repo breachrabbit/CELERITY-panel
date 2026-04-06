@@ -23,6 +23,19 @@
 
 > Нужно обновить уже установленную панель? См. [Безопасное обновление на проде](docs/safe-update.ru.md).
 
+**Установка одной командой (только домен):**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ClickDevTech/hysteria-panel/main/scripts/quick-install.sh) \
+  --domain panel.example.com
+```
+
+Что делает автоматически:
+- ставит Docker, если его нет
+- подтягивает compose/env файлы, если запуск вне репозитория
+- генерирует обязательные секреты в `.env`
+- включает `FEATURE_CASCADE_HYBRID=true`
+- поднимает стек через `docker-compose.hub.yml`
+
 **1. Установите Docker** (если не установлен):
 
 ```bash
@@ -210,6 +223,8 @@ Tunnel-REALITY настраивается **независимо** от клие
 | Forward Chain без публичного IP | Каждый хоп должен принимать входящие соединения |
 | Смешанные режимы в одной цепочке | Reverse и Forward используют разные механизмы Xray и не комбинируются |
 | Один порт на relay для двух хопов | Relay, являющийся одновременно bridge и portal, требует разные порты для входящего и исходящего туннеля |
+| Гибридный каскад выключен | Смешанные связи `Xray/Hysteria` требуют `FEATURE_CASCADE_HYBRID=true` |
+| Гибрид + custom config Hysteria | Гибридный overlay перезаписывает автогенерируемый конфиг и блокируется при `useCustomConfig` |
 
 
 ---
@@ -916,6 +931,7 @@ volumes:
 | `PANEL_IP_WHITELIST` | ❌           | IP whitelist для панели                       |
 | `SYNC_INTERVAL`      | ❌           | Интервал синхронизации в минутах (default: 2) |
 | `API_DOCS_ENABLED`   | ❌           | Интерактивная документация на `/api/docs`     |
+| `FEATURE_CASCADE_HYBRID` | ❌       | Включает гибридный каскад (`Xray + Hysteria sidecar`) |
 | `LOG_LEVEL`          | ❌           | Уровень логирования (default: info)           |
 
 

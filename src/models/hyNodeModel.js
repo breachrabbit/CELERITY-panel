@@ -151,6 +151,13 @@ const xrayConfigSchema = new mongoose.Schema({
     agentTls: { type: Boolean, default: true },
 }, { _id: false });
 
+const cascadeSidecarSchema = new mongoose.Schema({
+    enabled: { type: Boolean, default: true },
+    socksPort: { type: Number, default: 11080 },
+    serviceName: { type: String, default: 'xray-cascade' },
+    configPath: { type: String, default: '/usr/local/etc/xray-cascade/config.json' },
+}, { _id: false });
+
 const hyNodeSchema = new mongoose.Schema({
     // 'hysteria' (default) or 'xray'
     type: { type: String, enum: ['hysteria', 'xray'], default: 'hysteria' },
@@ -184,6 +191,8 @@ const hyNodeSchema = new mongoose.Schema({
 
     // Xray-specific configuration (only used when type === 'xray')
     xray: { type: xrayConfigSchema, default: () => ({}) },
+    // Xray sidecar runtime for hybrid cascade on Hysteria nodes
+    cascadeSidecar: { type: cascadeSidecarSchema, default: () => ({}) },
     
     groups: [{
         type: mongoose.Schema.Types.ObjectId,

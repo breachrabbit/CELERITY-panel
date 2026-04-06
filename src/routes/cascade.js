@@ -7,6 +7,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
+const config = require('../../config');
 const CascadeLink = require('../models/cascadeLinkModel');
 const HyNode = require('../models/hyNodeModel');
 const cascadeService = require('../services/cascadeService');
@@ -25,12 +26,49 @@ const deployLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+const HYBRID_DISABLED_ERROR = 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System';
+
 function isValidObjectId(id) {
     return mongoose.Types.ObjectId.isValid(id);
 }
 
 function generateUuid() {
     return crypto.randomUUID();
+}
+
+function isXrayNode(node) {
+    return node && node.type === 'xray';
+}
+
+function linkNeedsHybrid(portalNode, bridgeNode) {
+    return !isXrayNode(portalNode) || !isXrayNode(bridgeNode);
+}
+
+function getHybridCompatibilityError(portalNode, bridgeNode) {
+    if (!linkNeedsHybrid(portalNode, bridgeNode)) return '';
+    if (config.FEATURE_CASCADE_HYBRID) return '';
+    const src = portalNode?.type || 'unknown';
+    const dst = bridgeNode?.type || 'unknown';
+    return `${HYBRID_DISABLED_ERROR}. Unsupported link type: ${src} -> ${dst}`;
+}
+
+function resolveCascadeStackByTypes(portalType, bridgeType) {
+    const src = String(portalType || '').toLowerCase();
+    const dst = String(bridgeType || '').toLowerCase();
+    if (src === 'xray' && dst === 'xray') return 'xray';
+    if (src === 'hysteria' && dst === 'hysteria') return 'hysteria2';
+    return 'hybrid';
+}
+
+function enrichLinkWithStack(linkDoc) {
+    if (!linkDoc) return linkDoc;
+    const link = typeof linkDoc.toObject === 'function' ? linkDoc.toObject() : { ...linkDoc };
+    const portalType = link?.portalNode?.type || link?.portalType || '';
+    const bridgeType = link?.bridgeNode?.type || link?.bridgeType || '';
+    link.portalType = portalType;
+    link.bridgeType = bridgeType;
+    link.cascadeStack = resolveCascadeStackByTypes(portalType, bridgeType);
+    return link;
 }
 
 const REALITY_KEY_RE = /^[A-Za-z0-9_\-+/]{43,44}=?$/;
@@ -114,11 +152,11 @@ router.get('/links', requireScope('nodes:read'), async (req, res) => {
         }
 
         const links = await CascadeLink.find(filter)
-            .populate('portalNode', 'name ip flag status')
-            .populate('bridgeNode', 'name ip flag status')
+            .populate('portalNode', 'name ip flag status type')
+            .populate('bridgeNode', 'name ip flag status type')
             .sort({ createdAt: -1 });
 
-        res.json(links);
+        res.json(links.map(enrichLinkWithStack));
     } catch (error) {
         logger.error(`[Cascade API] List error: ${error.message}`);
         res.status(500).json({ error: error.message });
@@ -135,11 +173,11 @@ router.get('/links/:id', requireScope('nodes:read'), async (req, res) => {
         }
 
         const link = await CascadeLink.findById(req.params.id)
-            .populate('portalNode', 'name ip flag status')
-            .populate('bridgeNode', 'name ip flag status');
+            .populate('portalNode', 'name ip flag status type')
+            .populate('bridgeNode', 'name ip flag status type');
 
         if (!link) return res.status(404).json({ error: 'Cascade link not found' });
-        res.json(link);
+        res.json(enrichLinkWithStack(link));
     } catch (error) {
         logger.error(`[Cascade API] Get error: ${error.message}`);
         res.status(500).json({ error: error.message });
@@ -197,6 +235,11 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
 
         if (!portalNode) return res.status(404).json({ error: 'Portal node not found' });
         if (!bridgeNode) return res.status(404).json({ error: 'Bridge node not found' });
+
+        const hybridError = getHybridCompatibilityError(portalNode, bridgeNode);
+        if (hybridError) {
+            return res.status(400).json({ error: hybridError });
+        }
 
         // Port conflict: for forward mode the listening side is the bridge; for reverse it is the portal.
         // Also check the opposite side: for forward we check the portal too because the same node
@@ -264,8 +307,8 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
         const link = await CascadeLink.create(linkData);
 
         const populated = await CascadeLink.findById(link._id)
-            .populate('portalNode', 'name ip flag status')
-            .populate('bridgeNode', 'name ip flag status');
+            .populate('portalNode', 'name ip flag status type')
+            .populate('bridgeNode', 'name ip flag status type');
 
         logger.info(`[Cascade API] Created ${linkMode} link ${name}: ${portalNode.name} -> ${bridgeNode.name}`);
 
@@ -290,7 +333,7 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
             });
         }
 
-        res.status(201).json(populated);
+        res.status(201).json(enrichLinkWithStack(populated));
     } catch (error) {
         logger.error(`[Cascade API] Create error: ${error.message}`);
         res.status(500).json({ error: error.message });
@@ -408,8 +451,8 @@ router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
             req.params.id,
             { $set: updates },
             { new: true }
-        ).populate('portalNode', 'name ip flag status')
-         .populate('bridgeNode', 'name ip flag status');
+        ).populate('portalNode', 'name ip flag status type')
+         .populate('bridgeNode', 'name ip flag status type');
 
         if (!link) return res.status(404).json({ error: 'Cascade link not found' });
 
@@ -425,7 +468,7 @@ router.put('/links/:id', requireScope('nodes:write'), async (req, res) => {
             });
         }
 
-        res.json(link);
+        res.json(enrichLinkWithStack(link));
     } catch (error) {
         logger.error(`[Cascade API] Update error: ${error.message}`);
         res.status(500).json({ error: error.message });
@@ -472,6 +515,15 @@ router.patch('/links/:id/reconnect', requireScope('nodes:write'), async (req, re
             return res.status(400).json({ error: 'Portal and Bridge must be different nodes' });
         }
 
+        const [effectivePortalNode, effectiveBridgeNode] = await Promise.all([
+            HyNode.findById(effectivePortalId).select('type'),
+            HyNode.findById(effectiveBridgeId).select('type'),
+        ]);
+        const hybridError = getHybridCompatibilityError(effectivePortalNode, effectiveBridgeNode);
+        if (hybridError) {
+            return res.status(400).json({ error: hybridError });
+        }
+
         // Undeploy before changing topology
         if (['deployed', 'online', 'offline'].includes(link.status)) {
             try { await cascadeService.undeployLink(link); } catch (_) {}
@@ -485,15 +537,15 @@ router.patch('/links/:id/reconnect', requireScope('nodes:write'), async (req, re
             req.params.id,
             { $set: updates },
             { new: true }
-        ).populate('portalNode', 'name ip flag status')
-         .populate('bridgeNode', 'name ip flag status');
+        ).populate('portalNode', 'name ip flag status type')
+         .populate('bridgeNode', 'name ip flag status type');
 
         logger.info(`[Cascade API] Reconnected link ${updated.name}`);
 
         // Invalidate subscription cache
         await invalidateCascadeCache();
 
-        res.json(updated);
+        res.json(enrichLinkWithStack(updated));
     } catch (error) {
         logger.error(`[Cascade API] Reconnect error: ${error.message}`);
         res.status(500).json({ error: error.message });

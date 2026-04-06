@@ -219,6 +219,13 @@ function parseHysteriaFormFields(body) {
         forceHTTPS: parseBool(body, 'masquerade.forceHTTPS', false),
     };
 
+    const cascadeSidecar = {
+        enabled: parseBool(body, 'cascadeSidecar.enabled', true),
+        socksPort: parseIntegerOrDefault(body['cascadeSidecar.socksPort'], 11080),
+        serviceName: (body['cascadeSidecar.serviceName'] || 'xray-cascade').trim() || 'xray-cascade',
+        configPath: (body['cascadeSidecar.configPath'] || '/usr/local/etc/xray-cascade/config.json').trim() || '/usr/local/etc/xray-cascade/config.json',
+    };
+
     return {
         hopInterval: (body.hopInterval || '').trim(),
         acme: {
@@ -285,6 +292,7 @@ function parseHysteriaFormFields(body) {
         },
         aclRules,
         useTlsFiles: parseBool(body, 'useTlsFiles', false),
+        cascadeSidecar,
     };
 }
 
@@ -411,6 +419,17 @@ function validateHysteriaFormFields(fields) {
         if (resolverType === 'https') timeoutRaw = fields.resolver.httpsTimeout;
         const timeoutSec = parseDurationSeconds(timeoutRaw);
         if (!Number.isFinite(timeoutSec) || timeoutSec <= 0) return `Invalid resolver.${resolverType}.timeout format`;
+    }
+
+    const sidecar = fields.cascadeSidecar || {};
+    if (!isPositiveInteger(Number(sidecar.socksPort)) || Number(sidecar.socksPort) > 65535) {
+        return 'cascadeSidecar.socksPort must be between 1 and 65535';
+    }
+    if (!/^[A-Za-z0-9_.@-]+$/.test(String(sidecar.serviceName || ''))) {
+        return 'cascadeSidecar.serviceName contains invalid characters';
+    }
+    if (!String(sidecar.configPath || '').startsWith('/')) {
+        return 'cascadeSidecar.configPath must be an absolute path';
     }
 
     if (fields.masquerade?.type === 'string') {
