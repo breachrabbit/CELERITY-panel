@@ -49,12 +49,38 @@ class NodeSSH {
                 username: this.node.ssh?.username || 'root',
                 readyTimeout: 30000,
             };
-            
-            if (this.node.ssh?.privateKey) {
-                config.privateKey = cryptoService.decryptPrivateKey(this.node.ssh.privateKey);
-            } else if (this.node.ssh?.password) {
-                config.password = cryptoService.decryptSafe(this.node.ssh.password);
-            } else {
+
+            const rawPrivateKey = this.node.ssh?.privateKey || '';
+            const rawPassword = this.node.ssh?.password || '';
+            let authConfigured = false;
+
+            if (rawPrivateKey) {
+                const decryptedKey = cryptoService.decryptPrivateKey(rawPrivateKey);
+                if (decryptedKey && decryptedKey.includes('-----BEGIN')) {
+                    config.privateKey = decryptedKey;
+                    authConfigured = true;
+                } else if (cryptoService.isEncryptedPayload(rawPrivateKey) && rawPassword) {
+                    logger.warn(`[SSH] ${this.node.name}: private key cannot be decrypted with current ENCRYPTION_KEY, fallback to password`);
+                } else if (cryptoService.isEncryptedPayload(rawPrivateKey)) {
+                    reject(new Error('SSH private key cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+                    return;
+                } else {
+                    config.privateKey = rawPrivateKey;
+                    authConfigured = true;
+                }
+            }
+
+            if (!authConfigured && rawPassword) {
+                const decryptedPassword = cryptoService.decryptSafe(rawPassword);
+                if (cryptoService.isEncryptedPayload(rawPassword) && decryptedPassword === rawPassword) {
+                    reject(new Error('SSH password cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+                    return;
+                }
+                config.password = decryptedPassword;
+                authConfigured = true;
+            }
+
+            if (!authConfigured) {
                 reject(new Error('SSH: no key or password provided'));
                 return;
             }

@@ -60,6 +60,15 @@ class CryptoService {
     }
 
     /**
+     * Detect legacy CryptoJS AES payload shape ("Salted__" in base64 form).
+     * Useful to identify data encrypted with a different ENCRYPTION_KEY.
+     */
+    isEncryptedPayload(value) {
+        if (!value || typeof value !== 'string') return false;
+        return value.startsWith('U2FsdGVkX1');
+    }
+
+    /**
      * Encrypt SSH password and privateKey fields before saving to DB.
      */
     encryptSshCredentials(ssh) {

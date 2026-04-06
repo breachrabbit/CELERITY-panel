@@ -352,12 +352,37 @@ function connectSSH(node) {
             username: node.ssh?.username || 'root',
             readyTimeout: 30000,
         };
-        
-        if (node.ssh?.privateKey) {
-            connConfig.privateKey = cryptoService.decryptPrivateKey(node.ssh.privateKey);
-        } else if (node.ssh?.password) {
-            connConfig.password = cryptoService.decryptSafe(node.ssh.password);
-        } else {
+
+        const rawPrivateKey = node.ssh?.privateKey || '';
+        const rawPassword = node.ssh?.password || '';
+        let authConfigured = false;
+
+        if (rawPrivateKey) {
+            const decryptedKey = cryptoService.decryptPrivateKey(rawPrivateKey);
+            if (decryptedKey && decryptedKey.includes('-----BEGIN')) {
+                connConfig.privateKey = decryptedKey;
+                authConfigured = true;
+            } else if (cryptoService.isEncryptedPayload(rawPrivateKey) && rawPassword) {
+                // Key cannot be decrypted with current ENCRYPTION_KEY; fallback to password if present.
+                logger.warn(`[NodeSetup] SSH private key for node ${node.name} looks encrypted with another key, falling back to password auth`);
+            } else if (cryptoService.isEncryptedPayload(rawPrivateKey)) {
+                return reject(new Error('SSH private key cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+            } else {
+                connConfig.privateKey = rawPrivateKey;
+                authConfigured = true;
+            }
+        }
+
+        if (!authConfigured && rawPassword) {
+            const decryptedPassword = cryptoService.decryptSafe(rawPassword);
+            if (cryptoService.isEncryptedPayload(rawPassword) && decryptedPassword === rawPassword) {
+                return reject(new Error('SSH password cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+            }
+            connConfig.password = decryptedPassword;
+            authConfigured = true;
+        }
+
+        if (!authConfigured) {
             return reject(new Error('SSH credentials not provided'));
         }
         

@@ -135,13 +135,41 @@ class SSHPool {
                 keepaliveInterval: this.config.keepAliveInterval,
                 keepaliveCountMax: 3,
             };
-            
+
             // Authentication
-            if (node.ssh?.privateKey) {
-                sshConfig.privateKey = cryptoService.decryptPrivateKey(node.ssh.privateKey);
-            } else if (node.ssh?.password) {
-                sshConfig.password = cryptoService.decryptSafe(node.ssh.password);
-            } else {
+            const rawPrivateKey = node.ssh?.privateKey || '';
+            const rawPassword = node.ssh?.password || '';
+            let authConfigured = false;
+
+            if (rawPrivateKey) {
+                const decryptedKey = cryptoService.decryptPrivateKey(rawPrivateKey);
+                if (decryptedKey && decryptedKey.includes('-----BEGIN')) {
+                    sshConfig.privateKey = decryptedKey;
+                    authConfigured = true;
+                } else if (cryptoService.isEncryptedPayload(rawPrivateKey) && rawPassword) {
+                    logger.warn(`[SSHPool] ${nodeName}: private key cannot be decrypted with current ENCRYPTION_KEY, fallback to password`);
+                } else if (cryptoService.isEncryptedPayload(rawPrivateKey)) {
+                    clearTimeout(timeout);
+                    reject(new Error('SSH private key cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+                    return;
+                } else {
+                    sshConfig.privateKey = rawPrivateKey;
+                    authConfigured = true;
+                }
+            }
+
+            if (!authConfigured && rawPassword) {
+                const decryptedPassword = cryptoService.decryptSafe(rawPassword);
+                if (cryptoService.isEncryptedPayload(rawPassword) && decryptedPassword === rawPassword) {
+                    clearTimeout(timeout);
+                    reject(new Error('SSH password cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+                    return;
+                }
+                sshConfig.password = decryptedPassword;
+                authConfigured = true;
+            }
+
+            if (!authConfigured) {
                 clearTimeout(timeout);
                 reject(new Error('SSH: no key or password'));
                 return;
@@ -414,4 +442,3 @@ class SSHPool {
 
 // Singleton (settings loaded from DB on first use)
 module.exports = new SSHPool();
-

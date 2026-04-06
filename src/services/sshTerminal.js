@@ -24,12 +24,38 @@ class SSHTerminalManager {
                 username: node.ssh?.username || 'root',
                 readyTimeout: 30000,
             };
-            
-            if (node.ssh?.privateKey) {
-                config.privateKey = cryptoService.decryptPrivateKey(node.ssh.privateKey);
-            } else if (node.ssh?.password) {
-                config.password = cryptoService.decryptSafe(node.ssh.password);
-            } else {
+
+            const rawPrivateKey = node.ssh?.privateKey || '';
+            const rawPassword = node.ssh?.password || '';
+            let authConfigured = false;
+
+            if (rawPrivateKey) {
+                const decryptedKey = cryptoService.decryptPrivateKey(rawPrivateKey);
+                if (decryptedKey && decryptedKey.includes('-----BEGIN')) {
+                    config.privateKey = decryptedKey;
+                    authConfigured = true;
+                } else if (cryptoService.isEncryptedPayload(rawPrivateKey) && rawPassword) {
+                    logger.warn(`[SSH Terminal] ${node.name}: private key cannot be decrypted with current ENCRYPTION_KEY, fallback to password`);
+                } else if (cryptoService.isEncryptedPayload(rawPrivateKey)) {
+                    reject(new Error('SSH private key cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+                    return;
+                } else {
+                    config.privateKey = rawPrivateKey;
+                    authConfigured = true;
+                }
+            }
+
+            if (!authConfigured && rawPassword) {
+                const decryptedPassword = cryptoService.decryptSafe(rawPassword);
+                if (cryptoService.isEncryptedPayload(rawPassword) && decryptedPassword === rawPassword) {
+                    reject(new Error('SSH password cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+                    return;
+                }
+                config.password = decryptedPassword;
+                authConfigured = true;
+            }
+
+            if (!authConfigured) {
                 reject(new Error('SSH credentials not configured'));
                 return;
             }
@@ -130,4 +156,3 @@ class SSHTerminalManager {
 }
 
 module.exports = new SSHTerminalManager();
-
