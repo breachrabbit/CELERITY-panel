@@ -166,9 +166,15 @@
                                     <img src="/img/xray.svg" style="width:12px;height:12px;vertical-align:middle;"> v<%= node.xrayVersion %>
                                 </span>
                                 <% } %>
+                                <% if (node.cascadeRole === 'bridge' && (!node.agentStatus || node.agentStatus === 'unknown')) { %>
+                                <span class="node-info-badge badge-agent-<%= node.status === 'online' ? 'online' : 'offline' %>" title="Bridge runtime">
+                                    <i class="ti ti-route"></i> bridge
+                                </span>
+                                <% } else { %>
                                 <span class="node-info-badge badge-agent-<%= node.agentStatus || 'unknown' %>" title="<%= t('nodes.agentStatus') %>">
                                     <i class="ti ti-cpu"></i> <%= node.agentStatus || 'unknown' %>
                                 </span>
+                                <% } %>
                             <% } else { %>
                                 <span class="text-muted">—</span>
                             <% } %>

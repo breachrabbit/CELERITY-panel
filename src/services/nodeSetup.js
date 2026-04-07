@@ -1236,6 +1236,14 @@ async function generateX25519Keys(conn) {
     return { privateKey: privMatch[1], publicKey: pubMatch[1] };
 }
 
+async function getRemoteXrayVersion(conn) {
+    const result = await execSSH(conn, 'xray version 2>/dev/null | head -1');
+    if (!result.success) return '';
+    const firstLine = String(result.output || '').trim().split('\n')[0].trim();
+    const match = firstLine.match(/Xray\s+([0-9][0-9A-Za-z.\-]*)/i);
+    return match ? match[1] : '';
+}
+
 /**
  * Setup Xray node via SSH:
  * 1. Install xray-core
@@ -1294,6 +1302,14 @@ async function setupXrayNode(node, options = {}) {
         }
         await assertRemoteFileExists(conn, '/usr/local/bin/xray', 'Xray binary');
         log('Xray-core installed');
+
+        const xrayVersion = await getRemoteXrayVersion(conn);
+        if (xrayVersion) {
+            const HyNode = require('../models/hyNodeModel');
+            await HyNode.updateOne({ _id: node._id }, { $set: { xrayVersion } });
+            node.xrayVersion = xrayVersion;
+            log(`Detected Xray version: ${xrayVersion}`);
+        }
 
         // Exit (Bridge) nodes: skip config upload, firewall, and service start.
         // Persist Reality material so the later cascade deploy can render a valid config.
