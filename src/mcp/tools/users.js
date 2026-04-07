@@ -22,6 +22,22 @@ function getSyncService() {
     return require('../../services/syncService');
 }
 
+function normalizeIdArray(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map(v => v?._id?.toString?.() || v?.toString?.() || '')
+        .filter(Boolean)
+        .sort();
+}
+
+function sameIdSet(left, right) {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+        if (left[i] !== right[i]) return false;
+    }
+    return true;
+}
+
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
 const queryUsersSchema = z.object({
@@ -143,6 +159,8 @@ async function manageUser(args, emit) {
             const user = await HyUser.findOne({ userId });
             if (!user) return { error: `User '${userId}' not found`, code: 404 };
 
+            const prevEnabled = user.enabled;
+            const prevGroups = normalizeIdArray(user.groups);
             const updates = {};
             if (data.enabled !== undefined) updates.enabled = data.enabled;
             if (data.username !== undefined) updates.username = data.username;
@@ -156,6 +174,13 @@ async function manageUser(args, emit) {
                 .populate('groups', 'name color');
 
             await invalidateUserCache(userId, user.subscriptionToken);
+            const reconcileNeeded = (
+                (data.enabled !== undefined && data.enabled !== prevEnabled) ||
+                (data.groups !== undefined && !sameIdSet(prevGroups, normalizeIdArray(data.groups)))
+            );
+            if (reconcileNeeded) {
+                getSyncService().reconcileUserOnAllXrayNodes(updated.toObject()).catch(() => {});
+            }
             logger.info(`[MCP] Updated user ${userId}`);
             webhook.emit(webhook.EVENTS.USER_UPDATED, { userId, updates });
             return { success: true, user: updated };

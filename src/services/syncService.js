@@ -364,6 +364,8 @@ class SyncService {
 
         // Step 2: Restart Xray via Agent (preferred) or SSH fallback
         const hasAgent = !!(node.xray?.agentToken);
+        let agentRuntimeFailed = false;
+        let agentRuntimeError = '';
         if (hasAgent) {
             try {
                 // /restart blocks until Xray is running and users are restored (~2-3s)
@@ -371,6 +373,8 @@ class SyncService {
                 logger.info(`[Xray Sync] Node ${node.name}: restarted via agent`);
             } catch (error) {
                 logger.warn(`[Xray Sync] Node ${node.name}: agent restart failed: ${error.message}`);
+                agentRuntimeFailed = true;
+                agentRuntimeError = agentRuntimeError || `agent restart failed: ${error.message}`;
             }
         } else if (node.ssh?.password || node.ssh?.privateKey) {
             const ssh = new NodeSSH(node);
@@ -399,7 +403,26 @@ class SyncService {
                 logger.info(`[Xray Sync] Node ${node.name}: synced ${userPayload.length} users via agent`);
             } catch (error) {
                 logger.warn(`[Xray Sync] Node ${node.name}: agent sync failed: ${error.message}`);
+                agentRuntimeFailed = true;
+                agentRuntimeError = agentRuntimeError
+                    ? `${agentRuntimeError}; agent sync failed: ${error.message}`
+                    : `agent sync failed: ${error.message}`;
             }
+        }
+
+        if (hasAgent && agentRuntimeFailed) {
+            await HyNode.updateOne(
+                { _id: node._id },
+                {
+                    $set: {
+                        status: 'error',
+                        lastSync: new Date(),
+                        lastError: `Xray runtime update failed: ${agentRuntimeError}`,
+                        healthFailures: 0,
+                    },
+                },
+            );
+            return false;
         }
 
         // Update node status

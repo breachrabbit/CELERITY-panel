@@ -483,6 +483,8 @@ router.post('/sync-from-main', requireScope('users:write'), async (req, res) => 
                 if (existing) {
                     // Обновляем
                     const updates = {};
+                    const prevEnabled = existing.enabled;
+                    const prevGroups = normalizeIdArray(existing.groups);
                     if (enabled !== undefined && enabled !== existing.enabled) {
                         updates.enabled = enabled;
                     }
@@ -495,11 +497,19 @@ router.post('/sync-from-main', requireScope('users:write'), async (req, res) => 
                         await HyUser.updateOne({ userId }, { $set: updates });
                         updated++;
                     }
+
+                    const reconcileNeeded = (
+                        (enabled !== undefined && enabled !== prevEnabled) ||
+                        (groups !== undefined && !sameIdSet(prevGroups, normalizeIdArray(groups)))
+                    );
+                    if (reconcileNeeded) {
+                        const updatedUser = await HyUser.findOne({ userId });
+                        xrayReconcileUser(updatedUser || existing);
+                    }
                 } else {
                     // Создаём нового
                     const password = cryptoService.generatePassword(userId);
-                    
-                    await HyUser.create({
+                    const createdUser = await HyUser.create({
                         userId,
                         username: username || '',
                         password,
@@ -508,6 +518,10 @@ router.post('/sync-from-main', requireScope('users:write'), async (req, res) => 
                         nodes: [],
                     });
                     created++;
+
+                    if (createdUser.enabled) {
+                        xrayReconcileUser(createdUser);
+                    }
                 }
             } catch (err) {
                 logger.error(`[Sync] Error for userId ${userData.userId}: ${err.message}`);
