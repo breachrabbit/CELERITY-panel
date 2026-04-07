@@ -534,6 +534,7 @@ async function startServer() {
         logger.info(`[Server] Starting HTTPS for ${config.PANEL_DOMAIN}`);
         
         const Greenlock = require('@root/greenlock-express');
+        const redirectHttps = require('redirect-https');
             const greenlockDir = path.join(__dirname, 'greenlock.d');
             
             const livePath = path.join(greenlockDir, 'live', config.PANEL_DOMAIN);
@@ -571,7 +572,10 @@ async function startServer() {
             });
             
             glInstance.ready((glx) => {
-            const httpServer = glx.httpServer();
+            const httpServer = glx.httpServer(redirectHttps({
+                browsers: 308,
+                apis: 308,
+            }));
             activeServers.push(httpServer);
             httpServer.listen(80, () => {
                     logger.info('[Server] HTTP listening on port 80');
