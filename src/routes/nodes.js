@@ -344,7 +344,8 @@ router.get('/:id/agent-info', requireScope('nodes:read'), async (req, res) => {
         if (node.type !== 'xray') return res.status(400).json({ error: 'Not an Xray node' });
 
         const syncService = require('../services/syncService');
-        const response = await syncService._agentRequest(node, 'GET', '/info');
+        const runtimeNode = await syncService._ensureXrayAgentReady(node);
+        const response = await syncService._agentRequest(runtimeNode, 'GET', '/info');
         res.json(response.data);
     } catch (error) {
         logger.error(`[Nodes API] agent-info error: ${error.message}`);
@@ -596,6 +597,7 @@ router.post('/:id/generate-xray-keys', requireScope('nodes:write'), async (req, 
  *   500 { success: false, error: string, logs: string[] }
  */
 router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
+    let logs = [];
     try {
         const node = await HyNode.findById(req.params.id);
 
@@ -616,10 +618,13 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
         logger.info(`[Nodes API] Auto-setup started for ${node.name} (${node.ip}) via API`);
 
         const nodeSetup = require('../services/nodeSetup');
+        const syncService = require('../services/syncService');
 
         let result;
-        if (node.type === 'xray') {
-            result = await nodeSetup.setupXrayNode(node, { restartService });
+        if (node.type === 'xray' && node.cascadeRole === 'bridge') {
+            result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true });
+        } else if (node.type === 'xray') {
+            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService, strictAgent: false });
         } else {
             result = await nodeSetup.setupNode(node, {
                 installHysteria,
@@ -629,12 +634,25 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
         }
 
         if (result.success) {
+            logs = Array.isArray(result.logs) ? [...result.logs] : [];
+            if (node.type === 'xray') {
+                logs.push('[Xray] Finalizing setup with cascade/config sync...');
+                const finalization = await syncService.finalizeNodeSetup(node);
+                if (finalization.mode === 'cascade') {
+                    logs.push(`[Cascade] Chain deployment completed (${finalization.deployed} node(s) updated)`);
+                } else if (finalization.mode === 'xray-sync') {
+                    logs.push('[Xray] Post-setup sync completed');
+                } else if (finalization.mode === 'bridge-ready') {
+                    logs.push('[Bridge] Xray binary installed; waiting for cascade link deployment');
+                }
+            }
+
             const updateFields = { status: 'online', lastSync: new Date(), lastError: '', healthFailures: 0 };
             if (node.type !== 'xray') updateFields.useTlsFiles = result.useTlsFiles;
             await HyNode.findByIdAndUpdate(req.params.id, { $set: updateFields });
             await invalidateNodesCache();
             logger.info(`[Nodes API] Auto-setup completed for ${node.name} (${node.type})`);
-            res.json({ success: true, logs: result.logs });
+            res.json({ success: true, logs });
         } else {
             await HyNode.findByIdAndUpdate(req.params.id, {
                 $set: { status: 'error', lastError: result.error, healthFailures: 0 },
@@ -644,7 +662,7 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
         }
     } catch (error) {
         logger.error(`[Nodes API] Setup error: ${error.message}`);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message, logs });
     }
 });
 

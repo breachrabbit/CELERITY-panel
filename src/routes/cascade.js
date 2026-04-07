@@ -325,9 +325,13 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
             ],
         });
 
+        const autoDeployRequested = req.body.autoDeploy === true || req.body.autoDeploy === 'true';
+        const autoDeploySuppressed = req.body.autoDeploy === false || req.body.autoDeploy === 'false';
+
         // Auto-sync the full chain either when explicitly requested or when
-        // this new link extends an already existing chain.
-        if (req.body.autoDeploy || connectedLinksCount > 0) {
+        // this new link extends an already existing chain, unless the caller
+        // explicitly disabled auto-deploy for batch link creation.
+        if (autoDeployRequested || (!autoDeploySuppressed && connectedLinksCount > 0)) {
             cascadeService.deployChain(portalNodeId).catch(err => {
                 logger.warn(`[Cascade API] Auto chain sync failed: ${err.message}`);
             });

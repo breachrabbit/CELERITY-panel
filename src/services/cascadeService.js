@@ -21,6 +21,7 @@ const TOPOLOGY_CACHE_KEY = 'c3:cascade:topology';
 const TOPOLOGY_CACHE_TTL = 15;
 const HYBRID_DISABLED_ERROR = 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System';
 const CASCADE_SIDECAR_OUTBOUND = '__cascade_sidecar__';
+const chainDeployLocks = new Map();
 
 /**
  * Safe Redis helpers — cache module exposes .redis but may not be connected.
@@ -40,6 +41,16 @@ function shellQuote(value) {
 }
 
 class CascadeService {
+    _getChainLockKey(startNodeId, orderedLinks) {
+        if (!orderedLinks || orderedLinks.length === 0) {
+            return `node:${String(startNodeId)}`;
+        }
+        const linkIds = orderedLinks
+            .map(link => String(link._id || link))
+            .sort();
+        return `links:${linkIds.join(',')}`;
+    }
+
     _isXrayNode(node) {
         return node && node.type === 'xray';
     }
@@ -249,6 +260,26 @@ class CascadeService {
 
         // 1. Find all links connected to this chain
         const { orderedNodes, orderedLinks } = await this._buildChainOrder(startNodeId);
+        const lockKey = this._getChainLockKey(startNodeId, orderedLinks);
+
+        if (chainDeployLocks.has(lockKey)) {
+            logger.info(`[Cascade] Reusing in-flight chain deployment for ${lockKey}`);
+            return chainDeployLocks.get(lockKey);
+        }
+
+        const deploymentPromise = this._deployChainInternal(startNodeId, orderedNodes, orderedLinks)
+            .finally(() => {
+                if (chainDeployLocks.get(lockKey) === deploymentPromise) {
+                    chainDeployLocks.delete(lockKey);
+                }
+            });
+
+        chainDeployLocks.set(lockKey, deploymentPromise);
+        return deploymentPromise;
+    }
+
+    async _deployChainInternal(startNodeId, orderedNodes, orderedLinks) {
+        logger.info(`[Cascade] Executing chain deployment from node ${startNodeId}`);
 
         if (orderedLinks.length === 0) {
             return { success: true, deployed: 0, errors: [], message: 'No active links found' };
@@ -693,6 +724,46 @@ class CascadeService {
         ]);
 
         const nodeById = new Map(allNodes.map(n => [String(n._id), n]));
+        const linkHealthByNode = new Map();
+
+        for (const link of allLinks) {
+            const portalId = String(link.portalNode?._id || link.portalNode);
+            const bridgeId = String(link.bridgeNode?._id || link.bridgeNode);
+            const isOnline = link.status === 'online';
+            const isDeployed = link.status === 'deployed';
+
+            const mark = (nodeId) => {
+                if (!linkHealthByNode.has(nodeId)) {
+                    linkHealthByNode.set(nodeId, { online: false, deployed: false });
+                }
+                const state = linkHealthByNode.get(nodeId);
+                state.online = state.online || isOnline;
+                state.deployed = state.deployed || isDeployed;
+            };
+
+            mark(portalId);
+            mark(bridgeId);
+        }
+
+        const deriveDisplayStatus = (node) => {
+            if (!node) return 'offline';
+            if (node.status === 'error') return 'error';
+            if (node.status === 'syncing') return 'syncing';
+
+            const role = node.cascadeRole || 'standalone';
+            const linkHealth = linkHealthByNode.get(String(node._id));
+            if (!linkHealth) return node.status;
+
+            if ((role === 'bridge' || role === 'relay' || role === 'portal') && linkHealth.online) {
+                return 'online';
+            }
+
+            if ((role === 'bridge' || role === 'relay' || role === 'portal') && linkHealth.deployed) {
+                return 'syncing';
+            }
+
+            return node.status;
+        };
 
         const nodes = allNodes.map(n => ({
             data: {
@@ -702,7 +773,8 @@ class CascadeService {
                 domain: n.domain || '',
                 flag: n.flag || '',
                 type: n.type,
-                status: n.status,
+                status: deriveDisplayStatus(n),
+                rawStatus: n.status,
                 onlineUsers: n.onlineUsers || 0,
                 cascadeRole: n.cascadeRole || 'standalone',
                 country: n.country || '',
@@ -765,6 +837,7 @@ class CascadeService {
             });
 
             for (const exitNode of exitNodes) {
+                const displayStatus = deriveDisplayStatus(exitNode);
                 edges.push({
                     data: {
                         id: `internet-${exitNode._id}`,
@@ -772,7 +845,7 @@ class CascadeService {
                         source: String(exitNode._id),
                         target: 'internet',
                         label: '',
-                        status: exitNode.status === 'online' ? 'online' : 'offline',
+                        status: displayStatus === 'online' ? 'online' : 'offline',
                         tunnelPort: null,
                         latencyMs: null,
                         tunnelProtocol: null,
@@ -1119,6 +1192,12 @@ if [ "$INSTALL_OK" -ne 1 ]; then
     TMP_DIR=$(mktemp -d)
     ZIP_PATH="$TMP_DIR/xray.zip"
     DOWNLOADED=0
+    CHECKSUM_URLS="
+https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG.dgst
+https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG.dgst
+https://mirror.ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG.dgst
+https://ghproxy.net/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG.dgst
+"
     for XRAY_URL in \
         "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
         "https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
@@ -1134,6 +1213,33 @@ if [ "$INSTALL_OK" -ne 1 ]; then
             if ! unzip -tq "$ZIP_PATH" >/dev/null 2>&1; then
                 continue
             fi
+
+            EXPECTED_SHA256=""
+            for CHECKSUM_URL in $CHECKSUM_URLS; do
+                rm -f "$TMP_DIR/xray.dgst"
+                if curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 60 \
+                    "$CHECKSUM_URL" -o "$TMP_DIR/xray.dgst"; then
+                    EXPECTED_SHA256=$(grep -Eo '[A-Fa-f0-9]{64}' "$TMP_DIR/xray.dgst" | head -n 1 || true)
+                    if [ -n "$EXPECTED_SHA256" ]; then
+                        break
+                    fi
+                fi
+            done
+
+            if [ -n "$EXPECTED_SHA256" ]; then
+                if command -v sha256sum >/dev/null 2>&1; then
+                    ACTUAL_SHA256=$(sha256sum "$ZIP_PATH" | awk '{print $1}')
+                elif command -v openssl >/dev/null 2>&1; then
+                    ACTUAL_SHA256=$(openssl dgst -sha256 "$ZIP_PATH" | awk '{print $2}')
+                else
+                    continue
+                fi
+
+                if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+                    continue
+                fi
+            fi
+
             DOWNLOADED=1
             break
         fi

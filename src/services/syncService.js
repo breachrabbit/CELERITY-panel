@@ -23,7 +23,12 @@ const axios = require('axios');
 const https = require('https');
 const config = require('../../config');
 const webhook = require('./webhookService');
-const { getPanelCertificates, isSameVpsAsPanel } = require('./nodeSetup');
+const {
+    getPanelCertificates,
+    isSameVpsAsPanel,
+    ensureXrayAgentToken,
+    setupOrRepairXrayAgent,
+} = require('./nodeSetup');
 
 // HTTPS agent that ignores self-signed certs (agent uses self-signed cert by default)
 const selfSignedAgent = new https.Agent({ rejectUnauthorized: false });
@@ -46,6 +51,61 @@ class SyncService {
      */
     getAuthUrl() {
         return `${config.BASE_URL}/api/auth`;
+    }
+
+    _hasAgentToken(node) {
+        return typeof node?.xray?.agentToken === 'string' && node.xray.agentToken.trim().length > 0;
+    }
+
+    /**
+     * Fail-safe: recover empty agent token and retry agent registration.
+     */
+    async _ensureXrayAgentReady(node) {
+        let needsRepair = !this._hasAgentToken(node);
+        if (!needsRepair) {
+            try {
+                await this._agentRequest(node, 'GET', '/info');
+                return node;
+            } catch (error) {
+                logger.warn(`[Agent Recovery] ${node.name}: agent token exists but runtime check failed: ${error.message}`);
+                needsRepair = true;
+            }
+        }
+
+        if (needsRepair) {
+            logger.warn(`[Agent Recovery] ${node.name}: agent token missing or runtime unavailable, repairing...`);
+        }
+
+        const token = await ensureXrayAgentToken(
+            node,
+            (msg) => logger.info(`[Agent Recovery] ${node.name}: ${msg}`),
+        );
+
+        let refreshedNode = await HyNode.findById(node._id);
+        if (!refreshedNode) {
+            throw new Error(`[Agent Recovery] Node ${node.name} not found after token recovery`);
+        }
+
+        try {
+            const repair = await setupOrRepairXrayAgent(refreshedNode, {
+                strictAgent: false,
+                includeInstallerOutput: false,
+                log: (msg) => logger.info(`[Agent Recovery] ${refreshedNode.name}: ${msg}`),
+            });
+            if (!repair.success) {
+                logger.warn(`[Agent Recovery] ${refreshedNode.name}: agent re-registration warning: ${repair.error || 'unknown'}`);
+            }
+        } catch (error) {
+            logger.warn(`[Agent Recovery] ${refreshedNode.name}: agent re-registration failed: ${error.message}`);
+        }
+
+        refreshedNode = await HyNode.findById(node._id) || refreshedNode;
+        if (!this._hasAgentToken(refreshedNode)) {
+            await HyNode.updateOne({ _id: node._id }, { $set: { 'xray.agentToken': token } });
+            refreshedNode = await HyNode.findById(node._id) || refreshedNode;
+        }
+
+        return refreshedNode;
     }
 
     // ==================== XRAY AGENT METHODS ====================
@@ -157,21 +217,22 @@ class SyncService {
             return false;
         }
 
-        const xray = node.xray || {};
+        const runtimeNode = await this._ensureXrayAgentReady(node);
+        const xray = runtimeNode.xray || {};
         const flow = ((xray.security === 'reality' || xray.security === 'tls') && xray.transport === 'tcp')
             ? (xray.flow || 'xtls-rprx-vision')
             : '';
 
         try {
-            await this._agentRequest(node, 'POST', '/users', {
+            await this._agentRequest(runtimeNode, 'POST', '/users', {
                 id: user.xrayUuid,
                 email: user.userId,
                 flow,
             });
-            logger.info(`[Agent] Added user ${user.userId} to ${node.name}`);
+            logger.info(`[Agent] Added user ${user.userId} to ${runtimeNode.name}`);
             return true;
         } catch (error) {
-            logger.error(`[Agent] addXrayUser ${node.name}/${user.userId}: ${error.message}`);
+            logger.error(`[Agent] addXrayUser ${runtimeNode.name}/${user.userId}: ${error.message}`);
             return false;
         }
     }
@@ -572,6 +633,59 @@ class SyncService {
             return this.updateXrayNodeConfig(node);
         }
         return this._updateHysteriaNodeConfig(node);
+    }
+
+    /**
+     * Finalize node setup so it is actually ready for production traffic.
+     *
+     * For Xray nodes this waits for either:
+     * - a full cascade chain deploy when the node participates in active links, or
+     * - a normal Xray config sync when the node is standalone.
+     *
+     * This keeps "setup completed" aligned with "node is really usable in chain".
+     */
+    async finalizeNodeSetup(node) {
+        const refreshedNode = await HyNode.findById(node._id);
+        if (!refreshedNode) {
+            throw new Error(`Node ${node.name} not found during setup finalization`);
+        }
+        refreshedNode.status = 'online';
+        refreshedNode.healthFailures = 0;
+
+        const CascadeLink = require('../models/cascadeLinkModel');
+        const activeLinkCount = await CascadeLink.countDocuments({
+            active: true,
+            $or: [
+                { portalNode: refreshedNode._id },
+                { bridgeNode: refreshedNode._id },
+            ],
+        });
+
+        if (activeLinkCount > 0) {
+            const cascadeService = require('./cascadeService');
+            const result = await cascadeService.deployChain(refreshedNode._id);
+            if (!result?.success) {
+                const errors = Array.isArray(result?.errors) && result.errors.length > 0
+                    ? result.errors.join('; ')
+                    : 'unknown cascade deployment error';
+                throw new Error(`Cascade deployment failed after setup: ${errors}`);
+            }
+            return { mode: 'cascade', deployed: result.deployed || 0 };
+        }
+
+        if (refreshedNode.cascadeRole === 'bridge') {
+            return { mode: 'bridge-ready' };
+        }
+
+        if (refreshedNode.type === 'xray') {
+            const success = await this.updateNodeConfig(refreshedNode);
+            if (!success) {
+                throw new Error('Xray config sync failed after setup');
+            }
+            return { mode: 'xray-sync' };
+        }
+
+        return { mode: 'none' };
     }
 
     /**

@@ -87,21 +87,19 @@ function setSetupJob(nodeId, patch) {
     return next;
 }
 
-async function maybeRunPostSetupXraySync(node, logs) {
-    if (node.type !== 'xray' || node.cascadeRole === 'bridge') {
+async function finalizeXraySetup(node, logs) {
+    if (node.type !== 'xray') {
         return;
     }
 
-    try {
-        const refreshedNode = await HyNode.findById(node._id);
-        if (!refreshedNode) return;
-
-        logs.push('[Xray] Running post-setup config/user sync...');
-        await syncService.updateNodeConfig(refreshedNode);
+    logs.push('[Xray] Finalizing setup with cascade/config sync...');
+    const result = await syncService.finalizeNodeSetup(node);
+    if (result.mode === 'cascade') {
+        logs.push(`[Cascade] Chain deployment completed (${result.deployed} node(s) updated)`);
+    } else if (result.mode === 'xray-sync') {
         logs.push('[Xray] Post-setup sync completed');
-    } catch (syncErr) {
-        logs.push(`[Xray] Post-setup sync warning: ${syncErr.message}`);
-        logger.warn(`[Panel] Post-setup Xray sync warning for ${node.name}: ${syncErr.message}`);
+    } else if (result.mode === 'bridge-ready') {
+        logs.push('[Bridge] Xray binary installed; waiting for cascade link deployment');
     }
 }
 
@@ -120,6 +118,7 @@ async function runNodeSetupJob(nodeId) {
 
     logger.info(`[Panel] Background setup started for node ${node.name} (type: ${node.type || 'hysteria'}, role: ${node.cascadeRole || 'standalone'})`);
 
+    let logs = [];
     try {
         let result;
         if (node.type === 'xray' && node.cascadeRole === 'bridge') {
@@ -129,7 +128,7 @@ async function runNodeSetupJob(nodeId) {
                 result.logs.push('[Bridge] Xray installed. Create a cascade link to deploy bridge config.');
             }
         } else if (node.type === 'xray') {
-            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true });
+            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true, strictAgent: false });
         } else {
             result = await nodeSetup.setupNode(node, {
                 installHysteria: true,
@@ -138,27 +137,19 @@ async function runNodeSetupJob(nodeId) {
             });
         }
 
-        const logs = Array.isArray(result.logs) ? result.logs : [];
+        logs = Array.isArray(result.logs) ? result.logs : [];
 
         if (result.success) {
+            try {
+                await finalizeXraySetup(node, logs);
+            } catch (syncErr) {
+                logs.push(`[Xray] Finalization failed: ${syncErr.message}`);
+                throw syncErr;
+            }
+
             const updateFields = { status: 'online', lastSync: new Date(), lastError: '', healthFailures: 0 };
             if (node.type !== 'xray') updateFields.useTlsFiles = result.useTlsFiles;
-            if (node.cascadeRole === 'bridge') updateFields.status = 'offline';
             await HyNode.findByIdAndUpdate(node._id, { $set: updateFields });
-
-            await maybeRunPostSetupXraySync(node, logs);
-
-            const CascadeLink = require('../../models/cascadeLinkModel');
-            const linkCount = await CascadeLink.countDocuments({
-                $or: [{ portalNode: node._id }, { bridgeNode: node._id }],
-                active: true,
-            });
-            if (linkCount > 0) {
-                logs.push(`[Cascade] Re-deploying ${linkCount} cascade link(s)...`);
-                cascadeService.redeployAllLinksForNode(node._id).catch(err => {
-                    logger.error(`[Cascade] Auto-redeploy after setup: ${err.message}`);
-                });
-            }
 
             setSetupJob(key, {
                 state: 'success',
@@ -189,7 +180,7 @@ async function runNodeSetupJob(nodeId) {
         setSetupJob(key, {
             state: 'error',
             error: error.message,
-            logs: [...existingLogs, `Exception: ${error.message}`],
+            logs: [...existingLogs, ...logs, `Exception: ${error.message}`],
             finishedAt: Date.now(),
         });
     }

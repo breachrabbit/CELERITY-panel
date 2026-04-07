@@ -622,6 +622,10 @@ function normalizeSetupError(error) {
     return message;
 }
 
+function hasNonEmptyToken(value) {
+    return typeof value === 'string' && value.trim().length > 0;
+}
+
 function generateCascadeSidecarServiceUnit(configPath) {
     return `[Unit]
 Description=Xray Cascade Sidecar
@@ -1096,6 +1100,12 @@ https://github.com/XTLS/Xray-install/raw/main/install-release.sh
         TMP_DIR=$(mktemp -d)
         ZIP_PATH="$TMP_DIR/xray.zip"
         DOWNLOADED=0
+        CHECKSUM_URLS="
+https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG.dgst
+https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG.dgst
+https://mirror.ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG.dgst
+https://ghproxy.net/https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG.dgst
+"
 
         for XRAY_URL in \
             "https://github.com/XTLS/Xray-core/releases/download/$XRAY_VERSION/$XRAY_PKG" \
@@ -1115,6 +1125,38 @@ https://github.com/XTLS/Xray-install/raw/main/install-release.sh
                     echo "WARN: Archive integrity check failed, trying next mirror"
                     continue
                 fi
+
+                EXPECTED_SHA256=""
+                for CHECKSUM_URL in $CHECKSUM_URLS; do
+                    rm -f "$TMP_DIR/xray.dgst"
+                    if curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 60 \
+                        "$CHECKSUM_URL" -o "$TMP_DIR/xray.dgst"; then
+                        EXPECTED_SHA256=$(grep -Eo '[A-Fa-f0-9]{64}' "$TMP_DIR/xray.dgst" | head -n 1 || true)
+                        if [ -n "$EXPECTED_SHA256" ]; then
+                            break
+                        fi
+                    fi
+                done
+
+                if [ -z "$EXPECTED_SHA256" ]; then
+                    echo "WARN: Could not fetch checksum for $XRAY_PKG, trying next mirror"
+                    continue
+                fi
+
+                if command -v sha256sum >/dev/null 2>&1; then
+                    ACTUAL_SHA256=$(sha256sum "$ZIP_PATH" | awk '{print $1}')
+                elif command -v openssl >/dev/null 2>&1; then
+                    ACTUAL_SHA256=$(openssl dgst -sha256 "$ZIP_PATH" | awk '{print $2}')
+                else
+                    echo "WARN: No checksum tool available, trying next mirror"
+                    continue
+                fi
+
+                if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+                    echo "WARN: Archive checksum mismatch, trying next mirror"
+                    continue
+                fi
+
                 DOWNLOADED=1
                 break
             fi
@@ -1253,9 +1295,41 @@ async function setupXrayNode(node, options = {}) {
         await assertRemoteFileExists(conn, '/usr/local/bin/xray', 'Xray binary');
         log('Xray-core installed');
 
-        // Exit (Bridge) nodes: skip config, Reality keys, firewall, and service start.
-        // Their actual config is deployed via cascade links.
+        // Exit (Bridge) nodes: skip config upload, firewall, and service start.
+        // Persist Reality material so the later cascade deploy can render a valid config.
         if (exitOnly) {
+            const xrayCfg = node.xray || {};
+            if (xrayCfg.security === 'reality') {
+                const updates = {};
+                let needsUpdate = false;
+
+                if (!xrayCfg.realityPrivateKey) {
+                    log('Generating x25519 Reality keys for exit-only node...');
+                    generatedKeys = await generateX25519Keys(conn);
+                    log(`Reality keys generated. PublicKey: ${generatedKeys.publicKey}`);
+                    updates['xray.realityPrivateKey'] = generatedKeys.privateKey;
+                    updates['xray.realityPublicKey'] = generatedKeys.publicKey;
+                    node.xray = { ...node.xray, realityPrivateKey: generatedKeys.privateKey, realityPublicKey: generatedKeys.publicKey };
+                    needsUpdate = true;
+                }
+
+                const currentShortIds = xrayCfg.realityShortIds || [''];
+                const hasRealShortId = currentShortIds.some(id => id && id.length > 0);
+                if (!hasRealShortId) {
+                    const shortId = require('crypto').randomBytes(8).toString('hex');
+                    log(`Generated exit-only shortId: ${shortId}`);
+                    updates['xray.realityShortIds'] = ['', shortId];
+                    node.xray = { ...node.xray, realityShortIds: ['', shortId] };
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                    const HyNode = require('../models/hyNodeModel');
+                    await HyNode.updateOne({ _id: node._id }, { $set: updates });
+                    log('Exit-only Reality settings saved to database');
+                }
+            }
+
             log('Exit node setup completed (Xray binary only). Deploy a cascade link to configure.');
             if (conn) conn.end();
             return { success: true, logs, realityKeys: null };
@@ -1469,8 +1543,7 @@ echo "TLS disabled, skipping cert generation"
 `;
 
     const AGENT_INSTALL = `#!/bin/bash
-# NOTE: set -e is intentionally NOT used here so agent install failure
-# doesn't break the rest of the script (Xray is already set up).
+set -euo pipefail
 
 echo "=== [1/5] Downloading CC Agent ==="
 ARCH=$(uname -m)
@@ -1481,18 +1554,30 @@ else
 fi
 
 GITHUB_URL="https://github.com/ClickDevTech/CELERITY-panel/releases/latest/download/$BIN_NAME"
+MIRROR_URL_1="https://ghproxy.com/https://github.com/ClickDevTech/CELERITY-panel/releases/latest/download/$BIN_NAME"
+MIRROR_URL_2="https://mirror.ghproxy.com/https://github.com/ClickDevTech/CELERITY-panel/releases/latest/download/$BIN_NAME"
+MIRROR_URL_3="https://ghproxy.net/https://github.com/ClickDevTech/CELERITY-panel/releases/latest/download/$BIN_NAME"
 
 # Clean up any previous broken/stale binary before downloading
 rm -f /usr/local/bin/cc-agent
 
 DOWNLOADED=0
 
-# Primary source: GitHub releases (curl -f exits with code 22 on HTTP errors)
-if curl -fsSL --max-time 60 "$GITHUB_URL" -o /usr/local/bin/cc-agent 2>/dev/null && [ -s /usr/local/bin/cc-agent ]; then
-    chmod +x /usr/local/bin/cc-agent
-    echo "Done: cc-agent downloaded from GitHub"
-    DOWNLOADED=1
-fi
+for ATTEMPT in 1 2 3; do
+    echo "Download attempt $ATTEMPT/3..."
+    for URL in "$GITHUB_URL" "$MIRROR_URL_1" "$MIRROR_URL_2" "$MIRROR_URL_3"; do
+        echo "Trying: $URL"
+        rm -f /usr/local/bin/cc-agent
+        if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 180 \
+            "$URL" -o /usr/local/bin/cc-agent 2>/dev/null && [ -s /usr/local/bin/cc-agent ]; then
+            chmod +x /usr/local/bin/cc-agent
+            echo "Done: cc-agent downloaded"
+            DOWNLOADED=1
+            break 2
+        fi
+    done
+    sleep $((ATTEMPT * 2))
+done
 
 # Validate the downloaded file is a real ELF binary, not an error page
 if [ "$DOWNLOADED" = "1" ]; then
@@ -1504,10 +1589,8 @@ if [ "$DOWNLOADED" = "1" ]; then
 fi
 
 if [ "$DOWNLOADED" = "0" ]; then
-    echo "WARNING: Could not download cc-agent binary."
-    echo "Place the binary at /usr/local/bin/cc-agent and restart cc-agent.service"
-    echo "Continuing with Xray setup (agent will be missing)..."
-    exit 0
+    echo "ERROR: Could not download cc-agent binary from any source."
+    exit 1
 fi
 
 echo "=== [2/5] Creating directories ==="
@@ -1562,7 +1645,14 @@ systemctl daemon-reload
 systemctl enable cc-agent
 systemctl restart cc-agent
 sleep 2
-systemctl is-active cc-agent && echo "cc-agent: running" || echo "cc-agent: check logs with: journalctl -u cc-agent -n 30"
+
+AGENT_STATE=$(systemctl is-active cc-agent 2>/dev/null || true)
+if [ "$AGENT_STATE" != "active" ]; then
+    echo "ERROR: cc-agent failed to start (state=$AGENT_STATE)"
+    journalctl -u cc-agent -n 30 --no-pager || true
+    exit 1
+fi
+echo "cc-agent: running"
 echo "Done: cc-agent installed"
 `;
 
@@ -1572,10 +1662,144 @@ echo "Done: cc-agent installed"
 }
 
 /**
+ * Ensure Xray node has a non-empty agent token persisted in DB.
+ * Generates and saves one if token is missing/empty.
+ */
+async function ensureXrayAgentToken(node, log = null) {
+    const HyNode = require('../models/hyNodeModel');
+    const nodeId = node?._id || node;
+
+    if (!nodeId) {
+        throw new Error('[AgentSetup] Cannot ensure agent token: missing node id');
+    }
+
+    const current = await HyNode.findById(nodeId).select('name xray.agentToken').lean();
+    if (!current) {
+        throw new Error('[AgentSetup] Cannot ensure agent token: node not found');
+    }
+
+    let token = hasNonEmptyToken(current?.xray?.agentToken)
+        ? current.xray.agentToken.trim()
+        : '';
+
+    if (!token) {
+        token = generateAgentToken();
+        await HyNode.updateOne({ _id: nodeId }, { $set: { 'xray.agentToken': token } });
+        if (typeof log === 'function') {
+            log(`Generated and persisted agent token: ${token.substring(0, 8)}...`);
+        }
+    }
+
+    return token;
+}
+
+/**
+ * Install or repair cc-agent for an Xray node.
+ * Token is guaranteed to be present in DB even if installation fails.
+ */
+async function setupOrRepairXrayAgent(node, options = {}) {
+    const strictAgent = options.strictAgent !== false;
+    const log = typeof options.log === 'function'
+        ? options.log
+        : (msg) => logger.info(`[AgentSetup] ${msg}`);
+    const includeInstallerOutput = options.includeInstallerOutput !== false;
+
+    const token = await ensureXrayAgentToken(node, log);
+
+    let conn;
+    let agentResult = { success: false, agentVersion: '', output: '' };
+    let installError = null;
+
+    try {
+        log('Connecting via SSH for agent installation...');
+        conn = await connectSSH(node);
+
+        const panelIpInfo = await resolvePanelFirewallIp();
+        const panelIp = panelIpInfo.ip;
+        log(`Panel IP for firewall: ${panelIp}`);
+        if (panelIp === '0.0.0.0/0') {
+            log(`Warning: failed to resolve panel host (${panelIpInfo.source}), firewall rule will be opened to all sources`);
+        }
+
+        const nodeWithToken = {
+            ...(typeof node.toObject === 'function' ? node.toObject() : node),
+            xray: {
+                ...(node.xray || {}),
+                agentToken: token,
+            },
+        };
+
+        log('Installing CC Agent...');
+        agentResult = await installCCAgent(conn, nodeWithToken, token, panelIp, log);
+        if (!agentResult.success) {
+            const msg = `Agent install failed: ${agentResult.output || 'unknown error'}`;
+            if (strictAgent) {
+                throw new Error(msg);
+            }
+            log(`Agent install warning: ${msg}`);
+        } else {
+            log(`Agent installed: ${agentResult.agentVersion}`);
+        }
+
+        const agentSanity = await execSSH(conn, `
+if [ -x /usr/local/bin/cc-agent ]; then
+  STATE=$(systemctl is-active cc-agent 2>/dev/null || true)
+  echo "state:$STATE"
+else
+  echo "state:missing-binary"
+fi
+        `);
+        const sanityState = String(agentSanity.output || '').trim().split(':').pop();
+        if (sanityState !== 'active') {
+            const msg = `Agent sanity check failed (state=${sanityState || 'unknown'})`;
+            if (strictAgent) {
+                throw new Error(msg);
+            }
+            log(`Warning: ${msg}`);
+        }
+    } catch (error) {
+        installError = error;
+    } finally {
+        if (conn) conn.end();
+    }
+
+    const HyNode = require('../models/hyNodeModel');
+    await HyNode.updateOne(
+        { _id: node._id },
+        {
+            $set: {
+                'xray.agentToken': token,
+                agentVersion: agentResult.agentVersion || '',
+                agentStatus: 'unknown',
+            },
+        },
+    );
+
+    const verify = await HyNode.findById(node._id).select('xray.agentToken').lean();
+    if (!hasNonEmptyToken(verify?.xray?.agentToken)) {
+        await HyNode.updateOne({ _id: node._id }, { $set: { 'xray.agentToken': token } });
+        log('Agent token was empty after setup; restored from fail-safe copy');
+    }
+
+    if (installError && strictAgent) {
+        throw installError;
+    }
+
+    return {
+        success: !installError,
+        token,
+        agentVersion: agentResult.agentVersion || '',
+        output: includeInstallerOutput ? String(agentResult.output || '') : '',
+        error: installError ? installError.message : '',
+    };
+}
+
+/**
  * Setup Xray node + CC Agent via SSH.
  * Extends setupXrayNode to also install the agent.
  */
 async function setupXrayNodeWithAgent(node, options = {}) {
+    const { strictAgent = true } = options;
     const result = await setupXrayNode(node, options);
 
     if (!result.success) {
@@ -1587,56 +1811,30 @@ async function setupXrayNodeWithAgent(node, options = {}) {
         result.logs.push(line);
         logger.info(`[AgentSetup] ${msg}`);
     };
-
-    let conn;
     try {
-        log('Connecting via SSH for agent installation...');
-        conn = await connectSSH(node);
+        const agentState = await setupOrRepairXrayAgent(node, {
+            strictAgent,
+            log,
+            includeInstallerOutput: true,
+        });
 
-        // Generate agent token if not set
-        let agentToken = (node.xray || {}).agentToken;
-        if (!agentToken) {
-            agentToken = generateAgentToken();
-            log(`Generated agent token: ${agentToken.substring(0, 8)}...`);
+        if (agentState.output) {
+            result.logs.push(agentState.output);
         }
-
-        // Determine panel IP from config (the IP the node can reach the panel from)
-        const panelIpInfo = await resolvePanelFirewallIp();
-        const panelIp = panelIpInfo.ip;
-        log(`Panel IP for firewall: ${panelIp}`);
-        if (panelIp === '0.0.0.0/0') {
-            log(`Warning: failed to resolve panel host (${panelIpInfo.source}), firewall rule will be opened to all sources`);
-        }
-
-        log('Installing CC Agent...');
-        const agentResult = await installCCAgent(conn, node, agentToken, panelIp, log);
-        result.logs.push(agentResult.output);
-
-        if (!agentResult.success) {
-            log(`Agent install warning: may have failed, check logs above`);
-        } else {
-            log(`Agent installed: ${agentResult.agentVersion}`);
-        }
-
-        // Persist agent token and version to DB
-        const HyNode = require('../models/hyNodeModel');
-        const updates = {
-            'xray.agentToken': agentToken,
-            agentVersion: agentResult.agentVersion,
-            agentStatus: 'unknown', // will be updated on first health check
-        };
-        await HyNode.updateOne({ _id: node._id }, { $set: updates });
-        log('Agent token saved to database');
-
-        result.agentToken = agentToken;
+        result.agentToken = agentState.token;
+        result.agentInstallSuccess = agentState.success;
 
     } catch (error) {
         const line = `[${new Date().toISOString()}] Agent install error: ${error.message}`;
         result.logs.push(line);
         logger.error(`[AgentSetup] ${error.message}`);
-        // Don't fail the whole setup if agent install fails
-    } finally {
-        if (conn) conn.end();
+        try {
+            result.agentToken = await ensureXrayAgentToken(node, log);
+        } catch (_) {}
+        if (strictAgent) {
+            result.success = false;
+            result.error = `CC Agent setup failed: ${error.message}`;
+        }
     }
 
     return result;
@@ -1652,6 +1850,8 @@ module.exports = {
     setupXrayNode,
     setupXrayNodeWithAgent,
     installCCAgent,
+    ensureXrayAgentToken,
+    setupOrRepairXrayAgent,
     generateAgentToken,
     generateX25519Keys,
     checkXrayNodeStatus,

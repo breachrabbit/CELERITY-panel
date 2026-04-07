@@ -312,26 +312,50 @@ async function manageNode(args, emit) {
 
             const opts = setupOptions || { installHysteria: true, setupPortHopping: true, restartService: true };
             const nodeSetup = require('../../services/nodeSetup');
+            const syncService = getSyncService();
+            let logs = [];
 
             emit('progress', { step: 1, total: 3, message: `Connecting to ${node.name} via SSH...` });
 
-            let result;
-            if (node.type === 'xray') {
-                result = await nodeSetup.setupXrayNode(node, { restartService: opts.restartService });
-            } else {
-                result = await nodeSetup.setupNode(node, opts);
-            }
+            try {
+                let result;
+                if (node.type === 'xray' && node.cascadeRole === 'bridge') {
+                    result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true });
+                } else if (node.type === 'xray') {
+                    result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: opts.restartService, strictAgent: false });
+                } else {
+                    result = await nodeSetup.setupNode(node, opts);
+                }
 
-            if (result.success) {
-                const updateFields = { status: 'online', lastSync: new Date(), lastError: '', healthFailures: 0 };
-                if (node.type !== 'xray') updateFields.useTlsFiles = result.useTlsFiles;
-                await HyNode.findByIdAndUpdate(id, { $set: updateFields });
-                await invalidateNodesCache();
-                logger.info(`[MCP] Setup completed for ${node.name}`);
-                return { success: true, logs: result.logs };
-            } else {
+                logs = Array.isArray(result.logs) ? [...result.logs] : [];
+
+                if (result.success) {
+                    if (node.type === 'xray') {
+                        logs.push('[Xray] Finalizing setup with cascade/config sync...');
+                        const finalization = await syncService.finalizeNodeSetup(node);
+                        if (finalization.mode === 'cascade') {
+                            logs.push(`[Cascade] Chain deployment completed (${finalization.deployed} node(s) updated)`);
+                        } else if (finalization.mode === 'xray-sync') {
+                            logs.push('[Xray] Post-setup sync completed');
+                        } else if (finalization.mode === 'bridge-ready') {
+                            logs.push('[Bridge] Xray binary installed; waiting for cascade link deployment');
+                        }
+                    }
+
+                    const updateFields = { status: 'online', lastSync: new Date(), lastError: '', healthFailures: 0 };
+                    if (node.type !== 'xray') updateFields.useTlsFiles = result.useTlsFiles;
+                    if (node.cascadeRole === 'bridge') updateFields.status = 'offline';
+                    await HyNode.findByIdAndUpdate(id, { $set: updateFields });
+                    await invalidateNodesCache();
+                    logger.info(`[MCP] Setup completed for ${node.name}`);
+                    return { success: true, logs };
+                }
+
                 await HyNode.findByIdAndUpdate(id, { $set: { status: 'error', lastError: result.error } });
-                return { success: false, error: result.error, logs: result.logs };
+                return { success: false, error: result.error, logs };
+            } catch (error) {
+                await HyNode.findByIdAndUpdate(id, { $set: { status: 'error', lastError: error.message } });
+                return { success: false, error: error.message, logs: [...logs, `Exception: ${error.message}`] };
             }
         }
 
