@@ -85,10 +85,15 @@ grep -n "__cascade_sidecar__" /etc/hysteria/config.yaml
 
 - `scripts/hybrid-cascade-smoke-check.sh`
 
+Для быстрого запуска после чистой установки используйте краткую инструкцию:
+
+- `docs/clean-install-smoke-check.ru.md`
+
 Пример запуска:
 
 ```bash
 scripts/hybrid-cascade-smoke-check.sh \
+  --profile hybrid \
   --host 203.0.113.10 \
   --user root \
   --identity ~/.ssh/id_ed25519 \

@@ -12,6 +12,7 @@ const config = require('../../config');
 const cryptoService = require('./cryptoService');
 const Settings = require('../models/settingsModel');
 const configGenerator = require('./configGenerator');
+const CASCADE_SIDECAR_OUTBOUND = '__cascade_sidecar__';
 
 /**
  * Check if a node is on the same VPS as the panel
@@ -350,6 +351,8 @@ function connectSSH(node) {
             port: node.ssh?.port || 22,
             username: node.ssh?.username || 'root',
             readyTimeout: 30000,
+            keepaliveInterval: 10000,
+            keepaliveCountMax: 3,
         };
 
         const rawPrivateKey = node.ssh?.privateKey || '';
@@ -372,13 +375,18 @@ function connectSSH(node) {
             }
         }
 
-        if (!authConfigured && rawPassword) {
+        if (rawPassword) {
             const decryptedPassword = cryptoService.decryptSafe(rawPassword);
             if (cryptoService.isEncryptedPayload(rawPassword) && decryptedPassword === rawPassword) {
-                return reject(new Error('SSH password cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+                if (!authConfigured) {
+                    return reject(new Error('SSH password cannot be decrypted with current ENCRYPTION_KEY. Re-save SSH credentials in node settings.'));
+                }
+                logger.warn(`[NodeSetup] SSH password for node ${node.name} looks encrypted with another key; continuing with other auth methods`);
+            } else {
+                connConfig.password = decryptedPassword;
+                connConfig.tryKeyboard = true;
+                authConfigured = true;
             }
-            connConfig.password = decryptedPassword;
-            authConfigured = true;
         }
 
         if (!authConfigured) {
@@ -386,6 +394,11 @@ function connectSSH(node) {
         }
         
         conn.on('ready', () => resolve(conn));
+        conn.on('keyboard-interactive', (_name, _instructions, _lang, prompts, finish) => {
+            if (!connConfig.password) return finish([]);
+            const answers = (prompts || []).map(() => connConfig.password);
+            finish(answers);
+        });
         conn.on('error', (err) => reject(err));
         conn.connect(connConfig);
     });
@@ -458,8 +471,146 @@ function uploadFile(conn, content, remotePath) {
     });
 }
 
+function trimExecOutput(result, max = 700) {
+    const output = String(result?.output || '').trim();
+    if (!output) return '';
+    return output.length > max ? `${output.slice(0, max)}...` : output;
+}
+
+function buildHybridHysteriaConfigNode(node, socksPort) {
+    const nodeForConfig = { ...(node?.toObject ? node.toObject() : node) };
+    const outbounds = Array.isArray(nodeForConfig.outbounds) ? nodeForConfig.outbounds : [];
+    const aclRules = Array.isArray(nodeForConfig.aclRules) ? nodeForConfig.aclRules : [];
+
+    nodeForConfig.outbounds = [
+        {
+            name: CASCADE_SIDECAR_OUTBOUND,
+            type: 'socks5',
+            addr: `127.0.0.1:${socksPort}`,
+        },
+        ...outbounds.filter(ob => ob && ob.name !== CASCADE_SIDECAR_OUTBOUND),
+    ];
+    nodeForConfig.acl = { ...(nodeForConfig.acl || {}), enabled: true, type: 'inline' };
+    nodeForConfig.aclRules = [
+        `${CASCADE_SIDECAR_OUTBOUND}(all)`,
+        ...aclRules.filter(rule => !String(rule || '').startsWith(`${CASCADE_SIDECAR_OUTBOUND}(`)),
+    ];
+
+    return nodeForConfig;
+}
+
+async function getServiceState(conn, serviceNames) {
+    const names = (Array.isArray(serviceNames) ? serviceNames : [serviceNames])
+        .map(name => String(name || '').trim())
+        .filter(Boolean);
+    if (names.length === 0) return 'unknown';
+
+    const states = [];
+    for (const serviceName of names) {
+        const result = await execSSH(
+            conn,
+            `(systemctl is-active ${shellQuote(serviceName)} 2>/dev/null || true) | head -n 1`
+        );
+        const state = String(result.output || '').trim().split('\n')[0].trim();
+        if (state) states.push(state);
+        if (state === 'active') return 'active';
+    }
+
+    return states.find(state => state && state !== 'unknown') || states[0] || 'unknown';
+}
+
+async function collectServiceDiagnostics(conn, serviceNames, journalLines = 20) {
+    const names = (Array.isArray(serviceNames) ? serviceNames : [serviceNames])
+        .map(name => String(name || '').trim())
+        .filter(Boolean);
+    if (names.length === 0) return '';
+
+    const statusParts = [];
+    const journalParts = [];
+
+    for (const serviceName of names) {
+        const statusResult = await execSSH(
+            conn,
+            `systemctl status ${shellQuote(serviceName)} --no-pager -l 2>/dev/null || true`
+        );
+        const statusText = trimExecOutput(statusResult, 900);
+        if (statusText) statusParts.push(`[status ${serviceName}] ${statusText}`);
+    }
+
+    const journalCmd = names.map(name => `-u ${shellQuote(name)}`).join(' ');
+    const journalResult = await execSSH(
+        conn,
+        `journalctl ${journalCmd} -n ${journalLines} --no-pager 2>/dev/null || true`
+    );
+    const journalText = trimExecOutput(journalResult, 900);
+    if (journalText) journalParts.push(`[journal] ${journalText}`);
+
+    return [...statusParts, ...journalParts].join(' | ');
+}
+
+async function waitForServiceActive(conn, serviceNames, options = {}) {
+    const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 20000;
+    const intervalMs = Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 1500;
+    const label = options.label || (Array.isArray(serviceNames) ? serviceNames.join(', ') : serviceNames);
+    const deadline = Date.now() + timeoutMs;
+    let lastState = 'unknown';
+
+    while (Date.now() <= deadline) {
+        lastState = await getServiceState(conn, serviceNames);
+        if (lastState === 'active') return { state: lastState };
+        if (Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+    }
+
+    const diagnostics = await collectServiceDiagnostics(conn, serviceNames, options.journalLines || 20);
+    throw new Error(
+        `${label} is not active after restart (state: ${lastState || 'unknown'})${diagnostics ? `. Diagnostics: ${diagnostics}` : ''}`
+    );
+}
+
+async function assertRemoteFileExists(conn, remotePath, label) {
+    const check = await execSSH(conn, `[ -s ${shellQuote(remotePath)} ] && echo ok || echo missing`);
+    if (!String(check.output || '').includes('ok')) {
+        throw new Error(`${label || remotePath} is missing on remote host (${remotePath})`);
+    }
+}
+
+async function waitForListeningPort(conn, port, options = {}) {
+    const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 15000;
+    const intervalMs = Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 1000;
+    const deadline = Date.now() + timeoutMs;
+    const portNum = Number(port);
+
+    while (Date.now() <= deadline) {
+        const result = await execSSH(
+            conn,
+            `ss -ltn 2>/dev/null | awk '{print $4}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting`
+        );
+        if (String(result.output || '').includes('listening')) {
+            return true;
+        }
+        if (Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+    }
+
+    throw new Error(`Port ${portNum} is not listening after service start`);
+}
+
 function shellQuote(value) {
     return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function normalizeSetupError(error) {
+    const message = String(error?.message || error || 'Unknown error');
+    if (message.includes('All configured authentication methods failed')) {
+        return `${message}. SSH auth failed: verify username/password/private key. If credentials were saved before ENCRYPTION_KEY changed, re-save SSH credentials in node settings.`;
+    }
+    if (message.includes('Timed out while waiting for handshake')) {
+        return `${message}. SSH handshake timeout: check SSH daemon, IP/port reachability, and firewall rules.`;
+    }
+    return message;
 }
 
 function generateCascadeSidecarServiceUnit(configPath) {
@@ -645,26 +796,39 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
             log('ACME preparation done');
         }
         
+        const hybridSidecarEnabled = config.FEATURE_CASCADE_HYBRID && (node?.cascadeSidecar?.enabled !== false);
+        const rawSidecar = hybridSidecarEnabled ? (node?.cascadeSidecar || {}) : {};
+        const socksPort = Number(rawSidecar.socksPort) > 0 ? Number(rawSidecar.socksPort) : 11080;
+        const rawServiceName = String(rawSidecar.serviceName || 'xray-cascade').trim() || 'xray-cascade';
+        const serviceName = rawServiceName.endsWith('.service')
+            ? (rawServiceName.slice(0, -8) || 'xray-cascade')
+            : rawServiceName;
+        const serviceUnitName = `${serviceName}.service`;
+        const sidecarConfigPath = (typeof rawSidecar.configPath === 'string' && rawSidecar.configPath.trim().startsWith('/'))
+            ? rawSidecar.configPath.trim()
+            : '/usr/local/etc/xray-cascade/config.json';
+        const nodeForConfig = hybridSidecarEnabled
+            ? buildHybridHysteriaConfigNode(node, socksPort)
+            : node;
+
         log('Uploading config...');
-        const hysteriaConfig = configGenerator.generateNodeConfig(node, authUrl, { authInsecure, useTlsFiles });
+        const hysteriaConfig = configGenerator.generateNodeConfig(nodeForConfig, authUrl, { authInsecure, useTlsFiles });
+        if (hybridSidecarEnabled && !hysteriaConfig.includes(CASCADE_SIDECAR_OUTBOUND)) {
+            throw new Error(`Hybrid cascade overlay marker ${CASCADE_SIDECAR_OUTBOUND} is missing from generated Hysteria config`);
+        }
         await uploadFile(conn, hysteriaConfig, '/etc/hysteria/config.yaml');
+        if (hybridSidecarEnabled) {
+            const overlayCheck = await execSSH(conn, `grep -F ${shellQuote(CASCADE_SIDECAR_OUTBOUND)} /etc/hysteria/config.yaml >/dev/null && echo ok || echo missing`);
+            if (!String(overlayCheck.output || '').includes('ok')) {
+                throw new Error(`Hybrid cascade overlay marker ${CASCADE_SIDECAR_OUTBOUND} is missing from /etc/hysteria/config.yaml after upload`);
+            }
+        }
         log('Config uploaded to /etc/hysteria/config.yaml');
         logs.push('--- Config content ---');
         logs.push(hysteriaConfig);
         logs.push('--- End config ---');
 
-        if (config.FEATURE_CASCADE_HYBRID && (node?.cascadeSidecar?.enabled !== false)) {
-            const rawSidecar = node?.cascadeSidecar || {};
-            const socksPort = Number(rawSidecar.socksPort) > 0 ? Number(rawSidecar.socksPort) : 11080;
-            const rawServiceName = String(rawSidecar.serviceName || 'xray-cascade').trim() || 'xray-cascade';
-            const serviceName = rawServiceName.endsWith('.service')
-                ? (rawServiceName.slice(0, -8) || 'xray-cascade')
-                : rawServiceName;
-            const serviceUnitName = `${serviceName}.service`;
-            const sidecarConfigPath = (typeof rawSidecar.configPath === 'string' && rawSidecar.configPath.trim().startsWith('/'))
-                ? rawSidecar.configPath.trim()
-                : '/usr/local/etc/xray-cascade/config.json';
-
+        if (hybridSidecarEnabled) {
             log(`Preparing hybrid sidecar runtime (${serviceUnitName}, socks:${socksPort})...`);
             try {
                 const xrayInstallResult = await execSSH(conn, XRAY_INSTALL_SCRIPT);
@@ -672,23 +836,26 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
                 if (!xrayInstallResult.success) {
                     throw new Error(`Xray install failed (${xrayInstallResult.error || `exit ${xrayInstallResult.code}`})`);
                 }
+                await assertRemoteFileExists(conn, '/usr/local/bin/xray', 'Xray binary');
 
                 const sidecarConfig = configGenerator.generateXrayCascadeSidecarConfig(socksPort);
                 const sidecarDir = path.dirname(sidecarConfigPath);
                 await execSSH(conn, `mkdir -p ${shellQuote(sidecarDir)}`);
                 await uploadFile(conn, sidecarConfig, sidecarConfigPath);
                 await uploadFile(conn, generateCascadeSidecarServiceUnit(sidecarConfigPath), `/etc/systemd/system/${serviceUnitName}`);
+                await assertRemoteFileExists(conn, sidecarConfigPath, 'Hybrid sidecar config');
 
                 const sidecarStart = await execSSH(conn, `
 systemctl daemon-reload
 systemctl enable ${shellQuote(serviceUnitName)}
 systemctl restart ${shellQuote(serviceUnitName)}
-systemctl is-active ${shellQuote(serviceUnitName)} || true
                     `);
                 logs.push(sidecarStart.output);
-                if (!sidecarStart.success || !String(sidecarStart.output || '').includes('active')) {
-                    throw new Error(`${serviceUnitName} is not active after setup`);
+                if (!sidecarStart.success) {
+                    throw new Error(`${serviceUnitName} restart failed: ${sidecarStart.error || `exit ${sidecarStart.code}`}`);
                 }
+                await waitForServiceActive(conn, [serviceUnitName], { label: serviceUnitName, timeoutMs: 25000, journalLines: 20 });
+                await waitForListeningPort(conn, socksPort, { timeoutMs: 15000 });
                 log(`Hybrid sidecar ready: ${serviceUnitName}`);
             } catch (sidecarErr) {
                 throw new Error(`Hybrid sidecar setup failed: ${sidecarErr.message}`);
@@ -753,23 +920,11 @@ journalctl -u hysteria-server -u hysteria -n 20 --no-pager || true
             if (!restartResult.success) {
                 throw new Error(`Hysteria service restart failed: ${restartResult.error || `exit ${restartResult.code}`}`);
             }
-            const activeResult = await execSSH(conn, `
-H1=$(systemctl is-active hysteria-server 2>/dev/null || true)
-H2=$(systemctl is-active hysteria 2>/dev/null || true)
-if [ "$H1" = "active" ] || [ "$H2" = "active" ]; then
-    echo active
-elif [ -n "$H1" ] && [ "$H1" != "unknown" ]; then
-    echo "$H1"
-elif [ -n "$H2" ]; then
-    echo "$H2"
-else
-    echo unknown
-fi
-            `);
-            const activeState = String(activeResult.output || '').trim();
-            if (activeState !== 'active') {
-                throw new Error(`Hysteria service is not active after restart (state: ${activeState || 'unknown'})`);
-            }
+            await waitForServiceActive(conn, ['hysteria-server', 'hysteria'], {
+                label: 'Hysteria service',
+                timeoutMs: 25000,
+                journalLines: 20,
+            });
             log('Service restarted');
         }
         
@@ -777,8 +932,9 @@ fi
         return { success: true, logs, useTlsFiles };
         
     } catch (error) {
-        log(`Error: ${error.message}`);
-        return { success: false, error: error.message, logs, useTlsFiles: false };
+        const normalizedError = normalizeSetupError(error);
+        log(`Error: ${normalizedError}`);
+        return { success: false, error: normalizedError, logs, useTlsFiles: false };
         
     } finally {
         if (conn) {
@@ -1085,6 +1241,7 @@ async function setupXrayNode(node, options = {}) {
         if (!installResult.success) {
             throw new Error(`Xray installation failed: ${installResult.error}`);
         }
+        await assertRemoteFileExists(conn, '/usr/local/bin/xray', 'Xray binary');
         log('Xray-core installed');
 
         // Exit (Bridge) nodes: skip config, Reality keys, firewall, and service start.
@@ -1140,6 +1297,7 @@ async function setupXrayNode(node, options = {}) {
         const configPath = '/usr/local/etc/xray/config.json';
 
         await uploadFile(conn, configContent, configPath);
+        await assertRemoteFileExists(conn, configPath, 'Xray config');
         log(`Config uploaded to ${configPath} (${users.length} users)`);
         logs.push('--- Config preview ---');
         logs.push(configContent.substring(0, 500) + (configContent.length > 500 ? '\n...' : ''));
@@ -1186,11 +1344,11 @@ journalctl -u xray -n 15 --no-pager || true
             if (!restartResult.success) {
                 throw new Error(`Xray service restart failed: ${restartResult.error || `exit ${restartResult.code}`}`);
             }
-            const activeResult = await execSSH(conn, '(systemctl is-active xray 2>/dev/null || true) | head -n 1');
-            const activeState = String(activeResult.output || '').trim();
-            if (activeState !== 'active') {
-                throw new Error(`Xray service is not active after restart (state: ${activeState || 'unknown'})`);
-            }
+            await waitForServiceActive(conn, ['xray'], {
+                label: 'Xray service',
+                timeoutMs: 25000,
+                journalLines: 20,
+            });
             log('Xray service started');
         }
 
@@ -1198,8 +1356,9 @@ journalctl -u xray -n 15 --no-pager || true
         return { success: true, logs, realityKeys: generatedKeys };
 
     } catch (error) {
-        log(`Error: ${error.message}`);
-        return { success: false, error: error.message, logs, realityKeys: generatedKeys };
+        const normalizedError = normalizeSetupError(error);
+        log(`Error: ${normalizedError}`);
+        return { success: false, error: normalizedError, logs, realityKeys: generatedKeys };
 
     } finally {
         if (conn) conn.end();

@@ -472,10 +472,20 @@ class CascadeService {
 
             await this._ensureXrayInstalled(ssh, node.name);
 
-            await ssh.exec('mkdir -p /usr/local/etc/xray-bridge');
+            await this._execChecked(ssh, 'mkdir -p /usr/local/etc/xray-bridge', `xray-bridge dir create on ${node.name}`);
             await ssh.uploadContent(relayConfig, '/usr/local/etc/xray-bridge/config.json');
+            await this._assertRemoteFileExists(ssh, '/usr/local/etc/xray-bridge/config.json', `Relay config on ${node.name}`);
             await ssh.uploadContent(serviceUnit, '/etc/systemd/system/xray-bridge.service');
-            await ssh.exec('systemctl daemon-reload && systemctl enable xray-bridge && systemctl restart xray-bridge');
+            await this._execChecked(
+                ssh,
+                'systemctl daemon-reload && systemctl enable xray-bridge && systemctl restart xray-bridge',
+                `xray-bridge restart on ${node.name}`
+            );
+            await this._waitForServiceActive(ssh, ['xray-bridge'], {
+                label: `xray-bridge on ${node.name}`,
+                timeoutMs: 25000,
+                journalLines: 20,
+            });
 
             logger.info(`[Cascade] Relay config deployed to ${node.name}`);
         } finally {
@@ -500,10 +510,20 @@ class CascadeService {
 
             await this._ensureXrayInstalled(ssh, node.name);
 
-            await ssh.exec('mkdir -p /usr/local/etc/xray-bridge');
+            await this._execChecked(ssh, 'mkdir -p /usr/local/etc/xray-bridge', `xray-bridge dir create on ${node.name}`);
             await ssh.uploadContent(bridgeConfig, '/usr/local/etc/xray-bridge/config.json');
+            await this._assertRemoteFileExists(ssh, '/usr/local/etc/xray-bridge/config.json', `Bridge config on ${node.name}`);
             await ssh.uploadContent(serviceUnit, '/etc/systemd/system/xray-bridge.service');
-            await ssh.exec('systemctl daemon-reload && systemctl enable xray-bridge && systemctl restart xray-bridge');
+            await this._execChecked(
+                ssh,
+                'systemctl daemon-reload && systemctl enable xray-bridge && systemctl restart xray-bridge',
+                `xray-bridge restart on ${node.name}`
+            );
+            await this._waitForServiceActive(ssh, ['xray-bridge'], {
+                label: `xray-bridge on ${node.name}`,
+                timeoutMs: 25000,
+                journalLines: 20,
+            });
 
             logger.info(`[Cascade] Bridge config deployed to ${node.name}`);
         } finally {
@@ -544,17 +564,20 @@ class CascadeService {
 
             await this._ensureXrayInstalled(ssh, node.name);
 
-            await ssh.exec('mkdir -p /usr/local/etc/xray-bridge');
+            await this._execChecked(ssh, 'mkdir -p /usr/local/etc/xray-bridge', `xray-bridge dir create on ${node.name}`);
             await ssh.uploadContent(hopConfig, '/usr/local/etc/xray-bridge/config.json');
+            await this._assertRemoteFileExists(ssh, '/usr/local/etc/xray-bridge/config.json', `Forward-hop config on ${node.name}`);
             await ssh.uploadContent(serviceUnit, '/etc/systemd/system/xray-bridge.service');
-            await ssh.exec('systemctl daemon-reload && systemctl enable xray-bridge && systemctl restart xray-bridge');
-
-            const statusResult = await ssh.exec('sleep 1 && systemctl is-active xray-bridge');
-            const isActive = (statusResult.stdout || '').trim() === 'active';
-            if (!isActive) {
-                const logs = await ssh.exec('journalctl -u xray-bridge --no-pager -n 20');
-                throw new Error(`Forward-hop service not active. Logs: ${(logs.stdout || logs.stderr || '').slice(0, 500)}`);
-            }
+            await this._execChecked(
+                ssh,
+                'systemctl daemon-reload && systemctl enable xray-bridge && systemctl restart xray-bridge',
+                `xray-bridge restart on ${node.name}`
+            );
+            await this._waitForServiceActive(ssh, ['xray-bridge'], {
+                label: `xray-bridge on ${node.name}`,
+                timeoutMs: 25000,
+                journalLines: 20,
+            });
 
             logger.info(`[Cascade] Forward-hop config deployed to ${node.name}`);
         } finally {
@@ -896,6 +919,91 @@ WantedBy=multi-user.target
         return result;
     }
 
+    async _assertRemoteFileExists(ssh, remotePath, label) {
+        const result = await ssh.exec(`[ -s ${shellQuote(remotePath)} ] && echo ok || echo missing`);
+        if (String(result?.stdout || '').trim() !== 'ok') {
+            throw new Error(`${label || remotePath} is missing on remote host (${remotePath})`);
+        }
+    }
+
+    async _getServiceState(ssh, serviceNames) {
+        const names = (Array.isArray(serviceNames) ? serviceNames : [serviceNames])
+            .map(name => String(name || '').trim())
+            .filter(Boolean);
+        const states = [];
+
+        for (const serviceName of names) {
+            const result = await ssh.exec(`(systemctl is-active ${shellQuote(serviceName)} 2>/dev/null || true) | head -n 1`);
+            const state = String(result?.stdout || '').trim().split('\n')[0].trim();
+            if (state) states.push(state);
+            if (state === 'active') return 'active';
+        }
+
+        return states.find(state => state && state !== 'unknown') || states[0] || 'unknown';
+    }
+
+    async _collectServiceDiagnostics(ssh, serviceNames, journalLines = 20) {
+        const names = (Array.isArray(serviceNames) ? serviceNames : [serviceNames])
+            .map(name => String(name || '').trim())
+            .filter(Boolean);
+        const parts = [];
+
+        for (const serviceName of names) {
+            const status = await ssh.exec(`systemctl status ${shellQuote(serviceName)} --no-pager -l 2>/dev/null || true`);
+            const statusText = this._trimExecOutput(status, 900);
+            if (statusText) parts.push(`[status ${serviceName}] ${statusText}`);
+        }
+
+        const journalUnits = names.map(name => `-u ${shellQuote(name)}`).join(' ');
+        const journal = await ssh.exec(`journalctl ${journalUnits} -n ${journalLines} --no-pager 2>/dev/null || true`);
+        const journalText = this._trimExecOutput(journal, 900);
+        if (journalText) parts.push(`[journal] ${journalText}`);
+
+        return parts.join(' | ');
+    }
+
+    async _waitForServiceActive(ssh, serviceNames, options = {}) {
+        const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 20000;
+        const intervalMs = Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 1500;
+        const label = options.label || (Array.isArray(serviceNames) ? serviceNames.join(', ') : serviceNames);
+        const deadline = Date.now() + timeoutMs;
+        let lastState = 'unknown';
+
+        while (Date.now() <= deadline) {
+            lastState = await this._getServiceState(ssh, serviceNames);
+            if (lastState === 'active') return { state: lastState };
+            if (Date.now() < deadline) {
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+            }
+        }
+
+        const diagnostics = await this._collectServiceDiagnostics(ssh, serviceNames, options.journalLines || 20);
+        throw new Error(
+            `${label} is not active (state: ${lastState || 'unknown'})${diagnostics ? `. Diagnostics: ${diagnostics}` : ''}`
+        );
+    }
+
+    async _waitForListeningPort(ssh, port, options = {}) {
+        const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 15000;
+        const intervalMs = Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 1000;
+        const deadline = Date.now() + timeoutMs;
+        const portNum = Number(port);
+
+        while (Date.now() <= deadline) {
+            const result = await ssh.exec(
+                `ss -ltn 2>/dev/null | awk '{print $4}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting`
+            );
+            if (String(result?.stdout || '').includes('listening')) {
+                return true;
+            }
+            if (Date.now() < deadline) {
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+            }
+        }
+
+        throw new Error(`Port ${portNum} is not listening after service start`);
+    }
+
     async _ensureXrayInstalled(ssh, nodeName) {
         const check = await ssh.exec('command -v xray >/dev/null 2>&1');
         if ((check?.code || 0) === 0) return;
@@ -1028,6 +1136,7 @@ fi
 
 command -v xray >/dev/null 2>&1
 `, `xray install on ${nodeName}`);
+        await this._assertRemoteFileExists(ssh, '/usr/local/bin/xray', `Xray binary on ${nodeName}`);
     }
 
     async _deployHysteriaPortalConfig(portalNode, opts = {}) {
@@ -1095,6 +1204,9 @@ command -v xray >/dev/null 2>&1
             authInsecure,
             useTlsFiles,
         });
+        if (needsSidecar && !hysteriaConfig.includes(CASCADE_SIDECAR_OUTBOUND)) {
+            throw new Error(`Hybrid overlay marker ${CASCADE_SIDECAR_OUTBOUND} is missing from generated Hysteria config for ${portalNode.name}`);
+        }
 
         let sidecarConfig = '';
         if (needsSidecar) {
@@ -1124,12 +1236,19 @@ command -v xray >/dev/null 2>&1
             const hyConfigPath = portalNode.paths?.config || '/etc/hysteria/config.yaml';
             await ssh.uploadContent(hysteriaConfig, hyConfigPath);
             logger.info(`[Cascade] Hysteria portal config uploaded to ${portalNode.name} at ${hyConfigPath}`);
+            if (needsSidecar) {
+                const markerCheck = await ssh.exec(`grep -F ${shellQuote(CASCADE_SIDECAR_OUTBOUND)} ${shellQuote(hyConfigPath)} >/dev/null && echo ok || echo missing`);
+                if (String(markerCheck?.stdout || '').trim() !== 'ok') {
+                    throw new Error(`Hybrid overlay marker ${CASCADE_SIDECAR_OUTBOUND} is missing from ${hyConfigPath} on ${portalNode.name} after upload`);
+                }
+            }
 
             if (needsSidecar) {
                 const serviceUnitName = `${sidecar.serviceName}.service`;
                 await this._ensureXrayInstalled(ssh, portalNode.name);
                 await this._execChecked(ssh, `mkdir -p ${shellQuote(path.dirname(sidecar.configPath))}`, `sidecar dir create on ${portalNode.name}`);
                 await ssh.uploadContent(sidecarConfig, sidecar.configPath);
+                await this._assertRemoteFileExists(ssh, sidecar.configPath, `Hybrid sidecar config on ${portalNode.name}`);
                 await ssh.uploadContent(
                     this._generateCascadeSidecarServiceUnit(sidecar.configPath),
                     `/etc/systemd/system/${serviceUnitName}`
@@ -1139,37 +1258,23 @@ command -v xray >/dev/null 2>&1
                     `systemctl daemon-reload && systemctl enable ${shellQuote(serviceUnitName)} && systemctl restart ${shellQuote(serviceUnitName)}`,
                     `sidecar service restart on ${portalNode.name}`
                 );
-                const sidecarState = await ssh.exec(`(systemctl is-active ${shellQuote(serviceUnitName)} 2>/dev/null || true) | head -n 1`);
-                if ((sidecarState.stdout || '').trim() !== 'active') {
-                    const journal = await ssh.exec(`journalctl -u ${shellQuote(serviceUnitName)} -n 20 --no-pager 2>/dev/null || true`);
-                    const logTail = this._trimExecOutput(journal);
-                    throw new Error(`Sidecar service ${serviceUnitName} is not active on ${portalNode.name}${logTail ? `. Logs: ${logTail}` : ''}`);
-                }
+                await this._waitForServiceActive(ssh, [serviceUnitName], {
+                    label: `Sidecar service ${serviceUnitName} on ${portalNode.name}`,
+                    timeoutMs: 25000,
+                    journalLines: 20,
+                });
+                await this._waitForListeningPort(ssh, sidecar.socksPort, { timeoutMs: 15000 });
             } else {
                 const serviceUnitName = `${sidecar.serviceName}.service`;
                 await ssh.exec(`systemctl stop ${shellQuote(serviceUnitName)} 2>/dev/null || true; systemctl disable ${shellQuote(serviceUnitName)} 2>/dev/null || true`);
             }
 
             await ssh.exec('systemctl restart hysteria-server 2>/dev/null || systemctl restart hysteria 2>/dev/null');
-            const hysteriaState = await ssh.exec(`
-H1=$(systemctl is-active hysteria-server 2>/dev/null || true)
-H2=$(systemctl is-active hysteria 2>/dev/null || true)
-if [ "$H1" = "active" ] || [ "$H2" = "active" ]; then
-    echo active
-elif [ -n "$H1" ] && [ "$H1" != "unknown" ]; then
-    echo "$H1"
-elif [ -n "$H2" ]; then
-    echo "$H2"
-else
-    echo unknown
-fi
-            `);
-            const hysteriaStatus = String(hysteriaState.stdout || '').trim().split('\n')[0].trim();
-            if (hysteriaStatus !== 'active') {
-                const journal = await ssh.exec('journalctl -u hysteria-server -u hysteria -n 20 --no-pager 2>/dev/null || true');
-                const logTail = this._trimExecOutput(journal);
-                throw new Error(`Hysteria service is not active on ${portalNode.name} (state: ${hysteriaStatus || 'unknown'})${logTail ? `. Logs: ${logTail}` : ''}`);
-            }
+            await this._waitForServiceActive(ssh, ['hysteria-server', 'hysteria'], {
+                label: `Hysteria service on ${portalNode.name}`,
+                timeoutMs: 25000,
+                journalLines: 20,
+            });
         } finally {
             ssh.disconnect();
         }
@@ -1294,20 +1399,20 @@ fi
 
             await this._ensureXrayInstalled(ssh, bridgeNode.name);
 
-            await ssh.exec('mkdir -p /usr/local/etc/xray-bridge');
+            await this._execChecked(ssh, 'mkdir -p /usr/local/etc/xray-bridge', `xray-bridge dir create on ${bridgeNode.name}`);
             await ssh.uploadContent(bridgeConfig, '/usr/local/etc/xray-bridge/config.json');
+            await this._assertRemoteFileExists(ssh, '/usr/local/etc/xray-bridge/config.json', `Bridge config on ${bridgeNode.name}`);
             await ssh.uploadContent(serviceUnit, '/etc/systemd/system/xray-bridge.service');
-
-            await ssh.exec('systemctl daemon-reload && systemctl enable xray-bridge && systemctl restart xray-bridge');
-
-            // Verify the service started
-            const statusResult = await ssh.exec('sleep 1 && systemctl is-active xray-bridge');
-            const isActive = (statusResult.stdout || '').trim() === 'active';
-
-            if (!isActive) {
-                const logs = await ssh.exec('journalctl -u xray-bridge --no-pager -n 20');
-                throw new Error(`Bridge service not active. Logs: ${(logs.stdout || logs.stderr || '').slice(0, 500)}`);
-            }
+            await this._execChecked(
+                ssh,
+                'systemctl daemon-reload && systemctl enable xray-bridge && systemctl restart xray-bridge',
+                `xray-bridge restart on ${bridgeNode.name}`
+            );
+            await this._waitForServiceActive(ssh, ['xray-bridge'], {
+                label: `xray-bridge on ${bridgeNode.name}`,
+                timeoutMs: 25000,
+                journalLines: 20,
+            });
 
             logger.info(`[Cascade] ${isRelay ? 'Relay' : 'Bridge'} config deployed to ${bridgeNode.name}`);
         } finally {
