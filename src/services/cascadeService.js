@@ -69,8 +69,23 @@ class CascadeService {
      * @param {Object} link - CascadeLink document (populated with portalNode, bridgeNode)
      * @returns {Promise<{success: boolean, error?: string}>}
      */
-    async deployLink(link) {
-        const linkId = link._id;
+    async deployLink(linkRef) {
+        let link = linkRef;
+        let linkId = linkRef?._id || linkRef;
+
+        if (!link || !link._id || !link.portalNode || !link.bridgeNode) {
+            const resolved = await CascadeLink.findById(linkId)
+                .populate('portalNode')
+                .populate('bridgeNode');
+            if (!resolved) {
+                const err = `Cascade link not found: ${linkId}`;
+                logger.error(`[Cascade] ${err}`);
+                return { success: false, error: err };
+            }
+            link = resolved;
+            linkId = link._id;
+        }
+
         logger.info(`[Cascade] Deploying ${link.mode || 'reverse'} link ${link.name} (${linkId})`);
 
         await CascadeLink.updateOne({ _id: linkId }, { $set: { status: 'pending', lastError: '' } });
