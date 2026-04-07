@@ -910,6 +910,15 @@ WantedBy=multi-user.target
         return merged.length > max ? `${merged.slice(0, max)}...` : merged;
     }
 
+    _enforceInlineAclForHybrid(nodeConfig, nodeName = 'unknown') {
+        const acl = { ...(nodeConfig?.acl || {}) };
+        const aclType = String(acl.type || 'inline').toLowerCase();
+        if (aclType === 'file') {
+            throw new Error(`Hybrid cascade requires ACL type "inline" on ${nodeName}. Current ACL type is "file"; switch node ACL to inline rules or disable hybrid sidecar.`);
+        }
+        nodeConfig.acl = { ...acl, enabled: true, type: 'inline' };
+    }
+
     async _execChecked(ssh, command, stepLabel) {
         const result = await ssh.exec(command);
         if ((result?.code || 0) !== 0) {
@@ -1190,7 +1199,7 @@ command -v xray >/dev/null 2>&1
                 sidecarOutbound,
                 ...outbounds.filter(ob => ob && ob.name !== CASCADE_SIDECAR_OUTBOUND),
             ];
-            nodeForConfig.acl = { ...(nodeForConfig.acl || {}), enabled: true, type: 'inline' };
+            this._enforceInlineAclForHybrid(nodeForConfig, portalNode.name);
             nodeForConfig.aclRules = [
                 `${CASCADE_SIDECAR_OUTBOUND}(all)`,
                 ...aclRules.filter(r => !String(r || '').startsWith(`${CASCADE_SIDECAR_OUTBOUND}(`)),

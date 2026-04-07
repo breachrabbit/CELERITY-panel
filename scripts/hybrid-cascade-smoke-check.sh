@@ -205,6 +205,7 @@ if remote_eval "echo ok" | grep -q '^ok$'; then
   pass "SSH connectivity"
 else
   fail "SSH connectivity"
+  echo "Hint: SSH runs in BatchMode; provide --identity (or SSH_IDENTITY) with a valid key."
   echo
   echo "Cannot proceed without SSH access."
   exit 1

@@ -477,6 +477,15 @@ function trimExecOutput(result, max = 700) {
     return output.length > max ? `${output.slice(0, max)}...` : output;
 }
 
+function enforceInlineAclForHybrid(nodeConfig, contextLabel = 'Hybrid cascade') {
+    const acl = { ...(nodeConfig?.acl || {}) };
+    const aclType = String(acl.type || 'inline').toLowerCase();
+    if (aclType === 'file') {
+        throw new Error(`${contextLabel} requires ACL type "inline". Current ACL type is "file"; switch node ACL to inline rules or disable hybrid sidecar.`);
+    }
+    nodeConfig.acl = { ...acl, enabled: true, type: 'inline' };
+}
+
 function buildHybridHysteriaConfigNode(node, socksPort) {
     const nodeForConfig = { ...(node?.toObject ? node.toObject() : node) };
     const outbounds = Array.isArray(nodeForConfig.outbounds) ? nodeForConfig.outbounds : [];
@@ -490,7 +499,7 @@ function buildHybridHysteriaConfigNode(node, socksPort) {
         },
         ...outbounds.filter(ob => ob && ob.name !== CASCADE_SIDECAR_OUTBOUND),
     ];
-    nodeForConfig.acl = { ...(nodeForConfig.acl || {}), enabled: true, type: 'inline' };
+    enforceInlineAclForHybrid(nodeForConfig, `Hybrid cascade on node ${nodeForConfig.name || 'unknown'}`);
     nodeForConfig.aclRules = [
         `${CASCADE_SIDECAR_OUTBOUND}(all)`,
         ...aclRules.filter(rule => !String(rule || '').startsWith(`${CASCADE_SIDECAR_OUTBOUND}(`)),
