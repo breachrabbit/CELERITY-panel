@@ -1027,6 +1027,9 @@ function sendCachedSubscription(res, data, format, userAgent, settings) {
     const headers = {
         'Content-Type': `${contentType}; charset=utf-8`,
         'Content-Disposition': `attachment; filename="${data.username}"`,
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        Pragma: 'no-cache',
+        Expires: '0',
         'Profile-Title': encodeTitle(data.profileTitle),
         'Profile-Update-Interval': String(settings?.subscription?.updateInterval || 12),
         'Subscription-Userinfo': [

@@ -82,7 +82,7 @@
                             </td>
                 </tr>
                 <% } %>
-                <% nodes.forEach(function(node, idx) { %>
+                <% nodes.forEach(function(node, idx) { const displayStatus = node.displayStatus || node.status; %>
                         <tr class="node-row<%= idx >= 20 ? ' node-collapsed' : '' %>" data-nodeid="<%= node._id %>">
                             <td>
                                 <div class="node-cell">
@@ -97,9 +97,9 @@
                                 </div>
                             </td>
                     <td>
-                                <span class="status-indicator status-<%= node.status %>">
+                                <span class="status-indicator status-<%= displayStatus %>">
                                     <span class="status-dot"></span>
-                            <%= node.status %>
+                            <%= displayStatus %>
                         </span>
                     </td>
                             <td class="online-count"><%= node.onlineUsers || 0 %><% if (node.maxOnlineUsers) { %><span class="online-limit">/<%= node.maxOnlineUsers %></span><% } %></td>
@@ -137,7 +137,7 @@
                             <a href="/panel/nodes/add" class="btn btn-primary btn-sm"><%= t('dashboard.addNode') %></a>
                         </div>
                     <% } %>
-                    <% nodes.forEach(function(node, idx) { %>
+                    <% nodes.forEach(function(node, idx) { const displayStatus = node.displayStatus || node.status; %>
                         <div class="mobile-node-card<%= idx >= 20 ? ' node-collapsed' : '' %>" data-nodeid="<%= node._id %>">
                         <div class="mobile-node-header">
                             <div class="mobile-node-title">
@@ -150,7 +150,7 @@
                                 </span>
                                 <code><%= node.ip %></code>
                             </div>
-                                <span class="status-indicator status-<%= node.status %>">
+                                <span class="status-indicator status-<%= displayStatus %>">
                                     <span class="status-dot"></span>
                                 </span>
                             </div>
@@ -162,7 +162,7 @@
                                 </div>
                                 <div class="mobile-stat-item">
                                     <span class="mobile-stat-label"><%= t('common.status') %></span>
-                                    <span class="mobile-stat-value"><%= node.status %></span>
+                                    <span class="mobile-stat-value"><%= displayStatus %></span>
                                 </div>
                                 <div class="mobile-stat-item node-load-mobile" data-nodeid="<%= node._id %>">
                                     <span class="mobile-stat-label"><%= t('dashboard.load') %></span>

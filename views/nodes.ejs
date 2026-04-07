@@ -89,9 +89,10 @@
                     <% nodes.forEach(node => { 
                         const groupIds = (node.groups || []).map(g => g._id?.toString() || g.toString()).join(',');
                         const sidecarEnabled = node.type !== 'xray' ? (node.cascadeSidecar?.enabled ?? true) : false;
+                        const displayStatus = node.displayStatus || node.status;
                     %>
                     <tr class="node-row"
-                        data-status="<%= node.status %>"
+                        data-status="<%= displayStatus %>"
                         data-groups="<%= groupIds %>"
                         data-active="<%= node.active %>"
                         data-id="<%= node._id %>"
@@ -132,8 +133,8 @@
                             <% } %>
                         </td>
                         <td>
-                            <span class="badge badge-<%= node.status === 'online' ? 'success' : (node.status === 'error' ? 'danger' : 'warning') %>">
-                                <%= node.status %>
+                            <span class="badge badge-<%= displayStatus === 'online' ? 'success' : (displayStatus === 'error' ? 'danger' : 'warning') %>">
+                                <%= displayStatus %>
                             </span>
                             <% if (!node.active) { %>
                             <span class="badge badge-secondary"><%= t('nodes.off') %></span>
@@ -197,9 +198,10 @@
             <% nodes.forEach(node => { 
                 const groupIds = (node.groups || []).map(g => g._id?.toString() || g.toString()).join(',');
                 const sidecarEnabled = node.type !== 'xray' ? (node.cascadeSidecar?.enabled ?? true) : false;
+                const displayStatus = node.displayStatus || node.status;
             %>
                 <div class="mobile-node-card node-row-mobile"
-                     data-status="<%= node.status %>"
+                     data-status="<%= displayStatus %>"
                      data-groups="<%= groupIds %>"
                      data-name="<%= (node.name || '').replace(/"/g, '&quot;') %>"
                      data-ranking="<%= node.rankingCoefficient || 1 %>"
@@ -221,8 +223,8 @@
                             </span>
                             <% } %>
                         </div>
-                        <span class="badge badge-<%= node.status === 'online' ? 'success' : (node.status === 'error' ? 'danger' : 'warning') %>">
-                            <%= node.status %>
+                        <span class="badge badge-<%= displayStatus === 'online' ? 'success' : (displayStatus === 'error' ? 'danger' : 'warning') %>">
+                            <%= displayStatus %>
                         </span>
                     </div>
                     

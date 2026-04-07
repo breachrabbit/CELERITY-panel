@@ -241,6 +241,14 @@ class SyncService {
         return typeof user?.toObject === 'function' ? user.toObject() : user;
     }
 
+    async _getClientFacingXrayNodes() {
+        return HyNode.find({
+            type: 'xray',
+            active: true,
+            cascadeRole: { $nin: ['bridge', 'relay'] },
+        });
+    }
+
     /**
      * Remove a single user from a running Xray node via Agent HTTP API.
      * No SSH, no restart needed.
@@ -297,7 +305,7 @@ class SyncService {
      * Add user to all active Xray nodes they belong to (fire-and-forget safe)
      */
     async addUserToAllXrayNodes(user) {
-        const xrayNodes = await HyNode.find({ type: 'xray', active: true });
+        const xrayNodes = await this._getClientFacingXrayNodes();
         for (const node of xrayNodes) {
             const nodeUsers = await this._getUsersForNode(node);
             const belongs = nodeUsers.some(u => u.userId === user.userId);
@@ -313,7 +321,7 @@ class SyncService {
      * Remove user from all active Xray nodes (fire-and-forget safe)
      */
     async removeUserFromAllXrayNodes(user) {
-        const xrayNodes = await HyNode.find({ type: 'xray', active: true });
+        const xrayNodes = await this._getClientFacingXrayNodes();
         for (const node of xrayNodes) {
             try {
                 await this.removeXrayUser(node, user);

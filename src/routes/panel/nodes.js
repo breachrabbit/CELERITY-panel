@@ -49,6 +49,33 @@ function pickPreferredServiceState(...states) {
     return firstKnown || 'unknown';
 }
 
+async function applyCascadeDisplayStatus(nodes) {
+    const topology = await cascadeService.getTopology().catch(() => null);
+    const displayStatusById = new Map(
+        (topology?.nodes || [])
+            .map(node => [
+                String(node?.data?.id || ''),
+                {
+                    displayStatus: node?.data?.status,
+                    rawStatus: node?.data?.rawStatus || node?.data?.status,
+                },
+            ])
+            .filter(([id, status]) => id && status?.displayStatus)
+    );
+
+    return nodes.map(node => {
+        const plain = node?.toObject ? node.toObject() : { ...node };
+        const cascadeStatus = displayStatusById.get(String(plain._id));
+        const displayStatus = cascadeStatus?.displayStatus || plain.status || 'offline';
+        return {
+            ...plain,
+            rawStatus: cascadeStatus?.rawStatus || plain.status || 'offline',
+            displayStatus,
+            status: displayStatus,
+        };
+    });
+}
+
 async function getHysteriaServiceState(ssh) {
     const [serverRes, legacyRes] = await Promise.all([
         ssh.exec('(systemctl is-active hysteria-server 2>/dev/null || true) | head -n 1'),
@@ -333,12 +360,15 @@ router.get('/', async (req, res) => {
             await cache.setDashboardCounts(counts);
         }
         
-        const { usersTotal, usersEnabled, nodesTotal, nodesOnline, trafficStats } = counts;
-        
-        const nodes = await HyNode.find({ active: true })
+        const { usersTotal, usersEnabled, nodesTotal, trafficStats } = counts;
+
+        const rawNodes = await HyNode.find({ active: true })
             .select('name ip status onlineUsers maxOnlineUsers groups traffic type flag rankingCoefficient')
             .populate('groups', 'name color')
             .sort({ rankingCoefficient: 1, name: 1 });
+
+        const nodes = await applyCascadeDisplayStatus(rawNodes);
+        const nodesOnline = nodes.filter(node => node.status === 'online').length;
         
         const totalOnline = nodes.reduce((sum, n) => sum + (n.onlineUsers || 0), 0);
         
@@ -371,12 +401,14 @@ router.get('/', async (req, res) => {
 router.get('/nodes', async (req, res) => {
     try {
         const CascadeLink = require('../../models/cascadeLinkModel');
-        const [nodes, groups, linksCount, settings] = await Promise.all([
+        const [rawNodes, groups, linksCount, settings] = await Promise.all([
             HyNode.find().populate('groups', 'name color').sort({ rankingCoefficient: 1, name: 1 }),
             getActiveGroups(),
             CascadeLink.countDocuments({ active: true }),
             Settings.get(),
         ]);
+
+        const nodes = await applyCascadeDisplayStatus(rawNodes);
 
         render(res, 'nodes', {
             title: res.locals.locales.nodes.title,
