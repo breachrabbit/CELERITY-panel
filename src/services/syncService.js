@@ -76,7 +76,7 @@ class SyncService {
                 'Content-Type': 'application/json',
             },
             timeout: 15000,
-            validateStatus: null, // handle errors manually
+            validateStatus: null, // handle all statuses manually
         };
 
         if (body !== null) {
@@ -91,6 +91,13 @@ class SyncService {
 
         if (response.status === 401) {
             throw new Error(`[Agent] Unauthorized — check agentToken for node ${node.name}`);
+        }
+
+        if (response.status < 200 || response.status >= 300) {
+            const body = typeof response.data === 'string'
+                ? response.data
+                : JSON.stringify(response.data || {});
+            throw new Error(`[Agent] ${method} ${path} failed on ${node.name}: HTTP ${response.status}${body ? ` — ${body.slice(0, 300)}` : ''}`);
         }
 
         return response;
@@ -169,6 +176,10 @@ class SyncService {
         }
     }
 
+    _normalizeUser(user) {
+        return typeof user?.toObject === 'function' ? user.toObject() : user;
+    }
+
     /**
      * Remove a single user from a running Xray node via Agent HTTP API.
      * No SSH, no restart needed.
@@ -230,7 +241,9 @@ class SyncService {
             const nodeUsers = await this._getUsersForNode(node);
             const belongs = nodeUsers.some(u => u.userId === user.userId);
             if (belongs) {
-                this.addXrayUser(node, user).catch(() => {});
+                try {
+                    await this.addXrayUser(node, user);
+                } catch (_) {}
             }
         }
     }
@@ -241,8 +254,29 @@ class SyncService {
     async removeUserFromAllXrayNodes(user) {
         const xrayNodes = await HyNode.find({ type: 'xray', active: true });
         for (const node of xrayNodes) {
-            this.removeXrayUser(node, user).catch(() => {});
+            try {
+                await this.removeXrayUser(node, user);
+            } catch (_) {}
         }
+    }
+
+    /**
+     * Reconcile user on all active Xray nodes:
+     * 1) remove stale runtime entry everywhere
+     * 2) add back only to nodes where user currently belongs (if enabled)
+     *
+     * Useful when user groups/nodes assignments change while enabled flag stays true.
+     */
+    async reconcileUserOnAllXrayNodes(user) {
+        const normalizedUser = this._normalizeUser(user);
+        if (!normalizedUser || !normalizedUser.userId) return;
+
+        await this.removeUserFromAllXrayNodes(normalizedUser);
+        if (normalizedUser.enabled) {
+            await this.addUserToAllXrayNodes(normalizedUser);
+        }
+
+        logger.info(`[Xray Sync] Reconciled user ${normalizedUser.userId} on all active Xray nodes`);
     }
 
     /**
@@ -260,6 +294,7 @@ class SyncService {
         await HyNode.updateOne({ _id: node._id }, { $set: { status: 'syncing' } });
 
         const users = await this._getUsersForNode(node);
+        let configUploadFailed = false;
 
         // Step 1: Upload config.json via SSH (only if SSH is configured)
         if (node.ssh?.password || node.ssh?.privateKey) {
@@ -312,10 +347,19 @@ class SyncService {
                 await ssh.uploadContent(configContent, xrayConfigPath);
                 logger.info(`[Xray Sync] Node ${node.name}: config uploaded to ${xrayConfigPath}`);
             } catch (error) {
+                configUploadFailed = true;
                 logger.warn(`[Xray Sync] Node ${node.name}: config upload failed (SSH): ${error.message}`);
             } finally {
                 ssh.disconnect();
             }
+        }
+
+        if (configUploadFailed) {
+            await HyNode.updateOne(
+                { _id: node._id },
+                { $set: { status: 'error', lastSync: new Date(), lastError: 'Xray config upload failed', healthFailures: 0 } },
+            );
+            return false;
         }
 
         // Step 2: Restart Xray via Agent (preferred) or SSH fallback

@@ -87,6 +87,24 @@ function setSetupJob(nodeId, patch) {
     return next;
 }
 
+async function maybeRunPostSetupXraySync(node, logs) {
+    if (node.type !== 'xray' || node.cascadeRole === 'bridge') {
+        return;
+    }
+
+    try {
+        const refreshedNode = await HyNode.findById(node._id);
+        if (!refreshedNode) return;
+
+        logs.push('[Xray] Running post-setup config/user sync...');
+        await syncService.updateNodeConfig(refreshedNode);
+        logs.push('[Xray] Post-setup sync completed');
+    } catch (syncErr) {
+        logs.push(`[Xray] Post-setup sync warning: ${syncErr.message}`);
+        logger.warn(`[Panel] Post-setup Xray sync warning for ${node.name}: ${syncErr.message}`);
+    }
+}
+
 async function runNodeSetupJob(nodeId) {
     const key = String(nodeId);
     let node = await HyNode.findById(nodeId);
@@ -127,6 +145,8 @@ async function runNodeSetupJob(nodeId) {
             if (node.type !== 'xray') updateFields.useTlsFiles = result.useTlsFiles;
             if (node.cascadeRole === 'bridge') updateFields.status = 'offline';
             await HyNode.findByIdAndUpdate(node._id, { $set: updateFields });
+
+            await maybeRunPostSetupXraySync(node, logs);
 
             const CascadeLink = require('../../models/cascadeLinkModel');
             const linkCount = await CascadeLink.countDocuments({

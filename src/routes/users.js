@@ -34,21 +34,46 @@ function getSyncService() {
 }
 
 /**
- * Add user to all Xray nodes they belong to (fire-and-forget, non-blocking)
+ * Convert a Mongoose document or plain object into a plain user payload.
  */
-function xrayAddUser(user) {
-    getSyncService().addUserToAllXrayNodes(user).catch(err => {
-        logger.error(`[Users API] Xray addUser error for ${user.userId}: ${err.message}`);
-    });
+function toPlainUser(user) {
+    return typeof user?.toObject === 'function' ? user.toObject() : user;
 }
 
 /**
  * Remove user from all Xray nodes (fire-and-forget, non-blocking)
  */
 function xrayRemoveUser(user) {
-    getSyncService().removeUserFromAllXrayNodes(user).catch(err => {
-        logger.error(`[Users API] Xray removeUser error for ${user.userId}: ${err.message}`);
+    const plainUser = toPlainUser(user);
+    getSyncService().removeUserFromAllXrayNodes(plainUser).catch(err => {
+        logger.error(`[Users API] Xray removeUser error for ${plainUser.userId}: ${err.message}`);
     });
+}
+
+/**
+ * Reconcile user membership on all Xray nodes.
+ */
+function xrayReconcileUser(user) {
+    const plainUser = toPlainUser(user);
+    getSyncService().reconcileUserOnAllXrayNodes(plainUser).catch(err => {
+        logger.error(`[Users API] Xray reconcile error for ${plainUser.userId}: ${err.message}`);
+    });
+}
+
+function normalizeIdArray(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map(v => v?._id?.toString?.() || v?.toString?.() || '')
+        .filter(Boolean)
+        .sort();
+}
+
+function sameIdSet(left, right) {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+        if (left[i] !== right[i]) return false;
+    }
+    return true;
 }
 
 /**
@@ -205,7 +230,7 @@ router.post('/', requireScope('users:write'), async (req, res) => {
         webhook.emit(webhook.EVENTS.USER_CREATED, { userId, username: username || '', groups: userGroups });
 
         // Add to Xray nodes if user is enabled
-        if (user.enabled) xrayAddUser(user.toObject());
+        if (user.enabled) xrayReconcileUser(user);
 
         res.status(201).json(user);
     } catch (error) {
@@ -227,6 +252,8 @@ router.put('/:userId', requireScope('users:write'), async (req, res) => {
         }
         
         const updates = {};
+        const prevEnabled = user.enabled;
+        const prevGroups = normalizeIdArray(user.groups);
         
         if (enabled !== undefined) {
             updates.enabled = enabled;
@@ -259,9 +286,20 @@ router.put('/:userId', requireScope('users:write'), async (req, res) => {
         )
         .populate('nodes', 'name ip')
         .populate('groups', 'name color');
+        const plainUpdatedUser = toPlainUser(updatedUser);
         
         // Инвалидируем кэш
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
+
+        const groupsChanged = groups !== undefined
+            ? !sameIdSet(prevGroups, normalizeIdArray(plainUpdatedUser?.groups))
+            : false;
+        const enabledChanged = enabled !== undefined
+            ? (prevEnabled !== plainUpdatedUser?.enabled)
+            : false;
+        if (groupsChanged || enabledChanged) {
+            xrayReconcileUser(plainUpdatedUser || user);
+        }
         
         logger.info(`[Users API] Updated user ${req.params.userId}`);
 
@@ -316,8 +354,8 @@ router.post('/:userId/enable', requireScope('users:write'), async (req, res) => 
             return res.status(404).json({ error: 'Пользователь не найден' });
         }
 
-        // Add to Xray nodes (user just got enabled)
-        xrayAddUser(user.toObject());
+        // Reconcile onto Xray nodes after enabling the user.
+        xrayReconcileUser(user);
 
         // Инвалидируем кэш
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
@@ -345,8 +383,8 @@ router.post('/:userId/disable', requireScope('users:write'), async (req, res) =>
             return res.status(404).json({ error: 'Пользователь не найден' });
         }
 
-        // Remove from Xray nodes (user is disabled)
-        xrayRemoveUser(user.toObject());
+        // Reconcile onto Xray nodes after disabling the user.
+        xrayReconcileUser(user);
 
         // Инвалидируем кэш
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
@@ -383,6 +421,8 @@ router.post('/:userId/groups', requireScope('users:write'), async (req, res) => 
         
         // Инвалидируем кэш
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
+
+        xrayReconcileUser(user);
         
         logger.info(`[Users API] Added groups to user ${req.params.userId}`);
         res.json(user);
@@ -408,6 +448,8 @@ router.delete('/:userId/groups/:groupId', requireScope('users:write'), async (re
         
         // Инвалидируем кэш
         await invalidateUserCache(req.params.userId, user.subscriptionToken);
+
+        xrayReconcileUser(user);
         
         logger.info(`[Users API] Removed group ${req.params.groupId} from user ${req.params.userId}`);
         res.json(user);

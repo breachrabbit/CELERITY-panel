@@ -11,6 +11,67 @@ const { render } = require('./helpers');
 const { getActiveGroups, invalidateGroupsCache } = require('../../utils/helpers');
 const logger = require('../../utils/logger');
 
+function normalizeIdArray(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map(v => v?._id?.toString?.() || v?.toString?.() || '')
+        .filter(Boolean)
+        .sort();
+}
+
+function sameIdSet(left, right) {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+        if (left[i] !== right[i]) return false;
+    }
+    return true;
+}
+
+function toPlainUser(user) {
+    return typeof user?.toObject === 'function' ? user.toObject() : user;
+}
+
+function parseGroupsField(value) {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+}
+
+function resolveExpireAt(expireAtRaw, expireDays) {
+    const hasExpireAt = typeof expireAtRaw === 'string' && expireAtRaw.trim() !== '';
+
+    if (hasExpireAt) {
+        const parsedExpireAt = new Date(expireAtRaw);
+
+        if (Number.isNaN(parsedExpireAt.getTime())) {
+            return { error: 'Некорректный формат даты/времени окончания' };
+        }
+
+        if (parsedExpireAt.getTime() < Date.now()) {
+            return { error: 'Дата/время окончания не может быть в прошлом' };
+        }
+
+        return { value: parsedExpireAt };
+    }
+
+    const days = parseInt(expireDays, 10);
+    if (Number.isFinite(days) && days > 0) {
+        const expireAt = new Date();
+        expireAt.setDate(expireAt.getDate() + days);
+        return { value: expireAt };
+    }
+
+    return { value: null };
+}
+
+function scheduleXrayReconcile(user, logContext) {
+    const plainUser = toPlainUser(user);
+    if (!plainUser) return;
+
+    syncService.reconcileUserOnAllXrayNodes(plainUser).catch(err => {
+        logger.error(`[Panel] Xray reconcile error for ${logContext}: ${err.message}`);
+    });
+}
+
 // ==================== USERS ====================
 
 // GET /users - User list (with search and sorting)
@@ -160,29 +221,10 @@ router.post('/users', async (req, res) => {
         
         const password = cryptoService.generatePassword(userId);
         
-        let groups = [];
-        if (req.body.groups) {
-            groups = Array.isArray(req.body.groups) ? req.body.groups : [req.body.groups];
-        }
-        
-        let expireAt = null;
-        const hasExpireAt = typeof expireAtRaw === 'string' && expireAtRaw.trim() !== '';
-
-        if (hasExpireAt) {
-            const parsedExpireAt = new Date(expireAtRaw);
-
-            if (Number.isNaN(parsedExpireAt.getTime())) {
-                return res.status(400).send('Некорректный формат даты/времени окончания');
-            }
-
-            if (parsedExpireAt.getTime() < Date.now()) {
-                return res.status(400).send('Дата/время окончания не может быть в прошлом');
-            }
-
-            expireAt = parsedExpireAt;
-        } else if (expireDays && parseInt(expireDays) > 0) {
-            expireAt = new Date();
-            expireAt.setDate(expireAt.getDate() + parseInt(expireDays));
+        const groups = parseGroupsField(req.body.groups);
+        const { value: expireAt, error: expireAtError } = resolveExpireAt(expireAtRaw, expireDays);
+        if (expireAtError) {
+            return res.status(400).send(expireAtError);
         }
         
         const trafficLimit = (parseInt(trafficLimitGB, 10) || 0) * 1024 * 1024 * 1024;
@@ -202,9 +244,7 @@ router.post('/users', async (req, res) => {
         });
 
         if (newUser.enabled) {
-            syncService.addUserToAllXrayNodes(newUser.toObject()).catch(err => {
-                logger.error(`[Panel] Xray addUser error for ${userId}: ${err.message}`);
-            });
+            scheduleXrayReconcile(newUser, userId);
         }
         
         res.redirect(`/panel/users/${userId}`);
@@ -226,15 +266,12 @@ router.post('/users/:userId', async (req, res) => {
             return res.redirect('/panel/users');
         }
 
-        let groups = [];
-        if (req.body.groups) {
-            groups = Array.isArray(req.body.groups) ? req.body.groups : [req.body.groups];
-        }
+        const groups = parseGroupsField(req.body.groups);
 
         const trafficLimit = (parseInt(trafficLimitGB, 10) || 0) * 1024 * 1024 * 1024;
         const userMaxDevices = parseInt(maxDevices, 10) || 0;
         const draftUser = {
-            ...user.toObject(),
+            ...toPlainUser(user),
             username: username || '',
             groups,
             enabled: enabled === 'on',
@@ -243,33 +280,19 @@ router.post('/users/:userId', async (req, res) => {
             expireAt: expireAtRaw,
         };
 
-        let expireAt = null;
-        const hasExpireAt = typeof expireAtRaw === 'string' && expireAtRaw.trim() !== '';
-
-        if (hasExpireAt) {
-            const parsedExpireAt = new Date(expireAtRaw);
-
-            if (Number.isNaN(parsedExpireAt.getTime())) {
-                draftUser.expireAt = null;
-                return render(res, 'user-form', {
-                    title: res.locals.t('users.editUser') + ' ' + req.params.userId,
-                    page: 'users',
-                    groups: availableGroups,
-                    user: draftUser,
-                    isEdit: true,
-                    error: res.locals.t('users.expireAtInvalidError'),
-                });
-            }
-
-            expireAt = parsedExpireAt;
-            draftUser.expireAt = parsedExpireAt;
-        } else if (expireDays && parseInt(expireDays, 10) > 0) {
-            expireAt = new Date();
-            expireAt.setDate(expireAt.getDate() + parseInt(expireDays, 10));
-            draftUser.expireAt = expireAt;
-        } else {
+        const { value: expireAt, error: expireAtError } = resolveExpireAt(expireAtRaw, expireDays);
+        if (expireAtError) {
             draftUser.expireAt = null;
+            return render(res, 'user-form', {
+                title: res.locals.t('users.editUser') + ' ' + req.params.userId,
+                page: 'users',
+                groups: availableGroups,
+                user: draftUser,
+                isEdit: true,
+                error: res.locals.t('users.expireAtInvalidError'),
+            });
         }
+        draftUser.expireAt = expireAt;
 
         const updates = {
             enabled: enabled === 'on',
@@ -282,8 +305,17 @@ router.post('/users/:userId', async (req, res) => {
 
         const wasEnabled = user.enabled;
         const nowEnabled = updates.enabled;
+        const groupsChanged = !sameIdSet(
+            normalizeIdArray(user.groups),
+            normalizeIdArray(groups),
+        );
 
-        await HyUser.findOneAndUpdate({ userId: req.params.userId }, { $set: updates });
+        const updatedUser = await HyUser.findOneAndUpdate(
+            { userId: req.params.userId },
+            { $set: updates },
+            { new: true },
+        ).lean();
+        const plainUpdatedUser = toPlainUser(updatedUser);
 
         await cache.invalidateUser(req.params.userId);
         if (user.subscriptionToken) {
@@ -292,17 +324,8 @@ router.post('/users/:userId', async (req, res) => {
         await cache.clearDeviceIPs(req.params.userId);
         await cache.invalidateDashboardCounts();
 
-        if (wasEnabled !== nowEnabled) {
-            const updatedUser = { ...user.toObject(), ...updates };
-            if (nowEnabled) {
-                syncService.addUserToAllXrayNodes(updatedUser).catch(err => {
-                    logger.error(`[Panel] Xray addUser error for ${req.params.userId}: ${err.message}`);
-                });
-            } else {
-                syncService.removeUserFromAllXrayNodes(updatedUser).catch(err => {
-                    logger.error(`[Panel] Xray removeUser error for ${req.params.userId}: ${err.message}`);
-                });
-            }
+        if (wasEnabled !== nowEnabled || groupsChanged) {
+            scheduleXrayReconcile(plainUpdatedUser || { ...toPlainUser(user), ...updates }, req.params.userId);
         }
 
         webhookService.emit(webhookService.EVENTS.USER_UPDATED, { userId: req.params.userId, updates });
