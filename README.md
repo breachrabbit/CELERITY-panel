@@ -34,18 +34,26 @@ bash <(curl -fsSL https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/
 
 What it does automatically:
 - installs Docker if needed
-- downloads compose/env files when run outside the repo
+- downloads the current `main` source bundle when run outside the repo
 - generates required secrets in `.env`
 - enables `FEATURE_CASCADE_HYBRID=true`
-- starts the stack via `docker-compose.hub.yml`
-- auto-switches to source-build fallback when Docker Hub pull rate-limit is hit
+- starts the stack via `docker-compose.yml` (source-build from current `main`)
+- keeps `docker-compose.hub.yml` available as an explicit legacy/release option
 
 **1. Install Docker** (if not installed):
 ```bash
 curl -fsSL https://get.docker.com | sh
 ```
 
-**2. Deploy panel (Docker Hub - recommended):**
+**2. Deploy panel (source-build from current `main` - recommended):**
+```bash
+mkdir hysteria-panel && cd hysteria-panel
+
+bash <(curl -fsSL https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/main/scripts/quick-install.sh) \
+  --domain panel.example.com
+```
+
+**Alternative: Docker Hub image path** (explicit release/legacy mode)
 ```bash
 mkdir hysteria-panel && cd hysteria-panel
 
@@ -62,7 +70,7 @@ nano .env  # Set your domain, email, and secrets
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-**Alternative: Build from source** (for development or customization)
+**Alternative: Build from source manually** (for development or customization)
 ```bash
 git clone https://github.com/breachrabbit/CELERITY-panel.git
 cd hysteria-panel

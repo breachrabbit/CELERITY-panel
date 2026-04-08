@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SCRIPT_VERSION="1.1.0"
+SCRIPT_VERSION="1.1.1"
 REPO_RAW_BASE="${REPO_RAW_BASE:-https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/main}"
 REPO_TARBALL_URL="${REPO_TARBALL_URL:-https://github.com/breachrabbit/CELERITY-panel/archive/refs/heads/main.tar.gz}"
 
 DOMAIN=""
 ACME_EMAIL=""
 INSTALL_DIR=""
-COMPOSE_FILE="docker-compose.hub.yml"
+COMPOSE_FILE="docker-compose.yml"
 SOURCE_FALLBACK_COMPOSE="docker-compose.yml"
 SKIP_START=0
 SKIP_DOCKER_INSTALL=0
@@ -38,7 +38,7 @@ Options:
   --email <email>             Let's Encrypt email (default: admin@<domain>)
   --install-dir <path>        Install directory when compose files are absent in current dir
                               (default: ./hysteria-panel)
-  --compose-file <file>       Compose file (default: docker-compose.hub.yml)
+  --compose-file <file>       Compose file (default: docker-compose.yml)
   --skip-start                Only prepare files and .env, do not start containers
   --skip-docker-install       Do not auto-install Docker if missing
   --help                      Show this help
@@ -46,6 +46,7 @@ Options:
 Examples:
   bash quick-install.sh --domain panel.example.com
   bash quick-install.sh --domain panel.example.com --email ops@example.com
+  bash quick-install.sh --domain panel.example.com --compose-file docker-compose.hub.yml
 EOF
 }
 
@@ -101,11 +102,16 @@ ensure_project_files() {
         log "Using local project files in: $project_dir"
     else
         need_cmd curl
-        log "Project files are missing in current directory, fetching from GitHub"
-        download_file_if_missing "docker.env.example" "docker.env.example"
-        download_file_if_missing "${COMPOSE_FILE}" "${COMPOSE_FILE}"
-        mkdir -p greenlock.d
-        download_file_if_missing "greenlock.d/config.json" "greenlock.d/config.json"
+        if [[ "$COMPOSE_FILE" == "$SOURCE_FALLBACK_COMPOSE" ]]; then
+            log "Project files are missing, fetching source bundle from GitHub"
+            ensure_source_checkout "$project_dir"
+        else
+            log "Project files are missing in current directory, fetching installer files from GitHub"
+            download_file_if_missing "docker.env.example" "docker.env.example"
+            download_file_if_missing "${COMPOSE_FILE}" "${COMPOSE_FILE}"
+            mkdir -p greenlock.d
+            download_file_if_missing "greenlock.d/config.json" "greenlock.d/config.json"
+        fi
     fi
 
     mkdir -p logs backups greenlock.d
@@ -404,10 +410,18 @@ main() {
     ensure_docker
     ensure_compose
 
-    log "Pulling images"
+    if [[ "$COMPOSE_FILE" == "$SOURCE_FALLBACK_COMPOSE" ]]; then
+        log "Preparing source-build install"
+    else
+        log "Pulling images"
+    fi
     pull_images_with_fallback "$target_dir"
     log "Starting services"
-    run_compose -f "$COMPOSE_FILE" up -d
+    if [[ "$COMPOSE_FILE" == "$SOURCE_FALLBACK_COMPOSE" ]]; then
+        run_compose -f "$COMPOSE_FILE" up -d --build
+    else
+        run_compose -f "$COMPOSE_FILE" up -d
+    fi
 
     log "Container status"
     run_compose -f "$COMPOSE_FILE" ps

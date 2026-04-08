@@ -31,11 +31,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/
 
 Что делает автоматически:
 - ставит Docker, если его нет
-- подтягивает compose/env файлы, если запуск вне репозитория
+- подтягивает актуальный source bundle из `main`, если запуск вне репозитория
 - генерирует обязательные секреты в `.env`
 - включает `FEATURE_CASCADE_HYBRID=true`
-- поднимает стек через `docker-compose.hub.yml`
-- автоматически переключается на сборку из исходников при rate-limit Docker Hub
+- поднимает стек через `docker-compose.yml` как source-build из текущего `main`
+- оставляет `docker-compose.hub.yml` доступным как явный legacy/release-режим
 
 **1. Установите Docker** (если не установлен):
 
@@ -43,7 +43,16 @@ bash <(curl -fsSL https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/
 curl -fsSL https://get.docker.com | sh
 ```
 
-**2. Разверните панель (Docker Hub — рекомендуется):**
+**2. Разверните панель (source-build из текущего `main` — рекомендуется):**
+
+```bash
+mkdir hysteria-panel && cd hysteria-panel
+
+bash <(curl -fsSL https://raw.githubusercontent.com/breachrabbit/CELERITY-panel/main/scripts/quick-install.sh) \
+  --domain panel.example.com
+```
+
+**Альтернатива: путь через Docker Hub** (явный release/legacy-режим)
 
 ```bash
 mkdir hysteria-panel && cd hysteria-panel
@@ -61,7 +70,7 @@ nano .env  # Укажите домен, email и секреты
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-**Альтернатива: сборка из исходников** (для разработки или кастомизации)
+**Альтернатива: ручная сборка из исходников** (для разработки или кастомизации)
 
 ```bash
 git clone https://github.com/breachrabbit/CELERITY-panel.git
