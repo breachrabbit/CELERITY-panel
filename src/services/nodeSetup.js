@@ -14,13 +14,50 @@ const Settings = require('../models/settingsModel');
 const configGenerator = require('./configGenerator');
 const CASCADE_SIDECAR_OUTBOUND = '__cascade_sidecar__';
 
+function getPanelHost() {
+    return String(config.PANEL_DOMAIN || config.BASE_URL || '')
+        .replace(/^https?:\/\//, '')
+        .split('/')[0]
+        .split(':')[0]
+        .trim();
+}
+
+async function resolvePanelEndpoint() {
+    const host = getPanelHost();
+
+    if (!host) {
+        return { host: '', ip: '', source: 'empty-host' };
+    }
+
+    if (net.isIP(host)) {
+        return { host, ip: host, source: 'direct-ip' };
+    }
+
+    const panelIpFromEnv = String(process.env.PANEL_IP || '').trim();
+    if (panelIpFromEnv && net.isIP(panelIpFromEnv)) {
+        return { host, ip: panelIpFromEnv, source: 'env:PANEL_IP' };
+    }
+
+    try {
+        const resolved = await dns.lookup(host, { family: 4 });
+        if (resolved?.address) {
+            process.env.PANEL_IP = resolved.address;
+            return { host, ip: resolved.address, source: `dns:${host}` };
+        }
+    } catch (_) {
+        // handled by fallback below
+    }
+
+    return { host, ip: '', source: `dns-failed:${host}` };
+}
+
 /**
  * Check if a node is on the same VPS as the panel
  * Uses multiple heuristics: domain match, IP match via DNS, localhost detection
  * @param {Object} node - Node object with ip and domain fields
- * @returns {boolean} true if node appears to be on the same server as the panel
+ * @returns {Promise<boolean>} true if node appears to be on the same server as the panel
  */
-function isSameVpsAsPanel(node) {
+async function isSameVpsAsPanel(node) {
     const panelDomain = config.PANEL_DOMAIN;
     
     // 1. Domain match - most reliable indicator
@@ -36,11 +73,10 @@ function isSameVpsAsPanel(node) {
         return true;
     }
     
-    // 3. Try to resolve panel domain and compare with node IP
-    // This is a sync check using cached DNS or env variable
-    const panelIpFromEnv = process.env.PANEL_IP || '';
-    if (panelIpFromEnv && panelIpFromEnv === nodeIp) {
-        logger.debug(`[NodeSetup] Same VPS detected: IP match via PANEL_IP env (${nodeIp})`);
+    // 3. Resolve panel host and compare with node IP
+    const panelEndpoint = await resolvePanelEndpoint();
+    if (panelEndpoint.ip && net.isIP(nodeIp) && panelEndpoint.ip === nodeIp) {
+        logger.debug(`[NodeSetup] Same VPS detected: IP match (${nodeIp}) via ${panelEndpoint.source}`);
         return true;
     }
     
@@ -648,30 +684,14 @@ WantedBy=multi-user.target
 }
 
 async function resolvePanelFirewallIp() {
-    const host = String(config.PANEL_DOMAIN || config.BASE_URL || '')
-        .replace(/^https?:\/\//, '')
-        .split('/')[0]
-        .split(':')[0]
-        .trim();
-
-    if (!host) {
+    const endpoint = await resolvePanelEndpoint();
+    if (!endpoint.host) {
         return { ip: '0.0.0.0/0', source: 'empty-host' };
     }
-
-    if (net.isIP(host)) {
-        return { ip: host, source: 'direct-ip' };
+    if (endpoint.ip) {
+        return { ip: endpoint.ip, source: endpoint.source };
     }
-
-    try {
-        const resolved = await dns.lookup(host, { family: 4 });
-        if (resolved?.address) {
-            return { ip: resolved.address, source: `dns:${host}` };
-        }
-    } catch (_) {
-        // handled by fallback below
-    }
-
-    return { ip: '0.0.0.0/0', source: `dns-failed:${host}` };
+    return { ip: '0.0.0.0/0', source: endpoint.source };
 }
 
 async function setupNode(node, options = {}) {
@@ -717,7 +737,7 @@ async function setupNode(node, options = {}) {
         
         // Determine TLS mode: same-VPS (copy panel certs), ACME, or self-signed
         // Use improved detection: checks domain match, localhost, and PANEL_IP env
-        const isSameVpsSetup = isSameVpsAsPanel(node);
+        const isSameVpsSetup = await isSameVpsAsPanel(node);
         let useTlsFiles = false;
         
         if (isSameVpsSetup) {
@@ -1270,7 +1290,7 @@ async function setupXrayNode(node, options = {}) {
 
     if (!exitOnly) {
         // Detect port conflict: Xray on the same VPS as the panel (Caddy) using port 443/80
-        const sameVps = isSameVpsAsPanel(node);
+        const sameVps = await isSameVpsAsPanel(node);
         const nodePort = node.port || 443;
         if (sameVps && (nodePort === 443 || nodePort === 80)) {
             const msg = `Port conflict detected: Xray port ${nodePort} is already used by the panel (Caddy) on this server. ` +

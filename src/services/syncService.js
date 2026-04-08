@@ -754,7 +754,7 @@ class SyncService {
             const useTlsFiles = node.useTlsFiles || !node.domain;
             
             // For same-VPS nodes or nodes using TLS files, ensure certificates exist
-            if (useTlsFiles || isSameVpsAsPanel(node)) {
+            if (useTlsFiles || await isSameVpsAsPanel(node)) {
                 const panelCerts = getPanelCertificates(config.PANEL_DOMAIN);
                 const certResult = await ssh.ensureCertificates(panelCerts);
                 
