@@ -129,6 +129,10 @@ function setSetupJob(nodeId, patch) {
     return next;
 }
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function finalizeXraySetup(node, logs) {
     if (node.type !== 'xray') {
         return;
@@ -143,6 +147,51 @@ async function finalizeXraySetup(node, logs) {
     } else if (result.mode === 'bridge-ready') {
         logs.push('[Bridge] Xray binary installed; waiting for cascade link deployment');
     }
+}
+
+async function warmXrayAgentAfterSetup(nodeId, logs) {
+    const attempts = 6;
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        const node = await HyNode.findById(nodeId);
+        if (!node || node.type !== 'xray' || (node.cascadeRole || 'standalone') === 'bridge') {
+            return;
+        }
+
+        try {
+            const runtimeNode = await syncService._ensureXrayAgentReady(node);
+            const response = await syncService._agentRequest(runtimeNode, 'GET', '/info');
+            const data = response.data || {};
+            const usersCount = Number(data.users_count || 0);
+
+            await HyNode.updateOne(
+                { _id: node._id },
+                {
+                    $set: {
+                        status: 'online',
+                        healthFailures: 0,
+                        lastError: '',
+                        xrayVersion: data.xray_version || '',
+                        agentVersion: data.agent_version || '',
+                        agentStatus: 'online',
+                        agentLastSeen: new Date(),
+                        onlineUsers: usersCount,
+                    },
+                },
+            );
+
+            const version = data.xray_version ? `, Xray ${data.xray_version}` : '';
+            logs.push(`[Xray] CC Agent is online after setup${version}`);
+            return;
+        } catch (_) {}
+
+        if (attempt < attempts) {
+            logs.push(`[Xray] Waiting for CC Agent warm-up (${attempt}/${attempts})...`);
+            await delay(2000);
+        }
+    }
+
+    logs.push('[Xray] CC Agent did not answer immediately after setup; background health check will finish metadata sync');
 }
 
 async function runNodeSetupJob(nodeId) {
@@ -184,6 +233,7 @@ async function runNodeSetupJob(nodeId) {
         if (result.success) {
             try {
                 await finalizeXraySetup(node, logs);
+                await warmXrayAgentAfterSetup(node._id, logs);
             } catch (syncErr) {
                 logs.push(`[Xray] Finalization failed: ${syncErr.message}`);
                 throw syncErr;

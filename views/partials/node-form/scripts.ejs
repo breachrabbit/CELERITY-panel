@@ -854,6 +854,11 @@ async function setupNode() {
 
             if (statusData.state === 'success') {
                 document.getElementById('setupResult').innerHTML = '<div class="alert alert-success"><i class="ti ti-check"></i> ' + (statusData.message || i18n.setupDone || 'Setup completed') + '</div>';
+                if (typeof refreshNodeInfo === 'function') {
+                    try {
+                        await refreshNodeInfo();
+                    } catch (_) {}
+                }
             } else {
                 document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + (statusData.error || i18n.error) + '</div>';
             }
