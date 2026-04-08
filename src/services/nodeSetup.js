@@ -41,7 +41,6 @@ async function resolvePanelEndpoint() {
     try {
         const resolved = await dns.lookup(host, { family: 4 });
         if (resolved?.address) {
-            process.env.PANEL_IP = resolved.address;
             return { host, ip: resolved.address, source: `dns:${host}` };
         }
     } catch (_) {
@@ -51,51 +50,63 @@ async function resolvePanelEndpoint() {
     return { host, ip: '', source: `dns-failed:${host}` };
 }
 
-async function pickSameHostNodePort(requestedPort) {
-    const normalizedRequested = Number(requestedPort) || 443;
-    const fallbackPorts = [8443, 9443, 10443, 11443, 12443, 15443, 16443];
-
-    // Для same-host сценария нельзя полагаться на bind()-проверку из контейнера:
-    // порт 443/80 может быть уже занят docker-proxy панели на хосте, но внутри
-    // backend-контейнера это не всегда определяется корректно. Поэтому для
-    // конфликтных портов делаем детерминированный перевод на безопасный fallback.
-    if (normalizedRequested > 1024 && ![80, 443].includes(normalizedRequested)) {
-        return normalizedRequested;
-    }
-
-    return fallbackPorts[0];
-}
-
 /**
- * Check if a node is on the same VPS as the panel
- * Uses multiple heuristics: domain match, IP match via DNS, localhost detection
+ * Check if a node is on the same VPS as the panel.
+ * Uses multiple heuristics: domain match, localhost detection, and real IP match
+ * against the panel domain / PANEL_IP environment.
  * @param {Object} node - Node object with ip and domain fields
  * @returns {Promise<boolean>} true if node appears to be on the same server as the panel
  */
 async function isSameVpsAsPanel(node) {
     const panelDomain = config.PANEL_DOMAIN;
-    
+    const nodeIp = String(node?.ip || '').toLowerCase().trim();
+
     // 1. Domain match - most reliable indicator
-    if (node.domain && node.domain === panelDomain) {
+    if (node?.domain && node.domain === panelDomain) {
         logger.debug(`[NodeSetup] Same VPS detected: domain match (${node.domain})`);
         return true;
     }
-    
+
     // 2. Localhost / loopback detection
-    const nodeIp = (node.ip || '').toLowerCase().trim();
     if (nodeIp === 'localhost' || nodeIp === '127.0.0.1' || nodeIp === '::1') {
         logger.debug(`[NodeSetup] Same VPS detected: localhost IP (${nodeIp})`);
         return true;
     }
-    
-    // 3. Resolve panel host and compare with node IP
+
+    // 3. Compare against resolved panel endpoint IP
     const panelEndpoint = await resolvePanelEndpoint();
     if (panelEndpoint.ip && net.isIP(nodeIp) && panelEndpoint.ip === nodeIp) {
         logger.debug(`[NodeSetup] Same VPS detected: IP match (${nodeIp}) via ${panelEndpoint.source}`);
         return true;
     }
-    
+
     return false;
+}
+
+function getHysteriaSameHostTcpConflicts(node) {
+    const conflicts = [];
+    const masq = node?.masquerade || {};
+
+    const parsePort = (value) => {
+        const raw = String(value || '').trim();
+        if (!raw) return 0;
+        const match = raw.match(/:(\d+)\s*$/);
+        if (match) return parseInt(match[1], 10) || 0;
+        const direct = parseInt(raw, 10);
+        return Number.isInteger(direct) ? direct : 0;
+    };
+
+    const httpPort = parsePort(masq.listenHTTP);
+    const httpsPort = parsePort(masq.listenHTTPS);
+
+    if (httpPort === 80) {
+        conflicts.push('masquerade.listenHTTP=80');
+    }
+    if (httpsPort === 443) {
+        conflicts.push('masquerade.listenHTTPS=443');
+    }
+
+    return conflicts;
 }
 
 /**
@@ -266,6 +277,33 @@ echo "Done: Directory /etc/hysteria ready"
 
 echo "Hysteria version:"
 hysteria version
+`;
+
+const SINGBOX_INSTALL_SCRIPT = `#!/bin/bash
+set -e
+
+echo "=== [1/4] Installing sing-box ==="
+if ! command -v sing-box >/dev/null 2>&1; then
+  curl -fsSL https://sing-box.app/install.sh | sh
+else
+  echo "Done: sing-box already installed"
+fi
+
+if ! command -v sing-box >/dev/null 2>&1; then
+  echo "ERROR: sing-box binary not found after installation"
+  exit 1
+fi
+
+mkdir -p /etc/sing-box /var/lib/sing-box
+echo "Done: /etc/sing-box and /var/lib/sing-box ready"
+
+echo "=== [2/4] sing-box version ==="
+sing-box version
+
+echo "=== [3/4] systemd unit ==="
+systemctl daemon-reload
+systemctl enable sing-box >/dev/null 2>&1 || true
+echo "Done: sing-box service prepared"
 `;
 
 function getPortHoppingScript(portRange, mainPort) {
@@ -699,14 +737,30 @@ WantedBy=multi-user.target
 }
 
 async function resolvePanelFirewallIp() {
-    const endpoint = await resolvePanelEndpoint();
-    if (!endpoint.host) {
+    const host = String(config.PANEL_DOMAIN || config.BASE_URL || '')
+        .replace(/^https?:\/\//, '')
+        .split('/')[0]
+        .split(':')[0]
+        .trim();
+
+    if (!host) {
         return { ip: '0.0.0.0/0', source: 'empty-host' };
     }
-    if (endpoint.ip) {
-        return { ip: endpoint.ip, source: endpoint.source };
+
+    if (net.isIP(host)) {
+        return { ip: host, source: 'direct-ip' };
     }
-    return { ip: '0.0.0.0/0', source: endpoint.source };
+
+    try {
+        const resolved = await dns.lookup(host, { family: 4 });
+        if (resolved?.address) {
+            return { ip: resolved.address, source: `dns:${host}` };
+        }
+    } catch (_) {
+        // handled by fallback below
+    }
+
+    return { ip: '0.0.0.0/0', source: `dns-failed:${host}` };
 }
 
 async function setupNode(node, options = {}) {
@@ -758,6 +812,16 @@ async function setupNode(node, options = {}) {
         if (isSameVpsSetup) {
             // Same server as panel - try to copy panel's certificates
             log(`Same-VPS setup detected (node IP: ${node.ip}, panel domain: ${config.PANEL_DOMAIN})`);
+            log('Note: Hysteria main listener uses UDP/QUIC, so it can coexist with the panel on TCP 443.');
+
+            const sameHostTcpConflicts = getHysteriaSameHostTcpConflicts(node);
+            if (sameHostTcpConflicts.length > 0) {
+                const msg = `Port conflict detected for same-host Hysteria setup: ${sameHostTcpConflicts.join(', ')}. ` +
+                    'The panel already uses TCP 80/443 on this server. Remove these masquerade listeners or move them to different ports.';
+                log(`ERROR: ${msg}`);
+                return { success: false, error: msg, logs, useTlsFiles: false };
+            }
+
             log('Attempting to copy panel certificates to node...');
             
             const panelCerts = getPanelCertificates(config.PANEL_DOMAIN);
@@ -1279,6 +1343,34 @@ async function getRemoteXrayVersion(conn) {
     return match ? match[1] : '';
 }
 
+async function getRemoteSingboxVersion(conn) {
+    const result = await execSSH(conn, 'sing-box version 2>/dev/null | head -1');
+    if (!result.success) return '';
+    const firstLine = String(result.output || '').trim().split('\n')[0].trim();
+    const match = firstLine.match(/sing-box\s+version\s+([0-9][0-9A-Za-z.\-]*)/i);
+    return match ? match[1] : '';
+}
+
+async function getRemoteSingboxBinaryPath(conn) {
+    const result = await execSSH(conn, 'command -v sing-box 2>/dev/null || true');
+    const binaryPath = String(result.output || '').trim().split('\n')[0].trim();
+    return binaryPath || '';
+}
+
+async function generateSingboxRealityKeys(conn) {
+    const result = await execSSH(conn, 'sing-box generate reality-keypair 2>/dev/null || true');
+    if (!result.success) {
+        throw new Error(`Failed to generate Sing-box reality keypair: ${result.error || 'unknown error'}`);
+    }
+    const output = String(result.output || '');
+    const privateKey = output.match(/PrivateKey:\s*([^\s]+)/i)?.[1] || '';
+    const publicKey = output.match(/PublicKey:\s*([^\s]+)/i)?.[1] || '';
+    if (!privateKey || !publicKey) {
+        throw new Error('Unable to parse Sing-box reality keypair output');
+    }
+    return { privateKey, publicKey };
+}
+
 /**
  * Setup Xray node via SSH:
  * 1. Install xray-core
@@ -1499,6 +1591,204 @@ journalctl -u xray -n 15 --no-pager || true
     }
 }
 
+async function setupSingboxNode(node, options = {}) {
+    const { restartService = true } = options;
+
+    const logs = [];
+    const log = (msg) => {
+        const line = `[${new Date().toISOString()}] ${msg}`;
+        logs.push(line);
+        logger.info(`[SingboxSetup] ${msg}`);
+    };
+
+    log(`Starting Sing-box setup for ${node.name} (${node.ip})`);
+
+    if (node.type !== 'xray') {
+        return { success: false, error: 'Sing-box PoC currently supports only Xray-type nodes', logs };
+    }
+
+    const transport = node.xray?.transport || 'tcp';
+    if (transport !== 'tcp') {
+        return { success: false, error: 'Sing-box PoC currently supports only TCP transport', logs };
+    }
+
+    const sameVps = await isSameVpsAsPanel(node);
+    const nodePort = node.port || 443;
+    if (sameVps && (nodePort === 443 || nodePort === 80)) {
+        const msg = `Port conflict detected: Sing-box port ${nodePort} is already used by the panel on this server. Use a different port (for example 8443).`;
+        log(`ERROR: ${msg}`);
+        return { success: false, error: msg, logs };
+    }
+
+    let conn;
+    let generatedKeys = null;
+
+    try {
+        log('Connecting via SSH...');
+        conn = await connectSSH(node);
+        log('SSH connected');
+
+        log('Installing sing-box...');
+        const installResult = await execSSH(conn, SINGBOX_INSTALL_SCRIPT);
+        logs.push(installResult.output);
+        if (!installResult.success) {
+            throw new Error(`Sing-box installation failed: ${installResult.error}`);
+        }
+        const binaryPath = await getRemoteSingboxBinaryPath(conn);
+        if (!binaryPath) {
+            throw new Error('Sing-box binary is missing on remote host');
+        }
+        log(`Sing-box installed (${binaryPath})`);
+
+        const singboxVersion = await getRemoteSingboxVersion(conn);
+        if (singboxVersion) {
+            const HyNode = require('../models/hyNodeModel');
+            await HyNode.updateOne({ _id: node._id }, { $set: { runtimeVersion: singboxVersion } });
+            log(`Detected Sing-box version: ${singboxVersion}`);
+        }
+
+        const xrayCfg = node.xray || {};
+        if (xrayCfg.security === 'reality') {
+            const updates = {};
+            let needsUpdate = false;
+
+            if (!xrayCfg.realityPrivateKey) {
+                log('Generating Reality keys for Sing-box...');
+                generatedKeys = await generateSingboxRealityKeys(conn);
+                updates['xray.realityPrivateKey'] = generatedKeys.privateKey;
+                updates['xray.realityPublicKey'] = generatedKeys.publicKey;
+                node.xray = { ...node.xray, realityPrivateKey: generatedKeys.privateKey, realityPublicKey: generatedKeys.publicKey };
+                needsUpdate = true;
+                log(`Reality keys generated. PublicKey: ${generatedKeys.publicKey}`);
+            }
+
+            const currentShortIds = xrayCfg.realityShortIds || [''];
+            const hasRealShortId = currentShortIds.some(id => id && id.length > 0);
+            if (!hasRealShortId) {
+                const shortId = require('crypto').randomBytes(8).toString('hex');
+                updates['xray.realityShortIds'] = [shortId];
+                node.xray = { ...node.xray, realityShortIds: [shortId] };
+                needsUpdate = true;
+                log(`Generated shortId: ${shortId}`);
+            }
+
+            if (needsUpdate) {
+                const HyNode = require('../models/hyNodeModel');
+                await HyNode.updateOne({ _id: node._id }, { $set: updates });
+                log('Reality settings saved to database');
+            }
+        }
+
+        const syncService = require('./syncService');
+        const CascadeLink = require('../models/cascadeLinkModel');
+        const role = node.cascadeRole || 'standalone';
+        const isHopRole = ['bridge', 'relay'].includes(role);
+        const activeForwardLinks = isHopRole
+            ? await CascadeLink.find({ bridgeNode: node._id, active: true, mode: 'forward' }).lean()
+            : [];
+        const downstreamForwardLinks = role === 'relay'
+            ? await syncService._getForwardChainLinks(node._id)
+            : [];
+        const activeReverseLinkCount = isHopRole
+            ? await CascadeLink.countDocuments({ bridgeNode: node._id, active: true, mode: 'reverse' })
+            : 0;
+
+        if (isHopRole && activeReverseLinkCount > 0) {
+            throw new Error('Sing-box PoC currently supports only forward cascade bridge/relay nodes');
+        }
+
+        let users = [];
+        let configContent;
+        if (isHopRole) {
+            if (activeForwardLinks.length > 0) {
+                log(`Generating Sing-box forward-hop config (${activeForwardLinks.length} link(s))...`);
+            } else {
+                log('No active forward cascade links yet, generating placeholder Sing-box hop config...');
+            }
+            configContent = role === 'relay' && activeForwardLinks.length > 0 && downstreamForwardLinks.length > 0
+                ? configGenerator.generateSingboxForwardRelayConfig(activeForwardLinks, downstreamForwardLinks)
+                : configGenerator.generateSingboxForwardHopConfig(activeForwardLinks);
+        } else {
+            users = await syncService._getUsersForNode(node);
+            configContent = configGenerator.generateSingboxConfig(node, users);
+        }
+        const configPath = '/etc/sing-box/config.json';
+
+        await uploadFile(conn, configContent, configPath);
+        await assertRemoteFileExists(conn, configPath, 'Sing-box config');
+        log(`Config uploaded to ${configPath} (${users.length} users)`);
+
+        const validateResult = await execSSH(conn, `sing-box check -c ${configPath}`);
+        logs.push(validateResult.output);
+        if (!validateResult.success) {
+            throw new Error(`Sing-box config validation failed: ${validateResult.error || `exit ${validateResult.code}`}`);
+        }
+        log('Sing-box config validated');
+
+        const firewallPorts = isHopRole
+            ? [...new Set(activeForwardLinks.map(link => Number(link.tunnelPort || 10086)).filter(Boolean))]
+            : [node.port || 443];
+        log(`Opening firewall ports (${firewallPorts.join(', ') || 'none'})...`);
+        const firewallResult = await execSSH(conn, `
+echo "=== Opening firewall ports ==="
+if command -v iptables &> /dev/null; then
+    ${firewallPorts.map(port => `iptables -I INPUT -p tcp --dport ${port} -j ACCEPT 2>/dev/null || true
+    iptables -I INPUT -p udp --dport ${port} -j ACCEPT 2>/dev/null || true`).join('\n    ')}
+    echo "Done: iptables rules added"
+fi
+if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+    ${firewallPorts.map(port => `ufw allow ${port}/tcp 2>/dev/null || true
+    ufw allow ${port}/udp 2>/dev/null || true`).join('\n    ')}
+    echo "Done: UFW rules added"
+fi
+echo "Done: Firewall configured"
+        `);
+        logs.push(firewallResult.output);
+
+        if (restartService) {
+            log('Starting Sing-box service...');
+            const restartResult = await execSSH(conn, `
+echo "=== Starting Sing-box service ==="
+systemctl daemon-reload
+systemctl enable sing-box >/dev/null 2>&1 || true
+systemctl restart sing-box
+sleep 2
+echo "Service status:"
+systemctl status sing-box --no-pager -l || true
+echo ""
+echo "Journal (last 15 lines):"
+journalctl -u sing-box -n 15 --no-pager || true
+            `);
+            logs.push(restartResult.output);
+            if (!restartResult.success) {
+                throw new Error(`Sing-box service restart failed: ${restartResult.error || `exit ${restartResult.code}`}`);
+            }
+            await waitForServiceActive(conn, ['sing-box'], {
+                label: 'Sing-box service',
+                timeoutMs: 25000,
+                journalLines: 20,
+            });
+            if (isHopRole) {
+                for (const port of firewallPorts) {
+                    await waitForListeningPort(conn, port, { timeoutMs: 15000 });
+                }
+            } else {
+                await waitForListeningPort(conn, node.port || 443, { timeoutMs: 15000 });
+            }
+            log('Sing-box service started');
+        }
+
+        log('Sing-box setup completed successfully!');
+        return { success: true, logs, realityKeys: generatedKeys };
+    } catch (error) {
+        const normalizedError = normalizeSetupError(error);
+        log(`Error: ${normalizedError}`);
+        return { success: false, error: normalizedError, logs, realityKeys: generatedKeys };
+    } finally {
+        if (conn) conn.end();
+    }
+}
+
 /**
  * Check Xray service status via SSH
  */
@@ -1516,6 +1806,20 @@ async function checkXrayNodeStatus(node) {
     }
 }
 
+async function checkSingboxNodeStatus(node) {
+    try {
+        const conn = await connectSSH(node);
+        try {
+            const result = await execSSH(conn, 'systemctl is-active sing-box');
+            return result.output.trim() === 'active' ? 'online' : 'offline';
+        } finally {
+            conn.end();
+        }
+    } catch (error) {
+        return 'error';
+    }
+}
+
 /**
  * Get Xray node logs via SSH
  */
@@ -1524,6 +1828,20 @@ async function getXrayNodeLogs(node, lines = 50) {
         const conn = await connectSSH(node);
         try {
             const result = await execSSH(conn, `journalctl -u xray -n ${lines} --no-pager`);
+            return { success: true, logs: result.output };
+        } finally {
+            conn.end();
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function getSingboxNodeLogs(node, lines = 50) {
+    try {
+        const conn = await connectSSH(node);
+        try {
+            const result = await execSSH(conn, `journalctl -u sing-box -n ${lines} --no-pager`);
             return { success: true, logs: result.output };
         } finally {
             conn.end();
@@ -1900,6 +2218,7 @@ module.exports = {
     uploadFile,
     setupXrayNode,
     setupXrayNodeWithAgent,
+    setupSingboxNode,
     installCCAgent,
     ensureXrayAgentToken,
     setupOrRepairXrayAgent,
@@ -1907,7 +2226,8 @@ module.exports = {
     generateX25519Keys,
     checkXrayNodeStatus,
     getXrayNodeLogs,
+    checkSingboxNodeStatus,
+    getSingboxNodeLogs,
     getPanelCertificates,
     isSameVpsAsPanel,
-    pickSameHostNodePort,
 };
