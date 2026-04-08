@@ -110,6 +110,9 @@ async function getActiveNodes(user) {
         const userGroupIds = (user.groups || []).map(g => g._id?.toString() || g.toString());
         nodes = allNodes.filter(n => {
             const nodeGroupIds = (n.groups || []).map(g => g._id?.toString() || g.toString());
+            if (userGroupIds.length === 0) {
+                return nodeGroupIds.length === 0;
+            }
             return nodeGroupIds.some(gId => userGroupIds.includes(gId));
         });
         
