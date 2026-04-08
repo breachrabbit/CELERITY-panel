@@ -51,61 +51,19 @@ async function resolvePanelEndpoint() {
     return { host, ip: '', source: `dns-failed:${host}` };
 }
 
-async function canListenOnPort(port) {
-    const normalizedPort = Number(port);
-    if (!Number.isInteger(normalizedPort) || normalizedPort < 1 || normalizedPort > 65535) {
-        return false;
-    }
-
-    return new Promise((resolve) => {
-        const server = net.createServer();
-        let settled = false;
-
-        const finish = (result) => {
-            if (settled) return;
-            settled = true;
-            try {
-                server.close(() => resolve(result));
-            } catch (_) {
-                resolve(result);
-            }
-        };
-
-        server.once('error', (error) => {
-            if (error?.code === 'EADDRINUSE' || error?.code === 'EACCES') {
-                return finish(false);
-            }
-            return finish(false);
-        });
-
-        server.once('listening', () => finish(true));
-        server.listen(normalizedPort, '0.0.0.0');
-    });
-}
-
 async function pickSameHostNodePort(requestedPort) {
-    const preferred = [];
     const normalizedRequested = Number(requestedPort) || 443;
+    const fallbackPorts = [8443, 9443, 10443, 11443, 12443, 15443, 16443];
 
-    if (normalizedRequested > 1024) {
-        preferred.push(normalizedRequested);
+    // Для same-host сценария нельзя полагаться на bind()-проверку из контейнера:
+    // порт 443/80 может быть уже занят docker-proxy панели на хосте, но внутри
+    // backend-контейнера это не всегда определяется корректно. Поэтому для
+    // конфликтных портов делаем детерминированный перевод на безопасный fallback.
+    if (normalizedRequested > 1024 && ![80, 443].includes(normalizedRequested)) {
+        return normalizedRequested;
     }
 
-    for (const candidate of [8443, 9443, 10443, 11443, 12443, 15443, 16443]) {
-        if (!preferred.includes(candidate)) {
-            preferred.push(candidate);
-        }
-    }
-
-    for (const candidate of preferred) {
-        // eslint-disable-next-line no-await-in-loop
-        const free = await canListenOnPort(candidate);
-        if (free) {
-            return candidate;
-        }
-    }
-
-    throw new Error('Could not find a free fallback port for node on the same server as the panel');
+    return fallbackPorts[0];
 }
 
 /**
