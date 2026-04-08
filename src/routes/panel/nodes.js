@@ -34,6 +34,21 @@ const {
 const sniScanner = require('../../services/sniScanner');
 const RESERVED_CASCADE_OUTBOUND = '__cascade_sidecar__';
 
+async function resolveNodePortForSameHost(ip, requestedPort) {
+    const normalizedPort = parseInt(requestedPort, 10) || 443;
+    const sameVps = await nodeSetup.isSameVpsAsPanel({ ip, domain: '' });
+    if (!sameVps) {
+        return { port: normalizedPort, adjusted: false };
+    }
+
+    const chosenPort = await nodeSetup.pickSameHostNodePort(normalizedPort);
+    return {
+        port: chosenPort,
+        adjusted: chosenPort !== normalizedPort,
+        requestedPort: normalizedPort,
+    };
+}
+
 function shellQuote(value) {
     return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
@@ -524,6 +539,8 @@ router.post('/nodes', async (req, res) => {
 
         const statsSecret = req.body.statsSecret || cryptoService.generateNodeSecret();
 
+        const sameHostPort = await resolveNodePortForSameHost(ip, req.body.port);
+
         const nodeData = {
             name,
             ip,
@@ -531,7 +548,7 @@ router.post('/nodes', async (req, res) => {
             domain: req.body.domain || '',
             sni: req.body.sni || '',
             flag: req.body.flag || '',
-            port: parseInt(req.body.port) || 443,
+            port: sameHostPort.port,
             portRange: req.body.portRange || '20000-50000',
             statsPort: parseInt(req.body.statsPort) || 9999,
             statsSecret,
@@ -569,6 +586,9 @@ router.post('/nodes', async (req, res) => {
 
         const newNode = await HyNode.create(nodeData);
         logger.info(`[Panel] Created ${nodeType} node ${name} (${ip})`);
+        if (sameHostPort.adjusted) {
+            logger.warn(`[Panel] Auto-adjusted same-host node port for ${name}: ${sameHostPort.requestedPort} -> ${sameHostPort.port}`);
+        }
         // Invalidate active-nodes and all subscription caches so changes are reflected immediately
         await Promise.all([
             cache.invalidateNodes(),
@@ -739,13 +759,15 @@ router.post('/nodes/:id', async (req, res) => {
 
         const nodeType = req.body.type === 'xray' ? 'xray' : 'hysteria';
 
+        const sameHostPort = await resolveNodePortForSameHost(ip, req.body.port);
+
         const updates = {
             name,
             ip,
             type: nodeType,
             domain: req.body.domain || '',
             sni: req.body.sni || '',
-            port: parseInt(req.body.port) || 443,
+            port: sameHostPort.port,
             portRange: req.body.portRange || '20000-50000',
             statsPort: parseInt(req.body.statsPort) || 9999,
             groups,
@@ -796,6 +818,9 @@ router.post('/nodes/:id', async (req, res) => {
         }
 
         await HyNode.findByIdAndUpdate(nodeId, { $set: updates });
+        if (sameHostPort.adjusted) {
+            logger.warn(`[Panel] Auto-adjusted same-host node port for ${name}: ${sameHostPort.requestedPort} -> ${sameHostPort.port}`);
+        }
         // Invalidate active-nodes and all subscription caches so ranking/config changes apply immediately
         await Promise.all([
             cache.invalidateNodes(),

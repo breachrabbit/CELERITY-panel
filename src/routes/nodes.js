@@ -9,6 +9,7 @@ const HyUser = require('../models/hyUserModel');
 const ServerGroup = require('../models/serverGroupModel');
 const cryptoService = require('../services/cryptoService');
 const cache = require('../services/cacheService');
+const nodeSetup = require('../services/nodeSetup');
 const logger = require('../utils/logger');
 const { requireScope } = require('../middleware/auth');
 
@@ -19,6 +20,21 @@ async function invalidateNodesCache() {
     await cache.invalidateNodes();
     await cache.invalidateAllSubscriptions();
     await cache.invalidateDashboardCounts();
+}
+
+async function resolveNodePortForSameHost(ip, requestedPort) {
+    const normalizedPort = Number(requestedPort) || 443;
+    const sameVps = await nodeSetup.isSameVpsAsPanel({ ip, domain: '' });
+    if (!sameVps) {
+        return { port: normalizedPort, adjusted: false };
+    }
+
+    const chosenPort = await nodeSetup.pickSameHostNodePort(normalizedPort);
+    return {
+        port: chosenPort,
+        adjusted: chosenPort !== normalizedPort,
+        requestedPort: normalizedPort,
+    };
 }
 
 function parseCascadeSidecar(value) {
@@ -152,13 +168,15 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
         // Генерируем секрет для API статистики (Hysteria)
         const statsSecret = cryptoService.generateNodeSecret();
         
+        const sameHostPort = await resolveNodePortForSameHost(ip, port || 443);
+
         const nodeData = {
             name,
             ip,
             type: type || 'hysteria',
             domain: domain || '',
             sni: sni || '',
-            port: port || 443,
+            port: sameHostPort.port,
             portRange: portRange || '20000-50000',
             statsPort: statsPort || 9999,
             statsSecret,
@@ -195,8 +213,19 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
         await invalidateNodesCache();
         
         logger.info(`[Nodes API] Created ${type || 'hysteria'} node ${name} (${ip})`);
+        if (sameHostPort.adjusted) {
+            logger.warn(`[Nodes API] Auto-adjusted same-host node port for ${name}: ${sameHostPort.requestedPort} -> ${sameHostPort.port}`);
+        }
+
+        const response = node.toObject ? node.toObject() : node;
+        if (sameHostPort.adjusted) {
+            response.autoAdjustedPort = {
+                from: sameHostPort.requestedPort,
+                to: sameHostPort.port,
+            };
+        }
         
-        res.status(201).json(node);
+        res.status(201).json(response);
     } catch (error) {
         logger.error(`[Nodes API] Create node error: ${error.message}`);
         if (isInputValidationError(error)) {
@@ -232,6 +261,16 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
             }
         }
         
+        let autoAdjustedPort = null;
+        const targetIp = updates.ip ?? (await HyNode.findById(req.params.id).select('ip').lean())?.ip;
+        if (updates.port !== undefined && targetIp) {
+            const sameHostPort = await resolveNodePortForSameHost(targetIp, updates.port);
+            updates.port = sameHostPort.port;
+            autoAdjustedPort = sameHostPort.adjusted
+                ? { from: sameHostPort.requestedPort, to: sameHostPort.port }
+                : null;
+        }
+
         const node = await HyNode.findByIdAndUpdate(
             req.params.id,
             { $set: updates },
@@ -247,7 +286,13 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
         
         logger.info(`[Nodes API] Updated node ${node.name}`);
         
-        res.json(node);
+        const response = node.toObject ? node.toObject() : node;
+        if (autoAdjustedPort) {
+            logger.warn(`[Nodes API] Auto-adjusted same-host node port for ${node.name}: ${autoAdjustedPort.from} -> ${autoAdjustedPort.to}`);
+            response.autoAdjustedPort = autoAdjustedPort;
+        }
+
+        res.json(response);
     } catch (error) {
         logger.error(`[Nodes API] Update error: ${error.message}`);
         if (isInputValidationError(error)) {
