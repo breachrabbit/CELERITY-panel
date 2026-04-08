@@ -83,6 +83,18 @@ async function isSameVpsAsPanel(node) {
     return false;
 }
 
+const SAME_HOST_NODE_FALLBACK_PORTS = [8443, 9443, 10443, 11443, 12443, 15443, 16443];
+
+async function pickSameHostNodePort(requestedPort) {
+    const normalizedPort = parseInt(requestedPort, 10) || 443;
+    if (normalizedPort !== 80 && normalizedPort !== 443) {
+        return normalizedPort;
+    }
+
+    const fallback = SAME_HOST_NODE_FALLBACK_PORTS.find(port => port !== normalizedPort);
+    return fallback || 8443;
+}
+
 function getHysteriaSameHostTcpConflicts(node) {
     const conflicts = [];
     const masq = node?.masquerade || {};
@@ -2230,4 +2242,5 @@ module.exports = {
     getSingboxNodeLogs,
     getPanelCertificates,
     isSameVpsAsPanel,
+    pickSameHostNodePort,
 };
