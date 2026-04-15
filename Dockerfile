@@ -19,8 +19,8 @@ COPY . .
 RUN mkdir -p logs greenlock.d/live greenlock.d/accounts backups && \
     chmod -R 755 greenlock.d backups
 
-# Порты
-EXPOSE 8444 80 443
+# Application port behind a reverse proxy (Coolify/Traefik, Caddy, etc.)
+EXPOSE 3000
 
 # Запуск
 CMD ["node", "index.js"]

@@ -1,0 +1,71 @@
+# CELERITY Panel - Coolify deployment
+#
+# Coolify/Traefik terminates TLS and routes the public domain to backend:3000.
+# Do not bind 80/443 here; those ports belong to Coolify proxy.
+
+services:
+  redis:
+    image: public.ecr.aws/docker/library/redis:7-alpine
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory 512mb --maxmemory-policy allkeys-lru --save ""
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  mongo:
+    image: public.ecr.aws/docker/library/mongo:7
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: hysteria
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-hysteria}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh -u \"$${MONGO_INITDB_ROOT_USERNAME}\" -p \"$${MONGO_INITDB_ROOT_PASSWORD}\" --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' --quiet"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: .
+    restart: always
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PANEL_DOMAIN: ${PANEL_DOMAIN:?PANEL_DOMAIN is required}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      MONGO_USER: ${MONGO_USER:-hysteria}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+      MONGO_URI: mongodb://${MONGO_USER:-hysteria}:${MONGO_PASSWORD:?MONGO_PASSWORD is required}@mongo:27017/hysteria?authSource=admin
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+      PORT: 3000
+      USE_CADDY: "true"
+      PANEL_IP_WHITELIST: ${PANEL_IP_WHITELIST:-}
+      SYNC_INTERVAL: ${SYNC_INTERVAL:-2}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
+      FEATURE_CASCADE_HYBRID: ${FEATURE_CASCADE_HYBRID:-false}
+    volumes:
+      - app_logs:/app/logs
+      - app_backups:/app/backups
+
+volumes:
+  mongo_data:
+  app_logs:
+  app_backups:
