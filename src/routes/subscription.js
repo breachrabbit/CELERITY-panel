@@ -73,6 +73,86 @@ function encodeTitle(text) {
     return `base64:${Buffer.from(text).toString('base64')}`;
 }
 
+function normalizeHeaderText(value) {
+    return String(value || '').replace(/[\r\n]+/g, ' ').trim();
+}
+
+function encodeHappText(value) {
+    const text = normalizeHeaderText(value);
+    if (!text) return '';
+    return /[^\x20-\x7E]/.test(text)
+        ? `base64:${Buffer.from(text, 'utf8').toString('base64')}`
+        : text;
+}
+
+function buildHappRoutingProfile(routing) {
+    if (!routing || !routing.enabled || !routing.rules || routing.rules.length === 0) return null;
+
+    const domesticDns = (routing.dns && routing.dns.domestic) || '77.88.8.8';
+    const remoteDns = (routing.dns && routing.dns.remote) || 'tls://1.1.1.1';
+    const profile = {
+        Name: 'Auto',
+        GlobalProxy: 'true',
+        DomainStrategy: 'IPIfNonMatch',
+        FakeDNS: 'false',
+        DirectSites: [],
+        DirectIp: [
+            '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16',
+            '169.254.0.0/16', '224.0.0.0/4', '255.255.255.255',
+        ],
+        ProxySites: [],
+        ProxyIp: [],
+        BlockSites: [],
+        BlockIp: [],
+    };
+
+    if (remoteDns.startsWith('tls://')) {
+        profile.RemoteDNSType = 'DoT';
+        profile.RemoteDNSIP = remoteDns.slice(6);
+        profile.RemoteDNSDomain = '';
+    } else if (remoteDns.startsWith('https://')) {
+        profile.RemoteDNSType = 'DoH';
+        profile.RemoteDNSDomain = remoteDns;
+        profile.RemoteDNSIP = '1.1.1.1';
+        try {
+            const hostname = new URL(remoteDns).hostname;
+            profile.DnsHosts = { [hostname]: profile.RemoteDNSIP };
+        } catch {}
+    } else {
+        profile.RemoteDNSType = 'DoU';
+        profile.RemoteDNSIP = remoteDns;
+        profile.RemoteDNSDomain = '';
+    }
+
+    profile.DomesticDNSType = 'DoU';
+    profile.DomesticDNSIP = domesticDns;
+    profile.DomesticDNSDomain = '';
+
+    for (const rule of routing.rules) {
+        if (!rule.enabled) continue;
+
+        let siteVal = null;
+        if (rule.type === 'geosite') siteVal = `geosite:${rule.value}`;
+        else if (rule.type === 'domain_suffix') siteVal = `domain:${rule.value.replace(/^\./, '')}`;
+        else if (rule.type === 'domain') siteVal = `full:${rule.value}`;
+        else if (rule.type === 'domain_keyword') siteVal = `keyword:${rule.value}`;
+
+        let ipVal = null;
+        if (rule.type === 'geoip') ipVal = `geoip:${rule.value}`;
+        else if (rule.type === 'ip_cidr') ipVal = rule.value;
+
+        if (rule.action === 'direct') {
+            if (siteVal) profile.DirectSites.push(siteVal);
+            if (ipVal) profile.DirectIp.push(ipVal);
+        } else if (rule.action === 'block') {
+            if (siteVal) profile.BlockSites.push(siteVal);
+            if (ipVal) profile.BlockIp.push(ipVal);
+        }
+    }
+
+    return profile;
+}
+
 /**
  * Получить активные ноды (с кэшированием)
  */
@@ -1047,9 +1127,65 @@ function sendCachedSubscription(res, data, format, userAgent, settings) {
     if (sub?.supportUrl)     headers['support-url']          = sub.supportUrl;
     if (sub?.webPageUrl)     headers['profile-web-page-url'] = sub.webPageUrl;
     if (sub?.happProviderId) headers['providerid']            = sub.happProviderId;
+    
+    let content = data.content;
+
+    if (/happ/i.test(userAgent)) {
+        if (settings?.routing?.enabled) {
+            const profile = buildHappRoutingProfile(settings.routing);
+            if (profile) {
+                const b64 = Buffer.from(JSON.stringify(profile)).toString('base64');
+                const routingLink = `happ://routing/onadd/${b64}`;
+                headers.routing = routingLink;
+                if (format === 'uri' || format === 'raw') {
+                    content = `${routingLink}\n${content}`;
+                }
+            }
+        } else {
+            headers.routing = 'happ://routing/off';
+            if (format === 'uri' || format === 'raw') {
+                content = `happ://routing/off\n${content}`;
+            }
+        }
+
+        const happ = sub?.happ;
+        if (happ) {
+            if (happ.announce) {
+                headers.announce = encodeHappText(happ.announce);
+            }
+            if (sub?.happProviderId) {
+                if (happ.hideSettings) headers['hide-settings'] = '1';
+                if (happ.notifyExpire) headers['notification-subs-expire'] = '1';
+                headers['sub-expire'] = happ.expireBannerEnabled ? '1' : '0';
+                if (happ.expireBannerEnabled && happ.expireButtonLink) {
+                    headers['sub-expire-button-link'] = normalizeHeaderText(happ.expireButtonLink);
+                }
+                if (happ.infoText) {
+                    headers['sub-info-text'] = encodeHappText(happ.infoText);
+                    headers['sub-info-color'] = ['blue', 'green', 'red'].includes(happ.infoColor) ? happ.infoColor : 'blue';
+                    if (happ.infoButtonText) {
+                        headers['sub-info-button-text'] = encodeHappText(happ.infoButtonText);
+                    }
+                    if (happ.infoButtonLink) {
+                        headers['sub-info-button-link'] = normalizeHeaderText(happ.infoButtonLink);
+                    }
+                } else {
+                    headers['sub-info-text'] = '';
+                }
+                if (happ.alwaysHwid) headers['subscription-always-hwid-enable'] = '1';
+                if (happ.pingType) {
+                    headers['ping-type'] = happ.pingType;
+                    if ((happ.pingType === 'proxy' || happ.pingType === 'proxy-head') && happ.pingUrl) {
+                        headers['check-url-via-proxy'] = happ.pingUrl;
+                    }
+                }
+                if (happ.colorProfile) headers['color-profile'] = happ.colorProfile;
+            }
+        }
+    }
 
     res.set(headers);
-    res.send(data.content);
+    res.send(content);
 }
 
 // ==================== INFO ====================

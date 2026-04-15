@@ -708,6 +708,50 @@ async function waitForListeningPort(conn, port, options = {}) {
     throw new Error(`Port ${portNum} is not listening after service start`);
 }
 
+async function pickAvailableTcpPort(conn, preferredPort, candidates = []) {
+    const ports = [preferredPort, ...candidates]
+        .map(port => Number(port))
+        .filter(port => Number.isInteger(port) && port > 0 && port <= 65535);
+    const uniquePorts = [...new Set(ports)];
+    if (uniquePorts.length === 0) return null;
+
+    const result = await execSSH(conn, `
+is_port_used() {
+    PORT="$1"
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltnH 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$PORT$" && return 0
+    fi
+    if command -v netstat >/dev/null 2>&1; then
+        netstat -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$PORT$" && return 0
+    fi
+    return 1
+}
+for PORT in ${uniquePorts.join(' ')}; do
+    if ! is_port_used "$PORT"; then
+        echo "$PORT"
+        exit 0
+    fi
+done
+exit 1
+    `, 15000);
+
+    const port = Number(String(result.output || '').trim().split('\n').pop());
+    return Number.isInteger(port) && port > 0 && port <= 65535 ? port : null;
+}
+
+async function isTcpPortOwnedByXray(conn, port) {
+    const portNum = Number(port);
+    if (!Number.isInteger(portNum) || portNum <= 0 || portNum > 65535) return false;
+    const result = await execSSH(conn, `
+if command -v ss >/dev/null 2>&1; then
+    ss -ltnpH 2>/dev/null | awk '$4 ~ /[:.]${portNum}$/ {print}' | grep -qi xray && echo yes || echo no
+else
+    echo no
+fi
+    `, 10000);
+    return String(result.output || '').trim().split('\n').pop() === 'yes';
+}
+
 function shellQuote(value) {
     return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
@@ -1448,6 +1492,26 @@ async function setupXrayNode(node, options = {}) {
             await HyNode.updateOne({ _id: node._id }, { $set: { xrayVersion } });
             node.xrayVersion = xrayVersion;
             log(`Detected Xray version: ${xrayVersion}`);
+        }
+
+        const requestedPort = Number(node.port) || 443;
+        if (!exitOnly && (requestedPort === 443 || requestedPort === 80)) {
+            if (await isTcpPortOwnedByXray(conn, requestedPort)) {
+                log(`Port ${requestedPort} is already used by Xray; keeping existing public port.`);
+            } else {
+                const pickedPort = await pickAvailableTcpPort(conn, requestedPort, [8443, 2053, 2083, 2087, 2096, 9443, 10443]);
+                if (!pickedPort) {
+                    throw new Error(`Could not find a free TCP port for Xray. Checked ${requestedPort}, 8443, 2053, 2083, 2087, 2096, 9443, 10443.`);
+                }
+                if (pickedPort !== requestedPort) {
+                    const HyNode = require('../models/hyNodeModel');
+                    await HyNode.updateOne({ _id: node._id }, { $set: { port: pickedPort } });
+                    node.port = pickedPort;
+                    log(`Port ${requestedPort} is busy on the node; switched Xray public port to ${pickedPort} and saved it.`);
+                } else {
+                    log(`Port ${requestedPort} is free for Xray`);
+                }
+            }
         }
 
         // Exit (Bridge) nodes: skip config upload, firewall, and service start.

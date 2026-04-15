@@ -13,6 +13,7 @@ const session = require('express-session');
 const RedisStore = require('connect-redis').default;
 const path = require('path');
 const fs = require('fs');
+const net = require('net');
 const { WebSocketServer } = require('ws');
 
 const config = require('./config');
@@ -77,7 +78,7 @@ function initSessionMiddleware() {
         resave: false,
         saveUninitialized: false,
         cookie: { 
-            secure: true,
+            secure: 'auto',
             sameSite: 'strict',
             maxAge: 24 * 60 * 60 * 1000
         }
@@ -517,6 +518,8 @@ async function startServer() {
         
         const PORT = process.env.PORT || 3000;
         const useCaddy = process.env.USE_CADDY === 'true';
+        const panelHost = String(config.PANEL_DOMAIN || '').trim().toLowerCase();
+        const isDirectHost = net.isIP(panelHost) || ['localhost', '127.0.0.1', '::1'].includes(panelHost);
         
         if (useCaddy) {
             const http = require('http');
@@ -528,6 +531,17 @@ async function startServer() {
             server.listen(PORT, () => {
                 logger.info(`[Server] HTTP listening on port ${PORT} (behind Caddy)`);
                 logger.info(`[Server] Panel: https://${config.PANEL_DOMAIN}/panel`);
+            });
+        } else if (isDirectHost) {
+            const http = require('http');
+            const server = http.createServer(app);
+
+            setupWebSocketServer(server);
+            activeServers.push(server);
+
+            server.listen(PORT, () => {
+                logger.warn(`[Server] PANEL_DOMAIN="${config.PANEL_DOMAIN}" is not certificate-friendly; starting plain HTTP on port ${PORT}`);
+                logger.info(`[Server] Panel: http://${config.PANEL_DOMAIN}:${PORT}/panel`);
             });
         } else {
             // Standalone with Greenlock (for local development)

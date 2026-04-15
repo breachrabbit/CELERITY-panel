@@ -1,0 +1,133 @@
+<div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+        <h2><i class="ti ti-rocket"></i> <%= t('settings.happTitle') %></h2>
+        <p class="hint" style="margin:0"><%= t('settings.happDesc') %></p>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/panel/settings">
+            <input type="hidden" name="_subscriptionSettings" value="1">
+            <input type="hidden" name="_happSettings" value="1">
+            <input type="hidden" name="subscription.supportUrl" value="<%= settings?.subscription?.supportUrl || '' %>">
+            <input type="hidden" name="subscription.webPageUrl" value="<%= settings?.subscription?.webPageUrl || '' %>">
+            <input type="hidden" name="subscription.logoUrl" value="<%= settings?.subscription?.logoUrl || '' %>">
+            <input type="hidden" name="subscription.pageTitle" value="<%= settings?.subscription?.pageTitle || '' %>">
+            <input type="hidden" name="subscription.updateInterval" value="<%= settings?.subscription?.updateInterval ?? 12 %>">
+            <input type="hidden" name="subscription.buttonsJson" value="<%= JSON.stringify(settings?.subscription?.buttons || []) %>">
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label><%= t('settings.subHappProviderId') %></label>
+                <input type="text" name="subscription.happProviderId" id="happProviderId"
+                       value="<%= settings?.subscription?.happProviderId || '' %>"
+                       placeholder="Ab12Cd34" maxlength="8"
+                       style="font-family: monospace; letter-spacing: 0.05em; max-width: 200px;">
+                <small class="hint"><%= t('settings.subHappProviderIdHint') %></small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label><%= t('settings.happAnnounce') %></label>
+                <textarea name="subscription.happ.announce" maxlength="200" rows="3"
+                          style="width:100%; resize:vertical;"><%= settings?.subscription?.happ?.announce || '' %></textarea>
+                <small class="hint"><%= t('settings.happAnnounceHint') %></small>
+            </div>
+
+            <details id="happAdvanced" style="margin-bottom:1.25rem;" <%= settings?.subscription?.happProviderId ? 'open' : '' %>>
+                <summary style="cursor:pointer; font-weight:600;"><%= t('settings.happAdvancedToggle') %></summary>
+                <p class="hint" style="margin-top:8px;"><%= t('settings.happAdvancedHint') %></p>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label><%= t('settings.happInfoText') %></label>
+                    <textarea name="subscription.happ.infoText" maxlength="200" rows="3"
+                              style="width:100%; resize:vertical;"
+                              placeholder="<%= t('settings.happInfoTextPlaceholder') %>"><%= settings?.subscription?.happ?.infoText || '' %></textarea>
+                    <small class="hint"><%= t('settings.happInfoTextHint') %></small>
+                </div>
+
+                <div class="settings-grid" style="margin-top:1rem;">
+                    <div class="form-group">
+                        <label><%= t('settings.happInfoColor') %></label>
+                        <select name="subscription.happ.infoColor">
+                            <option value="blue" <%= (!settings?.subscription?.happ?.infoColor || settings?.subscription?.happ?.infoColor === 'blue') ? 'selected' : '' %>><%= t('settings.happInfoColorBlue') %></option>
+                            <option value="green" <%= settings?.subscription?.happ?.infoColor === 'green' ? 'selected' : '' %>><%= t('settings.happInfoColorGreen') %></option>
+                            <option value="red" <%= settings?.subscription?.happ?.infoColor === 'red' ? 'selected' : '' %>><%= t('settings.happInfoColorRed') %></option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><%= t('settings.happInfoButtonText') %></label>
+                        <input type="text" name="subscription.happ.infoButtonText"
+                               value="<%= settings?.subscription?.happ?.infoButtonText || '' %>"
+                               maxlength="25" placeholder="<%= t('settings.happInfoButtonTextPlaceholder') %>">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label><%= t('settings.happInfoButtonLink') %></label>
+                    <input type="text" name="subscription.happ.infoButtonLink"
+                           value="<%= settings?.subscription?.happ?.infoButtonLink || '' %>"
+                           placeholder="https://t.me/yoursupport">
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="subscription.happ.expireBannerEnabled" <%= settings?.subscription?.happ?.expireBannerEnabled ? 'checked' : '' %>>
+                        <span><%= t('settings.happExpireBanner') %></span>
+                    </label>
+                    <small class="hint"><%= t('settings.happExpireBannerHint') %></small>
+                </div>
+
+                <div class="form-group">
+                    <label><%= t('settings.happExpireButtonLink') %></label>
+                    <input type="text" name="subscription.happ.expireButtonLink"
+                           value="<%= settings?.subscription?.happ?.expireButtonLink || '' %>"
+                           placeholder="https://t.me/yoursupport">
+                </div>
+
+                <div class="settings-grid">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="subscription.happ.hideSettings" <%= settings?.subscription?.happ?.hideSettings ? 'checked' : '' %>>
+                        <span><%= t('settings.happHideSettings') %></span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="subscription.happ.notifyExpire" <%= settings?.subscription?.happ?.notifyExpire ? 'checked' : '' %>>
+                        <span><%= t('settings.happNotifyExpire') %></span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="subscription.happ.alwaysHwid" <%= settings?.subscription?.happ?.alwaysHwid ? 'checked' : '' %>>
+                        <span><%= t('settings.happAlwaysHwid') %></span>
+                    </label>
+                </div>
+
+                <div class="settings-grid" style="margin-top:1rem;">
+                    <div class="form-group">
+                        <label><%= t('settings.happPingType') %></label>
+                        <select name="subscription.happ.pingType" id="happPingType" onchange="document.getElementById('happPingUrlWrap').style.display = ['proxy','proxy-head'].includes(this.value) ? '' : 'none'">
+                            <option value="" <%= (!settings?.subscription?.happ?.pingType) ? 'selected' : '' %>><%= t('settings.happPingTypeAuto') %></option>
+                            <option value="proxy" <%= settings?.subscription?.happ?.pingType === 'proxy' ? 'selected' : '' %>><%= t('settings.happPingTypeProxy') %></option>
+                            <option value="proxy-head" <%= settings?.subscription?.happ?.pingType === 'proxy-head' ? 'selected' : '' %>><%= t('settings.happPingTypeProxyHead') %></option>
+                            <option value="tcp" <%= settings?.subscription?.happ?.pingType === 'tcp' ? 'selected' : '' %>><%= t('settings.happPingTypeTcp') %></option>
+                            <option value="icmp" <%= settings?.subscription?.happ?.pingType === 'icmp' ? 'selected' : '' %>><%= t('settings.happPingTypeIcmp') %></option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="happPingUrlWrap" style="<%= ['proxy','proxy-head'].includes(settings?.subscription?.happ?.pingType) ? '' : 'display:none' %>">
+                        <label><%= t('settings.happPingUrl') %></label>
+                        <input type="url" name="subscription.happ.pingUrl"
+                               value="<%= settings?.subscription?.happ?.pingUrl || '' %>"
+                               placeholder="https://cp.cloudflare.com/generate_204">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label><%= t('settings.happColorProfile') %></label>
+                    <textarea name="subscription.happ.colorProfile" rows="4"
+                              style="width:100%; resize:vertical; font-family:monospace; font-size:12px;"><%= settings?.subscription?.happ?.colorProfile || '' %></textarea>
+                    <small class="hint"><%= t('settings.happColorProfileHint') %></small>
+                </div>
+            </details>
+
+            <div style="display:flex; justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="ti ti-device-floppy"></i> <%= t('common.save') %>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

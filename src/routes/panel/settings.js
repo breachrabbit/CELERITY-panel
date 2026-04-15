@@ -80,30 +80,26 @@ router.post('/settings', async (req, res) => {
     try {
         const { reloadSettings } = require('../../../index');
         
-        const updates = {
-            'loadBalancing.enabled': req.body['loadBalancing.enabled'] === 'on',
-            'loadBalancing.hideOverloaded': req.body['loadBalancing.hideOverloaded'] === 'on',
-            // Device limit
-            'deviceGracePeriod': parseInt(req.body['deviceGracePeriod']) || 15,
-            // Cache TTL
-            'cache.subscriptionTTL': parseInt(req.body['cache.subscriptionTTL']) || 3600,
-            'cache.userTTL': parseInt(req.body['cache.userTTL']) || 900,
-            'cache.onlineSessionsTTL': parseInt(req.body['cache.onlineSessionsTTL']) || 10,
-            'cache.activeNodesTTL': parseInt(req.body['cache.activeNodesTTL']) || 30,
-            // Rate limits
-            'rateLimit.subscriptionPerMinute': parseInt(req.body['rateLimit.subscriptionPerMinute']) || 100,
-            // SSH Pool
-            'sshPool.enabled': req.body['sshPool.enabled'] === 'on',
-            'sshPool.maxIdleTime': parseInt(req.body['sshPool.maxIdleTime']) || 120,
-            'sshPool.connectTimeout': parseInt(req.body['sshPool.connectTimeout']) || 15,
-            'sshPool.keepAliveInterval': parseInt(req.body['sshPool.keepAliveInterval']) || 30,
-            'sshPool.maxRetries': parseInt(req.body['sshPool.maxRetries']) || 2,
-            // Node Auth
-            'nodeAuth.insecure': req.body['nodeAuth.insecure'] === 'on',
-        };
+        const updates = {};
 
-        if (req.body['featureFlags.cascadeHybrid'] !== undefined) {
-            updates['featureFlags.cascadeHybrid'] = req.body['featureFlags.cascadeHybrid'] === 'on';
+        if (req.body['_systemSettings'] !== undefined) {
+            Object.assign(updates, {
+                'loadBalancing.enabled': parseBool(req.body, 'loadBalancing.enabled'),
+                'loadBalancing.hideOverloaded': parseBool(req.body, 'loadBalancing.hideOverloaded'),
+                'deviceGracePeriod': parseInt(req.body['deviceGracePeriod']) || 15,
+                'cache.subscriptionTTL': parseInt(req.body['cache.subscriptionTTL']) || 3600,
+                'cache.userTTL': parseInt(req.body['cache.userTTL']) || 900,
+                'cache.onlineSessionsTTL': parseInt(req.body['cache.onlineSessionsTTL']) || 10,
+                'cache.activeNodesTTL': parseInt(req.body['cache.activeNodesTTL']) || 30,
+                'rateLimit.subscriptionPerMinute': parseInt(req.body['rateLimit.subscriptionPerMinute']) || 100,
+                'sshPool.enabled': parseBool(req.body, 'sshPool.enabled'),
+                'sshPool.maxIdleTime': parseInt(req.body['sshPool.maxIdleTime']) || 120,
+                'sshPool.connectTimeout': parseInt(req.body['sshPool.connectTimeout']) || 15,
+                'sshPool.keepAliveInterval': parseInt(req.body['sshPool.keepAliveInterval']) || 30,
+                'sshPool.maxRetries': parseInt(req.body['sshPool.maxRetries']) || 2,
+                'nodeAuth.insecure': parseBool(req.body, 'nodeAuth.insecure'),
+                'featureFlags.cascadeHybrid': parseBool(req.body, 'featureFlags.cascadeHybrid'),
+            });
         }
         
         // Webhook settings (only when the dedicated webhook form is submitted)
@@ -136,6 +132,37 @@ router.post('/settings', async (req, res) => {
                 .filter(b => b && b.label && b.url)
                 .slice(0, 10)
                 .map(b => ({ label: String(b.label).trim(), url: String(b.url).trim(), icon: String(b.icon || '').trim() }));
+
+            if (req.body['_happSettings'] !== undefined) {
+                const validPingTypes = ['', 'proxy', 'proxy-head', 'tcp', 'icmp'];
+                const validInfoColors = ['', 'blue', 'green', 'red'];
+                const rawPingType = req.body['subscription.happ.pingType'] || '';
+                const rawInfoColor = req.body['subscription.happ.infoColor'] || 'blue';
+
+                updates['subscription.happ.announce'] = String(req.body['subscription.happ.announce'] || '').trim().slice(0, 200);
+                updates['subscription.happ.infoText'] = String(req.body['subscription.happ.infoText'] || '').trim().slice(0, 200);
+                updates['subscription.happ.infoColor'] = validInfoColors.includes(rawInfoColor) ? rawInfoColor : 'blue';
+                updates['subscription.happ.infoButtonText'] = String(req.body['subscription.happ.infoButtonText'] || '').trim().slice(0, 25);
+                updates['subscription.happ.infoButtonLink'] = String(req.body['subscription.happ.infoButtonLink'] || '').trim().slice(0, 500);
+                updates['subscription.happ.expireBannerEnabled'] = req.body['subscription.happ.expireBannerEnabled'] === 'on';
+                updates['subscription.happ.expireButtonLink'] = String(req.body['subscription.happ.expireButtonLink'] || '').trim().slice(0, 500);
+                updates['subscription.happ.hideSettings'] = req.body['subscription.happ.hideSettings'] === 'on';
+                updates['subscription.happ.notifyExpire'] = req.body['subscription.happ.notifyExpire'] === 'on';
+                updates['subscription.happ.alwaysHwid'] = req.body['subscription.happ.alwaysHwid'] === 'on';
+                updates['subscription.happ.pingType'] = validPingTypes.includes(rawPingType) ? rawPingType : '';
+                updates['subscription.happ.pingUrl'] = String(req.body['subscription.happ.pingUrl'] || '').trim().slice(0, 500);
+                updates['subscription.happ.colorProfile'] = (() => {
+                    const raw = String(req.body['subscription.happ.colorProfile'] || '').trim();
+                    if (!raw || raw.length > 5120) return '';
+                    try {
+                        const parsed = JSON.parse(raw);
+                        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return '';
+                        return JSON.stringify(parsed);
+                    } catch {
+                        return '';
+                    }
+                })();
+            }
         }
 
         // Backup settings

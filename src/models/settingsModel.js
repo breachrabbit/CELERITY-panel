@@ -91,6 +91,21 @@ const settingsSchema = new mongoose.Schema({
             }],
             default: [],
         },
+        happ: {
+            announce: { type: String, default: '' },
+            infoText: { type: String, default: '' },
+            infoColor: { type: String, enum: ['', 'blue', 'green', 'red'], default: 'blue' },
+            infoButtonText: { type: String, default: '' },
+            infoButtonLink: { type: String, default: '' },
+            expireBannerEnabled: { type: Boolean, default: false },
+            expireButtonLink: { type: String, default: '' },
+            hideSettings: { type: Boolean, default: false },
+            notifyExpire: { type: Boolean, default: false },
+            alwaysHwid: { type: Boolean, default: false },
+            pingType: { type: String, enum: ['', 'proxy', 'proxy-head', 'tcp', 'icmp'], default: '' },
+            pingUrl: { type: String, default: '' },
+            colorProfile: { type: String, default: '' },
+        },
     },
     
 }, { timestamps: true });

@@ -2,6 +2,7 @@
     servers {
         protocols h1 h2
     }
+    email {$ACME_EMAIL}
 }
 
 {$PANEL_DOMAIN} {
