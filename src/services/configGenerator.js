@@ -532,12 +532,14 @@ function generateXrayConfig(node, users) {
                 sniffing: {
                     enabled: true,
                     destOverride: ['http', 'tls', 'quic'],
-                    routeOnly: true,
+                    // Allow Xray to replace client-supplied IP literals with the
+                    // sniffed hostname so IPv4-only nodes can still reach dual-stack sites.
+                    routeOnly: false,
                 },
             },
         ],
         outbounds: [
-            { protocol: 'freedom', tag: 'direct' },
+            { protocol: 'freedom', tag: 'direct', settings: { domainStrategy: 'UseIPv4' } },
             { protocol: 'blackhole', tag: 'block' },
         ],
         routing: {
@@ -679,12 +681,12 @@ function generateXrayCascadeSidecarConfig(socksPort = 11080) {
                 sniffing: {
                     enabled: true,
                     destOverride: ['http', 'tls', 'quic'],
-                    routeOnly: true,
+                    routeOnly: false,
                 },
             },
         ],
         outbounds: [
-            { protocol: 'freedom', tag: 'direct' },
+            { protocol: 'freedom', tag: 'direct', settings: { domainStrategy: 'UseIPv4' } },
             { protocol: 'blackhole', tag: 'blackhole' },
         ],
         routing: {
@@ -1220,7 +1222,7 @@ function generateForwardHopConfig(linkOrLinks) {
             sniffing: {
                 enabled: true,
                 destOverride: ['http', 'tls', 'quic'],
-                routeOnly: true,
+                routeOnly: false,
             },
         };
     });
@@ -1278,7 +1280,7 @@ function applyForwardHopInbound(config, hopLinks) {
             sniffing: {
                 enabled: true,
                 destOverride: ['http', 'tls', 'quic'],
-                routeOnly: true,
+                routeOnly: false,
             },
         });
 

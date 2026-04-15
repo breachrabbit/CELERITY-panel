@@ -232,6 +232,10 @@ class SyncService {
             logger.info(`[Agent] Added user ${user.userId} to ${runtimeNode.name}`);
             return true;
         } catch (error) {
+            if (/already exists|HTTP 409/i.test(error.message)) {
+                logger.info(`[Agent] User ${user.userId} already present on ${runtimeNode.name}, keeping runtime entry`);
+                return true;
+            }
             logger.error(`[Agent] addXrayUser ${runtimeNode.name}/${user.userId}: ${error.message}`);
             return false;
         }

@@ -1162,6 +1162,34 @@ echo "Checking system..."
 echo "OS: $(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || uname -a)"
 echo "Arch: $(uname -m)"
 
+install_pkg() {
+    PKG="$1"
+
+    if command -v apt-get >/dev/null 2>&1; then
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y && apt-get install -y "$PKG"
+        return $?
+    fi
+
+    if command -v dnf >/dev/null 2>&1; then
+        dnf install -y "$PKG"
+        return $?
+    fi
+
+    if command -v yum >/dev/null 2>&1; then
+        yum install -y "$PKG"
+        return $?
+    fi
+
+    if command -v apk >/dev/null 2>&1; then
+        apk add --no-cache "$PKG"
+        return $?
+    fi
+
+    echo "ERROR: No supported package manager found to install $PKG"
+    return 1
+}
+
 # Xray installer may call tput; ensure TERM exists in non-interactive SSH sessions
 if [ -z "\${TERM:-}" ]; then
     export TERM=dumb
@@ -1170,13 +1198,13 @@ fi
 # Check if curl is available
 if ! command -v curl &> /dev/null; then
     echo "curl not found, installing..."
-    apt-get update && apt-get install -y curl || yum install -y curl || apk add curl
+    install_pkg curl
 fi
 
 # Ensure CA certificates exist for HTTPS downloads
 if ! command -v update-ca-certificates &> /dev/null && ! [ -f /etc/ssl/certs/ca-certificates.crt ]; then
     echo "ca-certificates may be missing, trying to install..."
-    apt-get update && apt-get install -y ca-certificates || yum install -y ca-certificates || apk add ca-certificates || true
+    install_pkg ca-certificates || true
 fi
 
 if ! command -v xray &> /dev/null; then
@@ -1249,7 +1277,7 @@ https://github.com/XTLS/Xray-install/raw/main/install-release.sh
 
         if ! command -v unzip &> /dev/null; then
             echo "unzip not found, installing..."
-            apt-get update && apt-get install -y unzip || yum install -y unzip || apk add unzip
+            install_pkg unzip
         fi
 
         TMP_DIR=$(mktemp -d)
