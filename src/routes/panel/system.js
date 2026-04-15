@@ -10,7 +10,7 @@ const fsp = fs.promises;
 const { createReadStream } = require('fs');
 const readline = require('readline');
 const { promisify } = require('util');
-const exec = promisify(require('child_process').exec);
+const execFile = promisify(require('child_process').execFile);
 
 const HyNode = require('../../models/hyNodeModel');
 const cache = require('../../services/cacheService');
@@ -207,13 +207,11 @@ router.post('/backup', async (req, res) => {
         const archivePath = path.join(backupDir, `${backupName}.tar.gz`);
 
         const mongoUri = config.MONGO_URI;
-        const dumpCmd = `mongodump --uri="${mongoUri}" --out="${backupPath}" --gzip`;
-
-        await exec(dumpCmd);
+        await execFile('mongodump', ['--uri', mongoUri, '--out', backupPath, '--gzip']);
         logger.info(`[Backup] Dump created: ${backupPath}`);
 
-        const tarCmd = `cd "${backupDir}" && tar -czf "${backupName}.tar.gz" "${backupName}" && rm -rf "${backupName}"`;
-        await exec(tarCmd);
+        await execFile('tar', ['-czf', archivePath, '-C', backupDir, backupName]);
+        await fsp.rm(backupPath, { recursive: true, force: true });
         logger.info(`[Backup] Archive created: ${archivePath}`);
 
         res.download(archivePath, `${backupName}.tar.gz`, (err) => {
@@ -239,7 +237,7 @@ router.post('/restore', backupUpload.single('backup'), async (req, res) => {
     try {
         fs.mkdirSync(extractDir, { recursive: true });
 
-        await exec(`tar -xzf "${uploadedFile}" -C "${extractDir}"`);
+        await execFile('tar', ['-xzf', uploadedFile, '-C', extractDir]);
         logger.info(`[Restore] Archive extracted to ${extractDir}`);
 
         const findDumpPath = (dir) => {
@@ -264,19 +262,17 @@ router.post('/restore', backupUpload.single('backup'), async (req, res) => {
 
         const mongoUri = config.MONGO_URI;
         const hysteriaDir = path.join(dumpPath, 'hysteria');
-        const restoreCmd = `mongorestore --uri="${mongoUri}" --drop --gzip --db=hysteria "${hysteriaDir}"`;
-
         logger.info(`[Restore] DB folder: ${hysteriaDir}`);
-        logger.info(`[Restore] Command: ${restoreCmd.replace(mongoUri, 'MONGO_URI')}`);
+        logger.info('[Restore] Command: mongorestore --uri=MONGO_URI --drop --gzip --db=hysteria <dump>');
 
-        const { stdout, stderr } = await exec(restoreCmd);
+        const { stdout, stderr } = await execFile('mongorestore', ['--uri', mongoUri, '--drop', '--gzip', '--db=hysteria', hysteriaDir]);
         if (stdout) logger.info(`[Restore] stdout: ${stdout}`);
         if (stderr) logger.info(`[Restore] stderr: ${stderr}`);
 
         logger.info(`[Restore] Database restored successfully`);
 
         fs.unlinkSync(uploadedFile);
-        await exec(`rm -rf "${extractDir}"`);
+        await fsp.rm(extractDir, { recursive: true, force: true });
 
         res.json({ success: true, message: 'База данных успешно восстановлена' });
     } catch (error) {
@@ -286,7 +282,7 @@ router.post('/restore', backupUpload.single('backup'), async (req, res) => {
 
         try {
             if (fs.existsSync(uploadedFile)) fs.unlinkSync(uploadedFile);
-            await exec(`rm -rf "${extractDir}"`);
+            await fsp.rm(extractDir, { recursive: true, force: true });
         } catch (e) {}
 
         res.status(500).json({ error: error.message });

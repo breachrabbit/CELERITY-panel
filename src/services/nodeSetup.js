@@ -931,7 +931,7 @@ ls -la /etc/hysteria/*.pem
 echo "=== Setting up for ACME ==="
 
 mkdir -p /etc/hysteria/acme
-chmod 777 /etc/hysteria/acme
+chmod 700 /etc/hysteria/acme
 chmod 755 /etc/hysteria
 echo "Done: ACME directory created with correct permissions"
 
