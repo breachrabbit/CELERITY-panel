@@ -120,7 +120,7 @@ function setSidebarCollapsed(collapsed, persist = false) {
         const icon = toggle.querySelector('i');
         const label = toggle.querySelector('.sidebar-toggle-label');
         if (icon) {
-            icon.className = collapsed ? 'ti ti-panel-left-open' : 'ti ti-panel-left-close';
+            icon.className = collapsed ? 'ti ti-chevrons-right' : 'ti ti-chevrons-left';
         }
         if (label) {
             label.textContent = collapsed ? expandLabel : collapseLabel;
