@@ -2,6 +2,32 @@
 
 ## 2026-04-16
 
+- Started the first live experimental `Cascade Builder` implementation inside this fork.
+- Added a separate builder route/page/API instead of extending the legacy `Nodes -> Network Map` surface:
+  - `/panel/cascades/builder`
+  - `/api/cascade-builder/state`
+  - `/api/cascade-builder/validate`
+  - `/api/cascade-builder/connect`
+  - `/api/cascade-builder/layout`
+  - `/api/cascade-builder/drafts`
+- Introduced a small builder domain layer:
+  - `flowNormalizer` converts current topology into a flow-shaped DTO;
+  - `flowValidator` applies structural/protocol/runtime-lite validation rules.
+- Chose a transitional persistence model for v1:
+  - live topology remains the read-source through `cascadeService.getTopology()`;
+  - builder drafts/layout are now a separate Redis-backed draft-source in `cacheService`;
+  - draft state is operator-scoped and intentionally not treated as shared topology truth.
+- Explicitly separated what v1 is and is not:
+  - yes: experimental flow canvas, inspector, validation, draft drag-connect, draft layout persistence;
+  - no: final Hidden Rabbit UX, shared flow storage, versioning, branching, rollback, deploy preview parity.
+- Added an explicit UI fallback when Cytoscape assets are unavailable so the page fails loudly instead of appearing empty.
+
+Change types:
+
+- `local patch` — experimental cascade builder scaffold
+- `local patch` — Redis-backed builder draft state
+- `stability fix` — explicit canvas fallback and clearer state boundaries
+
 - Added isolated continuity documentation layer under `docs/`.
 - Added `ISOLATED-PROJECT-RULE.md` and formalized hard project isolation.
 - Added baseline continuity documents:

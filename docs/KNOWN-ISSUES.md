@@ -2,6 +2,25 @@
 
 ## Active Product / UX Issues
 
+### 0. Cascade Builder is experimental and still transitional
+
+Current state:
+
+- there is now a separate experimental builder page and API;
+- builder reads live topology from `cascadeService.getTopology()`;
+- builder drafts/layout are stored separately in Redis as operator-scoped draft state;
+- accepted drag-connect drafts survive refresh for the same operator, but are not yet committed into legacy cascade links.
+
+Still missing:
+
+- shared/persistent flow storage;
+- `commit draft -> legacy link` bridge;
+- deploy-preview parity;
+- local bundled graph assets instead of CDN dependency;
+- true flow-native role storage independent of legacy node `cascadeRole`.
+
+Status: `pending`
+
 ### 1. Shell layout still drifts / shifts after navigation
 
 User reports that parts of the panel still move outside the browser width until the window is nudged or layout is recalculated.

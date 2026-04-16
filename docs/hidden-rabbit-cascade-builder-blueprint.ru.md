@@ -1,5 +1,26 @@
 # Hidden Rabbit Visual Cascade Builder — Blueprint
 
+## Текущий статус в этом форке
+
+В этом изолированном форке уже начат **experimental builder v1**.
+
+Что уже реализовано:
+
+- отдельный route/page для builder;
+- отдельный builder API;
+- отдельный builder JS/CSS bundle;
+- нормализация live-topology в flow-представление;
+- draft drag-to-connect;
+- server-side validation;
+- Redis-backed draft state для временных хопов и builder-only layout.
+
+Что важно:
+
+- это не финальный Hidden Rabbit builder;
+- это transitional `legacy-backed` реализация для проверки модели, UX и validation contract;
+- read-source сейчас — live topology;
+- draft-source сейчас — отдельный Redis draft layer.
+
 ## Зачем это нужно
 
 Одна из будущих ключевых фич Hidden Rabbit — визуальный конструктор каскадов.

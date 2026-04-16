@@ -6,8 +6,84 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Xray true per-device/session telemetry.
+- Current working focus: Xray true per-device/session telemetry and experimental Cascade Builder v1.
 - Current local patch adds `cc-agent` `/sessions` support and panel-side consumption of real Xray session records.
+
+## 2026-04-16 Cascade Builder v1 Stop-Point
+
+- A first experimental `Cascade Builder` route now exists:
+  - panel page: `/panel/cascades/builder`
+  - API: `/api/cascade-builder/*`
+- Builder is intentionally **legacy-backed**, not a new persistent topology product yet.
+
+### What now exists
+
+- Separate panel route and navigation entry:
+  - `src/routes/panel/cascades.js`
+  - `views/layout.ejs`
+- Separate builder API:
+  - `src/routes/cascadeBuilder.js`
+- New builder domain layer:
+  - `src/domain/cascade-builder/flowNormalizer.js`
+  - `src/domain/cascade-builder/flowValidator.js`
+- Separate page/assets:
+  - `views/cascade-builder.ejs`
+  - `public/js/cascade-builder.js`
+  - `public/css/cascade-builder.css`
+
+### Source of truth boundary
+
+- Read-source:
+  - `cascadeService.getTopology()`
+  - current node metadata / live topology positions
+- Draft-source:
+  - Redis-backed builder draft state in `cacheService`
+  - key family: `builder:draft:{actorKey}:{flowId}`
+- Current draft state stores only:
+  - draft hops
+  - builder-specific node positions
+  - update timestamp
+
+### Current v1 behavior
+
+- builder opens current topology as normalized flow state;
+- validation runs over normalized nodes + live hops + draft hops;
+- drag-to-connect creates a draft hop suggestion and persists accepted drafts into Redis;
+- `Save layout` now saves builder layout to builder draft state, not to legacy topology positions;
+- `Reset drafts` clears only draft hops and preserves builder layout;
+- if Cytoscape assets fail to load, the canvas now shows an explicit fallback state instead of silently dying.
+
+### Validation contract currently implemented
+
+- structural:
+  - missing node refs;
+  - self-link;
+  - duplicate hop;
+  - cycle detection;
+  - multi-upstream / multi-downstream warnings
+- protocol:
+  - stack inference (`xray`, `hysteria2`, `hybrid`)
+  - hybrid-disabled error
+  - invalid `reality + ws` combination
+- runtime-lite:
+  - missing SSH warning
+  - offline node warning
+
+### Important limitations still true
+
+- builder is still `legacy-backed`, not flow-native storage;
+- draft state is operator-scoped Redis state, not shared project data;
+- there is still no `commit-hop` / deploy-preview write path from builder into legacy links;
+- roles are inferred inside the builder flow, but legacy node `cascadeRole` remains the live topology role source;
+- Cytoscape/Dagre/Edgehandles are still CDN-loaded for this experimental step.
+
+### Stop-point
+
+- experimental builder scaffold is in active local work and has passed syntax/JSON/EJS checks;
+- next best step:
+  1. verify the page live after deploy;
+  2. decide whether to add `commit draft -> legacy link` as the next builder action;
+  3. then continue Android mobile menu / responsive cleanup on the rest of the panel.
 
 ## 2026-04-16 Mobile / i18n In-Progress Stop-Point
 

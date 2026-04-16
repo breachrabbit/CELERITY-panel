@@ -32,6 +32,7 @@ const backupService = require('./src/services/backupService');
 const usersRoutes = require('./src/routes/users');
 const nodesRoutes = require('./src/routes/nodes');
 const cascadeRoutes = require('./src/routes/cascade');
+const cascadeBuilderRoutes = require('./src/routes/cascadeBuilder');
 const subscriptionRoutes = require('./src/routes/subscription');
 const authRoutes = require('./src/routes/auth');
 const panelRoutes = require('./src/routes/panel');
@@ -310,6 +311,7 @@ app.use('/api', subscriptionRoutes);
 app.use('/api/users', requireAuth, usersRoutes);
 app.use('/api/nodes', requireAuth, nodesRoutes);
 app.use('/api/cascade', requireAuth, cascadeRoutes);
+app.use('/api/cascade-builder', requireAuth, cascadeBuilderRoutes);
 app.use('/api/mcp', requireAuth, mcpRoutes);
 
 app.get('/api/groups', requireAuth, requireScope('stats:read'), async (req, res) => {

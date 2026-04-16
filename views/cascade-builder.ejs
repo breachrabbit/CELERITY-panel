@@ -1,0 +1,147 @@
+<link rel="stylesheet" href="/css/cascade-builder.css">
+
+<div class="builder-shell">
+    <section class="builder-hero">
+        <div class="builder-hero-copy">
+            <span class="builder-eyebrow"><%= t('cascades.builderEyebrow') %></span>
+            <h2 class="builder-title"><%= t('cascades.builderTitle') %></h2>
+            <p class="builder-subtitle"><%= t('cascades.builderSubtitle') %></p>
+            <div class="builder-meta-note">
+                <i class="ti ti-git-branch"></i>
+                <span id="builderSourceMeta"><%= t('cascades.builderSourceMeta') %></span>
+            </div>
+        </div>
+        <div class="builder-hero-actions">
+            <button class="btn btn-secondary" id="builderAutoLayout">
+                <i class="ti ti-layout-distribute-horizontal"></i>
+                <span><%= t('cascades.autoLayout') %></span>
+            </button>
+            <button class="btn btn-secondary" id="builderFitView">
+                <i class="ti ti-focus-2"></i>
+                <span><%= t('cascades.fitView') %></span>
+            </button>
+            <button class="btn btn-secondary" id="builderSaveLayout">
+                <i class="ti ti-device-floppy"></i>
+                <span><%= t('cascades.saveLayout') %></span>
+            </button>
+            <button class="btn btn-primary" id="builderValidate">
+                <i class="ti ti-checkup-list"></i>
+                <span><%= t('cascades.validateDraft') %></span>
+            </button>
+        </div>
+    </section>
+
+    <section class="builder-summary" id="builderSummary">
+        <div class="builder-summary-item">
+            <span class="builder-summary-label"><%= t('cascades.summaryNodes') %></span>
+            <strong id="summaryNodes">0</strong>
+        </div>
+        <div class="builder-summary-item">
+            <span class="builder-summary-label"><%= t('cascades.summaryHops') %></span>
+            <strong id="summaryHops">0</strong>
+        </div>
+        <div class="builder-summary-item">
+            <span class="builder-summary-label"><%= t('cascades.summaryStatus') %></span>
+            <strong id="summaryStatus">—</strong>
+        </div>
+        <div class="builder-summary-item">
+            <span class="builder-summary-label"><%= t('cascades.summaryWarnings') %></span>
+            <strong id="summaryWarnings">0</strong>
+        </div>
+    </section>
+
+    <section class="builder-workspace">
+        <aside class="builder-library">
+            <div class="builder-panel-head">
+                <h3><%= t('cascades.libraryTitle') %></h3>
+                <p><%= t('cascades.libraryHint') %></p>
+            </div>
+            <div class="builder-library-list" id="builderNodeLibrary"></div>
+        </aside>
+
+        <div class="builder-canvas-wrap">
+            <div class="builder-canvas-toolbar">
+                <div class="builder-canvas-hint">
+                    <i class="ti ti-route-2"></i>
+                    <span><%= t('cascades.dragHint') %></span>
+                </div>
+                <div class="builder-canvas-actions">
+                    <button class="btn btn-secondary btn-sm" id="builderResetDrafts">
+                        <i class="ti ti-eraser"></i>
+                        <span><%= t('cascades.resetDrafts') %></span>
+                    </button>
+                    <a class="btn btn-secondary btn-sm" href="/panel/nodes">
+                        <i class="ti ti-topology-star-3"></i>
+                        <span><%= t('cascades.openLegacyMap') %></span>
+                    </a>
+                </div>
+            </div>
+            <div id="builderCy" class="builder-canvas"></div>
+        </div>
+
+        <aside class="builder-inspector">
+            <div class="builder-panel-head">
+                <h3><%= t('cascades.inspectorTitle') %></h3>
+                <p><%= t('cascades.inspectorHint') %></p>
+            </div>
+            <div class="builder-inspector-body" id="builderInspectorBody">
+                <div class="builder-empty-state">
+                    <i class="ti ti-pointer"></i>
+                    <p><%= t('cascades.inspectorEmpty') %></p>
+                </div>
+            </div>
+            <div class="builder-validation-box" id="builderValidationBox">
+                <div class="builder-validation-head">
+                    <h4><%= t('cascades.validationTitle') %></h4>
+                    <span class="builder-validation-badge" id="builderValidationBadge">—</span>
+                </div>
+                <div class="builder-validation-list" id="builderValidationList">
+                    <p class="builder-validation-empty"><%= t('cascades.validationEmpty') %></p>
+                </div>
+            </div>
+        </aside>
+    </section>
+</div>
+
+<script>
+window._cascadeBuilderI18n = {
+    loading: <%- JSON.stringify(t('cascades.loading')) %>,
+    source: <%- JSON.stringify(t('cascades.source')) %>,
+    target: <%- JSON.stringify(t('cascades.target')) %>,
+    mode: <%- JSON.stringify(t('cascades.mode')) %>,
+    stack: <%- JSON.stringify(t('cascades.stack')) %>,
+    status: <%- JSON.stringify(t('cascades.status')) %>,
+    role: <%- JSON.stringify(t('cascades.role')) %>,
+    protocol: <%- JSON.stringify(t('cascades.protocol')) %>,
+    security: <%- JSON.stringify(t('cascades.security')) %>,
+    transport: <%- JSON.stringify(t('cascades.transport')) %>,
+    onlineUsers: <%- JSON.stringify(t('cascades.onlineUsers')) %>,
+    nodeType: <%- JSON.stringify(t('cascades.nodeType')) %>,
+    country: <%- JSON.stringify(t('cascades.country')) %>,
+    warnings: <%- JSON.stringify(t('cascades.summaryWarnings')) %>,
+    validateOk: <%- JSON.stringify(t('cascades.validateOk')) %>,
+    validateWarning: <%- JSON.stringify(t('cascades.validateWarning')) %>,
+    validateError: <%- JSON.stringify(t('cascades.validateError')) %>,
+    acceptedDraft: <%- JSON.stringify(t('cascades.acceptedDraft')) %>,
+    rejectedDraft: <%- JSON.stringify(t('cascades.rejectedDraft')) %>,
+    layoutSaved: <%- JSON.stringify(t('cascades.layoutSaved')) %>,
+    layoutSaveFailed: <%- JSON.stringify(t('cascades.layoutSaveFailed')) %>,
+    validationFailed: <%- JSON.stringify(t('cascades.validationFailed')) %>,
+    connectFailed: <%- JSON.stringify(t('cascades.connectFailed')) %>,
+    stateFailed: <%- JSON.stringify(t('cascades.stateFailed')) %>,
+    draftTag: <%- JSON.stringify(t('cascades.draftTag')) %>,
+    requiresHybrid: <%- JSON.stringify(t('cascades.requiresHybrid')) %>,
+    noIssues: <%- JSON.stringify(t('cascades.noIssues')) %>,
+    ssh: <%- JSON.stringify(t('cascades.ssh')) %>,
+    configured: <%- JSON.stringify(t('cascades.configured')) %>,
+    missing: <%- JSON.stringify(t('cascades.missing')) %>,
+    draftsReset: <%- JSON.stringify(t('cascades.draftsReset')) %>,
+    resetDraftsFailed: <%- JSON.stringify(t('cascades.resetDraftsFailed')) %>,
+    cyUnavailable: <%- JSON.stringify(t('cascades.cyUnavailable')) %>,
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.4/cytoscape.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-edgehandles@4.0.1/cytoscape-edgehandles.min.js" crossorigin="anonymous"></script>
+<script src="/js/cascade-builder.js"></script>

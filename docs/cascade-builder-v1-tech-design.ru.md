@@ -1,5 +1,26 @@
 # Cascade Builder v1 — Technical Design
 
+## Реальный статус реализации
+
+На текущем этапе `v1` уже запущен как experimental scaffold внутри этого форка:
+
+- page route: `/panel/cascades/builder`
+- API route: `/api/cascade-builder/*`
+- domain layer:
+  - `flowNormalizer.js`
+  - `flowValidator.js`
+- frontend bundle:
+  - `views/cascade-builder.ejs`
+  - `public/js/cascade-builder.js`
+  - `public/css/cascade-builder.css`
+
+Дополнительно принят важный transitional компромисс:
+
+- topology read-source = `cascadeService.getTopology()`
+- draft write-source = Redis-backed builder draft state in `cacheService`
+
+Это позволяет уже сейчас тестировать flow-centric UX, не ломая legacy topology storage.
+
 ## Цель v1
 
 Сделать первый рабочий experimental-раздел внутри этого форка, который позволит:

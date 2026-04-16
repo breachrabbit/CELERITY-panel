@@ -2,6 +2,10 @@
 
 ## Near Term
 
+- stabilize the experimental `Cascade Builder` route:
+  - verify the separate page on the live stand;
+  - keep the topology read-source and draft write-source boundaries explicit;
+  - decide whether to add `commit draft -> legacy link` before deeper UX work;
 - resolve the persistent shell/layout drift bug across dashboard, stats, login, and page navigation;
 - make the left sidebar reliably stretch to full height on long pages;
 - finish current admin UI redesign in a flatter, cleaner visual language;
@@ -39,7 +43,7 @@
 - review upstream changes and decide which fixes or improvements should be ported;
 - turn the current network-map/cascade layer into an experimental visual cascade builder track:
   - separate flow-centric builder direction from the current link-centric UI;
-  - validate drag-to-connect, inspector, and deploy-preview UX in this fork first;
+  - validate drag-to-connect, inspector, draft-state, and deploy-preview UX in this fork first;
   - later reuse only the mature topology/domain ideas in Hidden Rabbit;
 - evaluate specific upstream features now visible in audit:
   - onboarding flow;

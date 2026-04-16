@@ -24,6 +24,7 @@ const DEFAULT_TTL = {
     GROUPS: 300,             // 5 minutes
     DASHBOARD_COUNTS: 60,    // 1 minute
     QR: 3600,                // 1 hour (QR code for subscription URL)
+    BUILDER_DRAFT: 86400,    // 24 hours for experimental cascade drafts
 };
 
 // Key prefixes
@@ -38,6 +39,7 @@ const PREFIX = {
     TRAFFIC_STATS: 'traffic:stats', // Total traffic stats
     GROUPS: 'groups:active', // Active groups
     DASHBOARD_COUNTS: 'dashboard:counts', // Dashboard counters
+    BUILDER_DRAFT: 'builder:draft:', // builder:draft:{actorKey}:{flowId}
 };
 
 class CacheService {
@@ -723,6 +725,52 @@ class CacheService {
             logger.debug('[Cache] INVALIDATE dashboard counts');
         } catch (err) {
             logger.error(`[Cache] invalidateDashboardCounts error: ${err.message}`);
+        }
+    }
+
+    // ==================== CASCADE BUILDER DRAFTS ====================
+
+    async getCascadeBuilderDraft(actorKey, flowId = 'legacy-topology') {
+        if (!this.isConnected()) return null;
+
+        try {
+            const key = `${PREFIX.BUILDER_DRAFT}${actorKey}:${flowId}`;
+            const data = await this.redis.get(key);
+            return data ? JSON.parse(data) : null;
+        } catch (err) {
+            logger.error(`[Cache] getCascadeBuilderDraft error: ${err.message}`);
+            return null;
+        }
+    }
+
+    async setCascadeBuilderDraft(actorKey, flowId = 'legacy-topology', draftState = {}) {
+        if (!this.isConnected()) return;
+
+        try {
+            const key = `${PREFIX.BUILDER_DRAFT}${actorKey}:${flowId}`;
+            const payload = {
+                draftHops: Array.isArray(draftState?.draftHops) ? draftState.draftHops : [],
+                nodePositions: draftState?.nodePositions && typeof draftState.nodePositions === 'object'
+                    ? draftState.nodePositions
+                    : {},
+                updatedAt: new Date().toISOString(),
+            };
+            await this.redis.setex(key, DEFAULT_TTL.BUILDER_DRAFT, JSON.stringify(payload));
+            logger.debug(`[Cache] SET cascade builder draft: ${actorKey}:${flowId}`);
+        } catch (err) {
+            logger.error(`[Cache] setCascadeBuilderDraft error: ${err.message}`);
+        }
+    }
+
+    async clearCascadeBuilderDraft(actorKey, flowId = 'legacy-topology') {
+        if (!this.isConnected()) return;
+
+        try {
+            const key = `${PREFIX.BUILDER_DRAFT}${actorKey}:${flowId}`;
+            await this.redis.del(key);
+            logger.debug(`[Cache] CLEAR cascade builder draft: ${actorKey}:${flowId}`);
+        } catch (err) {
+            logger.error(`[Cache] clearCascadeBuilderDraft error: ${err.message}`);
         }
     }
 

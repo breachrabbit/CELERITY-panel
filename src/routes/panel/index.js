@@ -10,6 +10,7 @@ const { checkIpWhitelist, requireAuth } = require('./helpers');
 
 const authRoutes = require('./auth');
 const nodesRoutes = require('./nodes');
+const cascadesRoutes = require('./cascades');
 const usersRoutes = require('./users');
 const settingsRoutes = require('./settings');
 const systemRoutes = require('./system');
@@ -22,6 +23,7 @@ router.use('/', authRoutes);
 
 // All other routes require authentication
 router.use('/', requireAuth, nodesRoutes);
+router.use('/', requireAuth, cascadesRoutes);
 router.use('/', requireAuth, usersRoutes);
 router.use('/', requireAuth, settingsRoutes);
 router.use('/', requireAuth, systemRoutes);
