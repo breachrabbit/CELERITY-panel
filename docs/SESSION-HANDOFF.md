@@ -181,9 +181,8 @@ After deploy, verify on long pages:
 - Continued the shell/chart polish queue after the sticky sidebar deployment.
 - Sidebar behavior was tightened:
   - `.sidebar` remains viewport-sticky;
-  - `.sidebar-inner` no longer scrolls as one whole block;
-  - `.nav-menu` is now the scrollable middle area;
-  - footer controls remain attached to the bottom of the viewport-height sidebar.
+  - dashboard/footer behavior was iterated after live feedback;
+  - the intermediate version where only `.nav-menu` scrolled is no longer the intended final direction.
 - Dashboard chart polish:
   - traffic chart surface is slightly taller and calmer;
   - visible markers are capped more aggressively;
@@ -205,6 +204,26 @@ After deploy, verify:
 3. dashboard logs align better with the right widget stack;
 4. dashboard traffic chart and statistics charts feel visually consistent;
 5. dark-theme dashboard rings are not black.
+
+## 2026-04-16 Sticky Sidebar and Dashboard Sparkline Rework
+
+- User reported that the previous footer-pinned/sidebar-middle-scroll approach still did not match the desired behavior.
+- Prepared a follow-up shell correction:
+  - the full desktop sidebar stays sticky to the viewport;
+  - the nav block no longer acts as an internal scroll container on desktop.
+- Prepared a dashboard sparkline geometry correction:
+  - chart content is now width-constrained inside the hero card;
+  - chart area height and SVG canvas height were increased;
+  - tooltip/focus geometry was adjusted to avoid the flattened “stretched ribbon” look.
+
+### Current Verification Need
+
+After deploy, verify:
+
+1. the whole desktop sidebar stays visually fixed while the page scrolls;
+2. the footer no longer appears to drift because of nested nav scrolling;
+3. the main dashboard traffic chart reads as a balanced card, not a stretched horizontal strip;
+4. peaks and tooltip now have enough vertical space on desktop and tablet widths.
 
 ## Known Broken / Risky / Pending
 

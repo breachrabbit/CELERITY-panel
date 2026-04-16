@@ -218,3 +218,18 @@ Change type:
 
 - `local patch` — shell footer and chart visual polish
 - `stability fix` — dashboard logs height alignment follow-up
+
+## 2026-04-16 Sticky Sidebar and Dashboard Sparkline Rework
+
+- Reworked the desktop sidebar behavior again after live feedback:
+  - sidebar remains viewport-sticky as a whole column;
+  - removed the separate scrolling behavior from the nav block so the full sidebar behaves like one fixed shell instead of a nested scroll area.
+- Reworked the main dashboard traffic card geometry:
+  - constrained the chart content width inside the hero card;
+  - increased chart height and internal SVG canvas height;
+  - adjusted focus-line bounds and vertical padding so peaks and tooltips no longer feel flattened into a banner-like strip.
+
+Change type:
+
+- `stability fix` — desktop sidebar viewport behavior correction
+- `local patch` — dashboard traffic sparkline proportion and geometry refinement

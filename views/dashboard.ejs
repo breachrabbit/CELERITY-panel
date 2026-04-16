@@ -101,7 +101,7 @@ const deviceUsagePct = limitedDeviceCapacity
                 data-points='<%- JSON.stringify(sparklinePoints) %>'
                 aria-label="<%= t('dashboard.trafficChart') %>"
             >
-                <svg class="sparkline-svg" viewBox="0 0 320 152" preserveAspectRatio="none" aria-hidden="true">
+                <svg class="sparkline-svg" viewBox="0 0 320 184" preserveAspectRatio="none" aria-hidden="true">
                     <defs>
                         <linearGradient id="trafficLineFill" x1="0" x2="0" y1="0" y2="1">
                             <stop offset="0%" stop-color="rgba(8,197,203,0.18)"></stop>
@@ -112,7 +112,7 @@ const deviceUsagePct = limitedDeviceCapacity
                     <path class="sparkline-line" d=""></path>
                     <g class="sparkline-points"></g>
                     <g class="sparkline-focus" hidden>
-                        <line class="sparkline-focus-line" x1="0" y1="16" x2="0" y2="132"></line>
+                        <line class="sparkline-focus-line" x1="0" y1="20" x2="0" y2="158"></line>
                         <circle class="sparkline-focus-dot" cx="0" cy="0" r="5"></circle>
                     </g>
                 </svg>
@@ -600,10 +600,10 @@ function initTrafficSparkline() {
     const footerNodes = chart.parentElement?.querySelectorAll('.sparkline-foot span');
     const periodButtons = Array.from(document.querySelectorAll('[data-sparkline-period]'));
     const width = 320;
-    const height = 152;
+    const height = 184;
     const paddingX = 10;
-    const paddingTop = 26;
-    const paddingBottom = 22;
+    const paddingTop = 24;
+    const paddingBottom = 26;
     const usableWidth = width - paddingX * 2;
     const usableHeight = height - paddingTop - paddingBottom;
     let points = [];

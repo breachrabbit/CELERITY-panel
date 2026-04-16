@@ -95,3 +95,11 @@
   - made statistics charts cleaner and more consistent with the dashboard chart style.
 - Next step:
   - deploy and visually verify sidebar footer stickiness, dashboard logs alignment, and statistics chart readability.
+
+- Sidebar/chart correction follow-up:
+  - user reported the independent nav scroll still felt wrong;
+  - sidebar was moved back toward a whole-column sticky behavior;
+  - dashboard traffic sparkline was reworked to be narrower/taller with a higher internal SVG canvas.
+- Next step:
+  - deploy and verify that the sidebar now behaves like a true fixed shell;
+  - verify the dashboard traffic card no longer looks horizontally stretched.

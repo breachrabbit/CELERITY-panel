@@ -156,7 +156,7 @@ html.layout-stabilizing * {
     z-index: 100;
     min-width: 0;
     align-self: start;
-    overflow: hidden;
+    overflow: clip;
     transition: width 0.22s ease, border-color 0.22s ease;
 }
 
@@ -166,8 +166,7 @@ html.layout-stabilizing * {
     display: flex;
     flex-direction: column;
     background: inherit;
-    overflow: hidden;
-    overscroll-behavior: contain;
+    overflow: clip;
     transition: padding 0.22s ease;
 }
 
@@ -273,9 +272,8 @@ html.layout-stabilizing * {
     padding: 16px 12px;
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
+    overflow: visible;
+    scrollbar-width: none;
 }
 
 .nav-menu li {
@@ -866,6 +864,13 @@ html.layout-stabilizing * {
     min-width: 0;
 }
 
+.hero-sparkline-card .sparkline-copy,
+.hero-sparkline-card .sparkline-visual,
+.hero-sparkline-card .sparkline-foot {
+    width: min(100%, 920px);
+    margin-inline: auto;
+}
+
 .sparkline-copy strong {
     font-size: 26px;
 }
@@ -920,9 +925,10 @@ html.layout-stabilizing * {
 }
 
 .sparkline-visual {
-    --sparkline-height: clamp(226px, 23vw, 284px);
+    --sparkline-height: clamp(244px, 28vw, 336px);
     position: relative;
     min-height: var(--sparkline-height);
+    aspect-ratio: 2.5 / 1;
     border-radius: 18px;
     border: 1px dashed rgba(5,10,60,0.12);
     background:
@@ -959,7 +965,7 @@ html.layout-stabilizing * {
 .sparkline-svg {
     display: block;
     width: 100%;
-    height: var(--sparkline-height);
+    height: 100%;
 }
 
 .sparkline-area {
@@ -2932,6 +2938,12 @@ html.layout-stabilizing * {
     .settings-grid {
         grid-template-columns: 1fr;
     }
+
+    .hero-sparkline-card .sparkline-copy,
+    .hero-sparkline-card .sparkline-visual,
+    .hero-sparkline-card .sparkline-foot {
+        width: 100%;
+    }
 }
 
 @media (max-width: 768px) {
@@ -3296,7 +3308,8 @@ html.layout-stabilizing * {
     }
 
     .sparkline-visual {
-        --sparkline-height: 196px;
+        --sparkline-height: 220px;
+        aspect-ratio: auto;
     }
 
     .sparkline-copy {
