@@ -105,6 +105,32 @@ const settingsSchema = new mongoose.Schema({
             pingType: { type: String, enum: ['', 'proxy', 'proxy-head', 'tcp', 'icmp'], default: '' },
             pingUrl: { type: String, default: '' },
             colorProfile: { type: String, default: '' },
+            display: {
+                showTrafficProgress: { type: Boolean, default: true },
+                showTrafficDetails: { type: Boolean, default: true },
+                showDevices: { type: Boolean, default: true },
+                showSupportStatus: { type: Boolean, default: true },
+                showSupportPeriod: { type: Boolean, default: true },
+            },
+            support: {
+                enabled: { type: Boolean, default: true },
+                amountRub: { type: Number, default: 200 },
+                periodDays: { type: Number, default: 30 },
+                buttonText: { type: String, default: '' },
+                buttonLink: { type: String, default: '' },
+                neutralText: {
+                    type: String,
+                    default: 'Сервис работает в обычном режиме. Поддержка инфраструктуры добровольная.',
+                },
+                activeText: {
+                    type: String,
+                    default: 'Спасибо. Поддержка инфраструктуры для этого периода отмечена.',
+                },
+                overdueText: {
+                    type: String,
+                    default: 'Сервис продолжает работать. При желании можно поддержать инфраструктуру в текущем периоде.',
+                },
+            },
         },
     },
     

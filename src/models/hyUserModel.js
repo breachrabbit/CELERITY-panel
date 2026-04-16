@@ -71,6 +71,17 @@ const hyUserSchema = new mongoose.Schema({
         type: Date,
         default: null,
     },
+
+    support: {
+        dueAt: {
+            type: Date,
+            default: null,
+        },
+        lastPaymentAt: {
+            type: Date,
+            default: null,
+        },
+    },
     
 }, { timestamps: true });
 
@@ -109,4 +120,3 @@ hyUserSchema.statics.findByToken = function(token) {
 };
 
 module.exports = mongoose.model('HyUser', hyUserSchema);
-

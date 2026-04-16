@@ -64,7 +64,7 @@
                                 deviceLimitStr = deviceLimit.toString();
                             }
                         %>
-                        <span class="value"><%= deviceLimitStr %></span>
+                        <span class="value"><%= activeDevices || 0 %> / <%= deviceLimitStr %></span>
                     </div>
                     <div class="detail-item">
                         <label><%= t('users.txRx') %></label>
@@ -80,6 +80,14 @@
                     <div class="detail-item">
                         <label><%= t('users.expires') %></label>
                         <span class="value"><%= user.expireAt ? new Date(user.expireAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : t('users.forever') %></span>
+                    </div>
+                    <div class="detail-item">
+                        <label><%= t('users.supportDueAt') %></label>
+                        <span class="value"><%= user.support?.dueAt ? new Date(user.support.dueAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></span>
+                    </div>
+                    <div class="detail-item">
+                        <label><%= t('users.supportLastPaymentAt') %></label>
+                        <span class="value"><%= user.support?.lastPaymentAt ? new Date(user.support.lastPaymentAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></span>
                     </div>
                 </div>
                 

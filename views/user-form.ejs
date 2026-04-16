@@ -8,6 +8,8 @@ const trafficLimitGB = isEditMode ? Math.round((user.trafficLimit || 0) / (1024 
 const maxDevicesValue = isEditMode ? (parseInt(user.maxDevices, 10) || 0) : 0;
 const hasExpireAt = isEditMode && user.expireAt;
 const expireAtIso = hasExpireAt ? new Date(user.expireAt).toISOString() : '';
+const supportDueAtIso = isEditMode && user.support?.dueAt ? new Date(user.support.dueAt).toISOString() : '';
+const supportLastPaymentAtIso = isEditMode && user.support?.lastPaymentAt ? new Date(user.support.lastPaymentAt).toISOString() : '';
 %>
 <div class="page-header">
     <a href="/panel/users" class="btn btn-back"><i class="ti ti-chevron-left"></i> <%= t('common.backToList') %></a>
@@ -95,6 +97,22 @@ const expireAtIso = hasExpireAt ? new Date(user.expireAt).toISOString() : '';
             </div>
 
             <input type="hidden" id="expireAt" name="expireAt" value="<%= expireAtIso %>">
+
+            <h3 class="section-title"><%= t('users.supportSection') %></h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="supportDueAtLocal"><%= t('users.supportDueAt') %></label>
+                    <input type="datetime-local" id="supportDueAtLocal" name="supportDueAtLocal" class="datetime-input" data-utc="<%= supportDueAtIso %>">
+                    <small><%= t('users.supportDueAtHint') %></small>
+                    <input type="hidden" id="supportDueAt" name="supportDueAt" value="<%= supportDueAtIso %>">
+                </div>
+                <div class="form-group">
+                    <label for="supportLastPaymentAtLocal"><%= t('users.supportLastPaymentAt') %></label>
+                    <input type="datetime-local" id="supportLastPaymentAtLocal" name="supportLastPaymentAtLocal" class="datetime-input" data-utc="<%= supportLastPaymentAtIso %>">
+                    <small><%= t('users.supportLastPaymentAtHint') %></small>
+                    <input type="hidden" id="supportLastPaymentAt" name="supportLastPaymentAt" value="<%= supportLastPaymentAtIso %>">
+                </div>
+            </div>
             
             <div class="form-group">
                 <label class="checkbox-label">
@@ -118,6 +136,10 @@ const expireAtIso = hasExpireAt ? new Date(user.expireAt).toISOString() : '';
             const expireDaysInput = document.getElementById('expireDays');
             const expireAtLocalInput = document.getElementById('expireAtLocal');
             const expireAtInput = document.getElementById('expireAt');
+            const supportDueAtLocalInput = document.getElementById('supportDueAtLocal');
+            const supportDueAtInput = document.getElementById('supportDueAt');
+            const supportLastPaymentAtLocalInput = document.getElementById('supportLastPaymentAtLocal');
+            const supportLastPaymentAtInput = document.getElementById('supportLastPaymentAt');
             const form = document.getElementById('userForm');
 
             function utcToLocal(isoString) {
@@ -132,6 +154,14 @@ const expireAtIso = hasExpireAt ? new Date(user.expireAt).toISOString() : '';
                 const utc = expireAtLocalInput.dataset.utc;
                 if (utc) {
                     expireAtLocalInput.value = utcToLocal(utc);
+                }
+                const supportDueAtUtc = supportDueAtLocalInput.dataset.utc;
+                if (supportDueAtUtc) {
+                    supportDueAtLocalInput.value = utcToLocal(supportDueAtUtc);
+                }
+                const supportLastPaymentAtUtc = supportLastPaymentAtLocalInput.dataset.utc;
+                if (supportLastPaymentAtUtc) {
+                    supportLastPaymentAtLocalInput.value = utcToLocal(supportLastPaymentAtUtc);
                 }
             }
 
@@ -165,12 +195,25 @@ const expireAtIso = hasExpireAt ? new Date(user.expireAt).toISOString() : '';
                 expireAtInput.value = localDateTime.toISOString();
             }
 
+            function syncDateField(localInput, hiddenInput) {
+                if (!localInput.value) {
+                    hiddenInput.value = '';
+                    return;
+                }
+                const localDateTime = new Date(localInput.value);
+                hiddenInput.value = Number.isNaN(localDateTime.getTime()) ? '' : localDateTime.toISOString();
+            }
+
             expireModeInputs.forEach((input) => {
                 input.addEventListener('change', () => updateExpireMode());
             });
 
             expireAtLocalInput.addEventListener('change', syncExpireAt);
             expireAtLocalInput.addEventListener('input', syncExpireAt);
+            supportDueAtLocalInput.addEventListener('change', () => syncDateField(supportDueAtLocalInput, supportDueAtInput));
+            supportDueAtLocalInput.addEventListener('input', () => syncDateField(supportDueAtLocalInput, supportDueAtInput));
+            supportLastPaymentAtLocalInput.addEventListener('change', () => syncDateField(supportLastPaymentAtLocalInput, supportLastPaymentAtInput));
+            supportLastPaymentAtLocalInput.addEventListener('input', () => syncDateField(supportLastPaymentAtLocalInput, supportLastPaymentAtInput));
 
             form.addEventListener('submit', () => {
                 const selectedMode = document.querySelector('input[name="expireMode"]:checked').value;
@@ -183,6 +226,8 @@ const expireAtIso = hasExpireAt ? new Date(user.expireAt).toISOString() : '';
 
                 expireDaysInput.value = '';
                 syncExpireAt();
+                syncDateField(supportDueAtLocalInput, supportDueAtInput);
+                syncDateField(supportLastPaymentAtLocalInput, supportLastPaymentAtInput);
             });
 
             initExpireAtLocal();

@@ -8,7 +8,7 @@ const syncService = require('../../services/syncService');
 const cache = require('../../services/cacheService');
 const webhookService = require('../../services/webhookService');
 const { render } = require('./helpers');
-const { getActiveGroups, invalidateGroupsCache } = require('../../utils/helpers');
+const { getActiveGroups, getSettings, invalidateGroupsCache } = require('../../utils/helpers');
 const logger = require('../../utils/logger');
 
 function normalizeIdArray(value) {
@@ -61,6 +61,24 @@ function resolveExpireAt(expireAtRaw, expireDays) {
     }
 
     return { value: null };
+}
+
+function resolveOptionalDate(rawValue, { allowPast = true, label = 'даты' } = {}) {
+    const hasValue = typeof rawValue === 'string' && rawValue.trim() !== '';
+    if (!hasValue) {
+        return { value: null };
+    }
+
+    const parsed = new Date(rawValue);
+    if (Number.isNaN(parsed.getTime())) {
+        return { error: `Некорректный формат ${label}` };
+    }
+
+    if (!allowPast && parsed.getTime() < Date.now()) {
+        return { error: `${label.charAt(0).toUpperCase()}${label.slice(1)} не может быть в прошлом` };
+    }
+
+    return { value: parsed };
 }
 
 function scheduleXrayReconcile(user, logContext) {
@@ -184,7 +202,7 @@ router.get('/users/add', async (req, res) => {
 router.get('/users/:userId/edit', async (req, res) => {
     try {
         const [user, groups] = await Promise.all([
-            HyUser.findOne({ userId: req.params.userId }).populate('groups', 'name color'),
+            HyUser.findOne({ userId: req.params.userId }).populate('groups', 'name color maxDevices'),
             getActiveGroups(),
         ]);
 
@@ -208,7 +226,17 @@ router.get('/users/:userId/edit', async (req, res) => {
 // POST /users - Create user
 router.post('/users', async (req, res) => {
     try {
-        const { userId, username, trafficLimitGB, expireDays, expireAt: expireAtRaw, enabled, maxDevices } = req.body;
+        const {
+            userId,
+            username,
+            trafficLimitGB,
+            expireDays,
+            expireAt: expireAtRaw,
+            enabled,
+            maxDevices,
+            supportDueAt: supportDueAtRaw,
+            supportLastPaymentAt: supportLastPaymentAtRaw,
+        } = req.body;
         
         if (!userId) {
             return res.status(400).send('userId обязателен');
@@ -226,6 +254,20 @@ router.post('/users', async (req, res) => {
         if (expireAtError) {
             return res.status(400).send(expireAtError);
         }
+        const { value: supportDueAt, error: supportDueAtError } = resolveOptionalDate(supportDueAtRaw, {
+            allowPast: true,
+            label: 'даты окончания периода поддержки',
+        });
+        if (supportDueAtError) {
+            return res.status(400).send(supportDueAtError);
+        }
+        const { value: supportLastPaymentAt, error: supportLastPaymentAtError } = resolveOptionalDate(supportLastPaymentAtRaw, {
+            allowPast: true,
+            label: 'даты последней поддержки',
+        });
+        if (supportLastPaymentAtError) {
+            return res.status(400).send(supportLastPaymentAtError);
+        }
         
         const trafficLimit = (parseInt(trafficLimitGB, 10) || 0) * 1024 * 1024 * 1024;
         
@@ -240,6 +282,10 @@ router.post('/users', async (req, res) => {
             trafficLimit,
             maxDevices: userMaxDevices,
             expireAt,
+            support: {
+                dueAt: supportDueAt,
+                lastPaymentAt: supportLastPaymentAt,
+            },
             nodes: [],
         });
 
@@ -256,7 +302,16 @@ router.post('/users', async (req, res) => {
 // POST /users/:userId - Update user
 router.post('/users/:userId', async (req, res) => {
     try {
-        const { username, trafficLimitGB, expireDays, expireAt: expireAtRaw, enabled, maxDevices } = req.body;
+        const {
+            username,
+            trafficLimitGB,
+            expireDays,
+            expireAt: expireAtRaw,
+            enabled,
+            maxDevices,
+            supportDueAt: supportDueAtRaw,
+            supportLastPaymentAt: supportLastPaymentAtRaw,
+        } = req.body;
         const [user, availableGroups] = await Promise.all([
             HyUser.findOne({ userId: req.params.userId }),
             getActiveGroups(),
@@ -278,6 +333,10 @@ router.post('/users/:userId', async (req, res) => {
             trafficLimit,
             maxDevices: userMaxDevices,
             expireAt: expireAtRaw,
+            support: {
+                dueAt: supportDueAtRaw,
+                lastPaymentAt: supportLastPaymentAtRaw,
+            },
         };
 
         const { value: expireAt, error: expireAtError } = resolveExpireAt(expireAtRaw, expireDays);
@@ -293,6 +352,38 @@ router.post('/users/:userId', async (req, res) => {
             });
         }
         draftUser.expireAt = expireAt;
+        const { value: supportDueAt, error: supportDueAtError } = resolveOptionalDate(supportDueAtRaw, {
+            allowPast: true,
+            label: 'даты окончания периода поддержки',
+        });
+        if (supportDueAtError) {
+            return render(res, 'user-form', {
+                title: res.locals.t('users.editUser') + ' ' + req.params.userId,
+                page: 'users',
+                groups: availableGroups,
+                user: draftUser,
+                isEdit: true,
+                error: supportDueAtError,
+            });
+        }
+        const { value: supportLastPaymentAt, error: supportLastPaymentAtError } = resolveOptionalDate(supportLastPaymentAtRaw, {
+            allowPast: true,
+            label: 'даты последней поддержки',
+        });
+        if (supportLastPaymentAtError) {
+            return render(res, 'user-form', {
+                title: res.locals.t('users.editUser') + ' ' + req.params.userId,
+                page: 'users',
+                groups: availableGroups,
+                user: draftUser,
+                isEdit: true,
+                error: supportLastPaymentAtError,
+            });
+        }
+        draftUser.support = {
+            dueAt: supportDueAt,
+            lastPaymentAt: supportLastPaymentAt,
+        };
 
         const updates = {
             enabled: enabled === 'on',
@@ -301,6 +392,10 @@ router.post('/users/:userId', async (req, res) => {
             trafficLimit,
             expireAt,
             maxDevices: userMaxDevices,
+            support: {
+                dueAt: supportDueAt,
+                lastPaymentAt: supportLastPaymentAt,
+            },
         };
 
         const wasEnabled = user.enabled;
@@ -342,7 +437,7 @@ router.get('/users/:userId', async (req, res) => {
         const [user, allGroups] = await Promise.all([
             HyUser.findOne({ userId: req.params.userId })
                 .populate('nodes', 'name ip domain active groups')
-                .populate('groups', 'name color'),
+                .populate('groups', 'name color maxDevices'),
             getActiveGroups(),
         ]);
         
@@ -358,6 +453,15 @@ router.get('/users/:userId', async (req, res) => {
             effectiveNodes = await HyNode.find({ active: true, groups: { $in: user.groups } })
                 .select('name ip domain groups').lean();
         }
+
+        const settings = await getSettings();
+        const gracePeriodMinutes = settings?.deviceGracePeriod ?? 15;
+        const deviceIPs = await cache.getDeviceIPs(user.userId);
+        const now = Date.now();
+        const activeDevices = Object.values(deviceIPs).filter((timestamp) => {
+            const ts = parseInt(timestamp, 10);
+            return Number.isFinite(ts) && (now - ts) < (gracePeriodMinutes * 60 * 1000);
+        }).length;
         
         render(res, 'user-detail', {
             title: `Пользователь ${user.userId}`,
@@ -365,6 +469,7 @@ router.get('/users/:userId', async (req, res) => {
             user,
             allGroups,
             effectiveNodes,
+            activeDevices,
         });
     } catch (error) {
         res.status(500).send('Error: ' + error.message);

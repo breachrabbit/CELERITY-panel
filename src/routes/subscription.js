@@ -47,7 +47,7 @@ async function getUserByToken(token) {
         ]
     })
         .populate('nodes', 'active name type status onlineUsers maxOnlineUsers rankingCoefficient domain sni ip port portRange hopInterval portConfigs obfs flag xray')
-        .populate('groups', '_id name subscriptionTitle');
+        .populate('groups', '_id name subscriptionTitle maxDevices');
     
     return user;
 }
@@ -83,6 +83,42 @@ function encodeHappText(value) {
     return /[^\x20-\x7E]/.test(text)
         ? `base64:${Buffer.from(text, 'utf8').toString('base64')}`
         : text;
+}
+
+function calculateUserDeviceLimit(user) {
+    let deviceLimit = parseInt(user?.maxDevices, 10);
+    if (deviceLimit === -1) return 0;
+    if (deviceLimit > 0) return deviceLimit;
+
+    const groupLimits = (user?.groups || [])
+        .map(group => parseInt(group?.maxDevices, 10))
+        .filter(limit => Number.isFinite(limit) && limit > 0);
+    if (groupLimits.length === 0) return 0;
+    return Math.min(...groupLimits);
+}
+
+function formatTrafficValue(bytes) {
+    const gb = (bytes || 0) / (1024 * 1024 * 1024);
+    if (gb >= 100) return `${Math.round(gb)} GB`;
+    if (gb >= 10) return `${gb.toFixed(1)} GB`;
+    return `${gb.toFixed(2)} GB`;
+}
+
+function resolveSupportState(user, settings) {
+    const supportSettings = settings?.subscription?.happ?.support || {};
+    const dueAt = user?.support?.dueAt ? new Date(user.support.dueAt) : null;
+    if (!supportSettings.enabled) {
+        return { dueAt, state: 'disabled' };
+    }
+    if (!dueAt || Number.isNaN(dueAt.getTime())) {
+        return { dueAt: null, state: 'neutral' };
+    }
+    return { dueAt, state: dueAt.getTime() >= Date.now() ? 'active' : 'overdue' };
+}
+
+function appendPart(parts, value) {
+    const normalized = normalizeHeaderText(value);
+    if (normalized) parts.push(normalized);
 }
 
 function buildHappRoutingProfile(routing) {
@@ -749,13 +785,16 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
 
     function resolveButtonUrl(rawUrl, subUrl) {
         if (!rawUrl) return null;
+        if (rawUrl === '__HAPP_SUBSCRIPTION__') {
+            return { action: 'happ-subscription', value: subUrl };
+        }
         const b64 = Buffer.from(subUrl).toString('base64');
         const resolved = rawUrl
             .replace(/\{url_encoded\}/g, encodeURIComponent(subUrl))
             .replace(/\{url_b64\}/g, b64)
             .replace(/\{url\}/g, subUrl);
         if (/^javascript:/i.test(resolved)) return null;
-        return resolved;
+        return { action: 'link', value: resolved };
     }
 
     const buttons = (sub.buttons || []).filter(b => b.label && b.url);
@@ -763,11 +802,22 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
         ? `<div class="section" style="padding:12px;">
             <div class="btn-grid">
                 ${buttons.map(b => {
-                    const href = resolveButtonUrl(b.url, baseUrl);
-                    if (!href) return '';
+                    const resolved = resolveButtonUrl(b.url, baseUrl);
+                    if (!resolved) return '';
                     const iconClass = (b.icon || '').trim().replace(/[^a-zA-Z0-9-]/g, '') || 'ti-external-link';
                     const safeLabel = escAttr(b.label);
-                    return `<a href="${escAttr(href)}" target="_blank" rel="noopener noreferrer" class="app-btn">
+                    if (resolved.action === 'happ-subscription') {
+                        return `<button type="button" class="app-btn app-btn-button" onclick="copyAndLaunchHapp('${escAttr(resolved.value)}', this)">
+                            <i class="ti ${iconClass}" style="font-size:18px; color:var(--accent); flex-shrink:0;"></i>
+                            <span>${safeLabel}</span>
+                        </button>`;
+                    }
+                    const href = resolved.value;
+                    const isExternalHttp = /^https?:/i.test(href);
+                    const extraAttrs = isExternalHttp
+                        ? 'target="_blank" rel="noopener noreferrer"'
+                        : `onclick="openAppLink('${escAttr(href)}'); return false;"`;
+                    return `<a href="${escAttr(href)}" ${extraAttrs} class="app-btn">
                         <i class="ti ${iconClass}" style="font-size:18px; color:var(--accent); flex-shrink:0;"></i>
                         <span>${safeLabel}</span>
                     </a>`;
@@ -820,6 +870,7 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
         .copy-btn { display: inline-flex; align-items: center; gap: 6px; }
         .btn-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .app-btn { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); text-decoration: none; font-size: 14px; transition: background 0.15s, border-color 0.15s; }
+        .app-btn-button { width: 100%; cursor: pointer; font: inherit; text-align: left; }
         .app-btn:hover { background: #1a1a1a; border-color: var(--accent); }
         @media (max-width: 360px) { .btn-grid { grid-template-columns: 1fr; } }
     </style>
@@ -909,6 +960,26 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
                 fallback(text, btn);
             }
         }
+
+        function openAppLink(href) {
+            window.location.href = href;
+        }
+
+        function copyAndLaunchHapp(text, btn) {
+            const launch = function() {
+                try {
+                    window.location.href = 'happ://';
+                } catch (e) {}
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                    .then(() => { success(btn); setTimeout(launch, 80); })
+                    .catch(() => { fallback(text, btn); setTimeout(launch, 80); });
+            } else {
+                fallback(text, btn);
+                setTimeout(launch, 80);
+            }
+        }
         
         function fallback(text, btn) {
             const ta = document.createElement('textarea');
@@ -996,7 +1067,7 @@ router.get('/files/:token', async (req, res) => {
         const cached = await cache.getSubscription(token, format);
         if (cached) {
             logger.debug(`[Sub] Cache HIT: ${token}:${format}`);
-            return sendCachedSubscription(res, cached, format, userAgent, settings);
+            return await sendCachedSubscription(res, cached, format, userAgent, settings);
         }
         
         // Кэша нет — генерируем
@@ -1031,7 +1102,7 @@ router.get('/files/:token', async (req, res) => {
         await cache.setSubscription(token, format, subscriptionData);
         
         // Отправляем
-        return sendCachedSubscription(res, subscriptionData, format, userAgent, settings);
+        return await sendCachedSubscription(res, subscriptionData, format, userAgent, settings);
         
     } catch (error) {
         logger.error(`[Sub] Error: ${error.message}`);
@@ -1079,6 +1150,7 @@ function generateSubscriptionData(user, nodes, format, userAgent, happProviderId
     
     return {
         content,
+        userId: user.userId,
         profileTitle: getSubscriptionTitle(user),
         username: user.username || user.userId,
         traffic: {
@@ -1087,13 +1159,17 @@ function generateSubscriptionData(user, nodes, format, userAgent, happProviderId
         },
         trafficLimit: user.trafficLimit || 0,
         expireAt: user.expireAt,
+        supportDueAt: user.support?.dueAt || null,
+        supportLastPaymentAt: user.support?.lastPaymentAt || null,
+        maxDevices: user.maxDevices || 0,
+        groupMaxDevices: (user.groups || []).map(group => group?.maxDevices || 0),
     };
 }
 
 /**
  * Отправляет закэшированную подписку
  */
-function sendCachedSubscription(res, data, format, userAgent, settings) {
+async function sendCachedSubscription(res, data, format, userAgent, settings) {
     let contentType = 'text/plain';
     
     switch (format) {
@@ -1106,6 +1182,30 @@ function sendCachedSubscription(res, data, format, userAgent, settings) {
             contentType = 'application/json';
             break;
     }
+
+    const isHapp = /happ/i.test(userAgent);
+    const happ = settings?.subscription?.happ || {};
+    const display = happ.display || {};
+    const supportConfig = happ.support || {};
+    const showTrafficProgress = !isHapp || display.showTrafficProgress !== false;
+    const showSupportPeriod = isHapp && display.showSupportPeriod !== false && supportConfig.enabled !== false;
+    const supportState = resolveSupportState({
+        support: {
+            dueAt: data.supportDueAt,
+            lastPaymentAt: data.supportLastPaymentAt,
+        },
+    }, settings);
+
+    const subscriptionUserinfo = [];
+    if (showTrafficProgress) {
+        subscriptionUserinfo.push(`upload=${data.traffic.tx}`);
+        subscriptionUserinfo.push(`download=${data.traffic.rx}`);
+        if (data.trafficLimit > 0) subscriptionUserinfo.push(`total=${data.trafficLimit}`);
+    }
+    const expireTs = (isHapp && showSupportPeriod)
+        ? (supportState.dueAt ? Math.floor(new Date(supportState.dueAt).getTime() / 1000) : 0)
+        : (data.expireAt ? Math.floor(new Date(data.expireAt).getTime() / 1000) : 0);
+    subscriptionUserinfo.push(`expire=${expireTs}`);
     
     const headers = {
         'Content-Type': `${contentType}; charset=utf-8`,
@@ -1115,12 +1215,7 @@ function sendCachedSubscription(res, data, format, userAgent, settings) {
         Expires: '0',
         'Profile-Title': encodeTitle(data.profileTitle),
         'Profile-Update-Interval': String(settings?.subscription?.updateInterval || 12),
-        'Subscription-Userinfo': [
-            `upload=${data.traffic.tx}`,
-            `download=${data.traffic.rx}`,
-            data.trafficLimit > 0 ? `total=${data.trafficLimit}` : null,
-            `expire=${data.expireAt ? Math.floor(new Date(data.expireAt).getTime() / 1000) : 0}`,
-        ].filter(Boolean).join('; '),
+        'Subscription-Userinfo': subscriptionUserinfo.join('; '),
     };
 
     const sub = settings?.subscription;
@@ -1130,7 +1225,7 @@ function sendCachedSubscription(res, data, format, userAgent, settings) {
     
     let content = data.content;
 
-    if (/happ/i.test(userAgent)) {
+    if (isHapp) {
         if (settings?.routing?.enabled) {
             const profile = buildHappRoutingProfile(settings.routing);
             if (profile) {
@@ -1148,26 +1243,69 @@ function sendCachedSubscription(res, data, format, userAgent, settings) {
             }
         }
 
-        const happ = sub?.happ;
         if (happ) {
             if (happ.announce) {
                 headers.announce = encodeHappText(happ.announce);
             }
             if (sub?.happProviderId) {
                 if (happ.hideSettings) headers['hide-settings'] = '1';
-                if (happ.notifyExpire) headers['notification-subs-expire'] = '1';
-                headers['sub-expire'] = happ.expireBannerEnabled ? '1' : '0';
-                if (happ.expireBannerEnabled && happ.expireButtonLink) {
+                const supportEnabled = showSupportPeriod;
+                if (!supportEnabled && happ.notifyExpire) headers['notification-subs-expire'] = '1';
+                headers['sub-expire'] = !supportEnabled && happ.expireBannerEnabled ? '1' : '0';
+                if (!supportEnabled && happ.expireBannerEnabled && happ.expireButtonLink) {
                     headers['sub-expire-button-link'] = normalizeHeaderText(happ.expireButtonLink);
                 }
-                if (happ.infoText) {
-                    headers['sub-info-text'] = encodeHappText(happ.infoText);
-                    headers['sub-info-color'] = ['blue', 'green', 'red'].includes(happ.infoColor) ? happ.infoColor : 'blue';
-                    if (happ.infoButtonText) {
-                        headers['sub-info-button-text'] = encodeHappText(happ.infoButtonText);
+
+                const infoParts = [];
+                if (supportConfig.enabled !== false && display.showSupportStatus !== false) {
+                    const supportTextByState = {
+                        neutral: supportConfig.neutralText,
+                        active: supportConfig.activeText,
+                        overdue: supportConfig.overdueText,
+                    };
+                    appendPart(infoParts, supportTextByState[supportState.state] || supportConfig.neutralText);
+                }
+
+                if (display.showTrafficDetails !== false) {
+                    const usedBytes = (data.traffic.tx || 0) + (data.traffic.rx || 0);
+                    const limitLabel = data.trafficLimit > 0 ? formatTrafficValue(data.trafficLimit) : '∞';
+                    appendPart(infoParts, `Трафик ${formatTrafficValue(usedBytes)} / ${limitLabel}`);
+                }
+
+                if (display.showDevices !== false) {
+                    const deviceLimit = calculateUserDeviceLimit({
+                        maxDevices: data.maxDevices,
+                        groups: (data.groupMaxDevices || []).map((limit) => ({ maxDevices: limit })),
+                    });
+                    const deviceIPs = data.userId ? await cache.getDeviceIPs(data.userId) : {};
+                    const gracePeriodMs = (settings?.deviceGracePeriod ?? 15) * 60 * 1000;
+                    const now = Date.now();
+                    const activeDevices = Object.values(deviceIPs).filter((timestamp) => {
+                        const ts = parseInt(timestamp, 10);
+                        return Number.isFinite(ts) && (now - ts) < gracePeriodMs;
+                    }).length;
+                    appendPart(infoParts, `Устройства ${activeDevices} / ${deviceLimit > 0 ? deviceLimit : '∞'}`);
+                }
+
+                if (infoParts.length === 0) {
+                    appendPart(infoParts, happ.infoText);
+                }
+
+                if (infoParts.length > 0) {
+                    headers['sub-info-text'] = encodeHappText(infoParts.join(' • ').slice(0, 200));
+                    const supportDrivenColor = display.showSupportStatus !== false
+                        ? ({ active: 'green', overdue: 'red', neutral: 'blue' }[supportState.state] || null)
+                        : null;
+                    headers['sub-info-color'] = supportDrivenColor || (['blue', 'green', 'red'].includes(happ.infoColor) ? happ.infoColor : 'blue');
+                    const supportButtonText = normalizeHeaderText(supportConfig.buttonText || '');
+                    const supportButtonLink = normalizeHeaderText(supportConfig.buttonLink || sub.supportUrl || '');
+                    const infoButtonText = supportButtonText || normalizeHeaderText(happ.infoButtonText);
+                    const infoButtonLink = supportButtonLink || normalizeHeaderText(happ.infoButtonLink);
+                    if (infoButtonText) {
+                        headers['sub-info-button-text'] = encodeHappText(infoButtonText);
                     }
-                    if (happ.infoButtonLink) {
-                        headers['sub-info-button-link'] = normalizeHeaderText(happ.infoButtonLink);
+                    if (infoButtonLink) {
+                        headers['sub-info-button-link'] = infoButtonLink;
                     }
                 } else {
                     headers['sub-info-text'] = '';
@@ -1202,6 +1340,8 @@ router.get('/info/:token', async (req, res) => {
             groups: user.groups,
             traffic: { used: (user.traffic?.tx || 0) + (user.traffic?.rx || 0), limit: user.trafficLimit },
             expire: user.expireAt,
+            support: user.support || {},
+            maxDevices: calculateUserDeviceLimit(user),
             servers: nodes.length,
         });
     } catch (error) {

@@ -151,6 +151,19 @@ router.post('/settings', async (req, res) => {
                 updates['subscription.happ.alwaysHwid'] = req.body['subscription.happ.alwaysHwid'] === 'on';
                 updates['subscription.happ.pingType'] = validPingTypes.includes(rawPingType) ? rawPingType : '';
                 updates['subscription.happ.pingUrl'] = String(req.body['subscription.happ.pingUrl'] || '').trim().slice(0, 500);
+                updates['subscription.happ.display.showTrafficProgress'] = req.body['subscription.happ.display.showTrafficProgress'] === 'on';
+                updates['subscription.happ.display.showTrafficDetails'] = req.body['subscription.happ.display.showTrafficDetails'] === 'on';
+                updates['subscription.happ.display.showDevices'] = req.body['subscription.happ.display.showDevices'] === 'on';
+                updates['subscription.happ.display.showSupportStatus'] = req.body['subscription.happ.display.showSupportStatus'] === 'on';
+                updates['subscription.happ.display.showSupportPeriod'] = req.body['subscription.happ.display.showSupportPeriod'] === 'on';
+                updates['subscription.happ.support.enabled'] = req.body['subscription.happ.support.enabled'] === 'on';
+                updates['subscription.happ.support.amountRub'] = Math.max(0, parseInt(req.body['subscription.happ.support.amountRub'], 10) || 0);
+                updates['subscription.happ.support.periodDays'] = Math.max(1, parseInt(req.body['subscription.happ.support.periodDays'], 10) || 30);
+                updates['subscription.happ.support.buttonText'] = String(req.body['subscription.happ.support.buttonText'] || '').trim().slice(0, 40);
+                updates['subscription.happ.support.buttonLink'] = String(req.body['subscription.happ.support.buttonLink'] || '').trim().slice(0, 500);
+                updates['subscription.happ.support.neutralText'] = String(req.body['subscription.happ.support.neutralText'] || '').trim().slice(0, 200);
+                updates['subscription.happ.support.activeText'] = String(req.body['subscription.happ.support.activeText'] || '').trim().slice(0, 200);
+                updates['subscription.happ.support.overdueText'] = String(req.body['subscription.happ.support.overdueText'] || '').trim().slice(0, 200);
                 updates['subscription.happ.colorProfile'] = (() => {
                     const raw = String(req.body['subscription.happ.colorProfile'] || '').trim();
                     if (!raw || raw.length > 5120) return '';

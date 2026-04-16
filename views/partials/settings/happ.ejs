@@ -15,22 +15,13 @@
             <input type="hidden" name="subscription.buttonsJson" value="<%= JSON.stringify(settings?.subscription?.buttons || []) %>">
 
             <div class="form-group" style="margin-bottom: 1.25rem;">
-                <label><%= t('settings.subHappProviderId') %></label>
-                <input type="text" name="subscription.happProviderId" id="happProviderId"
-                       value="<%= settings?.subscription?.happProviderId || '' %>"
-                       placeholder="Ab12Cd34" maxlength="8"
-                       style="font-family: monospace; letter-spacing: 0.05em; max-width: 200px;">
-                <small class="hint"><%= t('settings.subHappProviderIdHint') %></small>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 1.25rem;">
                 <label><%= t('settings.happAnnounce') %></label>
                 <textarea name="subscription.happ.announce" maxlength="200" rows="3"
                           style="width:100%; resize:vertical;"><%= settings?.subscription?.happ?.announce || '' %></textarea>
                 <small class="hint"><%= t('settings.happAnnounceHint') %></small>
             </div>
 
-            <details id="happAdvanced" style="margin-bottom:1.25rem;" <%= settings?.subscription?.happProviderId ? 'open' : '' %>>
+            <details id="happAdvanced" style="margin-bottom:1.25rem;">
                 <summary style="cursor:pointer; font-weight:600;"><%= t('settings.happAdvancedToggle') %></summary>
                 <p class="hint" style="margin-top:8px;"><%= t('settings.happAdvancedHint') %></p>
 
@@ -41,6 +32,94 @@
                               placeholder="<%= t('settings.happInfoTextPlaceholder') %>"><%= settings?.subscription?.happ?.infoText || '' %></textarea>
                     <small class="hint"><%= t('settings.happInfoTextHint') %></small>
                 </div>
+
+                <details style="margin-top: 1rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary);">
+                    <summary style="cursor:pointer; font-weight:600;"><%= t('settings.happDisplayTitle') %></summary>
+                    <div style="margin-top:0.85rem;">
+                        <div class="settings-grid">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="subscription.happ.display.showTrafficProgress" <%= settings?.subscription?.happ?.display?.showTrafficProgress !== false ? 'checked' : '' %>>
+                                <span><%= t('settings.happDisplayTrafficProgress') %></span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="subscription.happ.display.showTrafficDetails" <%= settings?.subscription?.happ?.display?.showTrafficDetails !== false ? 'checked' : '' %>>
+                                <span><%= t('settings.happDisplayTrafficDetails') %></span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="subscription.happ.display.showDevices" <%= settings?.subscription?.happ?.display?.showDevices !== false ? 'checked' : '' %>>
+                                <span><%= t('settings.happDisplayDevices') %></span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="subscription.happ.display.showSupportStatus" <%= settings?.subscription?.happ?.display?.showSupportStatus !== false ? 'checked' : '' %>>
+                                <span><%= t('settings.happDisplaySupportStatus') %></span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="subscription.happ.display.showSupportPeriod" <%= settings?.subscription?.happ?.display?.showSupportPeriod !== false ? 'checked' : '' %>>
+                                <span><%= t('settings.happDisplaySupportPeriod') %></span>
+                            </label>
+                        </div>
+                        <small class="hint"><%= t('settings.happDisplayHint') %></small>
+                    </div>
+                </details>
+
+                <details style="margin-top: 1rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary);">
+                    <summary style="cursor:pointer; font-weight:600;"><%= t('settings.happSupportTitle') %></summary>
+                    <div style="margin-top:0.85rem;">
+                        <label class="checkbox-label" style="margin-bottom: 1rem;">
+                            <input type="checkbox" name="subscription.happ.support.enabled" <%= settings?.subscription?.happ?.support?.enabled !== false ? 'checked' : '' %>>
+                            <span><%= t('settings.happSupportEnabled') %></span>
+                        </label>
+
+                        <div class="settings-grid">
+                            <div class="form-group">
+                                <label><%= t('settings.happSupportAmount') %></label>
+                                <input type="number" name="subscription.happ.support.amountRub"
+                                       value="<%= settings?.subscription?.happ?.support?.amountRub ?? 200 %>"
+                                       min="0" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label><%= t('settings.happSupportPeriodDays') %></label>
+                                <input type="number" name="subscription.happ.support.periodDays"
+                                       value="<%= settings?.subscription?.happ?.support?.periodDays ?? 30 %>"
+                                       min="1" step="1">
+                            </div>
+                        </div>
+
+                        <div class="settings-grid">
+                            <div class="form-group">
+                                <label><%= t('settings.happSupportButtonText') %></label>
+                                <input type="text" name="subscription.happ.support.buttonText"
+                                       value="<%= settings?.subscription?.happ?.support?.buttonText || '' %>"
+                                       maxlength="40" placeholder="<%= t('settings.happSupportButtonTextPlaceholder') %>">
+                            </div>
+                            <div class="form-group">
+                                <label><%= t('settings.happSupportButtonLink') %></label>
+                                <input type="text" name="subscription.happ.support.buttonLink"
+                                       value="<%= settings?.subscription?.happ?.support?.buttonLink || '' %>"
+                                       placeholder="https://example.com/support">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label><%= t('settings.happSupportNeutralText') %></label>
+                            <textarea name="subscription.happ.support.neutralText" maxlength="200" rows="3"
+                                      style="width:100%; resize:vertical;"><%= settings?.subscription?.happ?.support?.neutralText || '' %></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label><%= t('settings.happSupportActiveText') %></label>
+                            <textarea name="subscription.happ.support.activeText" maxlength="200" rows="3"
+                                      style="width:100%; resize:vertical;"><%= settings?.subscription?.happ?.support?.activeText || '' %></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label><%= t('settings.happSupportOverdueText') %></label>
+                            <textarea name="subscription.happ.support.overdueText" maxlength="200" rows="3"
+                                      style="width:100%; resize:vertical;"><%= settings?.subscription?.happ?.support?.overdueText || '' %></textarea>
+                        </div>
+                        <small class="hint"><%= t('settings.happSupportHint') %></small>
+                    </div>
+                </details>
 
                 <div class="settings-grid" style="margin-top:1rem;">
                     <div class="form-group">
@@ -95,6 +174,7 @@
                         <span><%= t('settings.happAlwaysHwid') %></span>
                     </label>
                 </div>
+                <small class="hint" style="display:block; margin-top:0.4rem;"><%= t('settings.happAlwaysHwidHint') %></small>
 
                 <div class="settings-grid" style="margin-top:1rem;">
                     <div class="form-group">
@@ -115,10 +195,12 @@
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="margin-top:1rem;">
                     <label><%= t('settings.happColorProfile') %></label>
-                    <textarea name="subscription.happ.colorProfile" rows="4"
-                              style="width:100%; resize:vertical; font-family:monospace; font-size:12px;"><%= settings?.subscription?.happ?.colorProfile || '' %></textarea>
+                    <input type="hidden" name="subscription.happ.colorProfile" value="<%= settings?.subscription?.happ?.colorProfile || '' %>">
+                    <div class="hint" style="padding:0.85rem 1rem; border:1px dashed var(--border); border-radius:8px; background:var(--bg-secondary);">
+                        <%= t('settings.happColorProfileDisabled') %>
+                    </div>
                     <small class="hint"><%= t('settings.happColorProfileHint') %></small>
                 </div>
             </details>
