@@ -21,6 +21,27 @@
 - Refreshed upstream comparison against current `upstream/main` and captured the main divergence areas:
   - our fork is ahead in deployment, hybrid cascade, setup hardening, HAPP layer, and redesign work;
   - upstream is ahead in onboarding, broadcast tooling, Marzban migration, and client statistics experiments.
+- Continued the admin redesign with:
+  - collapsible sidebar;
+  - moved/iterated language controls;
+  - flatter shell styling;
+  - dashboard line charts;
+  - circular metric experiments;
+  - subscription page visual cleanup.
+- Investigated persistent page-width / layout drift that still appears after navigation in some views.
+- Started a shell-level CSS fix attempt in `public/css/style.css`:
+  - switched desktop shell toward `grid + sticky sidebar`;
+  - this fix is only partial and remains uncommitted / undeployed.
+- Captured additional user-requested UI follow-ups for the next session:
+  - fewer graph points;
+  - dashboard period switcher;
+  - language controls near theme switcher;
+  - clearer sidebar collapse affordance;
+  - visible Settings icon;
+  - more neutral background;
+  - segmented ring style;
+  - blue QR presentation;
+  - further removal of visible `Celerity` branding.
 
 Change types:
 
@@ -29,3 +50,5 @@ Change types:
 - `stability fix` — continuity and handoff discipline
 - `local patch` — operator-facing user stats
 - `upstream sync review` — divergence audit baseline
+- `investigation` — persistent shell/layout drift
+- `local patch (paused)` — uncommitted shell CSS rewrite attempt

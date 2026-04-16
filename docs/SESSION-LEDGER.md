@@ -11,6 +11,10 @@
   - user detail page upgraded with traffic, devices, and node coverage;
   - fresh upstream divergence snapshot captured.
 - Next step:
-  - extend exact live node attribution beyond optional metadata;
-  - decide which upstream features are worth porting;
-  - prepare controlled separation from Celerity identity.
+  - resolve the persistent layout/page-drift bug before shipping more shell changes;
+  - review the paused local CSS patch in `public/css/style.css`;
+  - then continue with node attribution, rebrand cleanup, and upstream triage.
+
+- Additional note:
+  - the session ended with one local uncommitted CSS diff intentionally left in place for review;
+  - no further deploy was made after that paused patch.

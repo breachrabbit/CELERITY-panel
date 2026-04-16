@@ -2,11 +2,17 @@
 
 ## Near Term
 
+- resolve the persistent shell/layout drift bug across dashboard, stats, login, and page navigation;
 - finish current admin UI redesign in a flatter, cleaner visual language;
 - improve dashboard analytics and make traffic graphs reflect real data history;
+- refine dashboard card UX:
+  - add compact period switcher (`24ч / 7д / 30д`);
+  - reduce point density;
+  - improve human-readable time labels;
 - add user-level operational stats:
   - extend current traffic/device view into exact node attribution;
   - add better cascade visibility where technically possible;
+- continue stronger visual and textual movement away from visible `Celerity` branding;
 - complete HAPP polish:
   - clean texts;
   - reliable import flow;
