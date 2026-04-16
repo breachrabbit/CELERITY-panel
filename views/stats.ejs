@@ -53,10 +53,10 @@
 
 <!-- Period Selector -->
 <div class="period-selector">
-    <button class="period-btn active" data-period="1h">1<%= t('stats.h') %></button>
+    <button class="period-btn" data-period="1h">1<%= t('stats.h') %></button>
     <button class="period-btn" data-period="6h">6<%= t('stats.h') %></button>
     <button class="period-btn" data-period="24h">24<%= t('stats.h') %></button>
-    <button class="period-btn" data-period="7d">7<%= t('stats.d') %></button>
+    <button class="period-btn active" data-period="7d">7<%= t('stats.d') %></button>
     <button class="period-btn" data-period="30d">30<%= t('stats.d') %></button>
 </div>
 
@@ -160,8 +160,8 @@
     margin-bottom: 24px;
     background: var(--bg-secondary);
     padding: 8px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
+    border-radius: 14px;
+    border: 1px dashed var(--border);
     width: fit-content;
 }
 
@@ -184,19 +184,21 @@
 }
 
 .period-btn.active {
-    background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%);
+    background: var(--brand-navy);
+    border-color: transparent;
     color: white;
-    box-shadow: 0 2px 8px var(--accent-glow);
+    box-shadow: none;
 }
 
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px;
 }
 
 .chart-card {
     overflow: visible;
+    min-width: 0;
 }
 
 .chart-card-wide {
@@ -206,10 +208,19 @@
 .chart-body {
     height: 300px;
     position: relative;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .chart-body-tall {
     height: 400px;
+}
+
+.chart-body canvas {
+    display: block;
+    width: 100% !important;
+    max-width: 100%;
+    height: 100% !important;
 }
 
 .chart-legend {
@@ -243,6 +254,11 @@
 
 .traffic-totals .down {
     color: #3b82f6;
+}
+
+:root[data-theme="dark"] .period-btn.active {
+    background: var(--brand-cyan);
+    color: var(--brand-navy);
 }
 
 #nodesTableBody .node-name {
@@ -323,7 +339,7 @@ let nodesChart = null;
 let nodesTrafficChart = null;
 
 // Current period
-let currentPeriod = '1h';
+let currentPeriod = '7d';
 
 // Chart colors
 const colors = {
@@ -338,9 +354,9 @@ const colors = {
 };
 
 // Chart defaults
-Chart.defaults.color = '#a1a1aa';
-Chart.defaults.borderColor = '#27272a';
-Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#6b7280';
+Chart.defaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || 'rgba(5,10,60,0.12)';
+Chart.defaults.font.family = "'Lilex', 'Inter', sans-serif";
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -374,9 +390,13 @@ function initCharts() {
                 borderColor: colors.online.border,
                 backgroundColor: colors.online.bg,
                 fill: true,
-                tension: 0.4,
-                pointRadius: 0,
+                borderWidth: 2.5,
+                tension: 0.42,
+                pointRadius: 3,
                 pointHoverRadius: 6,
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: colors.online.border,
+                pointBorderWidth: 2,
             }]
         },
         options: getChartOptions('online')
@@ -385,25 +405,37 @@ function initCharts() {
     // Traffic Chart
     const trafficCtx = document.getElementById('trafficChart').getContext('2d');
     trafficChart = new Chart(trafficCtx, {
-        type: 'bar',
+        type: 'line',
         data: {
             labels: [],
             datasets: [
                 {
                     label: i18n.upload,
                     data: [],
-                    backgroundColor: colors.upload.bg,
+                    backgroundColor: 'transparent',
                     borderColor: colors.upload.border,
-                    borderWidth: 1,
-                    borderRadius: 4,
+                    borderWidth: 2.5,
+                    tension: 0.42,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: colors.upload.border,
+                    pointBorderWidth: 2,
+                    fill: false,
                 },
                 {
                     label: i18n.download,
                     data: [],
-                    backgroundColor: colors.download.bg,
+                    backgroundColor: 'transparent',
                     borderColor: colors.download.border,
-                    borderWidth: 1,
-                    borderRadius: 4,
+                    borderWidth: 2.5,
+                    tension: 0.42,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: colors.download.border,
+                    pointBorderWidth: 2,
+                    fill: false,
                 }
             ]
         },
@@ -451,13 +483,13 @@ function getChartOptions(type) {
                 }
             },
             tooltip: {
-                backgroundColor: '#1f1f23',
-                titleColor: '#fafafa',
-                bodyColor: '#a1a1aa',
-                borderColor: '#27272a',
+                backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffffff',
+                titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#050A3C',
+                bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#6b7280',
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || 'rgba(5,10,60,0.12)',
                 borderWidth: 1,
                 padding: 12,
-                cornerRadius: 8,
+                cornerRadius: 12,
                 displayColors: true,
                 callbacks: {}
             }
@@ -473,7 +505,9 @@ function getChartOptions(type) {
                     }
                 },
                 grid: {
-                    display: false,
+                    color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
+                    borderDash: [4, 6],
+                    drawTicks: false,
                 },
                 ticks: {
                     maxTicksLimit: 10,
@@ -482,7 +516,9 @@ function getChartOptions(type) {
             y: {
                 beginAtZero: true,
                 grid: {
-                    color: '#27272a',
+                    color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
+                    borderDash: [4, 6],
+                    drawTicks: false,
                 },
             }
         }
@@ -580,9 +616,12 @@ function updateNodesChart(data) {
         data: node.data.map(d => d.online),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
         backgroundColor: 'transparent',
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 4,
+        borderWidth: 2.25,
+        tension: 0.42,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: '#ffffff',
+        pointBorderWidth: 2,
     }));
     nodesChart.update('none');
 
@@ -593,9 +632,12 @@ function updateNodesChart(data) {
         data: node.data.map(d => (d.tx || 0) + (d.rx || 0)),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
         backgroundColor: 'transparent',
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 4,
+        borderWidth: 2.25,
+        tension: 0.42,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: '#ffffff',
+        pointBorderWidth: 2,
     }));
     nodesTrafficChart.options.scales.y.ticks = { callback: v => formatBytes(v) };
     nodesTrafficChart.options.plugins.tooltip.callbacks.label = ctx => `${ctx.dataset.label}: ${formatBytes(ctx.raw)}`;
@@ -696,7 +738,7 @@ document.getElementById('nodeSelector')?.addEventListener('change', function() {
         data: node.data.map(d => d.online),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
         backgroundColor: 'transparent',
-        tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+        borderWidth: 2.25, tension: 0.42, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: '#ffffff', pointBorderWidth: 2,
     }));
     filterChart(nodesChart, all, this.value);
 });
@@ -708,10 +750,22 @@ document.getElementById('nodeTrafficSelector')?.addEventListener('change', funct
         data: node.data.map(d => (d.tx || 0) + (d.rx || 0)),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
         backgroundColor: 'transparent',
-        tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+        borderWidth: 2.25, tension: 0.42, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: '#ffffff', pointBorderWidth: 2,
     }));
     filterChart(nodesTrafficChart, all, this.value);
 });
 
-</script>
+function resizeStatsCharts() {
+    [onlineChart, trafficChart, nodesChart, nodesTrafficChart].forEach((chart) => {
+        if (chart) chart.resize();
+    });
+}
 
+window.addEventListener('load', resizeStatsCharts);
+window.addEventListener('pageshow', resizeStatsCharts);
+window.addEventListener('resize', resizeStatsCharts);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) resizeStatsCharts();
+});
+
+</script>
