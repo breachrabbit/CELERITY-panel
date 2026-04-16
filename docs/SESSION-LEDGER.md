@@ -36,3 +36,9 @@
   - review the uncommitted patch set first;
   - then fix sidebar full-height behavior and remaining shell drift;
   - then continue with topbar controls, background texture, users-list actions, accent-color cleanup, and HAPP theme defaults.
+
+- Current local progress:
+  - sidebar full-height behavior is being adjusted in CSS;
+  - theme switcher is moving toward icon-only controls;
+  - background texture is being changed toward paper-noise;
+  - user-detail unlimited traffic display is being changed to `∞`.

@@ -92,3 +92,17 @@ Change types:
 Change type:
 
 - `stability fix` — continuity capture for unfinished UI pass
+
+## 2026-04-16 Continued Local UI Pass
+
+- Continued working inside the still-uncommitted local UI patch set.
+- Adjusted shell behavior:
+  - sidebar now moves toward full-height stretch instead of a viewport-only cap;
+  - theme controls were simplified toward icon-only behavior.
+- Continued visual cleanup:
+  - replaced the diagonal grid direction with a paper-noise background direction;
+  - switched user-detail unlimited traffic compact display to `∞`.
+
+Change type:
+
+- `local patch` — in-progress shell and visual cleanup

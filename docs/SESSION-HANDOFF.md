@@ -10,6 +10,7 @@
   - `public/css/style.css`
   - `views/dashboard.ejs`
   - `views/layout.ejs`
+  - `views/user-detail.ejs`
   - `views/users.ejs`
 - These edits were not finalized in this session and must be reviewed before any deploy.
 
@@ -88,11 +89,11 @@
   - replace awkward unlimited traffic wording with `∞` where limits are not set.
 - theme/language/shell polish still needs follow-up:
   - language switcher should visually match the theme switcher;
-  - theme switcher labels should be removed, leaving icons only;
+  - theme switcher labels are now being reduced toward icon-only, but need visual/live verification;
   - sidebar collapse control should live near logout in a shared footer action block;
   - sidebar currently does not always stretch to full height on long settings pages.
 - visual system still needs one more strong pass:
-  - replace the background square/grid texture with a more neutral paper-like noise;
+  - the square/grid texture is being replaced with a paper-noise direction, but still needs visual approval;
   - replace green system accents (`online`, green tags, highlighted pills) with the project `Java` color family;
   - in dark theme, dashboard metric rings must not render as black;
   - review and normalize nav icons across the full menu so no icon disappears or looks mismatched.
@@ -123,8 +124,8 @@ Next practical step:
 
 1. review the current uncommitted UI patch set before touching anything else;
 2. fix the left sidebar full-height behavior and the remaining layout drift together at shell level;
-3. finish the users list operator actions (subscription page / copy / edit / details);
-4. replace the current background texture with a neutral paper-like noise;
+3. visually verify the new footer sidebar toggle, icon-only theme controls, and paper-noise direction;
+4. finish the users list operator actions (subscription page / copy / edit / details) and review `∞` in user detail;
 5. normalize theme/language controls and color accents;
 6. only after shell/UI stability is confirmed, continue with:
    - dashboard traffic/stats cleanup and chart polish;
