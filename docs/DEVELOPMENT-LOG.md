@@ -139,3 +139,14 @@ Change type:
 
 - `stability fix` — shell height synchronization and width-drift mitigation
 - `local override` — MCP-visible brand cleanup
+
+## 2026-04-16 Stats Users Activity Chart
+
+- Added a real user-activity chart to the statistics page.
+- The chart is backed by existing snapshot fields (`users`, `activeUsers`) and follows the same period selector as the rest of the stats page.
+- Added a dedicated `/panel/stats/api/users` endpoint plus cache-backed service method.
+- Added locale strings for the new chart in `ru` and `en`.
+
+Change type:
+
+- `local patch` — statistics UX and user activity visibility

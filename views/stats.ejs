@@ -83,6 +83,16 @@
             <canvas id="trafficChart"></canvas>
         </div>
     </div>
+
+    <div class="card chart-card chart-card-wide">
+        <div class="card-header">
+            <h2><i class="ti ti-users-group"></i> <%= t('stats.usersActivity') %></h2>
+            <div class="chart-legend" id="usersLegend"></div>
+        </div>
+        <div class="card-body chart-body">
+            <canvas id="usersChart"></canvas>
+        </div>
+    </div>
 </div>
 
 <!-- Nodes Online Chart -->
@@ -321,6 +331,8 @@
 const i18n = {
     online: <%- JSON.stringify(t('stats.online')) %>,
     nodesOnline: <%- JSON.stringify(t('stats.nodesOnline')) %>,
+    activeUsers: <%- JSON.stringify(t('stats.activeUsersSeries')) %>,
+    totalUsers: <%- JSON.stringify(t('stats.totalUsersSeries')) %>,
     upload: <%- JSON.stringify(t('stats.upload')) %>,
     download: <%- JSON.stringify(t('stats.download')) %>,
     connections: <%- JSON.stringify(t('common.connections')) %>,
@@ -335,6 +347,7 @@ let _lastNodesData = null;
 // Charts instances
 let onlineChart = null;
 let trafficChart = null;
+let usersChart = null;
 let nodesChart = null;
 let nodesTrafficChart = null;
 
@@ -374,6 +387,8 @@ function formatXAxisLabel(value, period) {
 const colors = {
     online: { bg: 'rgba(99, 102, 241, 0.2)', border: '#6366f1' },
     nodes: { bg: 'rgba(2, 168, 173, 0.2)', border: '#02A8AD' },
+    users: { bg: 'rgba(8, 197, 203, 0.16)', border: '#08C5CB' },
+    usersTotal: { bg: 'rgba(5, 10, 60, 0.12)', border: '#182463' },
     upload: { bg: 'rgba(2, 168, 173, 0.3)', border: '#02A8AD' },
     download: { bg: 'rgba(59, 130, 246, 0.3)', border: '#3b82f6' },
     nodeColors: [
@@ -469,6 +484,46 @@ function initCharts() {
             ]
         },
         options: getChartOptions('traffic')
+    });
+
+    const usersCtx = document.getElementById('usersChart').getContext('2d');
+    usersChart = new Chart(usersCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: i18n.activeUsers,
+                    data: [],
+                    borderColor: colors.users.border,
+                    backgroundColor: colors.users.bg,
+                    fill: false,
+                    borderWidth: 2.5,
+                    tension: 0.42,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: colors.users.border,
+                    pointBorderWidth: 2,
+                },
+                {
+                    label: i18n.totalUsers,
+                    data: [],
+                    borderColor: colors.usersTotal.border,
+                    backgroundColor: colors.usersTotal.bg,
+                    fill: false,
+                    borderWidth: 2.25,
+                    tension: 0.38,
+                    pointRadius: 2.5,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: colors.usersTotal.border,
+                    pointBorderWidth: 2,
+                    borderDash: [6, 6],
+                }
+            ]
+        },
+        options: getChartOptions('users')
     });
     
     // Nodes Online Chart
@@ -574,9 +629,10 @@ function getChartOptions(type) {
 
 async function loadData(period) {
     try {
-        const [onlineData, trafficData, nodesData] = await Promise.all([
+        const [onlineData, trafficData, usersData, nodesData] = await Promise.all([
             fetch(`/panel/stats/api/online?period=${period}`, { credentials: 'include' }).then(r => r.json()),
             fetch(`/panel/stats/api/traffic?period=${period}`, { credentials: 'include' }).then(r => r.json()),
+            fetch(`/panel/stats/api/users?period=${period}`, { credentials: 'include' }).then(r => r.json()),
             fetch(`/panel/stats/api/nodes?period=${period}`, { credentials: 'include' }).then(r => r.json()),
         ]);
         
@@ -585,6 +641,7 @@ async function loadData(period) {
 
         updateOnlineChart(onlineData);
         updateTrafficChart(trafficData);
+        updateUsersChart(usersData);
         updateNodesChart(nodesData);
         updateNodesTable(nodesData);
         updateTrend();
@@ -643,6 +700,37 @@ function updateTrafficChart(data) {
     document.getElementById('trafficTotals').innerHTML = `
         <span class="up"><i class="ti ti-arrow-up"></i> ${formatBytes(data.totals.tx)}</span>
         <span class="down"><i class="ti ti-arrow-down"></i> ${formatBytes(data.totals.rx)}</span>
+    `;
+}
+
+function updateUsersChart(data) {
+    if (!data.labels || data.labels.length === 0) {
+        return;
+    }
+
+    usersChart.data.labels = data.labels.map(l => new Date(l));
+    usersChart.data.datasets[0].data = data.datasets.activeUsers;
+    usersChart.data.datasets[1].data = data.datasets.totalUsers;
+    const pointRadius = getPointRadius(data.labels.length);
+    usersChart.data.datasets[0].pointRadius = pointRadius;
+    usersChart.data.datasets[0].pointHoverRadius = Math.max(4, pointRadius + 2);
+    usersChart.data.datasets[1].pointRadius = Math.max(0, pointRadius - 0.5);
+    usersChart.data.datasets[1].pointHoverRadius = Math.max(4, pointRadius + 1.5);
+    usersChart.options.scales.x.time.unit = getTickUnit(currentPeriod);
+    usersChart.options.scales.x.ticks.maxTicksLimit = getTickLimit(currentPeriod);
+    usersChart.update('none');
+
+    const currentActive = data.datasets.activeUsers[data.datasets.activeUsers.length - 1] || 0;
+    const currentTotal = data.datasets.totalUsers[data.datasets.totalUsers.length - 1] || 0;
+    document.getElementById('usersLegend').innerHTML = `
+        <span class="legend-item">
+            <span class="legend-dot" style="background: ${colors.users.border}"></span>
+            ${i18n.activeUsers}: ${currentActive}
+        </span>
+        <span class="legend-item">
+            <span class="legend-dot" style="background: ${colors.usersTotal.border}"></span>
+            ${i18n.totalUsers}: ${currentTotal}
+        </span>
     `;
 }
 
@@ -805,7 +893,7 @@ document.getElementById('nodeTrafficSelector')?.addEventListener('change', funct
 });
 
 function resizeStatsCharts() {
-    [onlineChart, trafficChart, nodesChart, nodesTrafficChart].forEach((chart) => {
+    [onlineChart, trafficChart, usersChart, nodesChart, nodesTrafficChart].forEach((chart) => {
         if (chart) chart.resize();
     });
 }

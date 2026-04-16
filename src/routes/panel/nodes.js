@@ -1410,6 +1410,16 @@ router.get('/stats/api/traffic', async (req, res) => {
     }
 });
 
+router.get('/stats/api/users', async (req, res) => {
+    try {
+        const period = req.query.period || '24h';
+        const data = await statsService.getUsersChart(period);
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET /panel/stats/api/nodes - Nodes chart data
 router.get('/stats/api/nodes', async (req, res) => {
     try {

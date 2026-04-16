@@ -53,6 +53,9 @@
   - added JS-based shell height syncing for the sidebar/content relationship;
   - removed width-containment from core shell containers to further reduce drift risk;
   - continued rebrand cleanup in frontend storage keys and MCP-visible names.
+- Stats continuation:
+  - added a real users-activity chart to the statistics page using snapshot-backed user counts;
+  - new API path: `/panel/stats/api/users`.
 - Next step:
   - deploy and verify whether the sidebar now truly reaches the bottom on long pages;
   - re-test page transitions for remaining drift;

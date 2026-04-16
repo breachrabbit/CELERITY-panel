@@ -10,6 +10,7 @@ const CACHE_KEYS = {
     SUMMARY: 'stats:summary',
     ONLINE: 'stats:online:',
     TRAFFIC: 'stats:traffic:',
+    USERS: 'stats:users:',
     NODES: 'stats:nodes:',
 };
 
@@ -413,6 +414,40 @@ class StatsService {
             } catch (e) {}
         }
         
+        return result;
+    }
+
+    async getUsersChart(period = '24h') {
+        const cacheKey = CACHE_KEYS.USERS + period;
+
+        if (cache.isConnected()) {
+            try {
+                const cached = await cache.redis.get(cacheKey);
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+            } catch (e) {}
+        }
+
+        const { type, startDate, endDate } = this.getPeriodParams(period);
+        const data = await StatsSnapshot.getRange(type, startDate, endDate, false);
+
+        const result = {
+            period,
+            type,
+            labels: data.map(d => d.ts),
+            datasets: {
+                activeUsers: data.map(d => d.activeUsers || 0),
+                totalUsers: data.map(d => d.users || 0),
+            }
+        };
+
+        if (cache.isConnected()) {
+            try {
+                await cache.redis.setex(cacheKey, CACHE_TTL.CHARTS, JSON.stringify(result));
+            } catch (e) {}
+        }
+
         return result;
     }
 
