@@ -1860,12 +1860,16 @@ html.layout-stabilizing * {
     flex: 0 0 auto;
     flex-direction: column;
     min-height: 0;
+    width: 100%;
+    min-width: 0;
 }
 
 .logs-card .card-body {
     display: flex;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     min-height: 0;
+    width: 100%;
+    min-width: 0;
 }
 
 /* Nodes Table */
@@ -2010,6 +2014,9 @@ html.layout-stabilizing * {
 
 /* Logs */
 .logs-container {
+    display: block;
+    width: 100%;
+    min-width: 0;
     height: 100%;
     min-height: 420px;
     max-height: min(620px, calc(100dvh - 320px));
