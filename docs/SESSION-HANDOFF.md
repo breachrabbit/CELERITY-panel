@@ -30,6 +30,7 @@
 - layout stabilization work was added for the page-shift bug after navigation;
 - shell layout was moved to `grid + sticky sidebar` and deployed;
 - topbar now contains the language switcher next to theme controls;
+- sidebar markup now uses an inner sticky layer so the shell can stretch full-height while keeping controls pinned;
 - visible login/setup/TOTP branding has started moving from `Celerity` toward `Hidden Rabbit`;
 - user detail view now shows:
   - traffic progress;
@@ -84,9 +85,12 @@
   - subscription QR code background/frame was recolored, but should be checked on real devices and browsers.
 - upstream comparison baseline exists, but adoption triage is still not finished.
 - users list still needs operator UX completion:
-  - add direct open-subscription-page action in the users table and mobile cards;
-  - restore/edit-profile access from the users list, not only from detail page;
-  - replace awkward unlimited traffic wording with `∞` where limits are not set.
+  - verify the new direct actions in live UI:
+    - open subscription page;
+    - copy subscription;
+    - edit profile;
+    - open details;
+  - replace awkward unlimited traffic wording with `∞` where limits are not set across any remaining surfaces.
 - theme/language/shell polish still needs follow-up:
   - language switcher should visually match the theme switcher;
   - theme switcher labels are now being reduced toward icon-only, but need visual/live verification;
@@ -98,8 +102,23 @@
   - in dark theme, dashboard metric rings must not render as black;
   - review and normalize nav icons across the full menu so no icon disappears or looks mismatched.
 - HAPP theme work is still pending:
-  - default HAPP color profile should align with the dark panel theme;
-  - evaluate whether HAPP can support coordinated light/dark/system theming for iOS/macOS and, if possible, prepare both profiles.
+  - dark-themed default HAPP color profile has now been added at settings/model level;
+  - light preset button has also been added in the panel for Apple-platform testing;
+  - still need real-device verification for iOS/macOS behavior and whether light/dark/system can truly follow the client theme automatically.
+
+## 2026-04-16 UI Follow-Up Update
+
+- prepared a new deployable UI batch:
+  - sidebar now uses `.sidebar` + `.sidebar-inner` so the background column can reach the full page height while the inner stack remains sticky;
+  - content background moved further toward neutral paper-noise instead of the older square/grid feel;
+  - remaining green success accents were shifted again toward project `Java`;
+  - users list action set was refined with clearer icons for subscription / copy / edit / details;
+  - HAPP color profile now defaults to a Hidden Rabbit dark preset, and the HAPP settings view exposes dark/light preset-fill buttons.
+- this batch must be verified live after deploy:
+  - long settings pages for sidebar full-height;
+  - dark theme rings;
+  - HAPP color profile preset behavior;
+  - users list actions and topbar controls.
 
 ## Known Broken / Risky / Pending
 

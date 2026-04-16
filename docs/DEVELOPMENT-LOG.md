@@ -106,3 +106,17 @@ Change type:
 Change type:
 
 - `local patch` — in-progress shell and visual cleanup
+
+## 2026-04-16 Deployable UI Follow-Up
+
+- Continued the shell/UI pass into a deployable batch:
+  - wrapped sidebar content into a sticky inner layer so the left column can stretch to full page height;
+  - refined the content background toward a calmer paper-noise texture;
+  - changed remaining success/online accents from generic green toward project `Java`;
+  - updated users list action icons for subscription / copy / edit / details;
+  - set a default dark HAPP color profile in the settings model and panel route;
+  - added HAPP dark/light preset-fill buttons in the settings UI.
+
+Change type:
+
+- `local patch` — shell stretch, accent cleanup, users UX, and HAPP theming defaults

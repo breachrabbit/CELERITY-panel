@@ -4,6 +4,24 @@
 
 const mongoose = require('mongoose');
 
+const DEFAULT_HAPP_DARK_COLOR_PROFILE = JSON.stringify({
+    backgroundColors: ['#050A3C', '#0E174F'],
+    buttonColor: '#08C5CB',
+    buttonTextColor: '#050A3C',
+    topBarButtonsColor: '#DDE5ED',
+    subscriptionTrafficBackgroundColor: '#0E174F',
+    subscriptionTrafficTextColor: '#FFFFFF',
+    subscriptionInfoBackgroundColor: '#182463',
+    subscriptionInfoTextColor: '#DDE5ED',
+    serverRowBackgroundColor: '#0E174F',
+    serverRowTitleTextColor: '#FFFFFF',
+    serverRowSubTitleTextColor: '#DDE5ED',
+    profileTitleTextColor: '#FFFFFF',
+    profileSubtitleTextColor: '#DDE5ED',
+    supportIconColor: '#08C5CB',
+    profileWebPageIconColor: '#08C5CB',
+});
+
 const settingsSchema = new mongoose.Schema({
     _id: {
         type: String,
@@ -104,7 +122,7 @@ const settingsSchema = new mongoose.Schema({
             alwaysHwid: { type: Boolean, default: false },
             pingType: { type: String, enum: ['', 'proxy', 'proxy-head', 'tcp', 'icmp'], default: 'proxy' },
             pingUrl: { type: String, default: 'https://cp.cloudflare.com/generate_204' },
-            colorProfile: { type: String, default: '' },
+            colorProfile: { type: String, default: DEFAULT_HAPP_DARK_COLOR_PROFILE },
             display: {
                 showTrafficProgress: { type: Boolean, default: true },
                 showTrafficDetails: { type: Boolean, default: true },
@@ -153,3 +171,4 @@ settingsSchema.statics.update = async function(updates) {
 };
 
 module.exports = mongoose.model('Settings', settingsSchema);
+module.exports.DEFAULT_HAPP_DARK_COLOR_PROFILE = DEFAULT_HAPP_DARK_COLOR_PROFILE;

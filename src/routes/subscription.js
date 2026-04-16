@@ -854,7 +854,7 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
             --border: rgba(5,10,60,0.12);
             --text: #07123c;
             --muted: #68738f;
-            --success: #22c55e;
+            --success: #02A8AD;
             --shadow: 0 18px 36px rgba(5,10,60,0.06);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1078,7 +1078,7 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
             display: flex;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 16px 34px rgba(34,197,94,0.22);
+            box-shadow: 0 16px 34px rgba(2,168,173,0.22);
         }
         .toast.show { transform: translateX(-50%) translateY(0); }
         @media (max-width: 720px) {

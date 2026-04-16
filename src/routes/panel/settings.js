@@ -25,6 +25,8 @@ const {
     SETTINGS_TOTP_ACTIONS,
 } = require('./helpers');
 
+const DEFAULT_HAPP_DARK_COLOR_PROFILE = Settings.DEFAULT_HAPP_DARK_COLOR_PROFILE;
+
 // ==================== SETTINGS ====================
 
 // GET /settings
@@ -60,6 +62,7 @@ router.get('/settings', async (req, res) => {
         if (!settings.subscription.happ) settings.subscription.happ = {};
         if (!settings.subscription.happ.pingType) settings.subscription.happ.pingType = 'proxy';
         if (!settings.subscription.happ.pingUrl) settings.subscription.happ.pingUrl = 'https://cp.cloudflare.com/generate_204';
+        if (!settings.subscription.happ.colorProfile) settings.subscription.happ.colorProfile = DEFAULT_HAPP_DARK_COLOR_PROFILE;
 
         render(res, 'settings', {
             title: res.locals.locales.settings.title,
@@ -171,13 +174,14 @@ router.post('/settings', async (req, res) => {
                 updates['subscription.happ.support.overdueText'] = String(req.body['subscription.happ.support.overdueText'] || '').trim().slice(0, 200);
                 updates['subscription.happ.colorProfile'] = (() => {
                     const raw = String(req.body['subscription.happ.colorProfile'] || '').trim();
-                    if (!raw || raw.length > 5120) return '';
+                    if (!raw) return DEFAULT_HAPP_DARK_COLOR_PROFILE;
+                    if (raw.length > 5120) return DEFAULT_HAPP_DARK_COLOR_PROFILE;
                     try {
                         const parsed = JSON.parse(raw);
-                        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return '';
+                        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return DEFAULT_HAPP_DARK_COLOR_PROFILE;
                         return JSON.stringify(parsed);
                     } catch {
-                        return '';
+                        return DEFAULT_HAPP_DARK_COLOR_PROFILE;
                     }
                 })();
             }

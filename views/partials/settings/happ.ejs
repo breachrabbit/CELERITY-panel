@@ -226,7 +226,16 @@
 
                 <div class="form-group" style="margin-top:1rem;">
                     <label><%= t('settings.happColorProfile') %></label>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:0.85rem;">
+                        <button type="button" class="btn btn-secondary" style="font-size:12px;" onclick="applyHappColorPreset('dark')">
+                            <i class="ti ti-moon"></i> Dark preset
+                        </button>
+                        <button type="button" class="btn btn-secondary" style="font-size:12px;" onclick="applyHappColorPreset('light')">
+                            <i class="ti ti-sun"></i> Light preset
+                        </button>
+                    </div>
                     <textarea
+                        id="happColorProfileInput"
                         name="subscription.happ.colorProfile"
                         rows="6"
                         style="width:100%; resize:vertical; font-family:var(--font-mono);"
@@ -253,6 +262,50 @@
             if (active) active.value = 'Спасибо. Поддержка инфраструктуры в этом периоде отмечена.';
             if (overdue) overdue.value = 'Сервис продолжает работать. При желании можно поддержать инфраструктуру в текущем периоде.';
             if (button && !button.value.trim()) button.value = 'Поддержать';
+        }
+
+        function applyHappColorPreset(mode) {
+            const field = document.getElementById('happColorProfileInput');
+            if (!field) return;
+
+            const presets = {
+                dark: {
+                    backgroundColors: ['#050A3C', '#0E174F'],
+                    buttonColor: '#08C5CB',
+                    buttonTextColor: '#050A3C',
+                    topBarButtonsColor: '#DDE5ED',
+                    subscriptionTrafficBackgroundColor: '#0E174F',
+                    subscriptionTrafficTextColor: '#FFFFFF',
+                    subscriptionInfoBackgroundColor: '#182463',
+                    subscriptionInfoTextColor: '#DDE5ED',
+                    serverRowBackgroundColor: '#0E174F',
+                    serverRowTitleTextColor: '#FFFFFF',
+                    serverRowSubTitleTextColor: '#DDE5ED',
+                    profileTitleTextColor: '#FFFFFF',
+                    profileSubtitleTextColor: '#DDE5ED',
+                    supportIconColor: '#08C5CB',
+                    profileWebPageIconColor: '#08C5CB'
+                },
+                light: {
+                    backgroundColors: ['#FFFFFF', '#DDE5ED'],
+                    buttonColor: '#050A3C',
+                    buttonTextColor: '#FFFFFF',
+                    topBarButtonsColor: '#182463',
+                    subscriptionTrafficBackgroundColor: '#FFFFFF',
+                    subscriptionTrafficTextColor: '#050A3C',
+                    subscriptionInfoBackgroundColor: '#DDE5ED',
+                    subscriptionInfoTextColor: '#050A3C',
+                    serverRowBackgroundColor: '#FFFFFF',
+                    serverRowTitleTextColor: '#050A3C',
+                    serverRowSubTitleTextColor: '#213276',
+                    profileTitleTextColor: '#050A3C',
+                    profileSubtitleTextColor: '#213276',
+                    supportIconColor: '#02A8AD',
+                    profileWebPageIconColor: '#02A8AD'
+                }
+            };
+
+            field.value = JSON.stringify(presets[mode] || presets.dark, null, 2);
         }
         </script>
     </div>

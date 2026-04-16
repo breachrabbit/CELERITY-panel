@@ -424,7 +424,7 @@ function copyMcpEndpoint() {
     const val = document.getElementById('mcpEndpointVal').textContent.trim();
     navigator.clipboard?.writeText(val).catch(() => {});
     const btn = document.getElementById('mcpCopyBtn');
-    btn.innerHTML = '<i class="ti ti-check" style="font-size:16px; color:var(--success,#22c55e);"></i>';
+    btn.innerHTML = '<i class="ti ti-check" style="font-size:16px; color:var(--success,#02A8AD);"></i>';
     setTimeout(() => btn.innerHTML = '<i class="ti ti-copy" style="font-size:16px;"></i>', 1500);
 }
 

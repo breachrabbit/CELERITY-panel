@@ -142,15 +142,22 @@ html.layout-stabilizing * {
     width: var(--sidebar-width);
     background: var(--bg-secondary);
     border-right: 1px dashed var(--border);
-    display: flex;
-    flex-direction: column;
-    position: sticky;
-    top: 0;
-    min-height: 100vh;
-    height: 100%;
+    display: block;
+    position: relative;
+    min-height: 100%;
+    height: auto;
     z-index: 100;
     min-width: 0;
     align-self: stretch;
+}
+
+.sidebar-inner {
+    position: sticky;
+    top: 0;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: inherit;
 }
 
 :root[data-theme="dark"] .sidebar {
@@ -356,28 +363,28 @@ html.layout-stabilizing * {
     overflow-x: hidden;
     position: relative;
     background:
-        radial-gradient(circle at top right, rgba(8, 197, 203, 0.028), transparent 24%),
-        radial-gradient(circle, rgba(5, 10, 60, 0.022) 0 1px, transparent 1.4px),
-        radial-gradient(circle, rgba(5, 10, 60, 0.014) 0 1px, transparent 1.6px),
-        radial-gradient(circle, rgba(5, 10, 60, 0.01) 0 1px, transparent 1.8px),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0)),
+        radial-gradient(circle at top right, rgba(8, 197, 203, 0.02), transparent 22%),
+        radial-gradient(circle at 16% 12%, rgba(5, 10, 60, 0.018) 0 0.9px, transparent 1.2px),
+        radial-gradient(circle at 68% 28%, rgba(5, 10, 60, 0.012) 0 0.8px, transparent 1.15px),
+        radial-gradient(circle at 42% 64%, rgba(5, 10, 60, 0.01) 0 0.7px, transparent 1px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
         var(--bg-primary);
-    background-size: auto, 22px 22px, 30px 30px, 36px 36px, auto;
-    background-position: 0 0, 0 0, 11px 9px, 18px 14px, 0 0;
+    background-size: auto, 34px 34px, 54px 54px, 78px 78px, auto;
+    background-position: 0 0, 0 0, 7px 11px, 19px 15px, 0 0;
     transition: none;
     contain: inline-size;
 }
 
 :root[data-theme="dark"] .content {
     background:
-        radial-gradient(circle at top right, rgba(8, 197, 203, 0.05), transparent 24%),
-        radial-gradient(circle, rgba(191, 208, 235, 0.034) 0 1px, transparent 1.5px),
-        radial-gradient(circle, rgba(191, 208, 235, 0.022) 0 1px, transparent 1.7px),
-        radial-gradient(circle, rgba(191, 208, 235, 0.016) 0 1px, transparent 2px),
-        linear-gradient(180deg, rgba(17, 29, 76, 0.2), rgba(17, 29, 76, 0)),
+        radial-gradient(circle at top right, rgba(8, 197, 203, 0.04), transparent 22%),
+        radial-gradient(circle at 18% 14%, rgba(221, 229, 237, 0.03) 0 0.9px, transparent 1.2px),
+        radial-gradient(circle at 62% 36%, rgba(221, 229, 237, 0.02) 0 0.8px, transparent 1.15px),
+        radial-gradient(circle at 40% 72%, rgba(221, 229, 237, 0.014) 0 0.7px, transparent 1px),
+        linear-gradient(180deg, rgba(17, 29, 76, 0.14), rgba(17, 29, 76, 0)),
         var(--bg-primary);
-    background-size: auto, 24px 24px, 32px 32px, 38px 38px, auto;
-    background-position: 0 0, 0 0, 10px 8px, 17px 13px, 0 0;
+    background-size: auto, 34px 34px, 54px 54px, 78px 78px, auto;
+    background-position: 0 0, 0 0, 7px 11px, 19px 15px, 0 0;
 }
 
 .topbar {
@@ -1423,9 +1430,9 @@ html.layout-stabilizing * {
     color: white; 
 }
 .btn-success:hover { 
-    background: #16a34a; 
-    border-color: #16a34a;
-    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+    background: #018B90; 
+    border-color: #018B90;
+    box-shadow: 0 6px 20px rgba(2, 168, 173, 0.28);
     transform: translateY(-2px);
 }
 
@@ -1570,7 +1577,7 @@ html.layout-stabilizing * {
 }
 
 .toggle-switch:hover input:checked + .toggle-slider {
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    box-shadow: 0 4px 12px rgba(2, 168, 173, 0.34);
 }
 
 /* Page Header with Sticky Filters */
@@ -1866,7 +1873,7 @@ html.layout-stabilizing * {
 
 .status-online .status-dot { 
     background: var(--success); 
-    box-shadow: 0 0 12px var(--success), 0 0 20px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 12px var(--success), 0 0 20px rgba(2, 168, 173, 0.28);
 }
 .status-online { color: var(--success); font-weight: 500; }
 
@@ -2916,6 +2923,10 @@ html.layout-stabilizing * {
         z-index: 200;
         transition: left 0.3s ease;
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar-inner {
+        min-height: 100vh;
     }
 
     :root.sidebar-collapsed {

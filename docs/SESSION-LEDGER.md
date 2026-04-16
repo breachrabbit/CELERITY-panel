@@ -42,3 +42,9 @@
   - theme switcher is moving toward icon-only controls;
   - background texture is being changed toward paper-noise;
   - user-detail unlimited traffic display is being changed to `∞`.
+
+- Follow-up progress:
+  - sidebar now has an inner sticky layer intended to keep the column full-height on long pages;
+  - users list actions were expanded and visually clarified;
+  - HAPP settings now ship with a dark default color profile plus light/dark preset buttons;
+  - next step is live verification on the stand and then another responsive/layout pass where needed.

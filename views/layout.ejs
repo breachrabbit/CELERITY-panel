@@ -34,58 +34,60 @@
         </div>
         
         <nav class="sidebar" id="sidebar">
-            <div class="sidebar-head">
-                <div class="logo">
-                    <span class="logo-icon">⚡</span>
-                    <div class="logo-content">
-                        <span class="logo-text">Hidden Rabbit</span>
-                        <span class="logo-sub">secure control surface</span>
+            <div class="sidebar-inner">
+                <div class="sidebar-head">
+                    <div class="logo">
+                        <span class="logo-icon">⚡</span>
+                        <div class="logo-content">
+                            <span class="logo-text">Hidden Rabbit</span>
+                            <span class="logo-sub">secure control surface</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <ul class="nav-menu">
-                <li><a href="/panel" class="<%= page === 'dashboard' ? 'active' : '' %>">
-                    <span class="nav-icon"><i class="ti ti-smart-home"></i></span>
-                    <span class="nav-label"><%= t('nav.dashboard') %></span>
-                </a></li>
-                <li><a href="/panel/stats" class="<%= page === 'stats' ? 'active' : '' %>">
-                    <span class="nav-icon"><i class="ti ti-chart-line"></i></span>
-                    <span class="nav-label"><%= t('nav.stats') %></span>
-                </a></li>
-                <li><a href="/panel/nodes" class="<%= page === 'nodes' ? 'active' : '' %>">
-                    <span class="nav-icon"><i class="ti ti-router"></i></span>
-                    <span class="nav-label"><%= t('nav.nodes') %></span>
-                </a></li>
-                <li><a href="/panel/groups" class="<%= page === 'groups' ? 'active' : '' %>">
-                    <span class="nav-icon"><i class="ti ti-layout-grid"></i></span>
-                    <span class="nav-label"><%= t('nav.groups') %></span>
-                </a></li>
-                <li><a href="/panel/users" class="<%= page === 'users' ? 'active' : '' %>">
-                    <span class="nav-icon"><i class="ti ti-users-group"></i></span>
-                    <span class="nav-label"><%= t('nav.users') %></span>
-                </a></li>
-                <li><a href="/panel/settings" class="<%= page === 'settings' ? 'active' : '' %>">
-                    <span class="nav-icon"><i class="ti ti-settings-2"></i></span>
-                    <span class="nav-label"><%= t('nav.settings') %></span>
-                </a></li>
-            </ul>
-            <div class="sidebar-footer">
-                <button
-                    type="button"
-                    class="sidebar-toggle sidebar-footer-toggle"
-                    id="sidebarToggle"
-                    aria-label="<%= t('common.toggleSidebar') %>"
-                    title="<%= t('common.collapse') %>"
-                    data-label-collapse="<%= t('common.collapse') %>"
-                    data-label-expand="<%= t('common.expand') %>"
-                >
-                    <i class="ti ti-panel-left-close"></i>
-                    <span class="sidebar-toggle-label"><%= t('common.collapse') %></span>
-                </button>
-                <a href="/panel/logout" class="logout-btn">
-                    <i class="ti ti-logout-2"></i>
-                    <span class="logout-label"><%= t('nav.logout') %></span>
-                </a>
+                <ul class="nav-menu">
+                    <li><a href="/panel" class="<%= page === 'dashboard' ? 'active' : '' %>">
+                        <span class="nav-icon"><i class="ti ti-smart-home"></i></span>
+                        <span class="nav-label"><%= t('nav.dashboard') %></span>
+                    </a></li>
+                    <li><a href="/panel/stats" class="<%= page === 'stats' ? 'active' : '' %>">
+                        <span class="nav-icon"><i class="ti ti-chart-line"></i></span>
+                        <span class="nav-label"><%= t('nav.stats') %></span>
+                    </a></li>
+                    <li><a href="/panel/nodes" class="<%= page === 'nodes' ? 'active' : '' %>">
+                        <span class="nav-icon"><i class="ti ti-router"></i></span>
+                        <span class="nav-label"><%= t('nav.nodes') %></span>
+                    </a></li>
+                    <li><a href="/panel/groups" class="<%= page === 'groups' ? 'active' : '' %>">
+                        <span class="nav-icon"><i class="ti ti-layout-grid"></i></span>
+                        <span class="nav-label"><%= t('nav.groups') %></span>
+                    </a></li>
+                    <li><a href="/panel/users" class="<%= page === 'users' ? 'active' : '' %>">
+                        <span class="nav-icon"><i class="ti ti-users-group"></i></span>
+                        <span class="nav-label"><%= t('nav.users') %></span>
+                    </a></li>
+                    <li><a href="/panel/settings" class="<%= page === 'settings' ? 'active' : '' %>">
+                        <span class="nav-icon"><i class="ti ti-settings-2"></i></span>
+                        <span class="nav-label"><%= t('nav.settings') %></span>
+                    </a></li>
+                </ul>
+                <div class="sidebar-footer">
+                    <button
+                        type="button"
+                        class="sidebar-toggle sidebar-footer-toggle"
+                        id="sidebarToggle"
+                        aria-label="<%= t('common.toggleSidebar') %>"
+                        title="<%= t('common.collapse') %>"
+                        data-label-collapse="<%= t('common.collapse') %>"
+                        data-label-expand="<%= t('common.expand') %>"
+                    >
+                        <i class="ti ti-panel-left-close"></i>
+                        <span class="sidebar-toggle-label"><%= t('common.collapse') %></span>
+                    </button>
+                    <a href="/panel/logout" class="logout-btn">
+                        <i class="ti ti-logout-2"></i>
+                        <span class="logout-label"><%= t('nav.logout') %></span>
+                    </a>
+                </div>
             </div>
         </nav>
         <main class="content">

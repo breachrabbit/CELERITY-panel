@@ -1087,7 +1087,7 @@ document.getElementById('generateSshKeyBtn')?.addEventListener('click', async fu
         const data = await res.json();
         if (data.success) {
             statusEl.textContent = '<%= t('nodes.sshKeyInstalled') %>';
-            statusEl.style.color = 'var(--color-success, #22c55e)';
+            statusEl.style.color = 'var(--success, #02A8AD)';
             // Update UI to show key is now set
             const label = document.querySelector('label[for="sshPrivateKey"]');
             if (label && !label.querySelector('.badge')) {
