@@ -93,6 +93,36 @@
             <canvas id="usersChart"></canvas>
         </div>
     </div>
+
+    <div class="card chart-card">
+        <div class="card-header">
+            <h2><i class="ti ti-user-check"></i> <%= t('stats.activeUsersOnly') %></h2>
+            <div class="chart-legend" id="activeUsersMiniLegend"></div>
+        </div>
+        <div class="card-body chart-body">
+            <canvas id="activeUsersMiniChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card chart-card">
+        <div class="card-header">
+            <h2><i class="ti ti-user-plus"></i> <%= t('stats.newProfiles') %></h2>
+            <div class="chart-legend" id="registrationsLegend"></div>
+        </div>
+        <div class="card-body chart-body">
+            <canvas id="registrationsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card chart-card chart-card-wide mt-2">
+    <div class="card-header">
+        <h2><i class="ti ti-layout-grid"></i> <%= t('stats.usersHeatmap') %></h2>
+        <div class="chart-legend" id="usersHeatmapLegend"></div>
+    </div>
+    <div class="card-body">
+        <div class="users-heatmap" id="usersHeatmap"></div>
+    </div>
 </div>
 
 <!-- Nodes Online Chart -->
@@ -266,6 +296,66 @@
     color: #3b82f6;
 }
 
+.users-heatmap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.users-heatmap-row {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+}
+
+.users-heatmap-date {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.users-heatmap-cells {
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.users-heatmap-cell {
+    aspect-ratio: 1 / 1;
+    min-height: 14px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+    background: rgba(2, 168, 173, 0.04);
+    cursor: default;
+    transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.users-heatmap-cell:hover {
+    transform: translateY(-1px);
+    border-color: rgba(2, 168, 173, 0.55);
+}
+
+.users-heatmap-scale {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.users-heatmap-scale-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 14px);
+    gap: 4px;
+}
+
+.users-heatmap-scale-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px dashed var(--border);
+}
+
 :root[data-theme="dark"] .period-btn.active {
     background: var(--brand-cyan);
     color: var(--brand-navy);
@@ -321,6 +411,15 @@
         gap: 4px;
         font-size: 11px;
     }
+
+    .users-heatmap-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .users-heatmap-cells {
+        gap: 4px;
+    }
 }
 </style>
 
@@ -333,6 +432,13 @@ const i18n = {
     nodesOnline: <%- JSON.stringify(t('stats.nodesOnline')) %>,
     activeUsers: <%- JSON.stringify(t('stats.activeUsersSeries')) %>,
     totalUsers: <%- JSON.stringify(t('stats.totalUsersSeries')) %>,
+    activeUsersOnly: <%- JSON.stringify(t('stats.activeUsersOnly')) %>,
+    registrations: <%- JSON.stringify(t('stats.newProfiles')) %>,
+    registrationsSeries: <%- JSON.stringify(t('stats.newProfilesSeries')) %>,
+    usersHeatmap: <%- JSON.stringify(t('stats.usersHeatmap')) %>,
+    recent48h: <%- JSON.stringify(t('stats.recent48h')) %>,
+    low: <%- JSON.stringify(t('stats.low')) %>,
+    high: <%- JSON.stringify(t('stats.high')) %>,
     upload: <%- JSON.stringify(t('stats.upload')) %>,
     download: <%- JSON.stringify(t('stats.download')) %>,
     connections: <%- JSON.stringify(t('common.connections')) %>,
@@ -348,6 +454,8 @@ let _lastNodesData = null;
 let onlineChart = null;
 let trafficChart = null;
 let usersChart = null;
+let activeUsersMiniChart = null;
+let registrationsChart = null;
 let nodesChart = null;
 let nodesTrafficChart = null;
 
@@ -525,6 +633,52 @@ function initCharts() {
         },
         options: getChartOptions('users')
     });
+
+    const activeUsersMiniCtx = document.getElementById('activeUsersMiniChart').getContext('2d');
+    activeUsersMiniChart = new Chart(activeUsersMiniCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: i18n.activeUsersOnly,
+                data: [],
+                borderColor: colors.users.border,
+                backgroundColor: colors.users.bg,
+                fill: true,
+                borderWidth: 2.5,
+                tension: 0.42,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: colors.users.border,
+                pointBorderWidth: 2,
+            }]
+        },
+        options: getChartOptions('activeUsersMini')
+    });
+
+    const registrationsCtx = document.getElementById('registrationsChart').getContext('2d');
+    registrationsChart = new Chart(registrationsCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: i18n.registrationsSeries,
+                data: [],
+                borderColor: '#44EFF4',
+                backgroundColor: 'rgba(68, 239, 244, 0.12)',
+                fill: true,
+                borderWidth: 2.5,
+                tension: 0.36,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#44EFF4',
+                pointBorderWidth: 2,
+            }]
+        },
+        options: getChartOptions('registrations')
+    });
     
     // Nodes Online Chart
     const nodesCtx = document.getElementById('nodesChart').getContext('2d');
@@ -623,16 +777,27 @@ function getChartOptions(type) {
             }
         };
     }
+
+    if (type === 'registrations' || type === 'activeUsersMini' || type === 'users') {
+        baseOptions.scales.y.ticks = {
+            precision: 0,
+            callback: function(value) {
+                return Number(value).toFixed(0);
+            }
+        };
+    }
     
     return baseOptions;
 }
 
 async function loadData(period) {
     try {
-        const [onlineData, trafficData, usersData, nodesData] = await Promise.all([
+        const [onlineData, trafficData, usersData, registrationsData, heatmapData, nodesData] = await Promise.all([
             fetch(`/panel/stats/api/online?period=${period}`, { credentials: 'include' }).then(r => r.json()),
             fetch(`/panel/stats/api/traffic?period=${period}`, { credentials: 'include' }).then(r => r.json()),
             fetch(`/panel/stats/api/users?period=${period}`, { credentials: 'include' }).then(r => r.json()),
+            fetch(`/panel/stats/api/users-registrations?period=${period}`, { credentials: 'include' }).then(r => r.json()),
+            fetch('/panel/stats/api/users-heatmap', { credentials: 'include' }).then(r => r.json()),
             fetch(`/panel/stats/api/nodes?period=${period}`, { credentials: 'include' }).then(r => r.json()),
         ]);
         
@@ -642,6 +807,9 @@ async function loadData(period) {
         updateOnlineChart(onlineData);
         updateTrafficChart(trafficData);
         updateUsersChart(usersData);
+        updateActiveUsersMiniChart(usersData);
+        updateRegistrationsChart(registrationsData);
+        renderUsersHeatmap(heatmapData);
         updateNodesChart(nodesData);
         updateNodesTable(nodesData);
         updateTrend();
@@ -731,6 +899,108 @@ function updateUsersChart(data) {
             <span class="legend-dot" style="background: ${colors.usersTotal.border}"></span>
             ${i18n.totalUsers}: ${currentTotal}
         </span>
+    `;
+}
+
+function updateActiveUsersMiniChart(data) {
+    if (!data.labels || data.labels.length === 0) {
+        return;
+    }
+
+    activeUsersMiniChart.data.labels = data.labels.map(l => new Date(l));
+    activeUsersMiniChart.data.datasets[0].data = data.datasets.activeUsers;
+    const pointRadius = getPointRadius(data.labels.length);
+    activeUsersMiniChart.data.datasets[0].pointRadius = pointRadius;
+    activeUsersMiniChart.data.datasets[0].pointHoverRadius = Math.max(4, pointRadius + 2);
+    activeUsersMiniChart.options.scales.x.time.unit = getTickUnit(currentPeriod);
+    activeUsersMiniChart.options.scales.x.ticks.maxTicksLimit = getTickLimit(currentPeriod);
+    activeUsersMiniChart.update('none');
+
+    const latest = data.datasets.activeUsers[data.datasets.activeUsers.length - 1] || 0;
+    const max = Math.max(...data.datasets.activeUsers, 0);
+    document.getElementById('activeUsersMiniLegend').innerHTML = `
+        <span class="legend-item">
+            <span class="legend-dot" style="background: ${colors.users.border}"></span>
+            ${i18n.activeUsersOnly}: ${latest}
+        </span>
+        <span class="legend-item" style="color: var(--text-muted)">
+            Max: ${max}
+        </span>
+    `;
+}
+
+function updateRegistrationsChart(data) {
+    if (!data.labels || data.labels.length === 0) {
+        return;
+    }
+
+    registrationsChart.data.labels = data.labels.map(l => new Date(l));
+    registrationsChart.data.datasets[0].data = data.datasets.registrations;
+    const pointRadius = getPointRadius(data.labels.length);
+    registrationsChart.data.datasets[0].pointRadius = pointRadius;
+    registrationsChart.data.datasets[0].pointHoverRadius = Math.max(4, pointRadius + 2);
+    registrationsChart.options.scales.x.time.unit = getTickUnit(currentPeriod);
+    registrationsChart.options.scales.x.ticks.maxTicksLimit = getTickLimit(currentPeriod);
+    registrationsChart.update('none');
+
+    const total = data.totals?.registrations || 0;
+    const latest = data.datasets.registrations[data.datasets.registrations.length - 1] || 0;
+    document.getElementById('registrationsLegend').innerHTML = `
+        <span class="legend-item">
+            <span class="legend-dot" style="background: #44EFF4"></span>
+            ${i18n.registrations}: ${total}
+        </span>
+        <span class="legend-item" style="color: var(--text-muted)">
+            ${i18n.registrationsSeries}: ${latest}
+        </span>
+    `;
+}
+
+function renderUsersHeatmap(data) {
+    const root = document.getElementById('usersHeatmap');
+    const legend = document.getElementById('usersHeatmapLegend');
+    if (!root || !legend) return;
+
+    if (!data?.rows?.length) {
+        root.innerHTML = `<div class="text-muted">${i18n.noData}</div>`;
+        legend.innerHTML = '';
+        return;
+    }
+
+    const max = Math.max(data.max || 0, 1);
+    const formatDate = (value) => new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short' }).format(new Date(value));
+    const formatHour = (value) => new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+    const getOpacity = (value) => {
+        if (!value) return 0.06;
+        return Math.min(1, 0.18 + (value / max) * 0.82);
+    };
+
+    root.innerHTML = data.rows.map((row) => `
+        <div class="users-heatmap-row">
+            <div class="users-heatmap-date">${formatDate(row.dateLabel)}</div>
+            <div class="users-heatmap-cells">
+                ${row.cells.map((cell) => `
+                    <div
+                        class="users-heatmap-cell"
+                        title="${formatHour(cell.ts)} — ${cell.value} ${i18n.activeUsersOnly.toLowerCase()}"
+                        style="background: rgba(2, 168, 173, ${getOpacity(cell.value)});"
+                    ></div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+
+    legend.innerHTML = `
+        <div class="users-heatmap-scale">
+            <span>${i18n.recent48h}</span>
+            <span>${i18n.low}</span>
+            <div class="users-heatmap-scale-bar">
+                ${[0.14, 0.28, 0.46, 0.68, 0.92].map((opacity) => `
+                    <span class="users-heatmap-scale-swatch" style="background: rgba(2, 168, 173, ${opacity});"></span>
+                `).join('')}
+            </div>
+            <span>${i18n.high}</span>
+        </div>
     `;
 }
 

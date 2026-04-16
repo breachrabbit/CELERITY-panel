@@ -1420,6 +1420,25 @@ router.get('/stats/api/users', async (req, res) => {
     }
 });
 
+router.get('/stats/api/users-registrations', async (req, res) => {
+    try {
+        const period = req.query.period || '24h';
+        const data = await statsService.getUserRegistrationsChart(period);
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/stats/api/users-heatmap', async (req, res) => {
+    try {
+        const data = await statsService.getUsersHeatmap(48);
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET /panel/stats/api/nodes - Nodes chart data
 router.get('/stats/api/nodes', async (req, res) => {
     try {

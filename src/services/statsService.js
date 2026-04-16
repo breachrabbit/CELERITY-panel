@@ -72,6 +72,43 @@ class StatsService {
         }
     }
 
+    _createPeriodBuckets(period, endDate = new Date()) {
+        const normalized = period || '24h';
+        if (['1h', '6h', '24h'].includes(normalized)) {
+            const count = normalized === '1h' ? 1 : (normalized === '6h' ? 6 : 24);
+            const endHour = this.roundToHour(endDate);
+            return {
+                granularity: 'hour',
+                buckets: Array.from({ length: count }, (_, index) => {
+                    const ts = new Date(endHour.getTime() - ((count - 1 - index) * 60 * 60 * 1000));
+                    return { key: ts.getTime(), ts, value: 0 };
+                }),
+            };
+        }
+
+        const count = normalized === '30d' ? 30 : 7;
+        const today = this.roundToDay(endDate);
+        return {
+            granularity: 'day',
+            buckets: Array.from({ length: count }, (_, index) => {
+                const ts = new Date(today.getTime() - ((count - 1 - index) * 24 * 60 * 60 * 1000));
+                return { key: ts.getTime(), ts, value: 0 };
+            }),
+        };
+    }
+
+    _aggregateDateValuesToBuckets(buckets, dates, granularity = 'day') {
+        const bucketMap = new Map(buckets.map(bucket => [bucket.key, bucket]));
+        for (const dateValue of dates) {
+            const bucketDate = granularity === 'hour'
+                ? this.roundToHour(dateValue)
+                : this.roundToDay(dateValue);
+            const bucket = bucketMap.get(bucketDate.getTime());
+            if (!bucket) continue;
+            bucket.value += 1;
+        }
+    }
+
     async collectSnapshot() {
         try {
             const nodes = await HyNode.find({ active: true })
@@ -496,6 +533,115 @@ class StatsService {
                 activeUsers: data.map(d => d.activeUsers || 0),
                 totalUsers: data.map(d => d.users || 0),
             }
+        };
+
+        if (cache.isConnected()) {
+            try {
+                await cache.redis.setex(cacheKey, CACHE_TTL.CHARTS, JSON.stringify(result));
+            } catch (e) {}
+        }
+
+        return result;
+    }
+
+    async getUserRegistrationsChart(period = '24h') {
+        const cacheKey = `${CACHE_KEYS.USERS}registrations:${period}`;
+
+        if (cache.isConnected()) {
+            try {
+                const cached = await cache.redis.get(cacheKey);
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+            } catch (e) {}
+        }
+
+        const { buckets, granularity } = this._createPeriodBuckets(period, new Date());
+        const startDate = buckets[0]?.ts || new Date();
+        const createdUsers = await HyUser.find({ createdAt: { $gte: startDate } })
+            .select({ createdAt: 1 })
+            .lean();
+
+        this._aggregateDateValuesToBuckets(
+            buckets,
+            createdUsers.map((user) => user.createdAt).filter(Boolean),
+            granularity
+        );
+
+        const result = {
+            period,
+            type: granularity === 'hour' ? 'hourly' : 'daily',
+            labels: buckets.map((bucket) => bucket.ts),
+            datasets: {
+                registrations: buckets.map((bucket) => bucket.value),
+            },
+            totals: {
+                registrations: buckets.reduce((sum, bucket) => sum + bucket.value, 0),
+            },
+        };
+
+        if (cache.isConnected()) {
+            try {
+                await cache.redis.setex(cacheKey, CACHE_TTL.CHARTS, JSON.stringify(result));
+            } catch (e) {}
+        }
+
+        return result;
+    }
+
+    async getUsersHeatmap(hours = 48) {
+        const cacheKey = `${CACHE_KEYS.USERS}heatmap:${hours}`;
+
+        if (cache.isConnected()) {
+            try {
+                const cached = await cache.redis.get(cacheKey);
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+            } catch (e) {}
+        }
+
+        const endHour = this.roundToHour(new Date());
+        const startDate = new Date(endHour.getTime() - ((hours - 1) * 60 * 60 * 1000));
+        const buckets = Array.from({ length: hours }, (_, index) => {
+            const ts = new Date(startDate.getTime() + (index * 60 * 60 * 1000));
+            return { key: ts.getTime(), ts, value: 0 };
+        });
+
+        const snapshots = await StatsSnapshot.getRange('hourly', startDate, endHour, false);
+        const bucketMap = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+
+        for (const snapshot of snapshots) {
+            const rounded = this.roundToHour(snapshot.ts);
+            const bucket = bucketMap.get(rounded.getTime());
+            if (!bucket) continue;
+            bucket.value = snapshot.activeUsers || 0;
+        }
+
+        const rowsMap = new Map();
+        for (const bucket of buckets) {
+            const dayKey = bucket.ts.toISOString().slice(0, 10);
+            if (!rowsMap.has(dayKey)) {
+                rowsMap.set(dayKey, {
+                    dayKey,
+                    date: bucket.ts,
+                    dateLabel: bucket.ts,
+                    cells: [],
+                });
+            }
+            rowsMap.get(dayKey).cells.push({
+                ts: bucket.ts,
+                hour: bucket.ts.getHours(),
+                value: bucket.value,
+            });
+        }
+
+        const values = buckets.map((bucket) => bucket.value);
+        const result = {
+            period: `${hours}h`,
+            max: Math.max(...values, 0),
+            rows: Array.from(rowsMap.values()),
+            hours,
         };
 
         if (cache.isConnected()) {
