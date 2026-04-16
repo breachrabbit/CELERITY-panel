@@ -252,43 +252,43 @@
 }
 
 .chart-body {
-    height: clamp(300px, 28vw, 360px);
+    height: clamp(320px, 30vw, 392px);
     position: relative;
     min-width: 0;
     overflow: hidden;
-    padding: 12px;
+    padding: 14px;
     border: 1px dashed var(--border-light);
-    border-radius: 16px;
+    border-radius: 20px;
     background:
-        linear-gradient(to top, rgba(8,197,203,0.045), rgba(8,197,203,0.006)),
+        linear-gradient(to top, rgba(8,197,203,0.072), rgba(8,197,203,0.010)),
         repeating-linear-gradient(
             to right,
-            rgba(5,10,60,0.028) 0 1px,
-            transparent 1px 64px
+            rgba(5,10,60,0.024) 0 1px,
+            transparent 1px 72px
         ),
         repeating-linear-gradient(
             to top,
-            rgba(5,10,60,0.018) 0 1px,
-            transparent 1px 54px
+            rgba(5,10,60,0.016) 0 1px,
+            transparent 1px 62px
         );
 }
 
 .chart-body-tall {
-    height: clamp(340px, 34vw, 420px);
+    height: clamp(368px, 36vw, 452px);
 }
 
 :root[data-theme="dark"] .chart-body {
     background:
-        linear-gradient(to top, rgba(8,197,203,0.08), rgba(8,197,203,0.012)),
+        linear-gradient(to top, rgba(8,197,203,0.13), rgba(8,197,203,0.020)),
         repeating-linear-gradient(
             to right,
-            rgba(255,255,255,0.034) 0 1px,
-            transparent 1px 64px
+            rgba(255,255,255,0.03) 0 1px,
+            transparent 1px 72px
         ),
         repeating-linear-gradient(
             to top,
-            rgba(255,255,255,0.024) 0 1px,
-            transparent 1px 54px
+            rgba(255,255,255,0.02) 0 1px,
+            transparent 1px 62px
         );
 }
 
@@ -563,9 +563,9 @@ function getTickLimit(period) {
 }
 
 function getPointRadius(length) {
-    if (length > 18) return 0;
-    if (length > 8) return 1.2;
-    return 2.2;
+    if (length > 18) return 1.6;
+    if (length > 8) return 3;
+    return 4.6;
 }
 
 function formatXAxisLabel(value, period) {
@@ -598,8 +598,9 @@ const chartAreaBackgroundPlugin = {
         const { ctx, chartArea } = chart;
         if (!chartArea) return;
         const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-        gradient.addColorStop(0, 'rgba(8, 197, 203, 0.055)');
-        gradient.addColorStop(1, 'rgba(8, 197, 203, 0.006)');
+        gradient.addColorStop(0, 'rgba(8, 197, 203, 0.10)');
+        gradient.addColorStop(0.45, 'rgba(8, 197, 203, 0.045)');
+        gradient.addColorStop(1, 'rgba(8, 197, 203, 0.008)');
         ctx.save();
         ctx.fillStyle = gradient;
         ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
@@ -655,13 +656,13 @@ function initCharts() {
                 borderColor: colors.online.border,
                 backgroundColor: colors.online.bg,
                 fill: true,
-                borderWidth: 3,
+                borderWidth: 4.5,
                 tension: 0.46,
                 pointRadius: 0,
-                pointHoverRadius: 6,
+                pointHoverRadius: 8,
                 pointBackgroundColor: '#ffffff',
                 pointBorderColor: colors.online.border,
-                pointBorderWidth: 2,
+                pointBorderWidth: 3,
             }]
         },
         options: getChartOptions('online')
@@ -679,13 +680,13 @@ function initCharts() {
                     data: [],
                     backgroundColor: colors.upload.bg,
                     borderColor: colors.upload.border,
-                    borderWidth: 3,
+                    borderWidth: 4.5,
                     tension: 0.46,
                     pointRadius: 0,
-                    pointHoverRadius: 6,
+                    pointHoverRadius: 8,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.upload.border,
-                    pointBorderWidth: 2,
+                    pointBorderWidth: 3,
                     fill: true,
                 },
                 {
@@ -693,13 +694,13 @@ function initCharts() {
                     data: [],
                     backgroundColor: colors.download.bg,
                     borderColor: colors.download.border,
-                    borderWidth: 3,
+                    borderWidth: 4.5,
                     tension: 0.46,
                     pointRadius: 0,
-                    pointHoverRadius: 6,
+                    pointHoverRadius: 8,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.download.border,
-                    pointBorderWidth: 2,
+                    pointBorderWidth: 3,
                     fill: true,
                 }
             ]
@@ -719,13 +720,13 @@ function initCharts() {
                     borderColor: colors.users.border,
                     backgroundColor: colors.users.bg,
                     fill: true,
-                    borderWidth: 3,
+                    borderWidth: 4.5,
                     tension: 0.46,
                     pointRadius: 0,
-                    pointHoverRadius: 6,
+                    pointHoverRadius: 8,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.users.border,
-                    pointBorderWidth: 2,
+                    pointBorderWidth: 3,
                 },
                 {
                     label: i18n.totalUsers,
@@ -733,13 +734,13 @@ function initCharts() {
                     borderColor: colors.usersTotal.border,
                     backgroundColor: colors.usersTotal.bg,
                     fill: false,
-                    borderWidth: 2.5,
+                    borderWidth: 3.2,
                     tension: 0.42,
                     pointRadius: 0,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 7,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.usersTotal.border,
-                    pointBorderWidth: 2,
+                    pointBorderWidth: 2.5,
                     borderDash: [6, 6],
                 }
             ]
@@ -758,13 +759,13 @@ function initCharts() {
                 borderColor: colors.users.border,
                 backgroundColor: colors.users.bg,
                 fill: true,
-                borderWidth: 3,
+                borderWidth: 4.5,
                 tension: 0.46,
                 pointRadius: 0,
-                pointHoverRadius: 6,
+                pointHoverRadius: 8,
                 pointBackgroundColor: '#ffffff',
                 pointBorderColor: colors.users.border,
-                pointBorderWidth: 2,
+                pointBorderWidth: 3,
             }]
         },
         options: getChartOptions('activeUsersMini')
@@ -782,13 +783,13 @@ function initCharts() {
                     borderColor: colors.download.border,
                     backgroundColor: colors.download.bg,
                     fill: true,
-                    borderWidth: 3,
+                    borderWidth: 4.5,
                     tension: 0.44,
                     pointRadius: 0,
-                    pointHoverRadius: 6,
+                    pointHoverRadius: 8,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.download.border,
-                    pointBorderWidth: 2,
+                    pointBorderWidth: 3,
                 },
                 {
                     label: i18n.profilesTotalSeries,
@@ -796,13 +797,13 @@ function initCharts() {
                     borderColor: colors.usersTotal.border,
                     backgroundColor: 'transparent',
                     fill: false,
-                    borderWidth: 2.5,
+                    borderWidth: 3.2,
                     tension: 0.42,
                     pointRadius: 0,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 7,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.usersTotal.border,
-                    pointBorderWidth: 2,
+                    pointBorderWidth: 2.5,
                     borderDash: [7, 7],
                 }
             ]
@@ -839,6 +840,10 @@ function getChartOptions(type) {
         maintainAspectRatio: false,
         normalized: true,
         spanGaps: true,
+        animation: {
+            duration: 1150,
+            easing: 'easeOutQuart',
+        },
         elements: {
             line: {
                 capBezierPoints: true,
@@ -846,7 +851,8 @@ function getChartOptions(type) {
                 borderJoinStyle: 'round',
             },
             point: {
-                hitRadius: 14,
+                hitRadius: 18,
+                hoverRadius: 8,
             },
         },
         interaction: {
@@ -861,8 +867,8 @@ function getChartOptions(type) {
                 labels: {
                     usePointStyle: true,
                     padding: 18,
-                    boxWidth: 8,
-                    boxHeight: 8,
+                    boxWidth: 10,
+                    boxHeight: 10,
                     font: {
                         family: "'Lilex', 'Inter', sans-serif",
                         size: 12,
@@ -875,11 +881,11 @@ function getChartOptions(type) {
                 bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#6b7280',
                 borderColor: getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || 'rgba(5,10,60,0.12)',
                 borderWidth: 1,
-                padding: 12,
-                cornerRadius: 12,
+                padding: 14,
+                cornerRadius: 16,
                 displayColors: true,
                 usePointStyle: true,
-                caretSize: 6,
+                caretSize: 7,
                 callbacks: {}
             }
         },
@@ -896,7 +902,7 @@ function getChartOptions(type) {
                 },
                 grid: {
                     color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
-                    borderDash: [4, 6],
+                    borderDash: [5, 7],
                     drawTicks: false,
                     drawBorder: false,
                 },
@@ -914,7 +920,7 @@ function getChartOptions(type) {
                 beginAtZero: true,
                 grid: {
                     color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
-                    borderDash: [4, 6],
+                    borderDash: [5, 7],
                     drawTicks: false,
                     drawBorder: false,
                 },
@@ -1199,13 +1205,13 @@ function updateNodesChart(data) {
         data: node.data.map(d => d.online),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
         backgroundColor: i === 0 ? colors.nodes.bg : 'transparent',
-        borderWidth: 2.75,
+        borderWidth: 3.6,
         tension: 0.46,
         pointRadius,
-        pointHoverRadius: Math.max(4, pointRadius + 2),
+        pointHoverRadius: Math.max(6, pointRadius + 3),
         pointBackgroundColor: '#ffffff',
         pointBorderColor: colors.nodeColors[i % colors.nodeColors.length],
-        pointBorderWidth: 2,
+        pointBorderWidth: 2.5,
         fill: i === 0,
     }));
     nodesChart.options.scales.x.time.unit = getTickUnit(currentPeriod);
@@ -1219,13 +1225,13 @@ function updateNodesChart(data) {
         data: node.data.map(d => (d.tx || 0) + (d.rx || 0)),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
         backgroundColor: i === 0 ? colors.nodes.bg : 'transparent',
-        borderWidth: 2.75,
+        borderWidth: 3.6,
         tension: 0.46,
         pointRadius,
-        pointHoverRadius: Math.max(4, pointRadius + 2),
+        pointHoverRadius: Math.max(6, pointRadius + 3),
         pointBackgroundColor: '#ffffff',
         pointBorderColor: colors.nodeColors[i % colors.nodeColors.length],
-        pointBorderWidth: 2,
+        pointBorderWidth: 2.5,
         fill: i === 0,
     }));
     nodesTrafficChart.options.scales.y.ticks = { callback: v => formatBytes(v) };

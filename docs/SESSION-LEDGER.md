@@ -111,3 +111,14 @@
 - Next step:
   - deploy and verify that the sidebar is fully pinned to screen;
   - visually compare dashboard graph quality against statistics-page charts and continue unification.
+
+- Fixed-sidebar shell recovery:
+  - the first fixed-sidebar pass hid the page content because the old grid/content relationship broke;
+  - restored desktop content offsets and reset them correctly for mobile, so pages render again.
+- Chart motion/visual continuation:
+  - dashboard traffic chart now spans the full available width of the hero card;
+  - dashboard and statistics charts now use stronger Chart.js animation, thicker lines, larger points, and richer plot surfaces.
+- Next step:
+  - deploy and verify that the sidebar stays pinned while pages render normally;
+  - visually review the new dashboard/statistics chart language on the live stand;
+  - then continue the remaining responsive and users/subscription polish queue.

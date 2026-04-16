@@ -624,7 +624,8 @@ function initTrafficSparkline() {
     const createGradient = () => {
         const ctx = canvas.getContext('2d');
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 320);
-        gradient.addColorStop(0, 'rgba(8, 197, 203, 0.24)');
+        gradient.addColorStop(0, 'rgba(8, 197, 203, 0.32)');
+        gradient.addColorStop(0.4, 'rgba(8, 197, 203, 0.16)');
         gradient.addColorStop(1, 'rgba(8, 197, 203, 0.02)');
         return gradient;
     };
@@ -633,7 +634,7 @@ function initTrafficSparkline() {
         if (!Array.isArray(rawPoints) || rawPoints.length < 2) return;
         const labels = rawPoints.map((point) => point.label);
         const values = rawPoints.map((point) => Number(point.raw || 0));
-        const pointRadius = rawPoints.length > 18 ? 0 : rawPoints.length > 8 ? 1.8 : 3;
+        const pointRadius = rawPoints.length > 18 ? 1.8 : rawPoints.length > 8 ? 3.4 : 5;
         const chartData = {
             labels,
             datasets: [{
@@ -642,14 +643,14 @@ function initTrafficSparkline() {
                 borderColor: '#08C5CB',
                 backgroundColor: createGradient(),
                 fill: true,
-                borderWidth: 4,
-                tension: 0.42,
+                borderWidth: 5,
+                tension: 0.46,
                 pointRadius,
-                pointHoverRadius: Math.max(5, pointRadius + 3),
+                pointHoverRadius: Math.max(7, pointRadius + 4),
                 pointBackgroundColor: '#ffffff',
                 pointBorderColor: '#08C5CB',
-                pointBorderWidth: 2,
-                pointHitRadius: 20,
+                pointBorderWidth: 3,
+                pointHitRadius: 24,
             }]
         };
 
@@ -657,9 +658,20 @@ function initTrafficSparkline() {
             responsive: true,
             maintainAspectRatio: false,
             normalized: true,
+            animation: {
+                duration: 1100,
+                easing: 'easeOutQuart',
+            },
             interaction: {
                 mode: 'index',
                 intersect: false,
+            },
+            elements: {
+                line: {
+                    capBezierPoints: true,
+                    borderCapStyle: 'round',
+                    borderJoinStyle: 'round',
+                }
             },
             plugins: {
                 legend: { display: false },
@@ -669,8 +681,8 @@ function initTrafficSparkline() {
                     bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#050A3C',
                     borderColor: getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || 'rgba(5,10,60,0.12)',
                     borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 14,
+                    padding: 14,
+                    cornerRadius: 16,
                     displayColors: false,
                     callbacks: {
                         title: (items) => items?.[0]?.label || '',
@@ -682,7 +694,7 @@ function initTrafficSparkline() {
                 x: {
                     grid: {
                         color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
-                        borderDash: [4, 6],
+                        borderDash: [5, 7],
                         drawTicks: false,
                         drawBorder: false,
                     },
@@ -698,7 +710,7 @@ function initTrafficSparkline() {
                     beginAtZero: true,
                     grid: {
                         color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
-                        borderDash: [4, 6],
+                        borderDash: [5, 7],
                         drawTicks: false,
                         drawBorder: false,
                     },

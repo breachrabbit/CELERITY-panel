@@ -220,6 +220,32 @@ After deploy, verify:
 
 After deploy, verify:
 
+1. sidebar remains pinned while the full page still renders normally;
+2. dashboard traffic card no longer looks like a stretched ribbon;
+3. chart motion/hover feels smoother and more premium than the earlier SVG pass.
+
+## 2026-04-16 Fixed Sidebar Recovery and Chart.js Motion Upgrade
+
+- The first fixed-sidebar desktop pass caused the main page content to disappear because the old grid layout no longer accounted for a fixed shell column.
+- Prepared and deployed a shell recovery:
+  - desktop content now offsets itself from the fixed sidebar using the current sidebar width variables;
+  - collapsed desktop state uses the collapsed width;
+  - mobile/tablet resets the content offset so the desktop fix does not break narrow layouts.
+- Continued the chart-system upgrade after the shell was restored:
+  - dashboard traffic chart now spans the full available width of the hero card;
+  - dashboard chart surface is taller and less cramped;
+  - dashboard Chart.js animation is smoother with larger points, thicker lines, and richer hover targets;
+  - statistics charts now use the same stronger motion/weight language with calmer dashed surfaces and cleaner tooltips.
+
+### Current Verification Need
+
+After deploy, verify:
+
+1. all pages render normally again with fixed sidebar enabled;
+2. desktop sidebar stays pinned to screen while content scrolls;
+3. dashboard traffic chart fills the card cleanly across wide screens;
+4. dashboard/statistics charts feel like one coherent modern system rather than separate styles.
+
 1. the whole desktop sidebar stays visually fixed while the page scrolls;
 2. the footer no longer appears to drift because of nested nav scrolling;
 3. the main dashboard traffic chart reads as a balanced card, not a stretched horizontal strip;

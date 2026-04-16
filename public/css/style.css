@@ -871,12 +871,13 @@ html.layout-stabilizing * {
 .hero-sparkline-card .sparkline-copy,
 .hero-sparkline-card .sparkline-visual,
 .hero-sparkline-card .sparkline-foot {
-    width: min(100%, 920px);
+    width: 100%;
     margin-inline: auto;
 }
 
 .sparkline-copy strong {
-    font-size: 26px;
+    font-size: clamp(30px, 4vw, 42px);
+    line-height: 0.95;
 }
 
 .sparkline-periods {
@@ -929,23 +930,23 @@ html.layout-stabilizing * {
 }
 
 .sparkline-visual {
-    --sparkline-height: clamp(244px, 28vw, 336px);
+    --sparkline-height: clamp(280px, 34vw, 420px);
     position: relative;
     min-height: var(--sparkline-height);
-    aspect-ratio: 2.5 / 1;
-    border-radius: 18px;
+    aspect-ratio: 2.7 / 1;
+    border-radius: 22px;
     border: 1px dashed rgba(5,10,60,0.12);
     background:
-        linear-gradient(to top, rgba(8,197,203,0.05), rgba(8,197,203,0.008)),
+        linear-gradient(to top, rgba(8,197,203,0.08), rgba(8,197,203,0.012)),
         repeating-linear-gradient(
             to right,
-            rgba(5,10,60,0.03) 0 1px,
-            transparent 1px 64px
+            rgba(5,10,60,0.028) 0 1px,
+            transparent 1px 72px
         ),
         repeating-linear-gradient(
             to top,
-            rgba(5,10,60,0.02) 0 1px,
-            transparent 1px 54px
+            rgba(5,10,60,0.018) 0 1px,
+            transparent 1px 62px
         );
     overflow: hidden;
 }
@@ -953,16 +954,16 @@ html.layout-stabilizing * {
 :root[data-theme="dark"] .sparkline-visual {
     border-color: rgba(255,255,255,0.12);
     background:
-        linear-gradient(to top, rgba(8,197,203,0.1), rgba(8,197,203,0.018)),
+        linear-gradient(to top, rgba(8,197,203,0.14), rgba(8,197,203,0.022)),
         repeating-linear-gradient(
             to right,
-            rgba(255,255,255,0.036) 0 1px,
-            transparent 1px 64px
+            rgba(255,255,255,0.034) 0 1px,
+            transparent 1px 72px
         ),
         repeating-linear-gradient(
             to top,
-            rgba(255,255,255,0.026) 0 1px,
-            transparent 1px 54px
+            rgba(255,255,255,0.022) 0 1px,
+            transparent 1px 62px
         );
 }
 
@@ -978,6 +979,7 @@ html.layout-stabilizing * {
     gap: 10px;
     color: var(--text-secondary);
     flex-wrap: wrap;
+    font-size: 13px;
 }
 
 @media (max-width: 900px) {

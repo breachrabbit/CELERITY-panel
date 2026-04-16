@@ -219,6 +219,32 @@ Change type:
 - `local patch` — shell footer and chart visual polish
 - `stability fix` — dashboard logs height alignment follow-up
 
+## 2026-04-16 Fixed Sidebar Shell Recovery and Chart.js Motion Pass
+
+- Promoted the desktop sidebar from sticky/grid participation to a fixed shell column so it can stay pinned to the viewport.
+- Recovered the desktop content layout after that shell change:
+  - restored the main content offset using sidebar-width-based margins;
+  - added mobile reset so the fixed desktop offset does not leak into narrow layouts.
+- Reworked the dashboard traffic card onto the shared Chart.js path and then refined it further:
+  - full-width plot area inside the hero card;
+  - taller chart surface;
+  - stronger fill gradient;
+  - thicker lines;
+  - larger points and hover targets;
+  - smoother entrance animation.
+- Continued the same visual system upgrade on the statistics page:
+  - taller chart bodies;
+  - calmer dashed plot surfaces;
+  - thicker lines;
+  - larger points;
+  - softer chart-area gradients;
+  - smoother load-in animation and cleaner tooltips.
+
+Change type:
+
+- `stability fix` — fixed-sidebar shell recovery after content disappearance
+- `local patch` — dashboard/statistics Chart.js motion and visual refinement
+
 ## 2026-04-16 Sticky Sidebar and Dashboard Sparkline Rework
 
 - Reworked the desktop sidebar behavior again after live feedback:
