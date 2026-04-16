@@ -201,3 +201,11 @@
 - Next step:
   - verify the dashboard card now reflects active Xray sessions more honestly;
   - then continue with Android mobile menu accessibility and later true per-device Xray attribution.
+
+- Xray attribution continuation:
+  - wired Xray agent `/stats` traffic deltas into Redis device activity;
+  - active Xray users now create synthetic device entries tied to node id/name/source;
+  - this gives profile/node attribution without requiring immediate cc-agent binary changes.
+- Next step:
+  - deploy and verify after a stats poll with real Xray traffic;
+  - then continue Android mobile-menu accessibility.

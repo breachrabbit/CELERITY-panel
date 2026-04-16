@@ -543,3 +543,20 @@ This pass is specifically aimed at:
 1. Verify the dashboard no longer stays at `0 / 0` when Xray/agent telemetry already reports connected users.
 2. Verify the small explanatory note appears only when fallback mode is active.
 3. Longer-term: replace this estimate with true per-device Xray telemetry if/when we wire that path in.
+
+## 2026-04-16 Xray Device Activity Attribution
+
+- Continued beyond the fallback and added a first real attribution path for Xray:
+  - `collectXrayTrafficStats()` now records Redis device activity for users that produce non-zero Xray traffic deltas;
+  - device key format is `xray:<nodeId>:<userId>`;
+  - metadata includes node id/name/type and source `xray-agent-stats`.
+- This means dashboard and user detail can now move from pure fallback to actual active-profile hints once the next agent stats poll sees traffic.
+- Limitation:
+  - this still does not expose the physical client IP/device id from Xray;
+  - it is active-profile attribution from agent traffic, not exact device fingerprinting.
+
+### Immediate Next Check
+
+1. Keep one Xray client connected and generate traffic.
+2. Wait for the next agent stats poll.
+3. Verify `Profiles and devices` and user detail activity move from estimated/fallback to Redis-backed active entries.

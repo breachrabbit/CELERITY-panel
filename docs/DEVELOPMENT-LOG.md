@@ -407,3 +407,17 @@ Change type:
 Change type:
 
 - `local patch` — dashboard device stats fallback for Xray/agent-backed online data
+
+## 2026-04-16 Xray Device Activity Attribution
+
+- Added real Xray-backed device activity updates during agent traffic collection.
+- When `/stats` returns non-zero traffic for a user email/userId, the panel now records a Redis device activity entry with:
+  - synthetic key `xray:<nodeId>:<userId>`;
+  - node id/name;
+  - node type `xray`;
+  - source `xray-agent-stats`.
+- This gives the dashboard and user detail views real active-profile / active-node hints for Xray traffic, while still leaving true physical-device/IP attribution as a later improvement.
+
+Change type:
+
+- `local patch` — Xray active profile attribution from agent stats

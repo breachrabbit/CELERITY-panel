@@ -534,6 +534,7 @@ class SyncService {
             let nodeTx = 0;
             let nodeRx = 0;
             const bulkOps = [];
+            const deviceActivityUpdates = [];
             const now = new Date();
 
             for (const [email, traffic] of Object.entries(stats)) {
@@ -543,6 +544,18 @@ class SyncService {
 
                 nodeTx += tx;
                 nodeRx += rx;
+                deviceActivityUpdates.push(
+                    cache.updateDeviceIP(
+                        email,
+                        `xray:${node._id}:${email}`,
+                        {
+                            nodeId: String(node._id),
+                            nodeName: node.name || '',
+                            nodeType: 'xray',
+                            source: 'xray-agent-stats',
+                        },
+                    ),
+                );
 
                 // email == userId (as set in configGenerator and agent)
                 bulkOps.push({
@@ -554,6 +567,10 @@ class SyncService {
                         },
                     },
                 });
+            }
+
+            if (deviceActivityUpdates.length > 0) {
+                await Promise.allSettled(deviceActivityUpdates);
             }
 
             if (bulkOps.length > 0) {
