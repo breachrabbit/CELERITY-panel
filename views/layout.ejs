@@ -13,13 +13,13 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 </head>
 <body>
-    <!-- Mobile Menu Overlay -->
-    <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileMenu(false)"></div>
-    
     <div class="app">
+        <!-- Mobile Menu Overlay -->
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileMenu(false)" aria-hidden="true"></div>
+
         <!-- Mobile Header -->
         <div class="mobile-header">
-            <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="<%= t('common.menu') %>">
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="<%= t('common.menu') %>" aria-expanded="false" aria-controls="sidebar">
                 <span></span>
                 <span></span>
                 <span></span>
@@ -33,7 +33,7 @@
             </div>
         </div>
         
-        <nav class="sidebar" id="sidebar">
+        <nav class="sidebar" id="sidebar" aria-hidden="false">
             <div class="sidebar-inner">
                 <div class="sidebar-head">
                     <div class="logo">
@@ -147,10 +147,16 @@
     function toggleMobileMenu(forceState) {
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('mobileOverlay');
+        const button = document.querySelector('.mobile-menu-btn');
         const shouldOpen = typeof forceState === 'boolean' ? forceState : !sidebar.classList.contains('active');
         sidebar.classList.toggle('active', shouldOpen);
         overlay.classList.toggle('active', shouldOpen);
         document.body.classList.toggle('mobile-menu-open', shouldOpen);
+        sidebar.setAttribute('aria-hidden', shouldOpen ? 'false' : (window.innerWidth <= 768 ? 'true' : 'false'));
+        overlay.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+        if (button) {
+            button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+        }
     }
     
     // Close mobile menu on link click
@@ -164,6 +170,12 @@
 
     window.addEventListener('resize', () => {
         if (window.innerWidth > 768) {
+            toggleMobileMenu(false);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
             toggleMobileMenu(false);
         }
     });

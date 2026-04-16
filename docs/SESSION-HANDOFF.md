@@ -539,6 +539,29 @@ After deploy, verify:
 2. open `Users` and confirm the active user row shows live activity;
 3. open that user detail page and confirm the session source reads as Xray stats with the correct node name;
 4. confirm no old internal `xray:<...>` key is visible in the UI.
+
+## 2026-04-16 Mobile Menu Layering Fix
+
+- Continued the Android mobile-menu accessibility issue after the live attribution deploy.
+- Changed the shell layering:
+  - mobile overlay now lives inside `.app`;
+  - overlay is above content;
+  - sidebar is above overlay;
+  - page content/header remain non-interactive while the menu is open.
+- Added explicit state handling:
+  - `aria-expanded` on the burger button;
+  - `aria-hidden` on overlay/sidebar;
+  - Escape key closes the menu.
+
+### Current Verification Need
+
+After deploy, verify on Android / mobile browser:
+
+1. open the burger menu;
+2. tap every nav item;
+3. tap language controls;
+4. tap theme controls;
+5. confirm background page content is not clickable until menu is closed.
   - natural labels like `0 устройств` and `из 2 пользователей`.
 
 ### Immediate Next Check

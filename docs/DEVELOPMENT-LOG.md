@@ -434,3 +434,16 @@ Change type:
 Change type:
 
 - `local patch` — operator visibility for live user/node attribution
+
+## 2026-04-16 Mobile Menu Layering Fix
+
+- Moved the mobile overlay inside the app shell so it participates in the same stacking context as the sidebar.
+- Explicitly layered mobile UI:
+  - overlay above page content;
+  - sidebar above overlay;
+  - sidebar keeps pointer events while the page behind is blocked.
+- Added `aria-expanded`, `aria-hidden`, and Escape-key close behavior to make the mobile menu state more deterministic on Android browsers.
+
+Change type:
+
+- `stability fix` — mobile menu accessibility / stacking recovery

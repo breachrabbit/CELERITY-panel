@@ -218,3 +218,10 @@
   - deploy and verify the users list against a connected Xray profile;
   - confirm that the user detail page shows a readable Xray activity source and node name;
   - then continue either true per-device agent support or Android mobile-menu accessibility.
+
+- Mobile menu accessibility continuation:
+  - moved the mobile overlay into the `.app` shell to avoid stacking-context mismatch;
+  - raised sidebar over overlay explicitly and kept page content blocked while the menu is open;
+  - added ARIA state updates and Escape close behavior.
+- Next step:
+  - deploy and verify on Android that menu items, language/theme controls, and logout are tappable while the page behind is blocked.

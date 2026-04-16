@@ -2964,7 +2964,7 @@ body.mobile-menu-open {
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.24s ease, visibility 0.24s ease;
-        z-index: 280;
+        z-index: 320;
         pointer-events: none;
     }
     
@@ -2982,7 +2982,7 @@ body.mobile-menu-open {
         top: 0;
         width: min(88vw, 320px);
         height: 100dvh;
-        z-index: 320;
+        z-index: 360;
         transform: translateX(-100%);
         transition: transform 0.28s ease;
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
@@ -3000,6 +3000,7 @@ body.mobile-menu-open {
     
     .sidebar.active {
         transform: translateX(0);
+        pointer-events: auto;
     }
 
     body.mobile-menu-open .content,
