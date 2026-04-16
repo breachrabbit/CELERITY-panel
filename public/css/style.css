@@ -751,53 +751,52 @@ html.layout-stabilizing * {
     font-weight: 700;
     color: var(--brand-navy);
     isolation: isolate;
+    overflow: visible;
 }
 
 .hero-meter-ring::before,
 .hero-meter-ring::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    pointer-events: none;
-}
-
-.hero-meter-ring::before {
-    background: repeating-conic-gradient(
-        from -90deg,
-        var(--meter-track) 0deg var(--segment-fill),
-        transparent var(--segment-fill) var(--segment-gap)
-    );
-    -webkit-mask:
-        radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
-        radial-gradient(circle, transparent var(--ring-inner-cutout), #000 calc(var(--ring-inner-cutout) + 1%), #000 var(--ring-inner-thickness), transparent calc(var(--ring-inner-thickness) + 1%));
-    -webkit-mask-composite: source-over;
-    mask:
-        radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
-        radial-gradient(circle, transparent var(--ring-inner-cutout), #000 calc(var(--ring-inner-cutout) + 1%), #000 var(--ring-inner-thickness), transparent calc(var(--ring-inner-thickness) + 1%));
-}
-
-.hero-meter-ring::after {
-    background: repeating-conic-gradient(
-        from -90deg,
-        var(--meter-color) 0deg var(--segment-fill),
-        transparent var(--segment-fill) var(--segment-gap)
-    );
-    -webkit-mask:
-        radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
-        radial-gradient(circle, transparent var(--ring-inner-cutout), #000 calc(var(--ring-inner-cutout) + 1%), #000 var(--ring-inner-thickness), transparent calc(var(--ring-inner-thickness) + 1%)),
-        conic-gradient(from -90deg, #000 0deg calc(var(--meter-value) * 3.6deg), transparent calc(var(--meter-value) * 3.6deg) 360deg);
-    -webkit-mask-composite: source-over, source-in;
-    mask:
-        radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
-        radial-gradient(circle, transparent var(--ring-inner-cutout), #000 calc(var(--ring-inner-cutout) + 1%), #000 var(--ring-inner-thickness), transparent calc(var(--ring-inner-thickness) + 1%)),
-        conic-gradient(from -90deg, #000 0deg calc(var(--meter-value) * 3.6deg), transparent calc(var(--meter-value) * 3.6deg) 360deg);
-    mask-composite: intersect;
+    content: none;
 }
 
 .hero-meter-ring > span {
     position: relative;
     z-index: 1;
+}
+
+.hero-meter-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+    pointer-events: none;
+}
+
+.hero-meter-track,
+.hero-meter-progress {
+    fill: none;
+    vector-effect: non-scaling-stroke;
+}
+
+.hero-meter-track {
+    stroke: var(--meter-track);
+    stroke-linecap: round;
+}
+
+.hero-meter-progress {
+    stroke: var(--meter-color);
+    stroke-linecap: round;
+}
+
+.hero-meter-track.outer,
+.hero-meter-progress.outer {
+    stroke-width: 5.5;
+}
+
+.hero-meter-track.inner,
+.hero-meter-progress.inner {
+    stroke-width: 4;
 }
 
 .hero-meter-ring.mini {
@@ -810,6 +809,16 @@ html.layout-stabilizing * {
     --ring-inner-thickness: 76%;
     --segment-fill: 9deg;
     --segment-gap: 15deg;
+}
+
+.hero-meter-ring.mini .hero-meter-track.outer,
+.hero-meter-ring.mini .hero-meter-progress.outer {
+    stroke-width: 5;
+}
+
+.hero-meter-ring.mini .hero-meter-track.inner,
+.hero-meter-ring.mini .hero-meter-progress.inner {
+    stroke-width: 3.5;
 }
 
 .hero-meter-ring.soft {

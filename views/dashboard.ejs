@@ -550,6 +550,7 @@ let logsSearchRequestId = 0;
 
 // Load on page load
 document.addEventListener('DOMContentLoaded', () => {
+    renderHeroMeterRings();
     initTrafficSparkline();
     syncDashboardLogsHeight();
     connectLogsWebSocket();
@@ -557,6 +558,46 @@ document.addEventListener('DOMContentLoaded', () => {
     loadNodesStats();
     loadNodesSpeed();
 });
+
+function renderHeroMeterRings() {
+    const buildDash = (radius, segments, fillRatio = 0.54) => {
+        const circumference = 2 * Math.PI * radius;
+        const segmentSize = circumference / segments;
+        const dash = segmentSize * fillRatio;
+        const gap = Math.max(segmentSize - dash, 1.4);
+        return `${dash.toFixed(2)} ${gap.toFixed(2)}`;
+    };
+
+    const buildArc = (radius, value) => {
+        const circumference = 2 * Math.PI * radius;
+        const progress = circumference * (Math.max(0, Math.min(100, value)) / 100);
+        return `${progress.toFixed(2)} ${circumference.toFixed(2)}`;
+    };
+
+    document.querySelectorAll('.hero-meter-ring').forEach((ring) => {
+        const value = parseFloat(getComputedStyle(ring).getPropertyValue('--meter-value')) || 0;
+        const isMini = ring.classList.contains('mini');
+        const outerRadius = isMini ? 41 : 42;
+        const innerRadius = isMini ? 31 : 30;
+        const outerDash = buildDash(outerRadius, isMini ? 18 : 20);
+        const innerDash = buildDash(innerRadius, isMini ? 16 : 18, 0.5);
+        const existing = ring.querySelector('.hero-meter-svg');
+        if (existing) existing.remove();
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.classList.add('hero-meter-svg');
+        svg.innerHTML = `
+            <circle class="hero-meter-track outer" cx="50" cy="50" r="${outerRadius}" style="stroke-dasharray:${outerDash};"></circle>
+            <circle class="hero-meter-progress outer" cx="50" cy="50" r="${outerRadius}" style="stroke-dasharray:${buildArc(outerRadius, value)};"></circle>
+            <circle class="hero-meter-track inner" cx="50" cy="50" r="${innerRadius}" style="stroke-dasharray:${innerDash};"></circle>
+            <circle class="hero-meter-progress inner" cx="50" cy="50" r="${innerRadius}" style="stroke-dasharray:${buildArc(innerRadius, value)};"></circle>
+        `;
+
+        ring.prepend(svg);
+    });
+}
 
 function syncDashboardLogsHeight() {
     const sidebar = document.querySelector('.dashboard-sidebar');
