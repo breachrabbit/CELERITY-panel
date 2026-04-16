@@ -209,3 +209,12 @@
 - Next step:
   - deploy and verify after a stats poll with real Xray traffic;
   - then continue Android mobile-menu accessibility.
+
+- User list attribution continuation:
+  - added a live activity column to the users list;
+  - the list now surfaces active session count and active node hints from Redis device activity;
+  - user detail now labels synthetic Xray stats sessions as profile traffic activity instead of exposing internal Redis keys.
+- Next step:
+  - deploy and verify the users list against a connected Xray profile;
+  - confirm that the user detail page shows a readable Xray activity source and node name;
+  - then continue either true per-device agent support or Android mobile-menu accessibility.

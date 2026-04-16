@@ -495,10 +495,11 @@
                     <% activeDeviceEntries.forEach((entry) => { %>
                         <div class="session-card">
                             <div class="session-main">
-                                <strong><%= entry.ip %></strong>
+                                <strong><%= entry.displayIdentityKey ? t(`users.${entry.displayIdentityKey}`) : entry.displayIdentity %></strong>
                                 <div class="session-meta">
                                     <span><%= t('users.lastSeen') %>: <%= entry.lastSeenAt.toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'short', timeStyle: 'short' }) %></span>
                                     <span><%= entry.lastSeenAgoMinutes %> <%= t('users.minutesAgo') %></span>
+                                    <span><%= t('users.activitySource') %>: <%= t(`users.${entry.sourceKey}`) %></span>
                                 </div>
                             </div>
                             <div class="session-pill">

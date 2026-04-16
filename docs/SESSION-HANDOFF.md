@@ -518,6 +518,27 @@ This pass is specifically aimed at:
   - removed duplicate raw counts in dashboard labels that already used `tp(...)`.
 - This is a narrow deployable fix aimed at:
   - equal mini ring sizes in `Profiles and devices`;
+
+## 2026-04-16 User List Live Activity Attribution
+
+- Continued the Xray attribution work after deploying the dashboard fallback and agent-stats activity writer.
+- Added users-list visibility for the same live activity layer:
+  - each row now receives `user.live`;
+  - the table has a compact `Live activity` column;
+  - mobile user cards also show the current live count / first active node hint.
+- User detail now normalizes synthetic Xray activity:
+  - internal keys like `xray:<nodeId>:<userId>` are no longer shown to the operator;
+  - Xray entries render as profile traffic activity;
+  - activity source is explicitly shown (`Xray stats` / `Auth callback`).
+
+### Current Verification Need
+
+After deploy, verify:
+
+1. keep a test Xray client connected and generate traffic;
+2. open `Users` and confirm the active user row shows live activity;
+3. open that user detail page and confirm the session source reads as Xray stats with the correct node name;
+4. confirm no old internal `xray:<...>` key is visible in the UI.
   - natural labels like `0 устройств` and `из 2 пользователей`.
 
 ### Immediate Next Check

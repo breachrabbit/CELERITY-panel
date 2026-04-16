@@ -421,3 +421,16 @@ Change type:
 Change type:
 
 - `local patch` — Xray active profile attribution from agent stats
+
+## 2026-04-16 User List Live Activity Attribution
+
+- Extended the users list with a compact live activity column built from the same Redis device activity layer used by user detail and dashboard cards.
+- The list now shows:
+  - active session count within the configured device grace window;
+  - active node names when attribution metadata is available;
+  - Xray stats as an explicit live source when the entry comes from agent traffic deltas.
+- Cleaned user-detail session rendering so synthetic Xray entries are shown as profile traffic activity instead of exposing the internal `xray:<nodeId>:<userId>` key.
+
+Change type:
+
+- `local patch` — operator visibility for live user/node attribution

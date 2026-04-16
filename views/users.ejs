@@ -43,13 +43,14 @@
                     <th class="th-traffic sortable" onclick="sortBy('traffic')" style="cursor: pointer;">
                         <%= t('users.traffic') %> <%- getSortIcon('traffic') %>
                     </th>
+                    <th class="th-live"><%= t('users.liveActivity') %></th>
                     <th class="th-actions"><%= t('common.actions') %></th>
                 </tr>
             </thead>
             <tbody>
                 <% if (users.length === 0) { %>
                 <tr>
-                    <td colspan="5" class="empty-cell">
+                    <td colspan="6" class="empty-cell">
                         <div class="empty-state">
                             <span class="empty-icon"><i class="ti ti-users"></i></span>
                             <p><%= t('users.noUsers') %></p>
@@ -112,6 +113,23 @@
                             <span class="traffic-unlimited">∞</span>
                             <% } %>
                         </div>
+                    </td>
+                    <td class="td-live">
+                        <% if (user.live?.activeDevices > 0) { %>
+                            <div class="live-user-summary">
+                                <span class="live-dot"></span>
+                                <span><%= user.live.activeDevices %></span>
+                                <% if (user.live.nodeNames.length > 0) { %>
+                                    <span class="live-node-list">
+                                        <%= user.live.nodeNames.slice(0, 2).join(', ') %><% if (user.live.nodeNames.length > 2) { %> +<%= user.live.nodeNames.length - 2 %><% } %>
+                                    </span>
+                                <% } else if (user.live.hasXrayStats) { %>
+                                    <span class="live-node-list"><%= t('users.sourceXrayStats') %></span>
+                                <% } %>
+                            </div>
+                        <% } else { %>
+                            <span class="text-muted">—</span>
+                        <% } %>
                     </td>
                     <td class="td-actions">
                         <div class="action-buttons">
@@ -180,6 +198,19 @@
                         <span class="mobile-stat-value" style="font-size: 12px;">
                             <% if (user.groups && user.groups.length > 0) { %>
                                 <%= tp('common.groupCount', user.groups.length) %>
+                            <% } else { %>
+                                —
+                            <% } %>
+                        </span>
+                    </div>
+                    <div class="mobile-stat-item">
+                        <span class="mobile-stat-label"><%= t('users.liveActivity') %></span>
+                        <span class="mobile-stat-value">
+                            <% if (user.live?.activeDevices > 0) { %>
+                                <%= user.live.activeDevices %>
+                                <% if (user.live.nodeNames.length > 0) { %>
+                                    · <%= user.live.nodeNames.slice(0, 1).join('') %><% if (user.live.nodeNames.length > 1) { %> +<%= user.live.nodeNames.length - 1 %><% } %>
+                                <% } %>
                             <% } else { %>
                                 —
                             <% } %>

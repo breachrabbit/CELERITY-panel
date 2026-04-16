@@ -128,6 +128,40 @@ function formatTrafficValue(bytes) {
     return `${current.toFixed(precision)} ${units[unitIndex]}`;
 }
 
+function normalizeDeviceActivityEntry(entry, now = Date.now(), nodeMap = new Map()) {
+    const fallbackNode = entry.nodeId ? nodeMap.get(String(entry.nodeId)) : null;
+    const source = entry.source || 'auth';
+    const isXrayStats = source === 'xray-agent-stats' || String(entry.ip || '').startsWith('xray:');
+
+    return {
+        ...entry,
+        nodeName: entry.nodeName || fallbackNode?.name || '',
+        nodeType: entry.nodeType || fallbackNode?.type || '',
+        lastSeenAt: new Date(entry.ts),
+        lastSeenAgoMinutes: Math.max(0, Math.round((now - entry.ts) / 60000)),
+        isSynthetic: isXrayStats,
+        source,
+        sourceKey: isXrayStats ? 'sourceXrayStats' : (source ? 'sourceAuth' : 'sourceUnknown'),
+        displayIdentityKey: isXrayStats ? 'sessionXrayTraffic' : '',
+        displayIdentity: isXrayStats ? '' : entry.ip,
+    };
+}
+
+function buildLiveSummary(entries) {
+    const nodeNames = Array.from(new Set(
+        entries
+            .map(entry => entry.nodeName)
+            .filter(Boolean),
+    ));
+
+    return {
+        activeDevices: entries.length,
+        nodeNames,
+        hasXrayStats: entries.some(entry => entry.isSynthetic),
+        lastSeenAt: entries[0]?.lastSeenAt || null,
+    };
+}
+
 // ==================== USERS ====================
 
 // GET /users - User list (with search and sorting)
@@ -195,10 +229,25 @@ router.get('/users', async (req, res) => {
                 .lean();
         }
         
-        const [total, groups] = await Promise.all([
+        const [total, groups, settings] = await Promise.all([
             HyUser.countDocuments(filter),
             getActiveGroups(),
+            getSettings(),
         ]);
+
+        const gracePeriodMs = (settings?.deviceGracePeriod ?? 15) * 60 * 1000;
+        const now = Date.now();
+        users = await Promise.all(users.map(async (user) => {
+            const activity = await cache.getDeviceActivity(user.userId);
+            const activeEntries = activity
+                .filter((entry) => Number.isFinite(entry.ts) && (now - entry.ts) < gracePeriodMs)
+                .map((entry) => normalizeDeviceActivityEntry(entry, now));
+
+            return {
+                ...user,
+                live: buildLiveSummary(activeEntries),
+            };
+        }));
         
         render(res, 'users', {
             title: res.locals.locales.users.title,
@@ -526,14 +575,9 @@ router.get('/users/:userId', async (req, res) => {
             effectiveNodeCards.map((node) => [String(node._id), node]),
         );
 
-        const enrichedActiveDeviceEntries = activeDeviceEntries.map((entry) => {
-            const fallbackNode = entry.nodeId ? effectiveNodeMap.get(String(entry.nodeId)) : null;
-            return {
-                ...entry,
-                nodeName: entry.nodeName || fallbackNode?.name || '',
-                nodeType: entry.nodeType || fallbackNode?.type || '',
-            };
-        });
+        const enrichedActiveDeviceEntries = activeDeviceEntries.map((entry) => (
+            normalizeDeviceActivityEntry(entry, now, effectiveNodeMap)
+        ));
 
         const activeNodeHints = Array.from(new Map(
             enrichedActiveDeviceEntries
