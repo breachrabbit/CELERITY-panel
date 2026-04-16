@@ -797,12 +797,12 @@ html.layout-stabilizing * {
 
 .hero-meter-track.outer,
 .hero-meter-progress.outer {
-    stroke-width: 3;
+    stroke-width: 2.1;
 }
 
 .hero-meter-track.inner,
 .hero-meter-progress.inner {
-    stroke-width: 2.2;
+    stroke-width: 1.6;
 }
 
 .hero-meter-ring.mini {
@@ -819,12 +819,12 @@ html.layout-stabilizing * {
 
 .hero-meter-ring.mini .hero-meter-track.outer,
 .hero-meter-ring.mini .hero-meter-progress.outer {
-    stroke-width: 2.8;
+    stroke-width: 1.9;
 }
 
 .hero-meter-ring.mini .hero-meter-track.inner,
 .hero-meter-ring.mini .hero-meter-progress.inner {
-    stroke-width: 2;
+    stroke-width: 1.45;
 }
 
 .hero-meter-ring.soft {
@@ -2994,6 +2994,7 @@ body.mobile-menu-open {
     }
     
     .mobile-overlay.active {
+        left: min(88vw, 320px);
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
@@ -3364,6 +3365,16 @@ body.mobile-menu-open {
         width: 100%;
         text-align: center;
         align-items: center;
+    }
+
+    .hero-meter-card .hero-meter-ring {
+        width: 84px;
+        height: 84px;
+        font-size: 19px;
+    }
+
+    .hero-meter-card .hero-meter-ring > span {
+        line-height: 1;
     }
 
     .hero-sparkline-card,
