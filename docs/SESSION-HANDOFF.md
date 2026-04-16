@@ -123,3 +123,26 @@ The next session should keep this exact queue in mind:
 10. continue stronger visual and textual separation from `Celerity`;
 11. complete true node attribution for active user sessions;
 12. decide which upstream changes to port first.
+
+## 2026-04-16 Late Update
+
+- Deployed `aad44b4 fix: localize dashboard shell and tighten layout bounds`.
+- Tightened shell bounds again:
+  - switched `overflow-x` guards from `clip` to `hidden` on core shell containers;
+  - added extra `min-width: 0`, `width: 100%`, and `contain: inline-size` guards on topbar, content, main-content, stats grid, dashboard grid, and hero blocks;
+  - narrowed dashboard sidebar grid column to `minmax(0, 320px)` instead of a raw fixed track.
+- Replaced top-level hardcoded strings on `layout.ejs` and `dashboard.ejs` with locale-backed labels.
+- Added missing locale keys for:
+  - collapse / expand / toggle sidebar;
+  - light / dark / system theme labels;
+  - dashboard hero and traffic-card labels.
+
+### Current Verification Need
+
+The user still reports that the layout can drift on the live stand, so this fix must be verified manually in-browser after deployment.
+
+### Immediate Next Check
+
+1. Open the live stand and switch between `Dashboard / Statistics / Nodes / Users / Settings`.
+2. Confirm whether the right edge still drifts off-screen.
+3. Confirm dashboard/topbar copy is now consistently localized in both `ru` and `en`.

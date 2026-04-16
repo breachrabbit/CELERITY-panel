@@ -67,3 +67,4 @@ Change types:
 - `local patch` — chart readability and period UX polish
 - `local patch` — node attribution enrichment
 - `local override` — visible branding shift toward Hidden Rabbit
+- `stability fix` — extra shell overflow containment and dashboard/topbar localization cleanup

@@ -30,6 +30,19 @@ Still missing or incomplete:
 
 Status: `pending`
 
+### 8. Some shell drift still reproduces on the live stand
+
+Latest attempt:
+
+- commit `aad44b4` added stronger shell containment and replaced remaining hardcoded top-level dashboard/local shell strings with locale keys.
+
+Still needs confirmation:
+
+- whether right-edge drift is fully fixed on the deployed stand, or only reduced;
+- which exact page transition still reproduces it if the issue remains.
+
+Status: `pending`
+
 ### 3. Dashboard traffic graph still needs UX correction
 
 Current chart is interactive and visually improved, but the user still reports:

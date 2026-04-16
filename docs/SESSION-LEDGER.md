@@ -18,3 +18,8 @@
 - Additional note:
   - the previously paused CSS diff was finished, committed, and deployed;
   - next session should verify whether the live stand still has any drifting page after the shell rewrite.
+
+- Late update:
+  - added another shell-boundary pass for the persistent right-edge drift;
+  - localized dashboard hero/topbar/theme/sidebar strings that were still hardcoded;
+  - latest live verification is still pending from the deployed stand.
