@@ -186,7 +186,7 @@ const deviceUsagePct = limitedDeviceCapacity
         </div>
         <div class="stat-value"><%= formatTrafficDashboard(totalTrafficGB) %></div>
         <div class="stat-label" title="<%= t('common.upload') || 'Upload' %> <%= formatTrafficDashboard(totalTxGB) %> / <%= t('common.download') || 'Download' %> <%= formatTrafficDashboard(totalRxGB) %>">
-            <i class="ti ti-arrow-up" style="color:#22c55e"></i> <%= formatTrafficDashboard(totalTxGB) %> / <i class="ti ti-arrow-down" style="color:#3b82f6"></i> <%= formatTrafficDashboard(totalRxGB) %>
+            <i class="ti ti-arrow-up" style="color:var(--success)"></i> <%= formatTrafficDashboard(totalTxGB) %> / <i class="ti ti-arrow-down" style="color:#3b82f6"></i> <%= formatTrafficDashboard(totalRxGB) %>
         </div>
     </div>
 </div>
@@ -518,7 +518,7 @@ const deviceUsagePct = limitedDeviceCapacity
     gap: 4px;
 }
 .node-speed .speed-up {
-    color: #22c55e;
+    color: var(--success);
 }
 .node-speed .speed-down {
     color: #3b82f6;
@@ -1083,7 +1083,7 @@ async function loadNodesSpeed(onlyIds) {
             }
             if (mobileEl) {
                 mobileEl.innerHTML = `
-                    <span style="color: #22c55e; font-size: 12px;"><i class="ti ti-arrow-up"></i> ${txSpeed}</span><br>
+                    <span style="color: var(--success); font-size: 12px;"><i class="ti ti-arrow-up"></i> ${txSpeed}</span><br>
                     <span style="color: #3b82f6; font-size: 12px;"><i class="ti ti-arrow-down"></i> ${rxSpeed}</span>
                 `;
             }

@@ -38,7 +38,7 @@
         };
         %>
         <div class="stat-value"><%= formatTraffic(summary.traffic24h.total) %></div>
-        <div class="stat-label"><i class="ti ti-arrow-up" style="color:#22c55e"></i> <%= formatTraffic(summary.traffic24h.tx) %> / <i class="ti ti-arrow-down" style="color:#3b82f6"></i> <%= formatTraffic(summary.traffic24h.rx) %></div>
+        <div class="stat-label"><i class="ti ti-arrow-up" style="color:var(--success)"></i> <%= formatTraffic(summary.traffic24h.tx) %> / <i class="ti ti-arrow-down" style="color:#3b82f6"></i> <%= formatTraffic(summary.traffic24h.rx) %></div>
     </div>
     
     <div class="stat-card stat-nodes">
@@ -249,7 +249,7 @@
 }
 
 .traffic-totals .up {
-    color: #22c55e;
+    color: var(--success);
 }
 
 .traffic-totals .down {
@@ -373,11 +373,11 @@ function formatXAxisLabel(value, period) {
 // Chart colors
 const colors = {
     online: { bg: 'rgba(99, 102, 241, 0.2)', border: '#6366f1' },
-    nodes: { bg: 'rgba(34, 197, 94, 0.2)', border: '#22c55e' },
-    upload: { bg: 'rgba(34, 197, 94, 0.3)', border: '#22c55e' },
+    nodes: { bg: 'rgba(2, 168, 173, 0.2)', border: '#02A8AD' },
+    upload: { bg: 'rgba(2, 168, 173, 0.3)', border: '#02A8AD' },
     download: { bg: 'rgba(59, 130, 246, 0.3)', border: '#3b82f6' },
     nodeColors: [
-        '#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6',
+        '#6366f1', '#02A8AD', '#f59e0b', '#ef4444', '#8b5cf6',
         '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
     ]
 };
