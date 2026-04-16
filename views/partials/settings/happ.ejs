@@ -1,7 +1,10 @@
-<div class="card" style="margin-top: 1.5rem;">
+<div class="card settings-feature-card settings-happ-card" style="margin-top: 1.5rem;">
     <div class="card-header">
-        <h2><i class="ti ti-rocket"></i> <%= t('settings.happTitle') %></h2>
-        <p class="hint" style="margin:0"><%= t('settings.happDesc') %></p>
+        <div class="section-heading-stack">
+            <h2><i class="ti ti-rocket"></i> <%= t('settings.happTitle') %></h2>
+            <p class="hint" style="margin:0"><%= t('settings.happDesc') %></p>
+        </div>
+        <span class="feature-badge">HAPP</span>
     </div>
     <div class="card-body">
         <form method="POST" action="/panel/settings">
@@ -13,6 +16,21 @@
             <input type="hidden" name="subscription.pageTitle" value="<%= settings?.subscription?.pageTitle || '' %>">
             <input type="hidden" name="subscription.updateInterval" value="<%= settings?.subscription?.updateInterval ?? 12 %>">
             <input type="hidden" name="subscription.buttonsJson" value="<%= JSON.stringify(settings?.subscription?.buttons || []) %>">
+
+            <div class="preview-surface preview-surface-happ">
+                <div class="preview-surface-copy">
+                    <span class="preview-kicker">Preview idea</span>
+                    <strong>Карточка в приложении</strong>
+                    <p>Собираем спокойный баннер: мягкая верхняя строка, полезный статус и одна понятная кнопка.</p>
+                </div>
+                <div class="preview-surface-card">
+                    <div class="preview-topline"><%= settings?.subscription?.happ?.announce || 'Сервис работает в обычном режиме' %></div>
+                    <div class="preview-banner">
+                        <span class="preview-banner-text"><%= settings?.subscription?.happ?.support?.neutralText || 'При желании можно поддержать инфраструктуру и сопровождение.' %></span>
+                        <span class="preview-banner-button"><%= settings?.subscription?.happ?.support?.buttonText || 'Поддержать' %></span>
+                    </div>
+                </div>
+            </div>
 
             <div class="form-group" style="margin-bottom: 1.25rem;">
                 <label><%= t('settings.happAnnounce') %></label>
@@ -33,7 +51,7 @@
                     <small class="hint"><%= t('settings.happInfoTextHint') %></small>
                 </div>
 
-                <details style="margin-top: 1rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary);">
+                <details class="settings-nested-panel" style="margin-top: 1rem;">
                     <summary style="cursor:pointer; font-weight:600;"><%= t('settings.happDisplayTitle') %></summary>
                     <div style="margin-top:0.85rem;">
                         <div class="settings-grid">
@@ -62,7 +80,7 @@
                     </div>
                 </details>
 
-                <details style="margin-top: 1rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary);">
+                <details class="settings-nested-panel" style="margin-top: 1rem;">
                     <summary style="cursor:pointer; font-weight:600;"><%= t('settings.happSupportTitle') %></summary>
                     <div style="margin-top:0.85rem;">
                         <label class="checkbox-label" style="margin-bottom: 1rem;">

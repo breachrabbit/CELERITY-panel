@@ -5,56 +5,35 @@
 <div class="alert alert-error"><%= error %></div>
 <% } %>
 
-<style>
-.settings-tabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 2px solid var(--border);
-    margin-bottom: 1.5rem;
-    overflow-x: auto;
-}
-.settings-tab {
-    padding: 0.75rem 1.25rem;
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    transition: all 0.2s;
-}
-.settings-tab:hover {
-    color: var(--text);
-    background: var(--bg-tertiary);
-}
-.settings-tab.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-}
-.tab-content {
-    display: none;
-}
-.tab-content.active {
-    display: block;
-}
-.settings-section {
-    margin-bottom: 1.5rem;
-}
-.settings-section:last-child {
-    margin-bottom: 0;
-}
-.section-title {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border);
-}
-</style>
+<section class="experience-hero settings-hero">
+    <div class="hero-copy">
+        <span class="hero-eyebrow">Configuration Studio</span>
+        <h2>Настраиваем панель как продукт, а не как набор полей</h2>
+        <p>
+            Здесь собраны инфраструктурные, клиентские и HAPP-настройки. Основные блоки отделены визуально,
+            чтобы быстрее видеть, что относится к сервису, а что к клиентскому опыту.
+        </p>
+    </div>
+    <div class="settings-hero-grid">
+        <div class="hero-mini-card">
+            <span class="hero-mini-kicker">Clients</span>
+            <strong>Подписки и HAPP</strong>
+            <p>Логотип, deeplink-кнопки, баннеры, мягкая поддержка инфраструктуры.</p>
+        </div>
+        <div class="hero-mini-card">
+            <span class="hero-mini-kicker">Operations</span>
+            <strong>Система и бэкапы</strong>
+            <p>Кэш, S3, резервные копии и сервисные операции без лишнего шума.</p>
+        </div>
+        <div class="hero-mini-card">
+            <span class="hero-mini-kicker">Security</span>
+            <strong>Граница контроля</strong>
+            <p>Ограничения, rate limit, maintenance-операции и чувствительные флаги.</p>
+        </div>
+    </div>
+</section>
 
+<div class="settings-shell">
 <div class="settings-tabs">
     <button class="settings-tab active" data-tab="system"><i class="ti ti-settings"></i> <%= t('settings.tabSystem') || 'Система' %></button>
     <button class="settings-tab" data-tab="subscription"><i class="ti ti-link"></i> <%= t('settings.tabSubscription') || 'Подписка' %></button>
@@ -72,6 +51,7 @@
 <%- include('partials/settings/backup') %>
 
 <%- include('partials/settings/maintenance') %>
+</div>
 
 <div id="toast" class="toast"></div>
 

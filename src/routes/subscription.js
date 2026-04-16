@@ -770,12 +770,12 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
     }
 
     const qrSectionHtml = qrDataUrl
-        ? `<div class="section" style="text-align:center;">
-            <h2 style="justify-content:center;"><i class="ti ti-qrcode"></i> QR-КОД</h2>
-            <div style="display:inline-block; background:#141414; padding:12px; border-radius:12px; margin-bottom:8px;">
+        ? `<div class="section section-center">
+            <h2 class="section-title-center"><i class="ti ti-qrcode"></i> QR-код</h2>
+            <div class="qr-shell">
                 <img src="${qrDataUrl}" alt="QR" style="width:160px; height:160px; border-radius:8px; display:block;">
             </div>
-            <div style="font-size:12px; color:var(--muted);">Отсканируйте для импорта подписки в приложение</div>
+            <div class="section-hint">Отсканируйте код, чтобы быстро импортировать подписку в приложение</div>
            </div>`
         : '';
 
@@ -832,57 +832,292 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${pageTitle}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@500;600;700&family=Lilex:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
     <style>
-        :root { --bg: #0a0a0a; --card: #141414; --border: #252525; --text: #fff; --muted: #888; --accent: #3b82f6; --success: #22c55e; }
+        :root {
+            --navy: #050A3C;
+            --cyan: #08C5CB;
+            --white: #ffffff;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --card-soft: #f2f6fa;
+            --border: rgba(5,10,60,0.12);
+            --text: #07123c;
+            --muted: #68738f;
+            --success: #22c55e;
+            --shadow: 0 18px 36px rgba(5,10,60,0.06);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .header { text-align: center; padding: 32px 16px; background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); border-radius: 16px; margin-bottom: 16px; }
-        .header h1 { font-size: 24px; margin-bottom: 4px; }
-        .header p { color: var(--muted); font-size: 14px; }
-        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-        .stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
-        .stat-value { font-size: 18px; font-weight: 600; color: var(--accent); }
-        .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
-        .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-        .section h2 { font-size: 14px; margin-bottom: 12px; color: var(--muted); }
-        .location { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
-        .location-header { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; background: var(--bg); }
-        .location-header:hover { background: #1a1a1a; }
+        body {
+            font-family: 'Lilex', 'Segoe UI', sans-serif;
+            background:
+                linear-gradient(rgba(5,10,60,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(5,10,60,0.05) 1px, transparent 1px),
+                var(--bg);
+            background-size: 108px 108px, 108px 108px, auto;
+            color: var(--text);
+            min-height: 100vh;
+            padding: 18px 16px 34px;
+        }
+        .container { max-width: 760px; margin: 0 auto; }
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+            gap: 16px;
+            padding: 26px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            background:
+                linear-gradient(rgba(5,10,60,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(5,10,60,0.05) 1px, transparent 1px),
+                var(--card);
+            background-size: 84px 84px, 84px 84px, auto;
+            background-position: right -1px bottom -1px, right -1px bottom -1px, 0 0;
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+        }
+        .hero-copy { display: flex; flex-direction: column; gap: 12px; }
+        .eyebrow {
+            display: inline-flex;
+            width: fit-content;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .hero h1 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Geologica', 'Segoe UI', sans-serif;
+            font-size: clamp(30px, 5vw, 42px);
+            line-height: 0.98;
+        }
+        .hero p { color: var(--muted); max-width: 34ch; }
+        .hero-meta { display: grid; gap: 10px; }
+        .hero-meta-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--card-soft);
+        }
+        .hero-meta-card strong,
+        .stat-value,
+        .section h2,
+        .location-name {
+            font-family: 'Geologica', 'Segoe UI', sans-serif;
+        }
+        .hero-meta-card span,
+        .section-hint { color: var(--muted); font-size: 12px; }
+        .hero-meta-card strong { font-size: 18px; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+        .stat::after {
+            content: '';
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 12px;
+            border-bottom: 1px dashed rgba(8,197,203,0.42);
+        }
+        .stat-value { font-size: 24px; color: var(--navy); }
+        .stat-label { font-size: 12px; color: var(--muted); margin-top: 6px; padding-bottom: 10px; }
+        .section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow);
+        }
+        .section-center { text-align: center; }
+        .section h2 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            margin-bottom: 14px;
+            color: var(--navy);
+        }
+        .section-title-center { justify-content: center; }
+        .sub-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 12px;
+            border-radius: 14px;
+            background: var(--card-soft);
+        }
+        .sub-box input {
+            flex: 1;
+            padding: 12px 14px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font: inherit;
+            font-size: 12px;
+            min-width: 0;
+        }
+        .location {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .location-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            cursor: pointer;
+            background: var(--card-soft);
+        }
+        .location-header:hover { background: #edf3f8; }
         .location-flag { font-size: 24px; }
-        .location-name { flex: 1; font-weight: 500; }
+        .location-name { flex: 1; font-weight: 600; }
         .location-arrow { color: var(--muted); transition: transform 0.2s; display: inline-flex; }
         .location.open .location-arrow { transform: rotate(180deg); }
         .location-configs { display: none; border-top: 1px solid var(--border); }
         .location.open .location-configs { display: block; }
-        .config { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+        .config {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(5,10,60,0.06);
+            background: var(--card);
+        }
         .config:last-child { border-bottom: none; }
         .config-name { font-size: 13px; }
-        .copy-btn { padding: 6px 12px; background: var(--accent); border: none; border-radius: 6px; color: #fff; font-size: 12px; cursor: pointer; }
-        .copy-btn:active { transform: scale(0.95); }
-        .copy-btn.success { background: var(--success); }
-        .sub-box { display: flex; gap: 8px; }
-        .sub-box input { flex: 1; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12px; min-width: 0; }
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--success); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; transition: transform 0.3s; display: flex; align-items: center; gap: 8px; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        .header h1 { display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .section h2 { display: flex; align-items: center; gap: 8px; }
-        .copy-btn { display: inline-flex; align-items: center; gap: 6px; }
-        .btn-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        .app-btn { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); text-decoration: none; font-size: 14px; transition: background 0.15s, border-color 0.15s; }
+        .copy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            background: var(--navy);
+            border: 1px solid var(--navy);
+            border-radius: 999px;
+            color: #fff;
+            font: inherit;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .copy-btn:active { transform: scale(0.96); }
+        .copy-btn.success {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        .btn-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .app-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            transition: transform 0.15s, border-color 0.15s;
+        }
         .app-btn-button { width: 100%; cursor: pointer; font: inherit; text-align: left; }
-        .app-btn:hover { background: #1a1a1a; border-color: var(--accent); }
-        @media (max-width: 360px) { .btn-grid { grid-template-columns: 1fr; } }
+        .app-btn:hover {
+            transform: translateY(-1px);
+            border-color: rgba(8,197,203,0.4);
+        }
+        .qr-shell {
+            display: inline-block;
+            background: var(--navy);
+            padding: 14px;
+            border-radius: 16px;
+            margin-bottom: 10px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--success);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 999px;
+            font-size: 14px;
+            transition: transform 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 16px 34px rgba(34,197,94,0.22);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        @media (max-width: 720px) {
+            .hero,
+            .stats { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 420px) {
+            .btn-grid { grid-template-columns: 1fr; }
+            .sub-box,
+            .config { flex-direction: column; align-items: stretch; }
+        }
     </style>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>${logoHtml} ${pageTitle}</h1>
-            <p>Ваша персональная конфигурация</p>
+        <div class="hero">
+            <div class="hero-copy">
+                <span class="eyebrow">Access Profile</span>
+                <h1>${logoHtml} ${pageTitle}</h1>
+                <p>Персональная страница подключения с готовой ссылкой, QR-кодом и быстрым импортом в совместимые приложения.</p>
+            </div>
+            <div class="hero-meta">
+                <div class="hero-meta-card">
+                    <div>
+                        <span>Использовано</span>
+                        <strong>${trafficUsed.toFixed(1)} ГБ</strong>
+                    </div>
+                    <i class="ti ti-chart-donut-3" style="font-size:24px; color:var(--cyan);"></i>
+                </div>
+                <div class="hero-meta-card">
+                    <div>
+                        <span>Локаций</span>
+                        <strong>${locations.size}</strong>
+                    </div>
+                    <i class="ti ti-world" style="font-size:24px; color:var(--navy);"></i>
+                </div>
+                <div class="hero-meta-card">
+                    <div>
+                        <span>Действует до</span>
+                        <strong>${expireDate}</strong>
+                    </div>
+                    <i class="ti ti-calendar-time" style="font-size:24px; color:var(--navy);"></i>
+                </div>
+            </div>
         </div>
-        
+
         <div class="stats">
             <div class="stat">
                 <div class="stat-value">${trafficUsed.toFixed(1)} ГБ</div>
@@ -897,18 +1132,18 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
                 <div class="stat-label">Действует до</div>
             </div>
         </div>
-        
+
         <div class="section">
-            <h2><i class="ti ti-link"></i> ССЫЛКА ДЛЯ ПРИЛОЖЕНИЙ</h2>
+            <h2><i class="ti ti-link"></i> Ссылка для приложений</h2>
             <div class="sub-box">
                 <input type="text" value="${baseUrl}" readonly id="subUrl">
                 <button class="copy-btn" onclick="copyText('${baseUrl}', this)">Копировать</button>
             </div>
         </div>
-        
+
         <div class="section">
-            <h2><i class="ti ti-world"></i> ЛОКАЦИИ</h2>
-            ${[...locations.entries()].map(([name, loc], locIdx) => `
+            <h2><i class="ti ti-world"></i> Доступные локации</h2>
+            ${[...locations.entries()].map(([name, loc]) => `
             <div class="location">
                 <div class="location-header" onclick="this.parentElement.classList.toggle('open')">
                     <span class="location-flag">${loc.flag}</span>
@@ -916,7 +1151,7 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
                     <span class="location-arrow"><i class="ti ti-chevron-down"></i></span>
                 </div>
                 <div class="location-configs">
-                    ${loc.configs.map((cfg, i) => `
+                    ${loc.configs.map((cfg) => `
                     <div class="config">
                         <span class="config-name">${cfg.name}</span>
                         <button class="copy-btn" onclick="copyUri(this)">Копировать</button>

@@ -1,10 +1,29 @@
 <!-- ==================== TAB: SUBSCRIPTION ==================== -->
 <div class="tab-content" id="tab-subscription">
-    <div class="card">
+    <div class="card settings-feature-card">
         <div class="card-header">
-            <h2><i class="ti ti-device-mobile"></i> <%= t('settings.subClientApps') || 'Клиентские приложения' %></h2>
+            <div class="section-heading-stack">
+                <h2><i class="ti ti-device-mobile"></i> <%= t('settings.subClientApps') || 'Клиентские приложения' %></h2>
+                <p class="hint" style="margin:0;">Оформление страницы подписки, deeplink-кнопки и интеграции с приложениями.</p>
+            </div>
+            <span class="feature-badge">Client UX</span>
         </div>
         <div class="card-body">
+            <div class="preview-surface">
+                <div class="preview-surface-copy">
+                    <span class="preview-kicker">Subscription page</span>
+                    <strong>Аккуратная первая точка входа</strong>
+                    <p>Логотип, QR, deeplink-кнопки и персональная ссылка должны выглядеть как единый сервис, а не как техстраница.</p>
+                </div>
+                <div class="preview-surface-card preview-subscription-card">
+                    <div class="preview-sub-row">
+                        <span class="preview-sub-chip">Link</span>
+                        <span class="preview-sub-chip cyan">QR</span>
+                    </div>
+                    <strong><%= settings?.subscription?.pageTitle || 'Подключение' %></strong>
+                    <span class="preview-sub-url"><%= settings?.subscription?.supportUrl || 'support.hiddenrabbit.net' %></span>
+                </div>
+            </div>
             <form method="POST" action="/panel/settings">
                 <input type="hidden" name="_subscriptionSettings" value="1">
 
@@ -42,7 +61,7 @@
                     <small class="hint"><%= t('settings.subPageTitleHint') || 'Текст над логотипом. По умолчанию: «Подключение».' %></small>
                 </div>
 
-                <hr style="margin: 1.25rem 0; border-color: var(--border);">
+                <hr class="settings-divider">
 
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 1rem;">
                     <i class="ti ti-info-circle"></i>
@@ -66,7 +85,7 @@
                     </div>
                 </div>
 
-                <hr style="margin: 1.25rem 0; border-color: var(--border);">
+                <hr class="settings-divider">
 
                 <div class="settings-grid">
                     <div class="form-group">
@@ -88,7 +107,7 @@
                     </div>
                 </div>
 
-                <hr style="margin: 1.25rem 0; border-color: var(--border);">
+                <hr class="settings-divider">
 
                 <%/* Custom buttons section */%>
                 <div class="form-group">
