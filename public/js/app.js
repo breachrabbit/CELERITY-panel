@@ -48,6 +48,29 @@ function initTheme() {
     }
 }
 
+function stabilizeLayout() {
+    const root = document.documentElement;
+    root.classList.add('layout-stabilizing');
+    void document.body.offsetWidth;
+    window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            root.classList.remove('layout-stabilizing');
+        });
+    });
+}
+
+function initLayoutStability() {
+    window.addEventListener('load', stabilizeLayout);
+    window.addEventListener('pageshow', stabilizeLayout);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') stabilizeLayout();
+    });
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => stabilizeLayout()).catch(() => {});
+    }
+}
+
 // Format bytes to human readable
 function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 B';
@@ -77,5 +100,6 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
 });
 
 initTheme();
+initLayoutStability();
 
 console.log('⚡ Hysteria Panel loaded');
