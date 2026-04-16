@@ -965,41 +965,57 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
             window.location.href = href;
         }
 
+        function copySync(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            let copied = false;
+            try { copied = document.execCommand('copy'); } catch(e) {}
+            document.body.removeChild(ta);
+            return copied;
+        }
+
+        function launchHappApp() {
+            try {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = 'happ://';
+                document.body.appendChild(iframe);
+                setTimeout(() => iframe.remove(), 1200);
+            } catch (e) {}
+            try { window.location.assign('happ://'); } catch (e) {}
+        }
+
         function copyAndLaunchHapp(text, btn) {
-            const launch = function() {
-                try {
-                    window.location.href = 'happ://';
-                } catch (e) {}
-            };
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text)
-                    .then(() => { success(btn); setTimeout(launch, 80); })
-                    .catch(() => { fallback(text, btn); setTimeout(launch, 80); });
-            } else {
-                fallback(text, btn);
-                setTimeout(launch, 80);
+            const copiedSync = copySync(text);
+            success(btn, copiedSync ? 'Ссылка скопирована' : 'Открываем HAPP');
+            launchHappApp();
+            if (!copiedSync && navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(() => {});
             }
         }
         
         function fallback(text, btn) {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.cssText = 'position:fixed;left:-9999px';
-            document.body.appendChild(ta);
-            ta.select();
-            try { document.execCommand('copy'); success(btn); } catch(e) {}
-            document.body.removeChild(ta);
+            if (copySync(text)) success(btn);
         }
         
-        function success(btn) {
-            const orig = btn.textContent;
+        function success(btn, toastText) {
+            const orig = btn.innerHTML;
             btn.innerHTML = '<i class="ti ti-check"></i>';
             btn.classList.add('success');
-            document.getElementById('toast').classList.add('show');
+            const toast = document.getElementById('toast');
+            if (toastText) {
+                toast.innerHTML = '<i class="ti ti-check"></i> ' + toastText;
+            }
+            toast.classList.add('show');
             setTimeout(() => {
-                btn.textContent = orig;
+                btn.innerHTML = orig;
                 btn.classList.remove('success');
-                document.getElementById('toast').classList.remove('show');
+                toast.classList.remove('show');
+                toast.innerHTML = '<i class="ti ti-check"></i> Скопировано';
             }, 1500);
         }
     </script>

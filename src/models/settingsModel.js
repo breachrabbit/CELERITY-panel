@@ -116,15 +116,15 @@ const settingsSchema = new mongoose.Schema({
                 enabled: { type: Boolean, default: true },
                 amountRub: { type: Number, default: 200 },
                 periodDays: { type: Number, default: 30 },
-                buttonText: { type: String, default: '' },
+                buttonText: { type: String, default: 'Поддержать' },
                 buttonLink: { type: String, default: '' },
                 neutralText: {
                     type: String,
-                    default: 'Сервис работает в обычном режиме. Поддержка инфраструктуры добровольная.',
+                    default: 'Сервис работает в обычном режиме. Если захотите, можно поддержать инфраструктуру и сопровождение.',
                 },
                 activeText: {
                     type: String,
-                    default: 'Спасибо. Поддержка инфраструктуры для этого периода отмечена.',
+                    default: 'Спасибо. Поддержка инфраструктуры в этом периоде отмечена.',
                 },
                 overdueText: {
                     type: String,

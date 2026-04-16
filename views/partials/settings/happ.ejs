@@ -70,6 +70,12 @@
                             <span><%= t('settings.happSupportEnabled') %></span>
                         </label>
 
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem;">
+                            <button type="button" class="btn btn-secondary" style="font-size:12px;" onclick="applyHappSupportPreset()">
+                                <i class="ti ti-wand"></i> Рекомендуемые тексты
+                            </button>
+                        </div>
+
                         <div class="settings-grid">
                             <div class="form-group">
                                 <label><%= t('settings.happSupportAmount') %></label>
@@ -90,7 +96,7 @@
                                 <label><%= t('settings.happSupportButtonText') %></label>
                                 <input type="text" name="subscription.happ.support.buttonText"
                                        value="<%= settings?.subscription?.happ?.support?.buttonText || '' %>"
-                                       maxlength="40" placeholder="<%= t('settings.happSupportButtonTextPlaceholder') %>">
+                                       maxlength="40" placeholder="<%= t('settings.happSupportButtonTextPlaceholder') %>" id="happSupportButtonTextInput">
                             </div>
                             <div class="form-group">
                                 <label><%= t('settings.happSupportButtonLink') %></label>
@@ -103,19 +109,22 @@
                         <div class="form-group">
                             <label><%= t('settings.happSupportNeutralText') %></label>
                             <textarea name="subscription.happ.support.neutralText" maxlength="200" rows="3"
-                                      style="width:100%; resize:vertical;"><%= settings?.subscription?.happ?.support?.neutralText || '' %></textarea>
+                                      style="width:100%; resize:vertical;"
+                                      id="happSupportNeutralText"><%= settings?.subscription?.happ?.support?.neutralText || '' %></textarea>
                         </div>
 
                         <div class="form-group">
                             <label><%= t('settings.happSupportActiveText') %></label>
                             <textarea name="subscription.happ.support.activeText" maxlength="200" rows="3"
-                                      style="width:100%; resize:vertical;"><%= settings?.subscription?.happ?.support?.activeText || '' %></textarea>
+                                      style="width:100%; resize:vertical;"
+                                      id="happSupportActiveText"><%= settings?.subscription?.happ?.support?.activeText || '' %></textarea>
                         </div>
 
                         <div class="form-group">
                             <label><%= t('settings.happSupportOverdueText') %></label>
                             <textarea name="subscription.happ.support.overdueText" maxlength="200" rows="3"
-                                      style="width:100%; resize:vertical;"><%= settings?.subscription?.happ?.support?.overdueText || '' %></textarea>
+                                      style="width:100%; resize:vertical;"
+                                      id="happSupportOverdueText"><%= settings?.subscription?.happ?.support?.overdueText || '' %></textarea>
                         </div>
                         <small class="hint"><%= t('settings.happSupportHint') %></small>
                     </div>
@@ -213,5 +222,18 @@
                 </button>
             </div>
         </form>
+
+        <script>
+        function applyHappSupportPreset() {
+            const neutral = document.getElementById('happSupportNeutralText');
+            const active = document.getElementById('happSupportActiveText');
+            const overdue = document.getElementById('happSupportOverdueText');
+            const button = document.getElementById('happSupportButtonTextInput');
+            if (neutral) neutral.value = 'Сервис работает в обычном режиме. Если захотите, можно поддержать инфраструктуру и сопровождение.';
+            if (active) active.value = 'Спасибо. Поддержка инфраструктуры в этом периоде отмечена.';
+            if (overdue) overdue.value = 'Сервис продолжает работать. При желании можно поддержать инфраструктуру в текущем периоде.';
+            if (button && !button.value.trim()) button.value = 'Поддержать';
+        }
+        </script>
     </div>
 </div>
