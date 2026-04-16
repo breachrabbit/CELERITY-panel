@@ -490,6 +490,8 @@ function generateXrayConfig(node, users) {
 
     const config = {
         log: {
+            access: '/var/log/xray/access.log',
+            error: '/var/log/xray/error.log',
             loglevel: 'warning',
         },
         api: {

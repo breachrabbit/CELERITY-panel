@@ -1385,8 +1385,11 @@ else
     echo "Done: Xray already installed ($(xray version | head -1))"
 fi
 
-mkdir -p /usr/local/etc/xray
-echo "Done: Directory /usr/local/etc/xray ready"
+mkdir -p /usr/local/etc/xray /var/log/xray
+touch /var/log/xray/access.log /var/log/xray/error.log
+chmod 755 /var/log/xray
+chmod 644 /var/log/xray/access.log /var/log/xray/error.log
+echo "Done: Xray directories ready"
 `;
 
 /**
@@ -1993,6 +1996,8 @@ async function installCCAgent(conn, node, token, panelIp, log) {
         xray_api: `127.0.0.1:${apiPort}`,
         inbound_tag: inboundTag,
         data_dir: '/var/lib/cc-agent',
+        access_log: '/var/log/xray/access.log',
+        session_window_seconds: 900,
         tls: {
             enabled: useTls,
             cert: '/etc/cc-agent/cert.pem',
@@ -2067,7 +2072,10 @@ if [ "$DOWNLOADED" = "0" ]; then
 fi
 
 echo "=== [2/5] Creating directories ==="
-mkdir -p /etc/cc-agent /var/lib/cc-agent
+mkdir -p /etc/cc-agent /var/lib/cc-agent /var/log/xray
+touch /var/log/xray/access.log /var/log/xray/error.log
+chmod 755 /var/log/xray
+chmod 644 /var/log/xray/access.log /var/log/xray/error.log
 
 echo "=== [3/5] Writing config ==="
 cat > /etc/cc-agent/config.json << 'EOFCONFIG'

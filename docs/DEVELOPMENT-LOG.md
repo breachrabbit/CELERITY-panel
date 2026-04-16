@@ -447,3 +447,23 @@ Change type:
 Change type:
 
 - `stability fix` — mobile menu accessibility / stacking recovery
+
+## 2026-04-16 Xray True Session Telemetry Foundation
+
+- Extended `cc-agent` with a new authenticated `GET /sessions` endpoint.
+- Added a lightweight Xray access-log parser in the agent:
+  - reads recent `/var/log/xray/access.log` lines;
+  - extracts user email/userId and client IP;
+  - returns deduplicated active sessions inside the configured session window.
+- Updated generated Xray configs to enable access/error logs under `/var/log/xray/`.
+- Updated Xray node setup to create the log directory/files before service start.
+- Updated panel stats collection:
+  - polls `/sessions` alongside `/stats`;
+  - writes real client IP session records to Redis when available;
+  - keeps the older `/stats` fallback for agents that do not support `/sessions` yet.
+- Extended user activity rendering with a separate `Xray session` source label.
+
+Change type:
+
+- `local patch` — true Xray per-device/session telemetry foundation
+- `stability fix` — non-breaking fallback for old cc-agent binaries

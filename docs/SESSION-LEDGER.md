@@ -225,3 +225,13 @@
   - added ARIA state updates and Escape close behavior.
 - Next step:
   - deploy and verify on Android that menu items, language/theme controls, and logout are tappable while the page behind is blocked.
+
+- Xray true session telemetry continuation:
+  - added `GET /sessions` to `cc-agent`;
+  - enabled Xray access-log output in generated node configs;
+  - taught panel sync to consume real client IP sessions when the agent supports them;
+  - kept `/stats`-based synthetic activity as a fallback for existing agents.
+- Next step:
+  - build/publish or manually install the updated `cc-agent` binary on test Xray nodes;
+  - rerun node setup or config sync so `/var/log/xray/access.log` is enabled;
+  - verify user detail/list shows `Xray-сессия` with real client IP instead of only `Xray stats`.

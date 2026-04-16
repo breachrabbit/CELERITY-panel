@@ -6,9 +6,8 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- There is an active uncommitted local UI patch in:
-  - `public/css/style.css`
-- This local patch is a follow-up ring-geometry tweak only and has **not** been committed/deployed yet.
+- Current working focus: Xray true per-device/session telemetry.
+- Current local patch adds `cc-agent` `/sessions` support and panel-side consumption of real Xray session records.
 
 ## 2026-04-16 Mobile / i18n In-Progress Stop-Point
 
@@ -115,6 +114,11 @@
 
 ## Not Done Yet
 
+- Xray true per-device/session attribution now has a code foundation, but still needs live rollout:
+  - new `cc-agent` binary must be built/published or manually installed on test Xray nodes;
+  - node Xray config must be regenerated/restarted so `/var/log/xray/access.log` exists and is populated;
+  - live UI must confirm `Xray-сессия` entries with real client IPs;
+  - old agents will keep using `/stats` fallback until updated.
 - responsive/mobile polish is still incomplete:
   - user specifically reported Android issues with overlapping mobile controls and hard-to-click menu state;
   - the current local patch moves language/theme controls into mobile sidebar and locks page scroll while menu is open, but this still needs real-device/live verification;

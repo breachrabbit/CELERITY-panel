@@ -12,12 +12,14 @@ type TLSConfig struct {
 }
 
 type Config struct {
-	Listen     string    `json:"listen"`
-	Token      string    `json:"token"`
-	XrayAPI    string    `json:"xray_api"`
-	InboundTag string    `json:"inbound_tag"`
-	DataDir    string    `json:"data_dir"`
-	TLS        TLSConfig `json:"tls"`
+	Listen               string    `json:"listen"`
+	Token                string    `json:"token"`
+	XrayAPI              string    `json:"xray_api"`
+	InboundTag           string    `json:"inbound_tag"`
+	DataDir              string    `json:"data_dir"`
+	AccessLog            string    `json:"access_log"`
+	SessionWindowSeconds int       `json:"session_window_seconds"`
+	TLS                  TLSConfig `json:"tls"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -27,14 +29,22 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	cfg := &Config{
-		Listen:     "0.0.0.0:62080",
-		XrayAPI:    "127.0.0.1:61000",
-		InboundTag: "vless-in",
-		DataDir:    "/var/lib/cc-agent",
+		Listen:               "0.0.0.0:62080",
+		XrayAPI:              "127.0.0.1:61000",
+		InboundTag:           "vless-in",
+		DataDir:              "/var/lib/cc-agent",
+		AccessLog:            "/var/log/xray/access.log",
+		SessionWindowSeconds: 15 * 60,
 	}
 
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, err
+	}
+	if cfg.AccessLog == "" {
+		cfg.AccessLog = "/var/log/xray/access.log"
+	}
+	if cfg.SessionWindowSeconds <= 0 {
+		cfg.SessionWindowSeconds = 15 * 60
 	}
 
 	return cfg, nil

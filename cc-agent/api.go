@@ -27,6 +27,7 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /users", a.auth(a.handleAddUser))
 	mux.HandleFunc("DELETE /users/{email}", a.auth(a.handleRemoveUser))
 	mux.HandleFunc("GET /stats", a.auth(a.handleStats))
+	mux.HandleFunc("GET /sessions", a.auth(a.handleSessions))
 	mux.HandleFunc("POST /restart", a.auth(a.handleRestart))
 }
 
@@ -209,6 +210,22 @@ func (a *API) handleStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, result)
+}
+
+// GET /sessions — active client IPs inferred from recent Xray access log lines.
+func (a *API) handleSessions(w http.ResponseWriter, r *http.Request) {
+	window := time.Duration(a.cfg.SessionWindowSeconds) * time.Second
+	sessions, err := ReadActiveSessions(a.cfg.AccessLog, window, 5000)
+	if err != nil {
+		log.Printf("[sessions] ReadActiveSessions: %v", err)
+		jsonErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	jsonOK(w, map[string]any{
+		"window_seconds": int(window.Seconds()),
+		"sessions":       sessions,
+	})
 }
 
 // POST /restart — restart Xray service, then restore all users (Xray loses state on restart)

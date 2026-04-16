@@ -132,6 +132,7 @@ function normalizeDeviceActivityEntry(entry, now = Date.now(), nodeMap = new Map
     const fallbackNode = entry.nodeId ? nodeMap.get(String(entry.nodeId)) : null;
     const source = entry.source || 'auth';
     const isXrayStats = source === 'xray-agent-stats' || String(entry.ip || '').startsWith('xray:');
+    const isXraySession = source === 'xray-agent-sessions';
 
     return {
         ...entry,
@@ -141,9 +142,9 @@ function normalizeDeviceActivityEntry(entry, now = Date.now(), nodeMap = new Map
         lastSeenAgoMinutes: Math.max(0, Math.round((now - entry.ts) / 60000)),
         isSynthetic: isXrayStats,
         source,
-        sourceKey: isXrayStats ? 'sourceXrayStats' : (source ? 'sourceAuth' : 'sourceUnknown'),
+        sourceKey: isXrayStats ? 'sourceXrayStats' : (isXraySession ? 'sourceXraySessions' : (source ? 'sourceAuth' : 'sourceUnknown')),
         displayIdentityKey: isXrayStats ? 'sessionXrayTraffic' : '',
-        displayIdentity: isXrayStats ? '' : entry.ip,
+        displayIdentity: isXrayStats ? '' : (entry.remoteIp || entry.ip),
     };
 }
 

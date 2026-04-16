@@ -526,10 +526,21 @@ class SyncService {
         }
 
         try {
-            const response = await this._agentRequest(node, 'GET', '/stats');
+            const [response, sessionsResponse] = await Promise.all([
+                this._agentRequest(node, 'GET', '/stats'),
+                this._agentRequest(node, 'GET', '/sessions').catch(error => {
+                    if (error.response?.status !== 404) {
+                        logger.debug(`[Agent Sessions] ${node.name}: unavailable - ${error.message}`);
+                    }
+                    return null;
+                }),
+            ]);
             const stats = response.data || {};
+            const sessions = Array.isArray(sessionsResponse?.data?.sessions)
+                ? sessionsResponse.data.sessions
+                : [];
 
-            if (Object.keys(stats).length === 0) return;
+            if (Object.keys(stats).length === 0 && sessions.length === 0) return;
 
             let nodeTx = 0;
             let nodeRx = 0;
@@ -573,6 +584,10 @@ class SyncService {
                 await Promise.allSettled(deviceActivityUpdates);
             }
 
+            if (sessions.length > 0) {
+                await this._updateXraySessionActivity(node, sessions);
+            }
+
             if (bulkOps.length > 0) {
                 const result = await HyUser.bulkWrite(bulkOps, { ordered: false });
                 logger.debug(`[Agent Stats] ${node.name}: updated ${result.modifiedCount}/${bulkOps.length} users`);
@@ -591,6 +606,34 @@ class SyncService {
             }
         } catch (error) {
             logger.error(`[Agent Stats] ${node.name} error: ${error.message}`);
+        }
+    }
+
+    async _updateXraySessionActivity(node, sessions = []) {
+        const updates = [];
+
+        for (const session of sessions) {
+            const email = String(session?.email || '').trim();
+            const clientIP = String(session?.client_ip || session?.clientIP || '').trim();
+            if (!email || !clientIP) continue;
+
+            updates.push(cache.updateDeviceIP(
+                email,
+                clientIP,
+                {
+                    nodeId: String(node._id),
+                    nodeName: node.name || '',
+                    nodeType: 'xray',
+                    source: 'xray-agent-sessions',
+                    remoteIp: clientIP,
+                    clientAddr: session?.client_addr || session?.clientAddr || '',
+                },
+            ));
+        }
+
+        if (updates.length > 0) {
+            await Promise.allSettled(updates);
+            logger.debug(`[Agent Sessions] ${node.name}: updated ${updates.length} live device records`);
         }
     }
 

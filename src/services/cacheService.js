@@ -68,6 +68,8 @@ class CacheService {
                 nodeName: parsed?.nodeName || '',
                 nodeType: parsed?.nodeType || '',
                 source: parsed?.source || '',
+                remoteIp: parsed?.remoteIp || '',
+                clientAddr: parsed?.clientAddr || '',
             };
         } catch (_) {
             return null;
@@ -389,6 +391,8 @@ class CacheService {
                 nodeName: metadata?.nodeName || '',
                 nodeType: metadata?.nodeType || '',
                 source: metadata?.source || '',
+                remoteIp: metadata?.remoteIp || '',
+                clientAddr: metadata?.clientAddr || '',
             });
             await this.redis.pipeline()
                 .hset(key, ip, value)

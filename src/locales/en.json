@@ -657,6 +657,7 @@
     "minutesAgo": "min ago",
     "activitySource": "Source",
     "sourceXrayStats": "Xray stats",
+    "sourceXraySessions": "Xray session",
     "sourceAuth": "Auth callback",
     "sourceUnknown": "Unknown",
     "sessionXrayTraffic": "Profile Xray traffic",
