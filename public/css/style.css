@@ -149,22 +149,25 @@ html.layout-stabilizing * {
     background: var(--bg-secondary);
     border-right: 1px dashed var(--border);
     display: block;
-    position: relative;
-    min-height: var(--shell-sidebar-height);
-    height: 100%;
+    position: sticky;
+    top: 0;
+    min-height: 100dvh;
+    height: 100dvh;
     z-index: 100;
     min-width: 0;
-    align-self: stretch;
+    align-self: start;
+    overflow: hidden;
     transition: width 0.22s ease, border-color 0.22s ease;
 }
 
 .sidebar-inner {
-    position: sticky;
-    top: 0;
-    min-height: min(100dvh, var(--shell-sidebar-height));
+    min-height: 0;
+    height: 100%;
     display: flex;
     flex-direction: column;
     background: inherit;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     transition: padding 0.22s ease;
 }
 

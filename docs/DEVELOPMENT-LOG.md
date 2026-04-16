@@ -188,3 +188,13 @@ Change type:
 
 - `local patch` — visual consistency and chart UX
 - `stability fix` — dashboard logs height alignment
+
+## 2026-04-16 Sticky Sidebar Fix
+
+- Changed the desktop sidebar from a normal grid column with only an inner sticky layer into a viewport-sticky shell block.
+- The sidebar now stays attached to the screen while page content scrolls.
+- Sidebar content scrolls internally if it ever exceeds viewport height, while footer controls remain in the same visual stack.
+
+Change type:
+
+- `stability fix` — shell/sidebar scroll behavior

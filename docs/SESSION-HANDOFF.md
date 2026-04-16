@@ -160,6 +160,22 @@ After deploy, verify:
 4. `24h / 7d / 30d` traffic totals refresh consistently;
 5. statistics charts feel visually aligned with the dashboard chart language.
 
+## 2026-04-16 Sticky Sidebar Update
+
+- Prepared a shell fix for long-page scrolling:
+  - desktop `.sidebar` is now `position: sticky` at viewport top;
+  - sidebar height is locked to `100dvh`;
+  - `.sidebar-inner` scrolls internally if its own content exceeds viewport height.
+
+### Current Verification Need
+
+After deploy, verify on long pages:
+
+1. dashboard scroll;
+2. settings scroll;
+3. collapsed sidebar scroll;
+4. mobile menu still opens normally.
+
 ## Known Broken / Risky / Pending
 
 - page-drift / width-shift bug is still the highest current UX blocker until the deployed shell rewrite is verified;

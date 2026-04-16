@@ -80,3 +80,9 @@
   - shortened/versioned traffic chart cache to avoid stale `24h`/`7d` mismatches.
 - Next step:
   - deploy and visually verify dashboard traffic, logs alignment, and all statistics charts on the live stand.
+
+- Sidebar sticky fix:
+  - made the desktop sidebar itself sticky to the viewport;
+  - kept sidebar internals scrollable inside the viewport height.
+- Next step:
+  - verify long-page scrolling on dashboard/settings and confirm the sidebar no longer moves upward with page content.
