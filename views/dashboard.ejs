@@ -89,7 +89,7 @@ const deviceUsagePct = limitedDeviceCapacity
             </div>
             <div class="hero-meter-copy">
                 <strong><%= t('nav.users') %></strong>
-                <span><%= stats.users.enabled %> <%= t('common.of') %> <%= stats.users.total %> <%= t('dashboard.usersEnabledHint') %></span>
+                <span><%= stats.users.enabled %> / <%= stats.users.total %> <%= t('dashboard.usersEnabledHint') %></span>
             </div>
         </div>
         <div class="hero-sparkline-card">
@@ -127,7 +127,7 @@ const deviceUsagePct = limitedDeviceCapacity
             </div>
             <div class="hero-meter-copy">
                 <strong><%= t('dashboard.profilesAndDevices') %></strong>
-                <span><%= activeProfiles %> <%= t('dashboard.activeProfilesHint') %> <%= stats.users.enabled %></span>
+                <span><%= activeProfiles %> <%= t('dashboard.activeProfilesHint') %> / <%= stats.users.enabled %></span>
                 <span>
                     <%= tp('common.deviceCount', activeDevices) %>
                     <% if (limitedDeviceCapacity) { %>
@@ -151,7 +151,7 @@ const deviceUsagePct = limitedDeviceCapacity
             <span class="stat-trend"><%= t('dashboard.activeUsers') %></span>
         </div>
         <div class="stat-value"><%= stats.users.enabled %></div>
-        <div class="stat-label"><%= t('common.of') %> <%= tp('common.userCount', stats.users.total) %></div>
+        <div class="stat-label">/ <%= tp('common.userCount', stats.users.total) %></div>
     </div>
     
     <div class="stat-card stat-nodes">
@@ -160,7 +160,7 @@ const deviceUsagePct = limitedDeviceCapacity
             <span class="stat-trend"><%= t('dashboard.onlineNodes') %></span>
         </div>
         <div class="stat-value"><%= stats.nodes.online %></div>
-        <div class="stat-label"><%= t('common.of') %> <%= tp('common.nodeCount', stats.nodes.total) %></div>
+        <div class="stat-label">/ <%= tp('common.nodeCount', stats.nodes.total) %></div>
     </div>
     
     <div class="stat-card stat-online">
