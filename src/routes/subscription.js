@@ -737,8 +737,7 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
     });
     
     const trafficUsed = ((user.traffic?.tx || 0) + (user.traffic?.rx || 0)) / (1024 * 1024 * 1024);
-    const trafficLimit = user.trafficLimit ? user.trafficLimit / (1024 * 1024 * 1024) : 0;
-    const expireDate = user.expireAt ? new Date(user.expireAt).toLocaleDateString('ru-RU') : 'Бессрочно';
+    const expireDate = user.expireAt ? new Date(user.expireAt).toLocaleDateString('ru-RU') : '∞';
     
     // Group by location preserving node sort order (Map keeps insertion order for all key types)
     const locations = new Map();
@@ -949,8 +948,8 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
             bottom: 12px;
             border-bottom: 1px dashed rgba(8,197,203,0.42);
         }
-        .stat-value { font-size: 24px; color: var(--navy); }
-        .stat-label { font-size: 12px; color: var(--muted); margin-top: 6px; padding-bottom: 10px; }
+        .stat-value { font-size: 24px; color: var(--navy); margin-top: 8px; padding-bottom: 10px; }
+        .stat-label { font-size: 12px; color: var(--muted); }
         .section {
             background: var(--card);
             border: 1px solid var(--border);
@@ -1127,16 +1126,16 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
 
         <div class="stats">
             <div class="stat">
+                <div class="stat-label">Использовано:</div>
                 <div class="stat-value">${trafficUsed.toFixed(1)} ГБ</div>
-                <div class="stat-label">Использовано${trafficLimit > 0 ? ` / ${trafficLimit.toFixed(0)} ГБ` : ''}</div>
             </div>
             <div class="stat">
+                <div class="stat-label">Локаций:</div>
                 <div class="stat-value">${locations.size}</div>
-                <div class="stat-label">Локаций</div>
             </div>
             <div class="stat">
+                <div class="stat-label">Действует до:</div>
                 <div class="stat-value">${expireDate}</div>
-                <div class="stat-label">Действует до</div>
             </div>
         </div>
 
