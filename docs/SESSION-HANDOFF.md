@@ -6,13 +6,9 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- There is an active uncommitted local UI patch set in:
+- There is an active uncommitted local UI patch in:
   - `public/css/style.css`
-  - `views/dashboard.ejs`
-  - `views/layout.ejs`
-  - `views/user-detail.ejs`
-  - `views/users.ejs`
-- These edits were not finalized in this session and must be reviewed before any deploy.
+- This local patch is a follow-up ring-geometry tweak only and has **not** been committed/deployed yet.
 
 ## 2026-04-16 Mobile / i18n In-Progress Stop-Point
 
@@ -29,6 +25,43 @@
   - EJS compile for `views/layout.ejs`
   - EJS compile for `views/dashboard.ejs`
 - It has **not** been committed/deployed yet at this stop-point.
+
+## 2026-04-16 Dashboard Rings Stop-Point
+
+- Two dashboard ring implementations were already committed and deployed on `main`:
+  - `ace7fde — fix: rebuild dashboard rings with dashed layers`
+  - `17adc2d — fix: simplify dashboard rings with css pseudo layers`
+- The current live implementation uses the simplified CSS pseudo-element approach:
+  - `.hero-meter-ring` = outer dashed circle;
+  - `.hero-meter-ring::before` = inner dashed circle;
+  - `.hero-meter-value` = centered text layer.
+- User reviewed the live result and provided a more precise visual target:
+  - large rings should visually follow:
+    - `--meter-gap: 5px`
+    - `--meter-border-width: 1px`
+    - `width: 80px`
+    - `height: 80px`
+  - mini rings in `Profiles and devices` should be scaled down proportionally with the same internal rhythm.
+- A new local-only CSS tweak has now been started in `public/css/style.css`:
+  - base rings are now locally set to:
+    - `80x80`
+    - `gap 5`
+    - `border 1`
+    - `font-size 18`
+  - mini rings are now locally set to:
+    - `68x68`
+    - `gap 4`
+    - `font-size 15`
+  - mobile large rings are now locally set to:
+    - `84x84`
+    - `gap 5`
+    - `font-size 19`
+  - mobile mini rings are now locally set to:
+    - `72x72`
+    - `gap 4`
+    - `font-size 16`
+- This new tweak is **not deployed yet** and still needs visual verification before commit.
+- The user explicitly wants the next session to continue from this ring-geometry stop-point rather than re-exploring older SVG or layered-div approaches.
 
 ## Stable / Confirmed
 
@@ -82,6 +115,9 @@
   - user specifically reported Android issues with overlapping mobile controls and hard-to-click menu state;
   - the current local patch moves language/theme controls into mobile sidebar and locks page scroll while menu is open, but this still needs real-device/live verification;
   - other pages beyond dashboard/layout still need responsive cleanup.
+- mobile menu accessibility is still unresolved on real Android devices:
+  - user still reports the menu is not fully clickable / accessible;
+  - this remains one of the next highest-priority UI fixes after the ring geometry is stabilized.
 - shell/layout bug is still unresolved:
   - user reports the design still shifts / drifts outside the browser width;
   - this happens on navigation and in some views;
@@ -89,7 +125,8 @@
 - dashboard / stats visuals still need cleanup:
   - traffic chart density was reduced and the dashboard period toggle exists now;
   - charts still need visual refinement and calmer rhythm on the live page;
-  - segmented rings still need closer matching to the user reference.
+  - segmented/dashed rings still need closer matching to the user reference;
+  - the current local CSS-only tweak should be reviewed first before any further redesign attempt.
 - user-level stats are improved but not complete:
   - per-user traffic and device activity now exist in operator UI;
   - exact live node attribution is improved with header aliases and node-id fallback lookup but still depends on metadata being sent consistently;

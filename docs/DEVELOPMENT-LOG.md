@@ -218,6 +218,35 @@ Change type:
 - `stability fix` — mobile shell/menu interaction
 - `local patch` — dashboard localization and pluralization
 
+## 2026-04-16 Dashboard Ring Iteration Continuation
+
+- Replaced the earlier SVG-based dashboard ring rendering with a simpler CSS pseudo-layer approach:
+  - ring body as the outer dashed circle;
+  - `::before` as the inner dashed circle;
+  - value text as the top layer.
+- Committed and deployed this simplified ring version:
+  - `17adc2d — fix: simplify dashboard rings with css pseudo layers`
+- After live review, the user provided a narrower visual target for ring geometry:
+  - `--meter-gap: 5px`
+  - `--meter-border-width: 1px`
+  - `width: 80px`
+  - `height: 80px`
+- Started a new local follow-up CSS tweak in `public/css/style.css` to align:
+  - large dashboard rings;
+  - mobile dashboard rings;
+  - mini rings in `Profiles and devices`.
+- Current local geometry values are now:
+  - large rings: `80x80`, `gap 5`, `border 1`, `font-size 18`;
+  - mini rings: `68x68`, `gap 4`, `font-size 15`;
+  - mobile large rings: `84x84`, `gap 5`, `font-size 19`;
+  - mobile mini rings: `72x72`, `gap 4`, `font-size 16`.
+- This latest geometry tweak is still local-only and not yet committed/deployed.
+
+Change type:
+
+- `local patch` — dashboard metric ring geometry refinement
+- `stability fix` — simplified CSS-only ring rendering path
+
 ## 2026-04-16 Dashboard Recovery and Cross-Page Cleanup
 
 - Fixed a live rendering regression after introducing pluralization in templates:

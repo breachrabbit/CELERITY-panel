@@ -733,16 +733,17 @@ html.layout-stabilizing * {
 
 .hero-meter-ring {
     --meter-track: rgba(8, 197, 203, 0.42);
-    --meter-gap: 12px;
-    --meter-border-width: 2px;
-    width: 104px;
-    height: 104px;
+    --meter-gap: 5px;
+    --meter-border-width: 1px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     display: grid;
     place-items: center;
     position: relative;
     font-family: var(--font-heading);
     font-weight: 700;
+    font-size: 18px;
     color: var(--brand-navy);
     isolation: isolate;
     overflow: visible;
@@ -766,14 +767,19 @@ html.layout-stabilizing * {
 }
 
 .hero-meter-ring.mini {
-    width: 82px;
-    height: 82px;
-    font-size: 20px;
-    --meter-gap: 10px;
+    width: 68px;
+    height: 68px;
+    font-size: 15px;
+    --meter-gap: 4px;
+    --meter-border-width: 1px;
 }
 
 .hero-meter-ring.soft {
     --meter-track: rgba(8, 197, 203, 0.42);
+    --meter-gap: 5px;
+    --meter-border-width: 1px;
+    width: 80px;
+    height: 80px;
 }
 
 :root[data-theme="dark"] .hero-meter-ring,
@@ -3310,10 +3316,11 @@ body.mobile-menu-open {
     }
 
     .hero-meter-card .hero-meter-ring {
-        width: 122px;
-        height: 122px;
-        font-size: 26px;
-        --meter-gap: 15px;
+        width: 84px;
+        height: 84px;
+        font-size: 19px;
+        --meter-gap: 5px;
+        --meter-border-width: 1px;
     }
 
     .hero-meter-card .hero-meter-ring > .hero-meter-value {
@@ -3333,10 +3340,11 @@ body.mobile-menu-open {
     }
 
     .hero-device-rings .hero-meter-ring.mini {
-        width: 96px;
-        height: 96px;
-        font-size: 24px;
-        --meter-gap: 12px;
+        width: 72px;
+        height: 72px;
+        font-size: 16px;
+        --meter-gap: 4px;
+        --meter-border-width: 1px;
     }
 
     .hero-device-card .hero-meter-copy {

@@ -161,3 +161,20 @@
   - verify on a real phone that the menu is fully clickable and background content is no longer interactive while open;
   - visually confirm the new thin ring treatment in both themes;
   - continue the broader mobile cleanup on `Statistics`, `Users`, `Settings`, and the subscription page.
+
+- Dashboard rings continuation:
+  - replaced the intermediate ring markup with a simpler CSS pseudo-element implementation and deployed it;
+  - user approved the direction but requested a more specific geometry target:
+    - `80x80`,
+    - `gap 5`,
+    - `border width 1`;
+  - started a new local-only CSS tweak to propagate that rhythm to large rings, mobile rings, and mini rings.
+- Current local CSS values:
+  - large rings `80x80`, `gap 5`, `border 1`, `font-size 18`;
+  - mini rings `68x68`, `gap 4`, `font-size 15`;
+  - mobile large rings `84x84`, `font-size 19`;
+  - mobile mini rings `72x72`, `font-size 16`.
+- Next step:
+  - review the uncommitted `public/css/style.css` ring-size tweak first;
+  - deploy only after visual confirmation of the ring proportions;
+  - then return to the still-broken mobile menu accessibility.
