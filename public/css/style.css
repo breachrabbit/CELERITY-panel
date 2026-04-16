@@ -47,6 +47,7 @@
     --sidebar-width: 260px;
     --sidebar-collapsed-width: 84px;
     --shell-sidebar-height: 100dvh;
+    --shell-header-height: 94px;
 }
 
 :root[data-theme="dark"] {
@@ -171,7 +172,10 @@ html.layout-stabilizing * {
 }
 
 .sidebar-head {
+    min-height: var(--shell-header-height);
     border-bottom: 1px dashed var(--border);
+    display: flex;
+    align-items: stretch;
 }
 
 .sidebar-controls {
@@ -183,7 +187,9 @@ html.layout-stabilizing * {
 }
 
 .logo {
-    padding: 24px;
+    width: 100%;
+    min-height: var(--shell-header-height);
+    padding: 18px 24px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -397,7 +403,8 @@ html.layout-stabilizing * {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    padding: 20px 32px;
+    min-height: var(--shell-header-height);
+    padding: 18px 32px;
     background: rgba(255, 255, 255, 0.92);
     border-bottom: 1px dashed var(--border);
     position: sticky;
