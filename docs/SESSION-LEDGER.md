@@ -23,3 +23,16 @@
   - added another shell-boundary pass for the persistent right-edge drift;
   - localized dashboard hero/topbar/theme/sidebar strings that were still hardcoded;
   - latest live verification is still pending from the deployed stand.
+
+- Stop-point update:
+  - user added a new batch of shell/UI requests during an unfinished redesign pass;
+  - these were not finished or deployed and were intentionally captured for the next session instead;
+  - there is now an active uncommitted patch set in:
+    - `public/css/style.css`
+    - `views/dashboard.ejs`
+    - `views/layout.ejs`
+    - `views/users.ejs`
+- Next step:
+  - review the uncommitted patch set first;
+  - then fix sidebar full-height behavior and remaining shell drift;
+  - then continue with topbar controls, background texture, users-list actions, accent-color cleanup, and HAPP theme defaults.

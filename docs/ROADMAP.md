@@ -3,12 +3,26 @@
 ## Near Term
 
 - resolve the persistent shell/layout drift bug across dashboard, stats, login, and page navigation;
+- make the left sidebar reliably stretch to full height on long pages;
 - finish current admin UI redesign in a flatter, cleaner visual language;
+- replace the current background square/grid texture with a more neutral paper-like noise;
+- unify topbar controls:
+  - language switcher should match the theme switcher visually;
+  - theme switcher should use icon-only controls;
+- move sidebar collapse control into the footer action group near logout;
+- normalize the left navigation icon set and verify no icon is missing;
+- replace remaining green system accents with the project `Java` accent family;
+- ensure dark-theme dashboard rings follow project colors and never render as black;
 - improve dashboard analytics and make traffic graphs reflect real data history;
 - refine dashboard card UX:
   - add compact period switcher (`24ч / 7д / 30д`);
   - reduce point density;
   - improve human-readable time labels;
+- finish users-list operator UX:
+  - open subscription page directly from the list;
+  - provide edit action directly from the list;
+  - keep copy/details actions coherent;
+  - use `∞` for unlimited traffic where appropriate;
 - add user-level operational stats:
   - extend current traffic/device view into exact node attribution;
   - add better cascade visibility where technically possible;
@@ -17,6 +31,7 @@
   - clean texts;
   - reliable import flow;
   - clear settings behavior;
+  - align default color profile with panel themes where supported on iOS/macOS;
 - continue fixing install and node-add flows so the panel works out of the box.
 
 ## Mid Term

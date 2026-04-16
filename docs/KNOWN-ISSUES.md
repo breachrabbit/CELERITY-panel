@@ -14,6 +14,18 @@ Current state:
 
 Status: `broken`
 
+### 1a. Left sidebar does not always stretch to full height
+
+User reported on the settings screen that the left sidebar/footer block can stop early instead of visually reaching the bottom of the page content.
+
+Current state:
+
+- shell was already moved toward `grid + sticky sidebar`;
+- footer controls were moved around during the redesign;
+- this still needs a proper height/flow fix instead of more local spacing tweaks.
+
+Status: `broken`
+
 ### 2. User-level operational stats are only partially complete
 
 Done now:
@@ -88,12 +100,15 @@ Status: `pending`
 
 Open user requests include:
 
-- move language control near the theme switcher on the right;
-- make sidebar collapse affordance clearer;
+- make language control visually match the theme switcher;
+- remove light/dark/system labels and keep icons only;
+- move sidebar collapse control near logout in the footer block;
 - ensure Settings has a visible icon in all states;
-- make background texture more neutral;
+- replace the background texture with a neutral paper-like noise;
 - use segmented ring styling matching the provided reference;
 - recolor subscription QR presentation toward project blue.
+- replace remaining green accent states with the project Java color family;
+- ensure dark-theme dashboard rings are not rendered as black.
 
 Latest progress:
 
@@ -104,6 +119,41 @@ Latest progress:
 
 Status: `pending`
 
+### 9. Users list actions are incomplete
+
+User wants the users list to provide a more operator-friendly set of actions:
+
+- open subscription page directly;
+- copy subscription;
+- edit user profile;
+- open details/profile page.
+
+Also:
+
+- wording like "Unlimited traffic" / "Без лимита трафика" should be replaced with `∞` where this is shown as a compact metric.
+
+Current state:
+
+- edit exists on user detail page;
+- list view still needs final action layout cleanup and verification;
+- there are uncommitted local edits in `views/users.ejs` related to this.
+
+Status: `pending`
+
+### 10. HAPP color profile defaults are not yet aligned to panel theming
+
+User requested:
+
+- default HAPP color profile matching the dark panel theme;
+- investigation whether iOS/macOS HAPP can support both light and dark themes in a system-driven way.
+
+Current state:
+
+- HAPP color profile setting was restored in settings;
+- theming behavior across iOS/macOS still needs practical implementation review.
+
+Status: `pending`
+
 ## What Has Already Been Tried
 
 - live deployment and iterative UI fixes through Coolify;
@@ -111,6 +161,11 @@ Status: `pending`
 - layout stabilization after navigation / resize-related visual drift;
 - dashboard redesign with flatter styling and less heavy gradients.
 - shell rewrite attempt toward `grid + sticky sidebar` started locally but paused before deployment.
+- several later UI requests were collected and partially started locally without final deployment:
+  - users list action expansion;
+  - footer sidebar toggle placement;
+  - topbar language/theme visual unification;
+  - paper-noise background direction.
 
 ## What Is Stable Enough For Now
 

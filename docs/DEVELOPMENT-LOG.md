@@ -68,3 +68,27 @@ Change types:
 - `local patch` — node attribution enrichment
 - `local override` — visible branding shift toward Hidden Rabbit
 - `stability fix` — extra shell overflow containment and dashboard/topbar localization cleanup
+
+## 2026-04-16 Session Continuity Update
+
+- Captured a new stop-point instead of pushing more UI changes blindly.
+- Recorded the current uncommitted local patch set:
+  - `public/css/style.css`
+  - `views/dashboard.ejs`
+  - `views/layout.ejs`
+  - `views/users.ejs`
+- Logged the next requested work from the user:
+  - sidebar full-height fix;
+  - replace square/grid texture with neutral paper-like noise;
+  - make language switcher match theme switcher;
+  - remove text labels from theme switcher and keep icons only;
+  - move/verify footer collapse control near logout;
+  - replace green system accents with project Java accents;
+  - ensure dark-theme dashboard rings are not black;
+  - add users-list actions for subscription page / copy / edit / details;
+  - use `∞` for unlimited traffic presentation;
+  - continue HAPP color-profile defaults aligned to panel theme, including iOS/macOS behavior review.
+
+Change type:
+
+- `stability fix` — continuity capture for unfinished UI pass

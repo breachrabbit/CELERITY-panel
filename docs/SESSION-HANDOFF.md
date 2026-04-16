@@ -6,7 +6,12 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- No intentional local paused patch should remain after this session.
+- There is an active uncommitted local UI patch set in:
+  - `public/css/style.css`
+  - `views/dashboard.ejs`
+  - `views/layout.ejs`
+  - `views/users.ejs`
+- These edits were not finalized in this session and must be reviewed before any deploy.
 
 ## Stable / Confirmed
 
@@ -77,6 +82,23 @@
   - circular metrics should use a segmented / dashed ring style like the provided reference;
   - subscription QR code background/frame was recolored, but should be checked on real devices and browsers.
 - upstream comparison baseline exists, but adoption triage is still not finished.
+- users list still needs operator UX completion:
+  - add direct open-subscription-page action in the users table and mobile cards;
+  - restore/edit-profile access from the users list, not only from detail page;
+  - replace awkward unlimited traffic wording with `∞` where limits are not set.
+- theme/language/shell polish still needs follow-up:
+  - language switcher should visually match the theme switcher;
+  - theme switcher labels should be removed, leaving icons only;
+  - sidebar collapse control should live near logout in a shared footer action block;
+  - sidebar currently does not always stretch to full height on long settings pages.
+- visual system still needs one more strong pass:
+  - replace the background square/grid texture with a more neutral paper-like noise;
+  - replace green system accents (`online`, green tags, highlighted pills) with the project `Java` color family;
+  - in dark theme, dashboard metric rings must not render as black;
+  - review and normalize nav icons across the full menu so no icon disappears or looks mismatched.
+- HAPP theme work is still pending:
+  - default HAPP color profile should align with the dark panel theme;
+  - evaluate whether HAPP can support coordinated light/dark/system theming for iOS/macOS and, if possible, prepare both profiles.
 
 ## Known Broken / Risky / Pending
 
@@ -99,9 +121,12 @@ No automatic next wave is opened by this handoff.
 
 Next practical step:
 
-1. resolve the shell/page-drift bug first and only then deploy new UI changes;
-2. verify the deployed shell rewrite on the live stand and identify any remaining drifting page/container;
-3. after layout is stable, continue with:
+1. review the current uncommitted UI patch set before touching anything else;
+2. fix the left sidebar full-height behavior and the remaining layout drift together at shell level;
+3. finish the users list operator actions (subscription page / copy / edit / details);
+4. replace the current background texture with a neutral paper-like noise;
+5. normalize theme/language controls and color accents;
+6. only after shell/UI stability is confirmed, continue with:
    - dashboard traffic/stats cleanup and chart polish;
    - user session node attribution;
    - controlled removal of `Celerity` branding from visible surfaces;
@@ -112,17 +137,25 @@ Next practical step:
 The next session should keep this exact queue in mind:
 
 1. fix the persistent layout drift / page-width bug;
-2. verify the new shell rewrite and identify the last page(s) that still drift;
-3. continue graph cleanup and improve chart readability;
-4. move language controls next to the theme switcher on the right;
-5. make sidebar collapse behavior more obvious;
-6. ensure every nav item, including Settings, has a visible icon in all states;
-7. neutralize the page background texture further;
-8. switch circular meters to a segmented ring style matching the user reference;
-9. recolor subscription QR framing / background to project blue;
-10. continue stronger visual and textual separation from `Celerity`;
-11. complete true node attribution for active user sessions;
-12. decide which upstream changes to port first.
+2. ensure the left sidebar stretches to full page height on long screens/pages;
+3. continue graph cleanup and improve chart readability/responsiveness;
+4. replace the current square/grid texture with neutral paper-like noise;
+5. move the sidebar collapse control into the footer near `Logout` in a unified style;
+6. make the language switcher visually match the theme switcher;
+7. remove `Light / Dark / System` text labels and leave icons only;
+8. ensure every nav item, including Settings, has a visible and coherent icon in all states;
+9. replace system green accents with the project `Java` accent family;
+10. ensure dark-theme dashboard rings are not black;
+11. add users-list actions:
+   - open subscription page;
+   - copy subscription;
+   - edit profile;
+   - open details;
+12. use `∞` instead of awkward unlimited traffic wording where appropriate;
+13. prepare HAPP color profile defaults to match panel theming, including checking whether iOS/macOS can follow light/dark/system behavior;
+14. continue stronger visual and textual separation from `Celerity`;
+15. complete true node attribution for active user sessions;
+16. decide which upstream changes to port first.
 
 ## 2026-04-16 Late Update
 
