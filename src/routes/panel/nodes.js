@@ -500,7 +500,7 @@ router.get('/', async (req, res) => {
         }));
         
         render(res, 'dashboard', {
-            title: 'Dashboard',
+            title: res.locals.t('dashboard.title') || res.locals.t('nav.dashboard') || 'Dashboard',
             page: 'dashboard',
             stats: {
                 users: { total: usersTotal, enabled: usersEnabled },

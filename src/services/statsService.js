@@ -42,6 +42,36 @@ class StatsService {
         return d;
     }
 
+    _createTrafficBuckets(period, endDate = new Date()) {
+        if (period === '24h') {
+            const endHour = this.roundToHour(endDate);
+            return Array.from({ length: 24 }, (_, index) => {
+                const ts = new Date(endHour.getTime() - ((23 - index) * 60 * 60 * 1000));
+                return { key: ts.getTime(), ts, tx: 0, rx: 0 };
+            });
+        }
+
+        const days = period === '30d' ? 30 : 7;
+        const today = this.roundToDay(endDate);
+        return Array.from({ length: days }, (_, index) => {
+            const ts = new Date(today.getTime() - ((days - 1 - index) * 24 * 60 * 60 * 1000));
+            return { key: ts.getTime(), ts, tx: 0, rx: 0 };
+        });
+    }
+
+    _aggregateTrafficSnapshotsToBuckets(buckets, snapshots, granularity = 'day') {
+        const bucketMap = new Map(buckets.map(bucket => [bucket.key, bucket]));
+        for (const snapshot of snapshots) {
+            const bucketDate = granularity === 'hour'
+                ? this.roundToHour(snapshot.ts)
+                : this.roundToDay(snapshot.ts);
+            const bucket = bucketMap.get(bucketDate.getTime());
+            if (!bucket) continue;
+            bucket.tx += snapshot.tx || 0;
+            bucket.rx += snapshot.rx || 0;
+        }
+    }
+
     async collectSnapshot() {
         try {
             const nodes = await HyNode.find({ active: true })
@@ -386,23 +416,49 @@ class StatsService {
             } catch (e) {}
         }
         
-        const { type, startDate, endDate } = this.getPeriodParams(period);
-        const data = await StatsSnapshot.getRange(type, startDate, endDate, false);
-        
-        let totalTx = 0, totalRx = 0;
-        const txData = [], rxData = [], labels = [];
-        
-        for (const d of data) {
-            labels.push(d.ts);
-            txData.push(d.tx || 0);
-            rxData.push(d.rx || 0);
-            totalTx += d.tx || 0;
-            totalRx += d.rx || 0;
+        const { startDate, endDate } = this.getPeriodParams(period);
+        const buckets = this._createTrafficBuckets(period, endDate);
+
+        if (period === '24h') {
+            const hourlyData = await StatsSnapshot.getRange('hourly', startDate, endDate, false);
+            this._aggregateTrafficSnapshotsToBuckets(buckets, hourlyData, 'hour');
+        } else {
+            const todayStart = this.roundToDay(endDate);
+            const hourlyFallbackStart = new Date(Math.max(startDate.getTime(), endDate.getTime() - (48 * 60 * 60 * 1000)));
+
+            const [dailyData, hourlyData] = await Promise.all([
+                StatsSnapshot.getRange('daily', startDate, endDate, false),
+                StatsSnapshot.getRange('hourly', hourlyFallbackStart, endDate, false),
+            ]);
+
+            const historicalDaily = dailyData.filter((snapshot) => snapshot.ts < todayStart);
+            this._aggregateTrafficSnapshotsToBuckets(buckets, historicalDaily, 'day');
+
+            const hourlyDayBuckets = this._createTrafficBuckets(period, endDate);
+            this._aggregateTrafficSnapshotsToBuckets(hourlyDayBuckets, hourlyData, 'day');
+            const hourlyOverrides = new Map(
+                hourlyDayBuckets
+                    .filter((bucket) => bucket.tx > 0 || bucket.rx > 0)
+                    .map((bucket) => [bucket.key, bucket])
+            );
+
+            for (const bucket of buckets) {
+                const override = hourlyOverrides.get(bucket.key);
+                if (!override) continue;
+                bucket.tx = override.tx;
+                bucket.rx = override.rx;
+            }
         }
+
+        const labels = buckets.map((bucket) => bucket.ts);
+        const txData = buckets.map((bucket) => bucket.tx);
+        const rxData = buckets.map((bucket) => bucket.rx);
+        const totalTx = txData.reduce((sum, value) => sum + value, 0);
+        const totalRx = rxData.reduce((sum, value) => sum + value, 0);
         
         const result = {
             period,
-            type,
+            type: period === '24h' ? 'hourly' : 'daily',
             labels,
             datasets: { tx: txData, rx: rxData },
             totals: { tx: totalTx, rx: totalRx, total: totalTx + totalRx }

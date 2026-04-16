@@ -125,7 +125,7 @@
     "passwordChanged": "Пароль успешно изменён"
   },
   "dashboard": {
-    "title": "Главная",
+    "title": "Панель управления",
     "totalUsers": "Всего пользователей",
     "activeUsers": "активных",
     "totalNodes": "Всего нод",

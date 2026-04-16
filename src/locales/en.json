@@ -124,7 +124,7 @@
     "passwordChanged": "Password successfully changed"
   },
   "dashboard": {
-    "title": "Dashboard",
+    "title": "Control Panel",
     "totalUsers": "Total Users",
     "activeUsers": "active",
     "totalNodes": "Total Nodes",

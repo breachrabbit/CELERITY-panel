@@ -722,7 +722,19 @@ function initTrafficSparkline() {
         if (title) title.textContent = formatTrafficPeriodLabel(period);
         periodButtons.forEach((button) => button.classList.toggle('active', button.dataset.sparklinePeriod === period));
         chart.dataset.period = period;
-        showPoint(points.length - 1);
+        const mostRelevantIndex = (() => {
+            let maxIndex = points.length - 1;
+            let maxValue = -1;
+            for (let index = 0; index < rawPoints.length; index += 1) {
+                if ((rawPoints[index]?.raw || 0) >= maxValue) {
+                    maxValue = rawPoints[index]?.raw || 0;
+                    maxIndex = index;
+                }
+            }
+            if (maxValue > 0) return maxIndex;
+            return points.length - 1;
+        })();
+        showPoint(mostRelevantIndex);
     };
 
     const toPoints = (payload) => (payload?.labels || []).map((label, index) => ({
