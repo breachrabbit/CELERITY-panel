@@ -1807,7 +1807,7 @@ html.layout-stabilizing * {
     min-width: 0;
     width: 100%;
     max-width: 100%;
-    align-items: stretch;
+    align-items: start;
 }
 
 .dashboard-main {
@@ -1817,7 +1817,6 @@ html.layout-stabilizing * {
     min-width: 0;
     width: 100%;
     overflow: hidden;
-    min-height: 100%;
 }
 
 .dashboard-sidebar {
@@ -1827,19 +1826,18 @@ html.layout-stabilizing * {
     min-width: 0;
     width: 100%;
     overflow: hidden;
-    min-height: 100%;
 }
 
 .logs-card {
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     flex-direction: column;
     min-height: 0;
 }
 
 .logs-card .card-body {
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
 }
 
@@ -1987,7 +1985,7 @@ html.layout-stabilizing * {
 .logs-container {
     height: 100%;
     min-height: 420px;
-    max-height: none;
+    max-height: min(620px, calc(100dvh - 320px));
     overflow-y: auto;
     overflow-x: hidden;
     font-family: 'JetBrains Mono', monospace;
