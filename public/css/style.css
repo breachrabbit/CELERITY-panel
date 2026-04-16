@@ -130,17 +130,15 @@ html.layout-stabilizing * {
 
 /* Layout */
 .app {
-    display: grid;
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    display: block;
     min-height: 100dvh;
     height: auto;
-    align-items: stretch;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     overflow-x: hidden;
     isolation: isolate;
-    transition: grid-template-columns 0.22s ease;
+    transition: none;
 }
 
 /* Sidebar */
@@ -380,7 +378,8 @@ html.layout-stabilizing * {
 
 /* Content */
 .content {
-    width: 100%;
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
     max-width: 100%;
     min-height: 100dvh;
     min-width: 0;
@@ -398,6 +397,11 @@ html.layout-stabilizing * {
     background-size: auto, 34px 34px, 54px 54px, 78px 78px, auto;
     background-position: 0 0, 0 0, 7px 11px, 19px 15px, 0 0;
     transition: none;
+}
+
+:root.sidebar-collapsed .content {
+    margin-left: var(--sidebar-collapsed-width);
+    width: calc(100% - var(--sidebar-collapsed-width));
 }
 
 :root[data-theme="dark"] .content {
@@ -2971,8 +2975,9 @@ html.layout-stabilizing * {
     /* Content */
     .content {
         grid-column: 1 / -1;
-        padding-top: 60px;
+        margin-left: 0;
         width: 100%;
+        padding-top: 60px;
         max-width: 100%;
     }
     
