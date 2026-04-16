@@ -120,6 +120,7 @@ html.layout-stabilizing * {
     display: flex;
     min-height: 100vh;
     width: 100%;
+    max-width: 100%;
     overflow: hidden;
 }
 
@@ -296,11 +297,13 @@ html.layout-stabilizing * {
 
 /* Content */
 .content {
-    flex: 1;
+    flex: 1 1 auto;
     margin-left: 260px;
-    width: calc(100% - 260px);
+    width: auto;
+    max-width: calc(100vw - 260px);
     min-height: 100vh;
     min-width: 0;
+    overflow-x: clip;
     background:
         linear-gradient(rgba(5,10,60,0.05) 1px, transparent 1px),
         linear-gradient(90deg, rgba(5,10,60,0.05) 1px, transparent 1px),
@@ -419,6 +422,8 @@ html.layout-stabilizing * {
     padding: 32px;
     min-width: 0;
     width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
 }
 
 .experience-hero {
@@ -1170,7 +1175,8 @@ html.layout-stabilizing * {
 .btn-primary {
     background: var(--brand-navy);
     border-color: var(--brand-navy);
-    color: white;
+    color: #ffffff;
+    text-shadow: none;
     box-shadow: none;
 }
 
@@ -2067,31 +2073,28 @@ html.layout-stabilizing * {
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, var(--bg-primary) 0%, #18181b 50%, var(--bg-secondary) 100%);
+    min-height: 100dvh;
+    padding: 32px 20px;
+    background:
+        linear-gradient(rgba(5,10,60,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(5,10,60,0.06) 1px, transparent 1px),
+        var(--bg-primary);
+    background-size: 84px 84px, 84px 84px, auto;
     position: relative;
-    overflow: hidden;
+    overflow: clip;
 }
 
 .login-page::before {
     content: '';
     position: absolute;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-    top: -250px;
-    right: -250px;
-    animation: float 20s infinite alternate;
+    inset: 0;
+    background:
+        linear-gradient(135deg, rgba(5,10,60,0.03), rgba(8,197,203,0.02));
+    pointer-events: none;
 }
 
 .login-page::after {
-    content: '';
-    position: absolute;
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, rgba(124, 58, 237, 0.2) 0%, transparent 70%);
-    bottom: -200px;
-    left: -200px;
-    animation: float 15s infinite alternate-reverse;
+    display: none;
 }
 
 @keyframes float {
@@ -2102,20 +2105,21 @@ html.layout-stabilizing * {
 
 .login-container {
     width: 100%;
-    max-width: 420px;
-    padding: 20px;
+    max-width: 430px;
+    padding: 0;
     position: relative;
     z-index: 1;
 }
 
 .login-box {
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 48px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(20px);
-    animation: slideUp 0.5s ease-out;
+    border: 1px dashed var(--border);
+    border-radius: 18px;
+    padding: 40px 32px;
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: none;
+    animation: slideUp 0.28s ease-out;
+    max-width: 100%;
 }
 
 @keyframes slideUp {
@@ -2135,20 +2139,21 @@ html.layout-stabilizing * {
 }
 
 .login-header .logo-icon {
-    font-size: 48px;
-    filter: drop-shadow(0 0 20px var(--accent-glow));
+    font-size: 34px;
+    filter: none;
     display: inline-block;
-    animation: pulse 2s infinite;
+    animation: none;
 }
 
 .login-header h1 {
     margin-top: 16px;
     font-size: 28px;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--brand-navy);
+}
+
+:root[data-theme="dark"] .login-header h1 {
+    color: var(--brand-white);
 }
 
 .login-header p {
@@ -2638,6 +2643,7 @@ html.layout-stabilizing * {
         margin-left: 0;
         padding-top: 60px;
         width: 100%;
+        max-width: 100%;
     }
     
     .topbar {
@@ -2894,7 +2900,7 @@ html.layout-stabilizing * {
     
     /* Login Page */
     .login-container {
-        padding: 16px;
+        padding: 0;
     }
     
     .login-box {

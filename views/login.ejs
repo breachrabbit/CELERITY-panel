@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= typeof t !== 'undefined' ? t('auth.loginTitle') : 'Panel Login' %> | C³ CELERITY</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@500;600;700&family=Lilex:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="login-page">
@@ -14,7 +15,7 @@
             <div class="login-header">
                 <span class="logo-icon large">⚡</span>
                 <h1>C³ CELERITY</h1>
-                <a href="https://t.me/First_VPN_Click_bot" target="_blank" style="background: linear-gradient(135deg, var(--accent) 0%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none;">by Click Connect</a>
+                <a href="https://t.me/First_VPN_Click_bot" target="_blank" style="color: var(--text-secondary); text-decoration: none;">by Click Connect</a>
             </div>
             
             <!-- Language Switcher -->
@@ -73,8 +74,8 @@
         background: var(--bg-hover);
     }
     .login-lang-switcher .lang-btn.active {
-        color: var(--text-primary);
-        background: var(--accent);
+        color: #ffffff;
+        background: var(--brand-navy);
     }
     .lockout-alert {
         margin-bottom: 16px;
