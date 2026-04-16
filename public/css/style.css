@@ -662,10 +662,27 @@ html.layout-stabilizing * {
     color: var(--text-primary);
     background: var(--bg-secondary);
     border: 1px dashed var(--border);
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.hero-link-chip:hover,
+.hero-link-chip:focus-visible {
+    background: var(--bg-hover);
+    border-color: var(--brand-cyan);
+    color: var(--brand-navy);
+    transform: translateY(-1px);
+    outline: none;
 }
 
 :root[data-theme="dark"] .hero-link-chip {
     background: var(--bg-secondary);
+}
+
+:root[data-theme="dark"] .hero-link-chip:hover,
+:root[data-theme="dark"] .hero-link-chip:focus-visible {
+    background: rgba(8, 197, 203, 0.12);
+    border-color: var(--brand-cyan);
+    color: var(--brand-white);
 }
 
 .hero-metrics,
