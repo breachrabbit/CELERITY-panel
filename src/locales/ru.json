@@ -48,6 +48,17 @@
     "server": "Сервер",
     "ports": "Порты",
     "clear": "Очистить"
+    ,
+    "collapse": "Свернуть",
+    "expand": "Развернуть",
+    "toggleSidebar": "Переключить боковую панель",
+    "light": "Светлая",
+    "dark": "Тёмная",
+    "system": "Системная",
+    "themeSwitcher": "Переключение темы",
+    "lightTheme": "Светлая тема",
+    "darkTheme": "Тёмная тема",
+    "systemTheme": "Системная тема"
   },
   "nav": {
     "dashboard": "Главная",
@@ -156,7 +167,23 @@
     "pauseLogs": "Пауза",
     "resumeLogs": "Продолжить",
     "logsConnected": "Live",
-    "logsDisconnected": "Отключено"
+    "logsDisconnected": "Отключено",
+    "consoleKicker": "Панель управления инфраструктурой",
+    "heroEyebrow": "Управление сетью",
+    "heroDescription": "Оперативная панель для контроля нод, подключений и состояния сервиса. Всё ключевое видно сразу, без лишних переходов.",
+    "nodesHealthy": "Ноды в строю",
+    "nodesHealthyHint": "активны",
+    "usersEnabledHint": "включены",
+    "traffic24h": "Трафик за 24 часа",
+    "traffic7d": "Трафик за 7 дней",
+    "traffic30d": "Трафик за 30 дней",
+    "trafficLive": "Живой трафик",
+    "trafficChart": "График трафика",
+    "profilesAndDevices": "Профили и устройства",
+    "activeProfilesHint": "активных профилей из",
+    "devices": "устройств",
+    "available": "доступно",
+    "noHardLimit": "без жёсткого лимита"
   },
   "nodes": {
     "title": "Ноды",

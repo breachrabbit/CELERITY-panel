@@ -77,11 +77,17 @@ function setSidebarCollapsed(collapsed, persist = false) {
     root.classList.toggle('sidebar-collapsed', collapsed);
     const toggle = document.getElementById('sidebarToggle');
     if (toggle) {
+        const collapseLabel = toggle.dataset.labelCollapse || 'Collapse';
+        const expandLabel = toggle.dataset.labelExpand || 'Expand';
         toggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
-        toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        toggle.setAttribute('title', collapsed ? expandLabel : collapseLabel);
         const icon = toggle.querySelector('i');
+        const label = toggle.querySelector('.sidebar-toggle-label');
         if (icon) {
             icon.className = collapsed ? 'ti ti-panel-left-open' : 'ti ti-panel-left-close';
+        }
+        if (label) {
+            label.textContent = collapsed ? expandLabel : collapseLabel;
         }
     }
     if (persist) {
@@ -141,4 +147,4 @@ initTheme();
 initSidebar();
 initLayoutStability();
 
-console.log('⚡ Hysteria Panel loaded');
+console.log('Hidden Rabbit Panel loaded');

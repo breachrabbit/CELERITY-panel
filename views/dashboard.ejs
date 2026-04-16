@@ -22,10 +22,10 @@ const formatTrafficWindowValue = (bytes) => {
 };
 const formatTrafficPeriodLabel = (period) => {
     switch (period) {
-        case '24h': return 'Трафик за 24 часа';
-        case '7d': return 'Трафик за 7 дней';
-        case '30d': return 'Трафик за 30 дней';
-        default: return 'Живой трафик';
+        case '24h': return t('dashboard.traffic24h');
+        case '7d': return t('dashboard.traffic7d');
+        case '30d': return t('dashboard.traffic30d');
+        default: return t('dashboard.trafficLive');
     }
 };
 const nodeHealthPct = stats.nodes.total ? Math.round((stats.nodes.online / stats.nodes.total) * 100) : 0;
@@ -48,11 +48,10 @@ const deviceUsagePct = limitedDeviceCapacity
 
 <section class="experience-hero dashboard-hero">
     <div class="hero-copy">
-        <span class="hero-eyebrow">Network Operations</span>
+        <span class="hero-eyebrow"><%= t('dashboard.heroEyebrow') %></span>
         <h2><%= t('dashboard.title') || t('nav.dashboard') %></h2>
         <p>
-            Светлая оперативная панель для контроля узлов, подключений и состояния сервиса.
-            Всё ключевое видно сразу, без охоты по вкладкам.
+            <%= t('dashboard.heroDescription') %>
         </p>
         <div class="hero-action-row">
             <a href="/panel/nodes/add" class="btn btn-primary">
@@ -72,8 +71,8 @@ const deviceUsagePct = limitedDeviceCapacity
                 <span><%= nodeHealthPct %>%</span>
             </div>
             <div class="hero-meter-copy">
-                <strong>Ноды в строю</strong>
-                <span><%= stats.nodes.online %> / <%= stats.nodes.total %> активны</span>
+                <strong><%= t('dashboard.nodesHealthy') %></strong>
+                <span><%= stats.nodes.online %> / <%= stats.nodes.total %> <%= t('dashboard.nodesHealthyHint') %></span>
             </div>
         </div>
         <div class="hero-meter-card">
@@ -81,8 +80,8 @@ const deviceUsagePct = limitedDeviceCapacity
                 <span><%= userHealthPct %>%</span>
             </div>
             <div class="hero-meter-copy">
-                <strong>Пользователи</strong>
-                <span><%= stats.users.enabled %> из <%= stats.users.total %> включены</span>
+                <strong><%= t('nav.users') %></strong>
+                <span><%= stats.users.enabled %> <%= t('common.of') %> <%= stats.users.total %> <%= t('dashboard.usersEnabledHint') %></span>
             </div>
         </div>
         <div class="hero-sparkline-card">
@@ -100,7 +99,7 @@ const deviceUsagePct = limitedDeviceCapacity
                 data-sparkline-chart
                 data-period="<%= stats.trafficWindow?.period || '7d' %>"
                 data-points='<%- JSON.stringify(sparklinePoints) %>'
-                aria-label="График трафика"
+                aria-label="<%= t('dashboard.trafficChart') %>"
             >
                 <svg class="sparkline-svg" viewBox="0 0 320 116" preserveAspectRatio="none" aria-hidden="true">
                     <defs>
@@ -137,14 +136,14 @@ const deviceUsagePct = limitedDeviceCapacity
                 </div>
             </div>
             <div class="hero-meter-copy">
-                <strong>Профили и устройства</strong>
-                <span><%= activeProfiles %> активных профилей из <%= stats.users.enabled %></span>
+                <strong><%= t('dashboard.profilesAndDevices') %></strong>
+                <span><%= activeProfiles %> <%= t('dashboard.activeProfilesHint') %> <%= stats.users.enabled %></span>
                 <span>
-                    <%= activeDevices %> устройств
+                    <%= activeDevices %> <%= t('dashboard.devices') %>
                     <% if (limitedDeviceCapacity) { %>
-                        / <%= limitedDeviceCapacity %> доступных
+                        / <%= limitedDeviceCapacity %> <%= t('dashboard.available') %>
                     <% } else { %>
-                        • без жёсткого лимита
+                        • <%= t('dashboard.noHardLimit') %>
                     <% } %>
                 </span>
             </div>
@@ -612,22 +611,25 @@ function initTrafficSparkline() {
         return formatTrafficWindowValue(bytes);
     };
 
-    const formatTrafficPeriodLabel = (period) => {
-        if (period === '24h') return 'Трафик за 24 часа';
-        if (period === '30d') return 'Трафик за 30 дней';
-        return 'Трафик за 7 дней';
+    const dashboardLocale = <%- JSON.stringify(lang === 'ru' ? 'ru-RU' : 'en-US') %>;
+    const trafficPeriodLabels = {
+        '24h': <%- JSON.stringify(t('dashboard.traffic24h')) %>,
+        '7d': <%- JSON.stringify(t('dashboard.traffic7d')) %>,
+        '30d': <%- JSON.stringify(t('dashboard.traffic30d')) %>
     };
+
+    const formatTrafficPeriodLabel = (period) => trafficPeriodLabels[period] || <%- JSON.stringify(t('dashboard.traffic7d')) %>;
 
     const formatPointLabel = (rawLabel, period) => {
         const value = new Date(rawLabel);
         if (Number.isNaN(value.getTime())) return rawLabel || '—';
         if (period === '24h') {
-            return value.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            return value.toLocaleTimeString(dashboardLocale, { hour: '2-digit', minute: '2-digit' });
         }
         if (period === '30d') {
-            return value.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+            return value.toLocaleDateString(dashboardLocale, { day: '2-digit', month: 'short' });
         }
-        return value.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+        return value.toLocaleDateString(dashboardLocale, { day: '2-digit', month: 'short' });
     };
 
     const getSmoothPath = (dataset) => dataset.map((point, index) => {

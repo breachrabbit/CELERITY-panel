@@ -88,7 +88,7 @@ body {
     width: 100%;
     max-width: 100%;
     min-height: 100vh;
-    overflow-x: clip;
+    overflow-x: hidden;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -97,7 +97,7 @@ html {
     scroll-behavior: smooth;
     width: 100%;
     max-width: 100%;
-    overflow-x: clip;
+    overflow-x: hidden;
     scrollbar-gutter: stable;
 }
 
@@ -132,7 +132,7 @@ html.layout-stabilizing * {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    overflow-x: clip;
+    overflow-x: hidden;
     isolation: isolate;
 }
 
@@ -341,19 +341,22 @@ html.layout-stabilizing * {
     max-width: 100%;
     min-height: 100vh;
     min-width: 0;
-    overflow-x: clip;
+    overflow-x: hidden;
     position: relative;
     background:
-        radial-gradient(circle at top right, rgba(8, 197, 203, 0.045), transparent 30%),
-        repeating-linear-gradient(135deg, rgba(5, 10, 60, 0.03) 0 1px, transparent 1px 30px),
+        radial-gradient(circle at top right, rgba(8, 197, 203, 0.035), transparent 24%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0)),
+        repeating-linear-gradient(135deg, rgba(5, 10, 60, 0.015) 0 1px, transparent 1px 36px),
         var(--bg-primary);
     transition: none;
+    contain: inline-size;
 }
 
 :root[data-theme="dark"] .content {
     background:
-        radial-gradient(circle at top right, rgba(8, 197, 203, 0.08), transparent 30%),
-        repeating-linear-gradient(135deg, rgba(191, 208, 235, 0.035) 0 1px, transparent 1px 32px),
+        radial-gradient(circle at top right, rgba(8, 197, 203, 0.06), transparent 24%),
+        linear-gradient(180deg, rgba(17, 29, 76, 0.24), rgba(17, 29, 76, 0)),
+        repeating-linear-gradient(135deg, rgba(191, 208, 235, 0.02) 0 1px, transparent 1px 36px),
         var(--bg-primary);
 }
 
@@ -370,6 +373,8 @@ html.layout-stabilizing * {
     position: sticky;
     top: 0;
     z-index: 50;
+    min-width: 0;
+    overflow: hidden;
 }
 
 :root[data-theme="dark"] .topbar {
@@ -502,7 +507,8 @@ html.layout-stabilizing * {
     min-width: 0;
     width: 100%;
     max-width: 100%;
-    overflow-x: clip;
+    overflow-x: hidden;
+    contain: inline-size;
 }
 
 .main-content > * {
@@ -526,6 +532,7 @@ html.layout-stabilizing * {
     box-shadow: none;
     overflow: hidden;
     position: relative;
+    min-width: 0;
 }
 
 :root[data-theme="dark"] .experience-hero {
@@ -556,6 +563,7 @@ html.layout-stabilizing * {
     gap: 12px;
     position: relative;
     z-index: 1;
+    min-width: 0;
 }
 
 .hero-eyebrow,
@@ -618,6 +626,7 @@ html.layout-stabilizing * {
     align-content: stretch;
     position: relative;
     z-index: 1;
+    min-width: 0;
 }
 
 .hero-meter-card,
@@ -630,6 +639,7 @@ html.layout-stabilizing * {
     border-radius: 14px;
     border: 1px dashed var(--border);
     background: var(--bg-secondary);
+    min-width: 0;
 }
 
 :root[data-theme="dark"] .hero-meter-card,
@@ -779,6 +789,7 @@ html.layout-stabilizing * {
     gap: 12px;
     align-items: flex-start;
     flex-wrap: wrap;
+    min-width: 0;
 }
 
 .sparkline-copy strong {
@@ -1122,9 +1133,16 @@ html.layout-stabilizing * {
 /* Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
     margin-bottom: 32px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.stats-grid > * {
+    min-width: 0;
 }
 
 .stat-card {
@@ -1749,9 +1767,12 @@ html.layout-stabilizing * {
 /* Dashboard Grid */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
     gap: 24px;
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    align-items: start;
 }
 
 .dashboard-main {
@@ -1759,6 +1780,8 @@ html.layout-stabilizing * {
     flex-direction: column;
     gap: 24px;
     min-width: 0;
+    width: 100%;
+    overflow: hidden;
 }
 
 .dashboard-sidebar {
@@ -1766,6 +1789,8 @@ html.layout-stabilizing * {
     flex-direction: column;
     gap: 16px;
     min-width: 0;
+    width: 100%;
+    overflow: hidden;
 }
 
 /* Nodes Table */
@@ -3253,7 +3278,13 @@ html.layout-stabilizing * {
 .experience-hero,
 .hero-metrics,
 .hero-copy,
-.view-tabs {
+.view-tabs,
+.dashboard-grid,
+.dashboard-main,
+.dashboard-sidebar,
+.topbar-left,
+.topbar-right,
+.topbar-utility {
     min-width: 0;
 }
 

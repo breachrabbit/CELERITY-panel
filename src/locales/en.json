@@ -47,7 +47,17 @@
     "connections": "connections",
     "server": "Server",
     "ports": "Ports",
-    "clear": "Clear"
+    "clear": "Clear",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "toggleSidebar": "Toggle sidebar",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "themeSwitcher": "Theme switcher",
+    "lightTheme": "Light theme",
+    "darkTheme": "Dark theme",
+    "systemTheme": "System theme"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -156,7 +166,23 @@
     "pauseLogs": "Pause logs",
     "resumeLogs": "Resume logs",
     "logsConnected": "Live",
-    "logsDisconnected": "Disconnected"
+    "logsDisconnected": "Disconnected",
+    "consoleKicker": "Secure infrastructure console",
+    "heroEyebrow": "Network operations",
+    "heroDescription": "Operational surface for monitoring nodes, sessions, and service health. The important signals stay visible without hopping through tabs.",
+    "nodesHealthy": "Nodes healthy",
+    "nodesHealthyHint": "active",
+    "usersEnabledHint": "enabled",
+    "traffic24h": "Traffic over 24 hours",
+    "traffic7d": "Traffic over 7 days",
+    "traffic30d": "Traffic over 30 days",
+    "trafficLive": "Live traffic",
+    "trafficChart": "Traffic chart",
+    "profilesAndDevices": "Profiles and devices",
+    "activeProfilesHint": "active profiles out of",
+    "devices": "devices",
+    "available": "available",
+    "noHardLimit": "no hard limit"
   },
   "nodes": {
     "title": "Nodes",
