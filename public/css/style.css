@@ -429,11 +429,13 @@ html.layout-stabilizing * {
 }
 
 .theme-btn {
-    width: 34px;
+    min-width: 34px;
     height: 34px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    padding: 0 12px;
     border: 0;
     border-radius: 999px;
     background: transparent;
@@ -454,9 +456,27 @@ html.layout-stabilizing * {
     box-shadow: none;
 }
 
+.theme-btn-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+
 :root[data-theme="dark"] .theme-btn.active {
     background: var(--brand-cyan);
     color: var(--brand-navy);
+}
+
+@media (max-width: 1080px) {
+    .theme-btn {
+        min-width: 34px;
+        padding: 0;
+    }
+
+    .theme-btn-label {
+        display: none;
+    }
 }
 
 .status-dot {
