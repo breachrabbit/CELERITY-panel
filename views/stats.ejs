@@ -38,7 +38,7 @@
         };
         %>
         <div class="stat-value"><%= formatTraffic(summary.traffic24h.total) %></div>
-        <div class="stat-label"><i class="ti ti-arrow-up" style="color:var(--success)"></i> <%= formatTraffic(summary.traffic24h.tx) %> / <i class="ti ti-arrow-down" style="color:#3b82f6"></i> <%= formatTraffic(summary.traffic24h.rx) %></div>
+        <div class="stat-label"><i class="ti ti-arrow-up" style="color:var(--brand-java-dark)"></i> <%= formatTraffic(summary.traffic24h.tx) %> / <i class="ti ti-arrow-down" style="color:var(--brand-java-light)"></i> <%= formatTraffic(summary.traffic24h.rx) %></div>
     </div>
     
     <div class="stat-card stat-nodes">
@@ -252,14 +252,44 @@
 }
 
 .chart-body {
-    height: 300px;
+    height: clamp(320px, 32vw, 380px);
     position: relative;
     min-width: 0;
     overflow: hidden;
+    padding: 12px;
+    border: 1px dashed var(--border-light);
+    border-radius: 16px;
+    background:
+        linear-gradient(to top, rgba(8,197,203,0.045), rgba(8,197,203,0.006)),
+        repeating-linear-gradient(
+            to right,
+            rgba(5,10,60,0.035) 0 1px,
+            transparent 1px 52px
+        ),
+        repeating-linear-gradient(
+            to top,
+            rgba(5,10,60,0.025) 0 1px,
+            transparent 1px 44px
+        );
 }
 
 .chart-body-tall {
-    height: 400px;
+    height: clamp(360px, 38vw, 440px);
+}
+
+:root[data-theme="dark"] .chart-body {
+    background:
+        linear-gradient(to top, rgba(8,197,203,0.08), rgba(8,197,203,0.012)),
+        repeating-linear-gradient(
+            to right,
+            rgba(255,255,255,0.045) 0 1px,
+            transparent 1px 52px
+        ),
+        repeating-linear-gradient(
+            to top,
+            rgba(255,255,255,0.032) 0 1px,
+            transparent 1px 44px
+        );
 }
 
 .chart-body canvas {
@@ -343,11 +373,11 @@
 }
 
 .traffic-totals .up {
-    color: var(--success);
+    color: var(--brand-java-dark);
 }
 
 .traffic-totals .down {
-    color: #3b82f6;
+    color: var(--brand-java-light);
 }
 
 .users-heatmap {
@@ -453,11 +483,11 @@
     }
     
     .chart-body {
-        height: 250px;
+        height: 280px;
     }
     
     .chart-body-tall {
-        height: 300px;
+        height: 320px;
     }
     
     .traffic-totals {
@@ -533,32 +563,32 @@ function getTickLimit(period) {
 }
 
 function getPointRadius(length) {
-    if (length > 120) return 0;
-    if (length > 72) return 1.5;
-    if (length > 36) return 2;
-    return 3;
+    if (length > 30) return 0;
+    if (length > 12) return 1.5;
+    return 2.5;
 }
 
 function formatXAxisLabel(value, period) {
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '';
+    const locale = document.documentElement.lang === 'en' ? 'en-US' : 'ru-RU';
     if (period === '1h' || period === '6h' || period === '24h') {
-        return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(date);
+        return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date);
     }
-    return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short' }).format(date);
+    return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' }).format(date);
 }
 
 // Chart colors
 const colors = {
-    online: { bg: 'rgba(99, 102, 241, 0.2)', border: '#6366f1' },
-    nodes: { bg: 'rgba(2, 168, 173, 0.2)', border: '#02A8AD' },
-    users: { bg: 'rgba(8, 197, 203, 0.16)', border: '#08C5CB' },
-    usersTotal: { bg: 'rgba(5, 10, 60, 0.12)', border: '#182463' },
-    upload: { bg: 'rgba(2, 168, 173, 0.3)', border: '#02A8AD' },
-    download: { bg: 'rgba(59, 130, 246, 0.3)', border: '#3b82f6' },
+    online: { bg: 'rgba(8, 197, 203, 0.16)', border: '#08C5CB' },
+    nodes: { bg: 'rgba(68, 239, 244, 0.12)', border: '#44EFF4' },
+    users: { bg: 'rgba(8, 197, 203, 0.15)', border: '#08C5CB' },
+    usersTotal: { bg: 'rgba(24, 36, 99, 0.08)', border: '#182463' },
+    upload: { bg: 'rgba(2, 168, 173, 0.14)', border: '#02A8AD' },
+    download: { bg: 'rgba(68, 239, 244, 0.16)', border: '#44EFF4' },
     nodeColors: [
-        '#6366f1', '#02A8AD', '#f59e0b', '#ef4444', '#8b5cf6',
-        '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
+        '#08C5CB', '#44EFF4', '#02A8AD', '#213276', '#182463',
+        '#018B90', '#0E174F', '#DDE5ED', '#050A3C', '#44EFF4'
     ]
 };
 
@@ -608,9 +638,9 @@ function initCharts() {
                 borderColor: colors.online.border,
                 backgroundColor: colors.online.bg,
                 fill: true,
-                borderWidth: 2.5,
-                tension: 0.42,
-                pointRadius: 3,
+                borderWidth: 3,
+                tension: 0.46,
+                pointRadius: 0,
                 pointHoverRadius: 6,
                 pointBackgroundColor: '#ffffff',
                 pointBorderColor: colors.online.border,
@@ -630,30 +660,30 @@ function initCharts() {
                 {
                     label: i18n.upload,
                     data: [],
-                    backgroundColor: 'transparent',
+                    backgroundColor: colors.upload.bg,
                     borderColor: colors.upload.border,
-                    borderWidth: 2.5,
-                    tension: 0.42,
-                    pointRadius: 3,
+                    borderWidth: 3,
+                    tension: 0.46,
+                    pointRadius: 0,
                     pointHoverRadius: 6,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.upload.border,
                     pointBorderWidth: 2,
-                    fill: false,
+                    fill: true,
                 },
                 {
                     label: i18n.download,
                     data: [],
-                    backgroundColor: 'transparent',
+                    backgroundColor: colors.download.bg,
                     borderColor: colors.download.border,
-                    borderWidth: 2.5,
-                    tension: 0.42,
-                    pointRadius: 3,
+                    borderWidth: 3,
+                    tension: 0.46,
+                    pointRadius: 0,
                     pointHoverRadius: 6,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.download.border,
                     pointBorderWidth: 2,
-                    fill: false,
+                    fill: true,
                 }
             ]
         },
@@ -671,10 +701,10 @@ function initCharts() {
                     data: [],
                     borderColor: colors.users.border,
                     backgroundColor: colors.users.bg,
-                    fill: false,
-                    borderWidth: 2.5,
-                    tension: 0.42,
-                    pointRadius: 3,
+                    fill: true,
+                    borderWidth: 3,
+                    tension: 0.46,
+                    pointRadius: 0,
                     pointHoverRadius: 6,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.users.border,
@@ -686,9 +716,9 @@ function initCharts() {
                     borderColor: colors.usersTotal.border,
                     backgroundColor: colors.usersTotal.bg,
                     fill: false,
-                    borderWidth: 2.25,
-                    tension: 0.38,
-                    pointRadius: 2.5,
+                    borderWidth: 2.5,
+                    tension: 0.42,
+                    pointRadius: 0,
                     pointHoverRadius: 5,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.usersTotal.border,
@@ -711,9 +741,9 @@ function initCharts() {
                 borderColor: colors.users.border,
                 backgroundColor: colors.users.bg,
                 fill: true,
-                borderWidth: 2.5,
-                tension: 0.42,
-                pointRadius: 3,
+                borderWidth: 3,
+                tension: 0.46,
+                pointRadius: 0,
                 pointHoverRadius: 6,
                 pointBackgroundColor: '#ffffff',
                 pointBorderColor: colors.users.border,
@@ -732,15 +762,15 @@ function initCharts() {
                 {
                     label: i18n.registrationsSeries,
                     data: [],
-                    borderColor: '#44EFF4',
-                    backgroundColor: 'rgba(68, 239, 244, 0.12)',
+                    borderColor: colors.download.border,
+                    backgroundColor: colors.download.bg,
                     fill: true,
-                    borderWidth: 2.5,
-                    tension: 0.36,
-                    pointRadius: 3,
+                    borderWidth: 3,
+                    tension: 0.44,
+                    pointRadius: 0,
                     pointHoverRadius: 6,
                     pointBackgroundColor: '#ffffff',
-                    pointBorderColor: '#44EFF4',
+                    pointBorderColor: colors.download.border,
                     pointBorderWidth: 2,
                 },
                 {
@@ -749,9 +779,9 @@ function initCharts() {
                     borderColor: colors.usersTotal.border,
                     backgroundColor: 'transparent',
                     fill: false,
-                    borderWidth: 2.25,
-                    tension: 0.38,
-                    pointRadius: 2,
+                    borderWidth: 2.5,
+                    tension: 0.42,
+                    pointRadius: 0,
                     pointHoverRadius: 5,
                     pointBackgroundColor: '#ffffff',
                     pointBorderColor: colors.usersTotal.border,
@@ -790,6 +820,18 @@ function getChartOptions(type) {
     const baseOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        normalized: true,
+        spanGaps: true,
+        elements: {
+            line: {
+                capBezierPoints: true,
+                borderCapStyle: 'round',
+                borderJoinStyle: 'round',
+            },
+            point: {
+                hitRadius: 14,
+            },
+        },
         interaction: {
             mode: 'index',
             intersect: false,
@@ -800,7 +842,13 @@ function getChartOptions(type) {
                 position: 'top',
                 labels: {
                     usePointStyle: true,
-                    padding: 20,
+                    padding: 18,
+                    boxWidth: 8,
+                    boxHeight: 8,
+                    font: {
+                        family: "'Lilex', 'Inter', sans-serif",
+                        size: 12,
+                    },
                 }
             },
             tooltip: {
@@ -812,6 +860,7 @@ function getChartOptions(type) {
                 padding: 12,
                 cornerRadius: 12,
                 displayColors: true,
+                usePointStyle: true,
                 callbacks: {}
             }
         },
@@ -830,9 +879,13 @@ function getChartOptions(type) {
                     color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
                     borderDash: [4, 6],
                     drawTicks: false,
+                    drawBorder: false,
                 },
                 ticks: {
                     maxTicksLimit: getTickLimit(currentPeriod),
+                    padding: 10,
+                    maxRotation: 0,
+                    autoSkip: true,
                     callback: function(value) {
                         return formatXAxisLabel(value, currentPeriod);
                     }
@@ -844,6 +897,11 @@ function getChartOptions(type) {
                     color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
                     borderDash: [4, 6],
                     drawTicks: false,
+                    drawBorder: false,
+                },
+                ticks: {
+                    padding: 10,
+                    maxTicksLimit: 5,
                 },
             }
         }
@@ -863,6 +921,8 @@ function getChartOptions(type) {
 
     if (type === 'registrations' || type === 'activeUsersMini' || type === 'users') {
         baseOptions.scales.y.ticks = {
+            padding: 10,
+            maxTicksLimit: 5,
             precision: 0,
             callback: function(value) {
                 return Number(value).toFixed(0);
@@ -1043,7 +1103,7 @@ function updateRegistrationsChart(data) {
     const latest = data.datasets.registrations[data.datasets.registrations.length - 1] || 0;
     document.getElementById('registrationsLegend').innerHTML = `
         <span class="legend-item">
-            <span class="legend-dot" style="background: #44EFF4"></span>
+            <span class="legend-dot" style="background: ${colors.download.border}"></span>
             ${i18n.registrations}: ${total}
         </span>
         <span class="legend-item">
@@ -1119,13 +1179,15 @@ function updateNodesChart(data) {
         label: node.name,
         data: node.data.map(d => d.online),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
-        backgroundColor: 'transparent',
-        borderWidth: 2.25,
-        tension: 0.42,
+        backgroundColor: i === 0 ? colors.nodes.bg : 'transparent',
+        borderWidth: 2.75,
+        tension: 0.46,
         pointRadius,
         pointHoverRadius: Math.max(4, pointRadius + 2),
         pointBackgroundColor: '#ffffff',
+        pointBorderColor: colors.nodeColors[i % colors.nodeColors.length],
         pointBorderWidth: 2,
+        fill: i === 0,
     }));
     nodesChart.options.scales.x.time.unit = getTickUnit(currentPeriod);
     nodesChart.options.scales.x.ticks.maxTicksLimit = getTickLimit(currentPeriod);
@@ -1137,13 +1199,15 @@ function updateNodesChart(data) {
         label: node.name,
         data: node.data.map(d => (d.tx || 0) + (d.rx || 0)),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
-        backgroundColor: 'transparent',
-        borderWidth: 2.25,
-        tension: 0.42,
+        backgroundColor: i === 0 ? colors.nodes.bg : 'transparent',
+        borderWidth: 2.75,
+        tension: 0.46,
         pointRadius,
         pointHoverRadius: Math.max(4, pointRadius + 2),
         pointBackgroundColor: '#ffffff',
+        pointBorderColor: colors.nodeColors[i % colors.nodeColors.length],
         pointBorderWidth: 2,
+        fill: i === 0,
     }));
     nodesTrafficChart.options.scales.y.ticks = { callback: v => formatBytes(v) };
     nodesTrafficChart.options.plugins.tooltip.callbacks.label = ctx => `${ctx.dataset.label}: ${formatBytes(ctx.raw)}`;
@@ -1185,8 +1249,8 @@ function updateNodesTable(data) {
                 <td class="value-highlight">${current}</td>
                 <td>${avg}</td>
                 <td>${peak}</td>
-                <td style="color:var(--success)">${formatBytes(totalTx)}</td>
-                <td style="color:var(--accent)">${formatBytes(totalRx)}</td>
+                <td style="color:var(--brand-java-dark)">${formatBytes(totalTx)}</td>
+                <td style="color:var(--brand-java-light)">${formatBytes(totalRx)}</td>
                 <td>
                     <span class="status-indicator status-${lastStatus}">
                         <span class="status-dot"></span>
@@ -1207,7 +1271,7 @@ async function updateTrend() {
         const trendEl = document.getElementById('onlineTrend');
         
         if (trend > 0) {
-            trendEl.innerHTML = `<span style="color: var(--success)"><i class="ti ti-trending-up"></i> ${trend}%</span>`;
+            trendEl.innerHTML = `<span style="color: var(--brand-java-dark)"><i class="ti ti-trending-up"></i> ${trend}%</span>`;
         } else if (trend < 0) {
             trendEl.innerHTML = `<span style="color: var(--danger)"><i class="ti ti-trending-down"></i> ${Math.abs(trend)}%</span>`;
         } else {
@@ -1245,8 +1309,15 @@ document.getElementById('nodeSelector')?.addEventListener('change', function() {
         label: node.name,
         data: node.data.map(d => d.online),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
-        backgroundColor: 'transparent',
-        borderWidth: 2.25, tension: 0.42, pointRadius: getPointRadius(_lastNodesData.labels.length), pointHoverRadius: Math.max(4, getPointRadius(_lastNodesData.labels.length) + 2), pointBackgroundColor: '#ffffff', pointBorderWidth: 2,
+        backgroundColor: i === 0 ? colors.nodes.bg : 'transparent',
+        borderWidth: 2.75,
+        tension: 0.46,
+        pointRadius: getPointRadius(_lastNodesData.labels.length),
+        pointHoverRadius: Math.max(4, getPointRadius(_lastNodesData.labels.length) + 2),
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: colors.nodeColors[i % colors.nodeColors.length],
+        pointBorderWidth: 2,
+        fill: i === 0,
     }));
     filterChart(nodesChart, all, this.value);
 });
@@ -1257,8 +1328,15 @@ document.getElementById('nodeTrafficSelector')?.addEventListener('change', funct
         label: node.name,
         data: node.data.map(d => (d.tx || 0) + (d.rx || 0)),
         borderColor: colors.nodeColors[i % colors.nodeColors.length],
-        backgroundColor: 'transparent',
-        borderWidth: 2.25, tension: 0.42, pointRadius: getPointRadius(_lastNodesData.labels.length), pointHoverRadius: Math.max(4, getPointRadius(_lastNodesData.labels.length) + 2), pointBackgroundColor: '#ffffff', pointBorderWidth: 2,
+        backgroundColor: i === 0 ? colors.nodes.bg : 'transparent',
+        borderWidth: 2.75,
+        tension: 0.46,
+        pointRadius: getPointRadius(_lastNodesData.labels.length),
+        pointHoverRadius: Math.max(4, getPointRadius(_lastNodesData.labels.length) + 2),
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: colors.nodeColors[i % colors.nodeColors.length],
+        pointBorderWidth: 2,
+        fill: i === 0,
     }));
     filterChart(nodesTrafficChart, all, this.value);
 });

@@ -71,3 +71,12 @@
 - Next step:
   - deploy and verify the statistics page and user detail page visually;
   - continue the broader responsive pass if any page still drifts or compresses awkwardly.
+
+- Chart visual pass:
+  - unified segmented dashboard rings to Java;
+  - improved dashboard traffic chart height, texture, marker density, and resize behavior;
+  - synced logs height to the right dashboard sidebar;
+  - restyled statistics charts into the same Java/Deep Cove visual language;
+  - shortened/versioned traffic chart cache to avoid stale `24h`/`7d` mismatches.
+- Next step:
+  - deploy and visually verify dashboard traffic, logs alignment, and all statistics charts on the live stand.

@@ -186,7 +186,7 @@ const deviceUsagePct = limitedDeviceCapacity
         </div>
         <div class="stat-value"><%= formatTrafficDashboard(totalTrafficGB) %></div>
         <div class="stat-label" title="<%= t('common.upload') || 'Upload' %> <%= formatTrafficDashboard(totalTxGB) %> / <%= t('common.download') || 'Download' %> <%= formatTrafficDashboard(totalRxGB) %>">
-            <i class="ti ti-arrow-up" style="color:var(--success)"></i> <%= formatTrafficDashboard(totalTxGB) %> / <i class="ti ti-arrow-down" style="color:#3b82f6"></i> <%= formatTrafficDashboard(totalRxGB) %>
+            <i class="ti ti-arrow-up" style="color:var(--brand-java-dark)"></i> <%= formatTrafficDashboard(totalTxGB) %> / <i class="ti ti-arrow-down" style="color:var(--brand-java-light)"></i> <%= formatTrafficDashboard(totalRxGB) %>
         </div>
     </div>
 </div>
@@ -518,10 +518,10 @@ const deviceUsagePct = limitedDeviceCapacity
     gap: 4px;
 }
 .node-speed .speed-up {
-    color: var(--success);
+    color: var(--brand-java-dark);
 }
 .node-speed .speed-down {
-    color: #3b82f6;
+    color: var(--brand-java-light);
 }
 .load-placeholder {
     color: var(--muted);
@@ -559,11 +559,27 @@ let logsSearchRequestId = 0;
 // Load on page load
 document.addEventListener('DOMContentLoaded', () => {
     initTrafficSparkline();
+    syncDashboardLogsHeight();
     connectLogsWebSocket();
     loadSystemStats();
     loadNodesStats();
     loadNodesSpeed();
 });
+
+function syncDashboardLogsHeight() {
+    const sidebar = document.querySelector('.dashboard-sidebar');
+    const logsCard = document.querySelector('.logs-card');
+    const logsContainer = document.getElementById('logsContainer');
+    if (!sidebar || !logsCard || !logsContainer) return;
+
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const logsRect = logsContainer.getBoundingClientRect();
+    const available = Math.floor(sidebarRect.bottom - logsRect.top - 2);
+    if (!Number.isFinite(available) || available < 260) return;
+
+    const capped = Math.max(360, Math.min(available, 640));
+    logsContainer.style.height = `${capped}px`;
+}
 
 function initTrafficSparkline() {
     const chart = document.querySelector('[data-sparkline-chart]');
@@ -712,7 +728,7 @@ function initTrafficSparkline() {
         line.setAttribute('d', linePath);
         area.setAttribute('d', areaPath);
 
-        const desiredMarkers = Math.max(4, Math.floor((chart.clientWidth || 320) / 72));
+        const desiredMarkers = Math.max(4, Math.floor((chart.clientWidth || 320) / 96));
         const step = Math.max(1, Math.ceil(points.length / desiredMarkers));
         pointsGroup.innerHTML = points
             .filter((point, index) => index === 0 || index === points.length - 1 || index % step === 0)
@@ -772,6 +788,17 @@ function initTrafficSparkline() {
         })),
         chart.dataset.period || '7d'
     );
+
+    if ('ResizeObserver' in window) {
+        const resizeObserver = new ResizeObserver(() => {
+            renderChart(points.length ? points : (JSON.parse(chart.dataset.points || '[]')).map((point) => ({
+                ...point,
+                label: formatPointLabel(point.label, chart.dataset.period || '7d'),
+            })), chart.dataset.period || '7d');
+            syncDashboardLogsHeight();
+        });
+        resizeObserver.observe(chart);
+    }
 }
 
 function connectLogsWebSocket() {
@@ -1009,10 +1036,15 @@ async function loadSystemStats() {
             const mins = Math.floor((uptime % 3600) / 60);
             document.getElementById('uptime').textContent = `${hours}h ${mins}m`;
         }
+        syncDashboardLogsHeight();
     } catch (e) {
         console.error('Failed to load system stats:', e);
     }
 }
+
+window.addEventListener('load', syncDashboardLogsHeight);
+window.addEventListener('pageshow', syncDashboardLogsHeight);
+window.addEventListener('resize', syncDashboardLogsHeight);
 
 async function loadNodesStats(onlyIds) {
     const renderStats = (data, desktopEl, mobileEl) => {
@@ -1095,8 +1127,8 @@ async function loadNodesSpeed(onlyIds) {
             }
             if (mobileEl) {
                 mobileEl.innerHTML = `
-                    <span style="color: var(--success); font-size: 12px;"><i class="ti ti-arrow-up"></i> ${txSpeed}</span><br>
-                    <span style="color: #3b82f6; font-size: 12px;"><i class="ti ti-arrow-down"></i> ${rxSpeed}</span>
+                    <span style="color: var(--brand-java-dark); font-size: 12px;"><i class="ti ti-arrow-up"></i> ${txSpeed}</span><br>
+                    <span style="color: var(--brand-java-light); font-size: 12px;"><i class="ti ti-arrow-down"></i> ${rxSpeed}</span>
                 `;
             }
         } else {

@@ -17,6 +17,7 @@ const CACHE_KEYS = {
 const CACHE_TTL = {
     SUMMARY: 60,
     CHARTS: 120,
+    TRAFFIC_CHARTS: 25,
 };
 
 class StatsService {
@@ -442,7 +443,7 @@ class StatsService {
     }
 
     async getTrafficChart(period = '24h') {
-        const cacheKey = CACHE_KEYS.TRAFFIC + period;
+        const cacheKey = `${CACHE_KEYS.TRAFFIC}v2:${period}`;
         
         if (cache.isConnected()) {
             try {
@@ -503,7 +504,7 @@ class StatsService {
         
         if (cache.isConnected()) {
             try {
-                await cache.redis.setex(cacheKey, CACHE_TTL.CHARTS, JSON.stringify(result));
+                await cache.redis.setex(cacheKey, CACHE_TTL.TRAFFIC_CHARTS, JSON.stringify(result));
             } catch (e) {}
         }
         

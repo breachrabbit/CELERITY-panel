@@ -140,6 +140,26 @@ After deploy, verify:
 4. registrations chart showing both new profiles and total profiles;
 5. dashboard/statistics/users card headers feeling aligned and stable.
 
+## 2026-04-16 Chart Visual System Update
+
+- Prepared a chart/style refinement batch:
+  - dashboard segmented rings now use the Java accent consistently;
+  - dashboard traffic chart is taller, less cramped, and redraws on resize;
+  - dashboard log height now syncs to the bottom of the right sidebar stack;
+  - statistics charts now share a cleaner Java/Deep Cove palette and plot-surface styling;
+  - visible point density was reduced further across statistics charts;
+  - traffic chart cache is versioned and shorter-lived to reduce stale `24h` vs `7d` mismatches.
+
+### Current Verification Need
+
+After deploy, verify:
+
+1. both circular dashboard indicators are Java;
+2. logs bottom aligns with the Panel/system widget on dashboard;
+3. dashboard `Traffic for 7 days` no longer looks flattened or cramped;
+4. `24h / 7d / 30d` traffic totals refresh consistently;
+5. statistics charts feel visually aligned with the dashboard chart language.
+
 ## Known Broken / Risky / Pending
 
 - page-drift / width-shift bug is still the highest current UX blocker until the deployed shell rewrite is verified;

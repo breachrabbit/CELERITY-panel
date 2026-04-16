@@ -166,3 +166,25 @@ Change type:
 Change type:
 
 - `local patch` — operator stats UX and shell polish
+
+## 2026-04-16 Chart Visual System Pass
+
+- Unified dashboard segmented rings so both primary and secondary rings use the project Java accent instead of mixed navy/Java colors.
+- Reworked the dashboard traffic sparkline surface:
+  - taller adaptive chart area;
+  - calmer dashed plotting texture;
+  - fewer visible markers;
+  - resize-aware redraw.
+- Added dashboard log height syncing against the right sidebar bottom so the logs panel aligns with the last sidebar widget more reliably.
+- Refined statistics charts:
+  - shared Java/Deep Cove palette;
+  - taller responsive chart bodies;
+  - dashed plot surfaces;
+  - smoother lines and reduced point noise;
+  - cleaner tooltip/axis behavior.
+- Versioned and shortened traffic-chart cache to reduce stale mismatches between `24h` and `7d` totals after live updates.
+
+Change type:
+
+- `local patch` — visual consistency and chart UX
+- `stability fix` — dashboard logs height alignment
