@@ -103,3 +103,11 @@
 - Next step:
   - deploy and verify that the sidebar now behaves like a true fixed shell;
   - verify the dashboard traffic card no longer looks horizontally stretched.
+
+- Sidebar/chart system correction:
+  - user reported sidebar still did not feel fixed and dashboard graph quality remained poor;
+  - desktop sidebar was moved from sticky to fixed viewport behavior;
+  - dashboard traffic graph was migrated off the custom SVG sparkline onto Chart.js.
+- Next step:
+  - deploy and verify that the sidebar is fully pinned to screen;
+  - visually compare dashboard graph quality against statistics-page charts and continue unification.

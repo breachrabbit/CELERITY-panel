@@ -229,7 +229,19 @@ Change type:
   - increased chart height and internal SVG canvas height;
   - adjusted focus-line bounds and vertical padding so peaks and tooltips no longer feel flattened into a banner-like strip.
 
+## 2026-04-16 Fixed Sidebar and Dashboard Chart.js Migration
+
+- Replaced the desktop sidebar approach again after continued user feedback:
+  - desktop sidebar now uses a fixed viewport-attached shell instead of sticky behavior;
+  - this matches the expected "always pinned to screen" interaction more closely.
+- Replaced the dashboard hero traffic graph implementation:
+  - removed the custom SVG sparkline renderer;
+  - migrated the dashboard traffic card to `Chart.js`;
+  - aligned the dashboard traffic card visual system with the statistics page so chart language, resizing, and tooltip behavior share the same foundation.
+
 Change type:
 
 - `stability fix` — desktop sidebar viewport behavior correction
 - `local patch` — dashboard traffic sparkline proportion and geometry refinement
+- `stability fix` — fixed desktop shell behavior
+- `local patch` — dashboard chart system migration to Chart.js

@@ -101,25 +101,7 @@ const deviceUsagePct = limitedDeviceCapacity
                 data-points='<%- JSON.stringify(sparklinePoints) %>'
                 aria-label="<%= t('dashboard.trafficChart') %>"
             >
-                <svg class="sparkline-svg" viewBox="0 0 320 184" preserveAspectRatio="none" aria-hidden="true">
-                    <defs>
-                        <linearGradient id="trafficLineFill" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stop-color="rgba(8,197,203,0.18)"></stop>
-                            <stop offset="100%" stop-color="rgba(8,197,203,0.02)"></stop>
-                        </linearGradient>
-                    </defs>
-                    <path class="sparkline-area" d=""></path>
-                    <path class="sparkline-line" d=""></path>
-                    <g class="sparkline-points"></g>
-                    <g class="sparkline-focus" hidden>
-                        <line class="sparkline-focus-line" x1="0" y1="20" x2="0" y2="158"></line>
-                        <circle class="sparkline-focus-dot" cx="0" cy="0" r="5"></circle>
-                    </g>
-                </svg>
-                <div class="sparkline-tooltip" hidden>
-                    <span class="sparkline-tooltip-label"></span>
-                    <strong class="sparkline-tooltip-value"></strong>
-                </div>
+                <canvas id="dashboardTrafficChart"></canvas>
             </div>
             <div class="sparkline-foot">
                 <span><i class="ti ti-arrow-up-right"></i> <%= formatTrafficDashboard(trafficWindowTxGB) %></span>
@@ -532,6 +514,7 @@ const deviceUsagePct = limitedDeviceCapacity
 }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const i18n = {
     noLogs: <%- JSON.stringify(t("dashboard.noLogs")) %>,
@@ -584,29 +567,13 @@ function syncDashboardLogsHeight() {
 function initTrafficSparkline() {
     const chart = document.querySelector('[data-sparkline-chart]');
     if (!chart) return;
-
-    const svg = chart.querySelector('.sparkline-svg');
-    const line = chart.querySelector('.sparkline-line');
-    const area = chart.querySelector('.sparkline-area');
-    const pointsGroup = chart.querySelector('.sparkline-points');
-    const focus = chart.querySelector('.sparkline-focus');
-    const focusLine = chart.querySelector('.sparkline-focus-line');
-    const focusDot = chart.querySelector('.sparkline-focus-dot');
-    const tooltip = chart.querySelector('.sparkline-tooltip');
-    const tooltipLabel = chart.querySelector('.sparkline-tooltip-label');
-    const tooltipValue = chart.querySelector('.sparkline-tooltip-value');
+    const canvas = document.getElementById('dashboardTrafficChart');
+    if (!canvas || typeof Chart === 'undefined') return;
     const title = document.querySelector('[data-sparkline-title]');
     const totalNode = chart.parentElement?.querySelector('.sparkline-copy strong');
     const footerNodes = chart.parentElement?.querySelectorAll('.sparkline-foot span');
     const periodButtons = Array.from(document.querySelectorAll('[data-sparkline-period]'));
-    const width = 320;
-    const height = 184;
-    const paddingX = 10;
-    const paddingTop = 24;
-    const paddingBottom = 26;
-    const usableWidth = width - paddingX * 2;
-    const usableHeight = height - paddingTop - paddingBottom;
-    let points = [];
+    let trafficChart = null;
 
     const formatTrafficWindowValue = (bytes) => {
         const kb = bytes / 1024;
@@ -648,116 +615,119 @@ function initTrafficSparkline() {
         return value.toLocaleDateString(dashboardLocale, { day: '2-digit', month: 'short' });
     };
 
-    const getSmoothPath = (dataset) => dataset.map((point, index) => {
-        if (index === 0) return `M ${point.x} ${point.y}`;
-        const prev = dataset[index - 1];
-        const controlX = (prev.x + point.x) / 2;
-        return `C ${controlX} ${prev.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
-    }).join(' ');
-
-    const showPoint = (index) => {
-        const point = points[index];
-        if (!point) return;
-        focus.hidden = false;
-        tooltip.hidden = false;
-        focusLine.setAttribute('x1', point.x);
-        focusLine.setAttribute('x2', point.x);
-        focusDot.setAttribute('cx', point.x);
-        focusDot.setAttribute('cy', point.y);
-        tooltipLabel.textContent = point.label;
-        tooltipValue.textContent = point.display || '0 B';
-
-        const left = (point.x / width) * chart.clientWidth;
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${Math.max(point.y - 10, 44)}px`;
-
-        pointsGroup.querySelectorAll('.sparkline-point').forEach((node, pointIndex) => {
-            node.classList.toggle('is-active', Number(node.dataset.index) === index);
-        });
-    };
-
-    const hidePoint = () => {
-        focus.hidden = true;
-        tooltip.hidden = true;
-        pointsGroup.querySelectorAll('.sparkline-point').forEach((node) => {
-            node.classList.remove('is-active');
-        });
-    };
-
-    chart.addEventListener('mousemove', (event) => {
-        if (!points.length) return;
-        const rect = chart.getBoundingClientRect();
-        const relativeX = ((event.clientX - rect.left) / rect.width) * width;
-        let nearestIndex = 0;
-        let nearestDistance = Infinity;
-
-        points.forEach((point, index) => {
-            const distance = Math.abs(point.x - relativeX);
-            if (distance < nearestDistance) {
-                nearestDistance = distance;
-                nearestIndex = index;
-            }
-        });
-
-        showPoint(nearestIndex);
-    });
-
-    chart.addEventListener('mouseleave', hidePoint);
-    chart.addEventListener('touchstart', () => points.length && showPoint(points.length - 1), { passive: true });
-    chart.addEventListener('touchend', hidePoint, { passive: true });
-
-    const renderChart = (rawPoints, period) => {
-        if (!Array.isArray(rawPoints) || rawPoints.length < 2) return;
-
-        const values = rawPoints.map((point) => Number(point.raw || 0));
-        const maxValue = Math.max(...values, 1);
-        const minValue = Math.min(...values, 0);
-        const valueRange = Math.max(maxValue - minValue, Math.max(maxValue, 1) * 0.18, 1);
-        const upperBound = maxValue + valueRange * 0.18;
-        const lowerBound = Math.max(0, minValue - valueRange * 0.12);
-        const normalizedRange = Math.max(upperBound - lowerBound, 1);
-
-        points = rawPoints.map((point, index) => {
-            const x = paddingX + (usableWidth / (rawPoints.length - 1)) * index;
-            const y = paddingTop + usableHeight - (((Number(point.raw || 0) - lowerBound) / normalizedRange) * usableHeight);
-            return { ...point, x, y };
-        });
-
-        const linePath = getSmoothPath(points);
-        const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - 4} L ${points[0].x} ${height - 4} Z`;
-        line.setAttribute('d', linePath);
-        area.setAttribute('d', areaPath);
-
-        const desiredMarkers = Math.max(4, Math.min(8, Math.floor((chart.clientWidth || 320) / 128)));
-        const step = Math.max(1, Math.ceil(points.length / desiredMarkers));
-        pointsGroup.innerHTML = points
-            .filter((point, index) => index === 0 || index === points.length - 1 || index % step === 0)
-            .map((point, index) => `<circle class="sparkline-point" data-index="${points.indexOf(point)}" cx="${point.x}" cy="${point.y}" r="3.5"></circle>`)
-            .join('');
-
-        if (title) title.textContent = formatTrafficPeriodLabel(period);
-        periodButtons.forEach((button) => button.classList.toggle('active', button.dataset.sparklinePeriod === period));
-        chart.dataset.period = period;
-        const mostRelevantIndex = (() => {
-            let maxIndex = points.length - 1;
-            let maxValue = -1;
-            for (let index = 0; index < rawPoints.length; index += 1) {
-                if ((rawPoints[index]?.raw || 0) >= maxValue) {
-                    maxValue = rawPoints[index]?.raw || 0;
-                    maxIndex = index;
-                }
-            }
-            if (maxValue > 0) return maxIndex;
-            return points.length - 1;
-        })();
-        showPoint(mostRelevantIndex);
-    };
-
     const toPoints = (payload) => (payload?.labels || []).map((label, index) => ({
         label: formatPointLabel(label, payload.period),
         raw: (payload?.datasets?.tx?.[index] || 0) + (payload?.datasets?.rx?.[index] || 0),
         display: formatTrafficWindowValue((payload?.datasets?.tx?.[index] || 0) + (payload?.datasets?.rx?.[index] || 0)),
     }));
+
+    const createGradient = () => {
+        const ctx = canvas.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 320);
+        gradient.addColorStop(0, 'rgba(8, 197, 203, 0.24)');
+        gradient.addColorStop(1, 'rgba(8, 197, 203, 0.02)');
+        return gradient;
+    };
+
+    const renderChart = (rawPoints, period) => {
+        if (!Array.isArray(rawPoints) || rawPoints.length < 2) return;
+        const labels = rawPoints.map((point) => point.label);
+        const values = rawPoints.map((point) => Number(point.raw || 0));
+        const pointRadius = rawPoints.length > 18 ? 0 : rawPoints.length > 8 ? 1.8 : 3;
+        const chartData = {
+            labels,
+            datasets: [{
+                label: formatTrafficPeriodLabel(period),
+                data: values,
+                borderColor: '#08C5CB',
+                backgroundColor: createGradient(),
+                fill: true,
+                borderWidth: 4,
+                tension: 0.42,
+                pointRadius,
+                pointHoverRadius: Math.max(5, pointRadius + 3),
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#08C5CB',
+                pointBorderWidth: 2,
+                pointHitRadius: 20,
+            }]
+        };
+
+        const options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            normalized: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#ffffff',
+                    titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#7f8aa5',
+                    bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#050A3C',
+                    borderColor: getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || 'rgba(5,10,60,0.12)',
+                    borderWidth: 1,
+                    padding: 12,
+                    cornerRadius: 14,
+                    displayColors: false,
+                    callbacks: {
+                        title: (items) => items?.[0]?.label || '',
+                        label: (ctx) => formatTrafficWindowValue(ctx.raw || 0),
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
+                        borderDash: [4, 6],
+                        drawTicks: false,
+                        drawBorder: false,
+                    },
+                    ticks: {
+                        maxTicksLimit: period === '24h' ? 8 : 7,
+                        maxRotation: 0,
+                        autoSkip: true,
+                        padding: 10,
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#7f8aa5',
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--border-light').trim() || 'rgba(5,10,60,0.08)',
+                        borderDash: [4, 6],
+                        drawTicks: false,
+                        drawBorder: false,
+                    },
+                    ticks: {
+                        maxTicksLimit: 4,
+                        padding: 12,
+                        callback: (value) => formatTrafficWindowValue(Number(value || 0)),
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#7f8aa5',
+                    }
+                }
+            }
+        };
+
+        if (trafficChart) {
+            trafficChart.data = chartData;
+            trafficChart.options = options;
+            trafficChart.update('none');
+        } else {
+            trafficChart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: chartData,
+                options,
+            });
+        }
+
+        if (title) title.textContent = formatTrafficPeriodLabel(period);
+        periodButtons.forEach((button) => button.classList.toggle('active', button.dataset.sparklinePeriod === period));
+        chart.dataset.period = period;
+    };
 
     const updateFromPayload = (payload) => {
         const nextPoints = toPoints(payload);
@@ -791,10 +761,7 @@ function initTrafficSparkline() {
 
     if ('ResizeObserver' in window) {
         const resizeObserver = new ResizeObserver(() => {
-            renderChart(points.length ? points : (JSON.parse(chart.dataset.points || '[]')).map((point) => ({
-                ...point,
-                label: formatPointLabel(point.label, chart.dataset.period || '7d'),
-            })), chart.dataset.period || '7d');
+            if (trafficChart) trafficChart.resize();
             syncDashboardLogsHeight();
         });
         resizeObserver.observe(chart);

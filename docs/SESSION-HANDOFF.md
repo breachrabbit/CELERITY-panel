@@ -225,6 +225,25 @@ After deploy, verify:
 3. the main dashboard traffic chart reads as a balanced card, not a stretched horizontal strip;
 4. peaks and tooltip now have enough vertical space on desktop and tablet widths.
 
+## 2026-04-16 Fixed Sidebar and Dashboard Chart.js Migration
+
+- User confirmed the sticky sidebar behavior still did not feel fixed enough.
+- Prepared a stronger shell correction:
+  - desktop sidebar now uses a fixed viewport-attached layout instead of sticky positioning.
+- Prepared a chart-system correction for dashboard:
+  - removed the custom SVG traffic sparkline on the main page;
+  - replaced it with a `Chart.js` line chart;
+  - aligned the dashboard traffic card with the same chart foundation already used on the statistics page.
+
+### Current Verification Need
+
+After deploy, verify:
+
+1. desktop sidebar no longer moves at all while page content scrolls;
+2. collapsed sidebar still behaves correctly in fixed mode;
+3. dashboard traffic chart now looks materially closer to the statistics-page chart quality;
+4. dashboard chart resize and tooltip behavior remain stable across desktop widths.
+
 ## Known Broken / Risky / Pending
 
 - page-drift / width-shift bug is still the highest current UX blocker until the deployed shell rewrite is verified;

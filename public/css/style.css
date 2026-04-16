@@ -149,13 +149,13 @@ html.layout-stabilizing * {
     background: var(--bg-secondary);
     border-right: 1px dashed var(--border);
     display: block;
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
     min-height: 100dvh;
     height: 100dvh;
     z-index: 100;
     min-width: 0;
-    align-self: start;
     overflow: clip;
     transition: width 0.22s ease, border-color 0.22s ease;
 }
@@ -962,90 +962,10 @@ html.layout-stabilizing * {
         );
 }
 
-.sparkline-svg {
+.sparkline-visual canvas {
     display: block;
-    width: 100%;
-    height: 100%;
-}
-
-.sparkline-area {
-    fill: rgba(8,197,203,0.1);
-}
-
-.sparkline-line {
-    fill: none;
-    stroke: var(--brand-cyan);
-    stroke-width: 3.4;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-.sparkline-points {
-    color: var(--brand-cyan);
-}
-
-.sparkline-point {
-    fill: var(--brand-white);
-    stroke: currentColor;
-    stroke-width: 1.8;
-    opacity: 0.66;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-    transform-origin: center;
-}
-
-.sparkline-point.is-active {
-    opacity: 1;
-    transform: scale(1.25);
-}
-
-.sparkline-focus-line {
-    stroke: rgba(5,10,60,0.18);
-    stroke-width: 1;
-    stroke-dasharray: 4 6;
-}
-
-:root[data-theme="dark"] .sparkline-focus-line {
-    stroke: rgba(255,255,255,0.2);
-}
-
-.sparkline-focus-dot {
-    fill: var(--brand-cyan);
-    stroke: var(--brand-white);
-    stroke-width: 2;
-}
-
-.sparkline-tooltip {
-    position: absolute;
-    transform: translate(-50%, -100%);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 72px;
-    padding: 8px 10px;
-    border-radius: 12px;
-    border: 1px dashed rgba(5,10,60,0.12);
-    background: rgba(255,255,255,0.94);
-    box-shadow: none;
-    pointer-events: none;
-    z-index: 2;
-    max-width: min(220px, calc(100% - 20px));
-}
-
-:root[data-theme="dark"] .sparkline-tooltip {
-    border-color: rgba(255,255,255,0.12);
-    background: rgba(9,14,44,0.94);
-}
-
-.sparkline-tooltip-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-}
-
-.sparkline-tooltip-value {
-    font-size: 13px;
-    color: var(--text-primary);
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .sparkline-foot {
