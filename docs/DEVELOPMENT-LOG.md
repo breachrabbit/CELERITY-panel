@@ -486,3 +486,25 @@ Change type:
 
 - `local patch` — true Xray per-device/session telemetry foundation
 - `stability fix` — non-breaking fallback for old cc-agent binaries
+
+## 2026-04-16 Visual Cascade Builder Product Blueprint
+
+- Added a dedicated product blueprint for a future Hidden Rabbit visual cascade builder:
+  - `docs/hidden-rabbit-cascade-builder-blueprint.ru.md`
+- Added a technical design companion for the first experimental implementation:
+  - `docs/cascade-builder-v1-tech-design.ru.md`
+- The document captures:
+  - how the current `Network Map` / cascade code can be reused as a prototype base;
+  - why the future builder should become flow-centric rather than link-centric;
+  - target UX:
+    - canvas;
+    - inspector;
+    - validate/deploy mode;
+  - proposed domain model and phased implementation plan.
+- Also linked this direction into the main roadmap as a mid-term experimental track for this fork.
+
+Change type:
+
+- `product blueprint` — future visual cascade builder direction
+- `continuity` — roadmap alignment for builder experiment
+- `technical design` — first implementation boundary for builder v1

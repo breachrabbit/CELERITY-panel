@@ -37,6 +37,10 @@
 ## Mid Term
 
 - review upstream changes and decide which fixes or improvements should be ported;
+- turn the current network-map/cascade layer into an experimental visual cascade builder track:
+  - separate flow-centric builder direction from the current link-centric UI;
+  - validate drag-to-connect, inspector, and deploy-preview UX in this fork first;
+  - later reuse only the mature topology/domain ideas in Hidden Rabbit;
 - evaluate specific upstream features now visible in audit:
   - onboarding flow;
   - broadcast tools;

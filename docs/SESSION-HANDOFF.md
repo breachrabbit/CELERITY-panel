@@ -722,3 +722,55 @@ After deploy, verify on Android / mobile browser:
 - если меняешь continuity docs, делай это отдельным docs-коммитом;
 - после существенного шага снова обнови SESSION-HANDOFF, DEVELOPMENT-LOG и SESSION-LEDGER.
 ```
+
+## 2026-04-16 Visual Cascade Builder Blueprint
+
+- Added a dedicated product blueprint:
+  - `docs/hidden-rabbit-cascade-builder-blueprint.ru.md`
+- Added a technical follow-up doc:
+  - `docs/cascade-builder-v1-tech-design.ru.md`
+- Goal:
+  - define how the current `Network Map` / cascade layer can evolve into a future Hidden Rabbit visual cascade builder.
+- The blueprint now fixes:
+  - the product vision;
+  - why the current topology layer is worth reusing;
+  - why the future model should become flow-centric instead of link-centric;
+  - target UX shape:
+    - canvas;
+    - inspector;
+    - validate/deploy mode;
+  - phased implementation path from this fork toward Hidden Rabbit reuse.
+
+### Important Product Direction
+
+- The current `Network Map` should be treated as a prototype foundation, not as the final builder itself.
+- Recommended path:
+  1. use this fork as a laboratory;
+  2. create an experimental separate builder section here first;
+  3. later transfer mature domain logic and interaction ideas into Hidden Rabbit.
+
+### Next Practical Step For This Topic
+
+When returning specifically to the visual cascade-builder idea, do this next:
+
+1. write a short technical design doc for `Cascade Builder v1`;
+2. map reusable code from:
+   - `public/js/network.js`
+   - `src/services/cascadeService.js`
+   - `src/routes/cascade.js`
+3. create a separate experimental route/view instead of overloading the current nodes tab;
+4. begin with:
+   - drag-to-connect;
+   - inspector sidebar;
+   - validation layer;
+   - draft/save flow.
+
+### Current Status For This Topic
+
+- Product blueprint is done.
+- `v1` technical design is now also done.
+- The next real implementation step is no longer conceptual writing but code scaffolding:
+  - separate route;
+  - separate view;
+  - separate JS/CSS bundle;
+  - normalized builder state API.

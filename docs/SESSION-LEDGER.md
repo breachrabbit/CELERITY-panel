@@ -251,3 +251,13 @@
   - build/publish or manually install the updated `cc-agent` binary on test Xray nodes;
   - rerun node setup or config sync so `/var/log/xray/access.log` is enabled;
   - verify user detail/list shows `Xray-сессия` with real client IP instead of only `Xray stats`.
+
+- Visual cascade builder blueprint:
+  - formalized the idea of turning current `Network Map` into a future Hidden Rabbit visual cascade builder;
+  - captured product vision, UX modes, domain model, validation layers, and phased implementation path;
+  - recorded which current code can be reused and which parts should not be carried over as-is;
+  - added a separate `v1` technical design doc for the first experimental implementation step.
+- Next step for this topic:
+  - scaffold a separate experimental builder route/view in this fork;
+  - add normalized builder state API;
+  - then wire drag-to-connect, inspector, and validation in the new shell.
