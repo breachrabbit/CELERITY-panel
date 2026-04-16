@@ -1,6 +1,7 @@
 // Hysteria Panel - Frontend JS
 
 const THEME_STORAGE_KEY = 'celerity-theme';
+const SIDEBAR_STORAGE_KEY = 'celerity-sidebar-collapsed';
 
 function getPreferredTheme() {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
@@ -71,6 +72,43 @@ function initLayoutStability() {
     }
 }
 
+function setSidebarCollapsed(collapsed, persist = false) {
+    const root = document.documentElement;
+    root.classList.toggle('sidebar-collapsed', collapsed);
+    const toggle = document.getElementById('sidebarToggle');
+    if (toggle) {
+        toggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+        toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        const icon = toggle.querySelector('i');
+        if (icon) {
+            icon.className = collapsed ? 'ti ti-panel-left-open' : 'ti ti-panel-left-close';
+        }
+    }
+    if (persist) {
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0');
+    }
+    stabilizeLayout();
+}
+
+function initSidebar() {
+    const toggle = document.getElementById('sidebarToggle');
+    if (!toggle) return;
+    const shouldCollapse = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1' && window.innerWidth > 768;
+    setSidebarCollapsed(shouldCollapse, false);
+    toggle.addEventListener('click', () => {
+        if (window.innerWidth <= 768) return;
+        setSidebarCollapsed(!document.documentElement.classList.contains('sidebar-collapsed'), true);
+    });
+    window.addEventListener('resize', () => {
+        if (window.innerWidth <= 768) {
+            document.documentElement.classList.remove('sidebar-collapsed');
+        } else {
+            const collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
+            document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
+        }
+    });
+}
+
 // Format bytes to human readable
 function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 B';
@@ -100,6 +138,7 @@ document.querySelectorAll('[data-confirm]').forEach(el => {
 });
 
 initTheme();
+initSidebar();
 initLayoutStability();
 
 console.log('⚡ Hysteria Panel loaded');
