@@ -62,6 +62,10 @@
     - `font-size 16`
 - This new tweak is **not deployed yet** and still needs visual verification before commit.
 - The user explicitly wants the next session to continue from this ring-geometry stop-point rather than re-exploring older SVG or layered-div approaches.
+- Additional dashboard cleanup found after live review:
+  - one mini ring rendered larger because `.hero-meter-ring.soft` still carried large width/height values;
+  - several labels duplicated counts because templates printed the raw count and then used `tp(...)`, which already includes the count.
+- A local follow-up fix now removes the conflicting `soft` width/height override and cleans duplicate count output on the dashboard.
 
 ## Stable / Confirmed
 

@@ -263,6 +263,7 @@ Change type:
 Change type:
 
 - `stability fix` — render helper i18n wiring
+- `local patch` — dashboard duplicate-count cleanup and mini-ring size normalization
 - `local patch` — dashboard/card hierarchy and cross-page copy cleanup
 
 ## 2026-04-16 Sticky Sidebar Fix

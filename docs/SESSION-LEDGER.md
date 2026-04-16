@@ -178,3 +178,11 @@
   - review the uncommitted `public/css/style.css` ring-size tweak first;
   - deploy only after visual confirmation of the ring proportions;
   - then return to the still-broken mobile menu accessibility.
+
+- Dashboard follow-up cleanup:
+  - normalized mini-ring sizing by removing the conflicting `soft` size override;
+  - removed duplicated numeric output such as `0 0 устройств` and `из 2 2 пользователя`.
+- Next step:
+  - verify the two mini rings now match in size;
+  - verify dashboard counts read naturally again;
+  - then return to mobile menu accessibility.

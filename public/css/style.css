@@ -778,8 +778,6 @@ html.layout-stabilizing * {
     --meter-track: rgba(8, 197, 203, 0.42);
     --meter-gap: 5px;
     --meter-border-width: 1px;
-    width: 80px;
-    height: 80px;
 }
 
 :root[data-theme="dark"] .hero-meter-ring,

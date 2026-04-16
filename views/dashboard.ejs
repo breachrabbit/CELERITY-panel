@@ -129,7 +129,7 @@ const deviceUsagePct = limitedDeviceCapacity
                 <strong><%= t('dashboard.profilesAndDevices') %></strong>
                 <span><%= activeProfiles %> <%= t('dashboard.activeProfilesHint') %> <%= stats.users.enabled %></span>
                 <span>
-                    <%= activeDevices %> <%= tp('common.deviceCount', activeDevices) %>
+                    <%= tp('common.deviceCount', activeDevices) %>
                     <% if (limitedDeviceCapacity) { %>
                         / <%= limitedDeviceCapacity %> <%= t('dashboard.available') %>
                     <% } else { %>
@@ -148,7 +148,7 @@ const deviceUsagePct = limitedDeviceCapacity
             <span class="stat-trend"><%= t('dashboard.activeUsers') %></span>
         </div>
         <div class="stat-value"><%= stats.users.enabled %></div>
-        <div class="stat-label"><%= t('common.of') %> <%= stats.users.total %> <%= tp('common.userCount', stats.users.total) %></div>
+        <div class="stat-label"><%= t('common.of') %> <%= tp('common.userCount', stats.users.total) %></div>
     </div>
     
     <div class="stat-card stat-nodes">
@@ -157,7 +157,7 @@ const deviceUsagePct = limitedDeviceCapacity
             <span class="stat-trend"><%= t('dashboard.onlineNodes') %></span>
         </div>
         <div class="stat-value"><%= stats.nodes.online %></div>
-        <div class="stat-label"><%= t('common.of') %> <%= stats.nodes.total %> <%= tp('common.nodeCount', stats.nodes.total) %></div>
+        <div class="stat-label"><%= t('common.of') %> <%= tp('common.nodeCount', stats.nodes.total) %></div>
     </div>
     
     <div class="stat-card stat-online">
