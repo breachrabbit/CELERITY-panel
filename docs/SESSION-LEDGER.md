@@ -193,3 +193,11 @@
 - Next step:
   - verify mini rings on desktop/mobile against the live stand;
   - then continue with Android mobile menu accessibility.
+
+- Dashboard device-stats fallback:
+  - traced the remaining `0 / 0` problem in `Profiles and devices` to a metrics split between node online telemetry and Redis device activity;
+  - added a dashboard-only fallback from `onlineUsers` so Xray/agent-backed sessions do not leave that card empty;
+  - added a visible note when fallback estimation is being used instead of real device telemetry.
+- Next step:
+  - verify the dashboard card now reflects active Xray sessions more honestly;
+  - then continue with Android mobile menu accessibility and later true per-device Xray attribution.

@@ -525,3 +525,21 @@ This pass is specifically aimed at:
 1. Verify the two mini rings match in size on desktop and mobile.
 2. Verify dashboard labels no longer duplicate counts.
 3. After that, return to the still-unresolved Android mobile menu accessibility issue.
+
+## 2026-04-16 Dashboard Device Stats Fallback
+
+- User reported that `Profiles and devices` still showed zeros even while the connected node had live users and traffic.
+- Investigation confirmed:
+  - `onlineUsers` on the dashboard comes from node telemetry / Xray agent stats;
+  - `Profiles and devices` was still powered only by Redis device activity from `/api/auth`.
+- A small dashboard-only fallback has now been added:
+  - if Redis device telemetry is empty but `totalOnline > 0`,
+  - dashboard `activeProfiles` falls back to `min(totalOnline, enabledUsers)`,
+  - dashboard `activeDevices` falls back to `totalOnline`,
+  - and the UI shows that these values are estimated from node online data.
+
+### Immediate Next Check
+
+1. Verify the dashboard no longer stays at `0 / 0` when Xray/agent telemetry already reports connected users.
+2. Verify the small explanatory note appears only when fallback mode is active.
+3. Longer-term: replace this estimate with true per-device Xray telemetry if/when we wire that path in.

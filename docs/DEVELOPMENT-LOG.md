@@ -392,3 +392,18 @@ Change type:
 Change type:
 
 - `stability fix` — dashboard mini-ring sizing and pluralized label cleanup
+
+## 2026-04-16 Dashboard Device Stats Fallback
+
+- Investigated why `Profiles and devices` stayed at zero while a node clearly had live users.
+- Confirmed the split in current metrics:
+  - node/user online counts come from node telemetry (`onlineUsers`, including Xray agent stats);
+  - `Profiles and devices` comes from Redis device activity written by `/api/auth`.
+- Added a dashboard-only fallback for cases where live node online data exists but Redis device activity is still empty:
+  - active profiles fallback to `min(totalOnline, enabledUsers)`;
+  - active devices fallback to `totalOnline`;
+  - UI now marks this as estimated from node online data.
+
+Change type:
+
+- `local patch` — dashboard device stats fallback for Xray/agent-backed online data

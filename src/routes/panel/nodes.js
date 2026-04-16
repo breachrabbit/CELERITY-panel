@@ -491,6 +491,15 @@ router.get('/', async (req, res) => {
             capacity: 0,
         });
 
+        const hasLiveDeviceTelemetry = deviceStats.activeDevices > 0 || deviceStats.activeProfiles > 0;
+        const fallbackProfileCount = Math.min(totalOnline, usersEnabled);
+        const dashboardDeviceStats = hasLiveDeviceTelemetry ? deviceStats : {
+            ...deviceStats,
+            activeDevices: totalOnline,
+            activeProfiles: fallbackProfileCount,
+            estimatedFromOnline: totalOnline > 0,
+        };
+
         const trafficWindowPeriod = '7d';
         const trafficWindowData = await statsService.getTrafficChart(trafficWindowPeriod);
 
@@ -520,11 +529,12 @@ router.get('/', async (req, res) => {
                     points: trafficHistoryPoints,
                 },
                 devices: {
-                    activeDevices: deviceStats.activeDevices,
-                    activeProfiles: deviceStats.activeProfiles,
-                    capacity: deviceStats.capacity,
-                    limitedProfiles: deviceStats.limitedProfiles,
-                    unlimitedProfiles: deviceStats.unlimitedProfiles,
+                    activeDevices: dashboardDeviceStats.activeDevices,
+                    activeProfiles: dashboardDeviceStats.activeProfiles,
+                    capacity: dashboardDeviceStats.capacity,
+                    limitedProfiles: dashboardDeviceStats.limitedProfiles,
+                    unlimitedProfiles: dashboardDeviceStats.unlimitedProfiles,
+                    estimatedFromOnline: !!dashboardDeviceStats.estimatedFromOnline,
                 },
             },
             nodes,

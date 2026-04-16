@@ -226,7 +226,8 @@
     "activeProfilesHint": "active profiles out of",
     "devices": "devices",
     "available": "available",
-    "noHardLimit": "no hard limit"
+    "noHardLimit": "no hard limit",
+    "deviceStatsEstimated": "currently estimated from node online data"
   },
   "nodes": {
     "title": "Nodes",

@@ -136,6 +136,9 @@ const deviceUsagePct = limitedDeviceCapacity
                         • <%= t('dashboard.noHardLimit') %>
                     <% } %>
                 </span>
+                <% if (stats.devices?.estimatedFromOnline) { %>
+                    <span class="hero-meter-note"><%= t('dashboard.deviceStatsEstimated') %></span>
+                <% } %>
             </div>
         </div>
     </div>

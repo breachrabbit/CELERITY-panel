@@ -232,7 +232,8 @@
     "activeProfilesHint": "активных профилей из",
     "devices": "устройств",
     "available": "доступно",
-    "noHardLimit": "без жёсткого лимита"
+    "noHardLimit": "без жёсткого лимита",
+    "deviceStatsEstimated": "пока по online-данным ноды"
   },
   "nodes": {
     "title": "Ноды",
