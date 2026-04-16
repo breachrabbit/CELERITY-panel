@@ -76,8 +76,6 @@ const deviceUsagePct = limitedDeviceCapacity
     <div class="hero-metrics">
         <div class="hero-meter-card">
             <div class="hero-meter-ring" style="--meter-value:<%= nodeHealthPct %>;">
-                <div class="hero-meter-outline outer" aria-hidden="true"></div>
-                <div class="hero-meter-outline inner" aria-hidden="true"></div>
                 <span class="hero-meter-value"><%= nodeHealthPct %>%</span>
             </div>
             <div class="hero-meter-copy">
@@ -87,8 +85,6 @@ const deviceUsagePct = limitedDeviceCapacity
         </div>
         <div class="hero-meter-card">
             <div class="hero-meter-ring soft" style="--meter-value:<%= userHealthPct %>;">
-                <div class="hero-meter-outline outer" aria-hidden="true"></div>
-                <div class="hero-meter-outline inner" aria-hidden="true"></div>
                 <span class="hero-meter-value"><%= userHealthPct %>%</span>
             </div>
             <div class="hero-meter-copy">
@@ -123,13 +119,9 @@ const deviceUsagePct = limitedDeviceCapacity
         <div class="hero-mini-card hero-device-card">
             <div class="hero-device-rings">
                 <div class="hero-meter-ring mini" style="--meter-value:<%= activeProfilePct %>;">
-                    <div class="hero-meter-outline outer" aria-hidden="true"></div>
-                    <div class="hero-meter-outline inner" aria-hidden="true"></div>
                     <span class="hero-meter-value"><%= activeProfiles %></span>
                 </div>
                 <div class="hero-meter-ring mini soft" style="--meter-value:<%= deviceUsagePct %>;">
-                    <div class="hero-meter-outline outer" aria-hidden="true"></div>
-                    <div class="hero-meter-outline inner" aria-hidden="true"></div>
                     <span class="hero-meter-value"><%= activeDevices %></span>
                 </div>
             </div>

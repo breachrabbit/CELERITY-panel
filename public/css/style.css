@@ -733,9 +733,10 @@ html.layout-stabilizing * {
 
 .hero-meter-ring {
     --meter-track: rgba(8, 197, 203, 0.42);
-    --meter-gap: 11px;
-    width: 92px;
-    height: 92px;
+    --meter-gap: 12px;
+    --meter-border-width: 2px;
+    width: 104px;
+    height: 104px;
     border-radius: 50%;
     display: grid;
     place-items: center;
@@ -745,6 +746,17 @@ html.layout-stabilizing * {
     color: var(--brand-navy);
     isolation: isolate;
     overflow: visible;
+    border: var(--meter-border-width) dashed var(--meter-track);
+}
+
+.hero-meter-ring::before {
+    content: "";
+    position: absolute;
+    inset: var(--meter-gap);
+    border-radius: 50%;
+    border: var(--meter-border-width) dashed var(--meter-track);
+    pointer-events: none;
+    z-index: 1;
 }
 
 .hero-meter-ring > .hero-meter-value {
@@ -753,23 +765,11 @@ html.layout-stabilizing * {
     line-height: 1;
 }
 
-.hero-meter-outline {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 2px dashed var(--meter-track);
-    pointer-events: none;
-}
-
-.hero-meter-outline.inner {
-    inset: var(--meter-gap);
-}
-
 .hero-meter-ring.mini {
-    width: 72px;
-    height: 72px;
-    font-size: 18px;
-    --meter-gap: 9px;
+    width: 82px;
+    height: 82px;
+    font-size: 20px;
+    --meter-gap: 10px;
 }
 
 .hero-meter-ring.soft {
@@ -3310,10 +3310,10 @@ body.mobile-menu-open {
     }
 
     .hero-meter-card .hero-meter-ring {
-        width: 108px;
-        height: 108px;
-        font-size: 24px;
-        --meter-gap: 13px;
+        width: 122px;
+        height: 122px;
+        font-size: 26px;
+        --meter-gap: 15px;
     }
 
     .hero-meter-card .hero-meter-ring > .hero-meter-value {
@@ -3333,10 +3333,10 @@ body.mobile-menu-open {
     }
 
     .hero-device-rings .hero-meter-ring.mini {
-        width: 84px;
-        height: 84px;
-        font-size: 22px;
-        --meter-gap: 10px;
+        width: 96px;
+        height: 96px;
+        font-size: 24px;
+        --meter-gap: 12px;
     }
 
     .hero-device-card .hero-meter-copy {
