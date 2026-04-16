@@ -551,6 +551,7 @@ const render = (res, template, data = {}) => {
 
     const i18nVars = {
         t: res.locals.t,
+        tp: res.locals.tp,
         lang: res.locals.lang,
         supportedLangs: res.locals.supportedLangs,
         locales: res.locals.locales,

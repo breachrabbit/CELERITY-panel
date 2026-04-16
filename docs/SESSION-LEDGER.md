@@ -133,3 +133,13 @@
   - deploy and verify mobile menu clickability on Android;
   - check remaining untranslated strings on dashboard and then continue into other pages;
   - continue responsive cleanup on statistics, users, settings, and subscription.
+
+- Dashboard recovery / cleanup continuation:
+  - fixed the shared render helper so pluralization helper `tp` reaches compiled templates on live render;
+  - swapped right-column dashboard cards so `Server` comes before `Quick Actions`;
+  - started the double segmented ring treatment for dashboard metrics;
+  - localized the settings hero and improved pluralized counts on the users page.
+- Next step:
+  - deploy and verify the dashboard no longer crashes on render;
+  - visually check the new double-ring treatment;
+  - continue the responsive/mobile cleanup across statistics, settings, and subscription page.

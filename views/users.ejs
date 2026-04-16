@@ -1,6 +1,6 @@
 <div class="page-header sticky-header">
     <div class="page-header-left">
-        <span class="results-count"><%= pagination.total %> <%= t('nav.users').toLowerCase() %></span>
+        <span class="results-count"><%= tp('common.userCount', pagination.total) %></span>
     </div>
     <div class="page-header-center">
         <div class="filters-bar">
@@ -179,7 +179,7 @@
                         <span class="mobile-stat-label"><%= t('users.groups') %></span>
                         <span class="mobile-stat-value" style="font-size: 12px;">
                             <% if (user.groups && user.groups.length > 0) { %>
-                                <%= user.groups.length %> <%= t('users.groupsCount') %>
+                                <%= tp('common.groupCount', user.groups.length) %>
                             <% } else { %>
                                 —
                             <% } %>

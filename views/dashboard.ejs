@@ -349,42 +349,10 @@ const deviceUsagePct = limitedDeviceCapacity
     </div>
 
     <div class="dashboard-sidebar">
-        <!-- Quick Actions -->
-        <div class="card">
-            <div class="card-header">
-                <h2><i class="ti ti-bolt"></i> <%= t('dashboard.quickActions') %></h2>
-            </div>
-            <div class="card-body">
-                <div class="quick-actions">
-                    <a href="/panel/nodes/add" class="quick-action">
-                        <span class="qa-icon"><i class="ti ti-server-2"></i></span>
-                        <span class="qa-text"><%= t('dashboard.addNode') %></span>
-                    </a>
-                    <a href="/panel/users/add" class="quick-action">
-                        <span class="qa-icon"><i class="ti ti-user-plus"></i></span>
-                        <span class="qa-text"><%= t('dashboard.addUser') %></span>
-                    </a>
-                    <a href="/panel/stats" class="quick-action">
-                        <span class="qa-icon"><i class="ti ti-chart-bar"></i></span>
-                        <span class="qa-text"><%= t('nav.stats') %></span>
-                    </a>
-                    <button class="quick-action" onclick="createBackup()">
-                        <span class="qa-icon"><i class="ti ti-device-floppy"></i></span>
-                        <span class="qa-text"><%= t('dashboard.backupDb') %></span>
-                    </button>
-                    <button class="quick-action" onclick="document.getElementById('restoreInput').click()">
-                        <span class="qa-icon"><i class="ti ti-download"></i></span>
-                        <span class="qa-text"><%= t('dashboard.restoreDb') %></span>
-                    </button>
-                    <input type="file" id="restoreInput" accept=".tar.gz,.tgz" style="display:none" onchange="restoreBackup(this)">
-                </div>
-            </div>
-        </div>
-
-        <!-- System Info -->
+        <!-- Server Info -->
         <div class="card mt-2">
             <div class="card-header">
-                <h2><i class="ti ti-device-desktop"></i> <%= t('dashboard.panel') %></h2>
+                <h2><i class="ti ti-server-cog"></i> <%= t('dashboard.server') %></h2>
                 <button class="btn btn-sm" onclick="loadSystemStats()" title="<%= t('common.refresh') %>"><i class="ti ti-refresh"></i></button>
             </div>
             <div class="card-body">
@@ -423,6 +391,38 @@ const deviceUsagePct = limitedDeviceCapacity
                         <span class="sys-label"><%= t('dashboard.uptime') %></span>
                         <span class="sys-value" id="uptime">—</span>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="ti ti-bolt"></i> <%= t('dashboard.quickActions') %></h2>
+            </div>
+            <div class="card-body">
+                <div class="quick-actions">
+                    <a href="/panel/nodes/add" class="quick-action">
+                        <span class="qa-icon"><i class="ti ti-server-2"></i></span>
+                        <span class="qa-text"><%= t('dashboard.addNode') %></span>
+                    </a>
+                    <a href="/panel/users/add" class="quick-action">
+                        <span class="qa-icon"><i class="ti ti-user-plus"></i></span>
+                        <span class="qa-text"><%= t('dashboard.addUser') %></span>
+                    </a>
+                    <a href="/panel/stats" class="quick-action">
+                        <span class="qa-icon"><i class="ti ti-chart-bar"></i></span>
+                        <span class="qa-text"><%= t('nav.stats') %></span>
+                    </a>
+                    <button class="quick-action" onclick="createBackup()">
+                        <span class="qa-icon"><i class="ti ti-device-floppy"></i></span>
+                        <span class="qa-text"><%= t('dashboard.backupDb') %></span>
+                    </button>
+                    <button class="quick-action" onclick="document.getElementById('restoreInput').click()">
+                        <span class="qa-icon"><i class="ti ti-download"></i></span>
+                        <span class="qa-text"><%= t('dashboard.restoreDb') %></span>
+                    </button>
+                    <input type="file" id="restoreInput" accept=".tar.gz,.tgz" style="display:none" onchange="restoreBackup(this)">
                 </div>
             </div>
         </div>

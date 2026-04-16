@@ -218,6 +218,24 @@ Change type:
 - `stability fix` — mobile shell/menu interaction
 - `local patch` — dashboard localization and pluralization
 
+## 2026-04-16 Dashboard Recovery and Cross-Page Cleanup
+
+- Fixed a live rendering regression after introducing pluralization in templates:
+  - the shared panel `render()` helper now passes `tp` into compiled views, not only `t`.
+- Continued the dashboard polish:
+  - swapped the `Server` and `Quick Actions` cards in the right column;
+  - renamed the server-load card from panel wording to server wording;
+  - reworked dashboard metric rings toward a double segmented ring treatment with tighter cutout proportions.
+- Continued visible cross-page cleanup:
+  - localized the settings hero so it no longer mixes English/Russian hardcoded copy;
+  - users list header now uses pluralized user counts;
+  - mobile user cards now pluralize group counts naturally.
+
+Change type:
+
+- `stability fix` — render helper i18n wiring
+- `local patch` — dashboard/card hierarchy and cross-page copy cleanup
+
 ## 2026-04-16 Sticky Sidebar Fix
 
 - Changed the desktop sidebar from a normal grid column with only an inner sticky layer into a viewport-sticky shell block.

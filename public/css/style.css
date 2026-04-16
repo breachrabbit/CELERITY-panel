@@ -735,8 +735,10 @@ html.layout-stabilizing * {
     --meter-value: 72;
     --meter-color: var(--brand-cyan);
     --meter-track: rgba(8, 197, 203, 0.18);
-    --ring-cutout: 58%;
-    --ring-thickness: 69%;
+    --ring-cutout: 65%;
+    --ring-thickness: 65%;
+    --ring-inner-cutout: 77%;
+    --ring-inner-thickness: 77%;
     --segment-fill: 8deg;
     --segment-gap: 12deg;
     width: 72px;
@@ -766,8 +768,13 @@ html.layout-stabilizing * {
         var(--meter-track) 0deg var(--segment-fill),
         transparent var(--segment-fill) var(--segment-gap)
     );
-    -webkit-mask: radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%));
-    mask: radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%));
+    -webkit-mask:
+        radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
+        radial-gradient(circle, transparent var(--ring-inner-cutout), #000 calc(var(--ring-inner-cutout) + 1%), #000 var(--ring-inner-thickness), transparent calc(var(--ring-inner-thickness) + 1%));
+    -webkit-mask-composite: source-over;
+    mask:
+        radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
+        radial-gradient(circle, transparent var(--ring-inner-cutout), #000 calc(var(--ring-inner-cutout) + 1%), #000 var(--ring-inner-thickness), transparent calc(var(--ring-inner-thickness) + 1%));
 }
 
 .hero-meter-ring::after {
@@ -778,10 +785,12 @@ html.layout-stabilizing * {
     );
     -webkit-mask:
         radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
+        radial-gradient(circle, transparent var(--ring-inner-cutout), #000 calc(var(--ring-inner-cutout) + 1%), #000 var(--ring-inner-thickness), transparent calc(var(--ring-inner-thickness) + 1%)),
         conic-gradient(from -90deg, #000 0deg calc(var(--meter-value) * 3.6deg), transparent calc(var(--meter-value) * 3.6deg) 360deg);
-    -webkit-mask-composite: source-in;
+    -webkit-mask-composite: source-over, source-in;
     mask:
         radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
+        radial-gradient(circle, transparent var(--ring-inner-cutout), #000 calc(var(--ring-inner-cutout) + 1%), #000 var(--ring-inner-thickness), transparent calc(var(--ring-inner-thickness) + 1%)),
         conic-gradient(from -90deg, #000 0deg calc(var(--meter-value) * 3.6deg), transparent calc(var(--meter-value) * 3.6deg) 360deg);
     mask-composite: intersect;
 }
@@ -795,8 +804,10 @@ html.layout-stabilizing * {
     width: 58px;
     height: 58px;
     font-size: 15px;
-    --ring-cutout: 55%;
-    --ring-thickness: 71%;
+    --ring-cutout: 63%;
+    --ring-thickness: 63%;
+    --ring-inner-cutout: 76%;
+    --ring-inner-thickness: 76%;
     --segment-fill: 9deg;
     --segment-gap: 15deg;
 }

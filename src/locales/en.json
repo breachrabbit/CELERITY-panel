@@ -79,6 +79,10 @@
     "profileCount": {
       "one": "{count} profile",
       "other": "{count} profiles"
+    },
+    "groupCount": {
+      "one": "{count} group",
+      "other": "{count} groups"
     }
   },
   "nav": {
@@ -155,6 +159,7 @@
     "total": "Total traffic",
     "usersOnline": "Users online",
     "systemInfo": "System Info",
+    "server": "Server",
     "cpu": "CPU",
     "memory": "Memory",
     "uptime": "Uptime",
@@ -197,6 +202,18 @@
     "consoleKicker": "Secure infrastructure console",
     "heroEyebrow": "Network operations",
     "heroDescription": "Operational surface for monitoring nodes, sessions, and service health. The important signals stay visible without hopping through tabs.",
+    "settingsHeroEyebrow": "Configuration studio",
+    "settingsHeroTitle": "Shape the panel like a product, not a pile of fields",
+    "settingsHeroDescription": "Infrastructure, client, and HAPP settings are grouped into clearer surfaces so service controls and client experience are easier to scan.",
+    "settingsClientsKicker": "Clients",
+    "settingsClientsTitle": "Subscriptions and HAPP",
+    "settingsClientsDescription": "Logotype, deeplinks, banners, and soft infrastructure support messaging.",
+    "settingsOperationsKicker": "Operations",
+    "settingsOperationsTitle": "System and backups",
+    "settingsOperationsDescription": "Cache, S3, backups, and service operations without extra noise.",
+    "settingsSecurityKicker": "Security",
+    "settingsSecurityTitle": "Control boundary",
+    "settingsSecurityDescription": "Limits, rate controls, maintenance operations, and sensitive flags.",
     "nodesHealthy": "Nodes healthy",
     "nodesHealthyHint": "active",
     "usersEnabledHint": "enabled",

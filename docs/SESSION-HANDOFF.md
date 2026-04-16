@@ -131,6 +131,18 @@
   - dashboard counters/status strings were updated first;
   - the rest of the panel still needs a deliberate pass so Russian wording is natural everywhere visible to users/operators.
 
+## 2026-04-16 Render Helper Recovery
+
+- A live dashboard regression was found after introducing `tp(...)` into EJS templates:
+  - `res.locals.tp` existed in middleware;
+  - the shared `render()` helper was still only passing `t`, so compiled templates crashed with `tp is not defined`.
+- This has now been corrected locally in `src/routes/panel/helpers.js` and should be treated as a required part of any deploy that includes pluralized templates.
+- Same local batch also includes:
+  - dashboard right-column reorder (`Server` above `Quick Actions`);
+  - dashboard ring treatment moving toward a double segmented style;
+  - settings hero localization cleanup;
+  - users page pluralized counts.
+
 ## 2026-04-16 UI Follow-Up Update
 
 - prepared a new deployable UI batch:

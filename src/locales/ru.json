@@ -84,6 +84,11 @@
       "one": "{count} профиль",
       "few": "{count} профиля",
       "many": "{count} профилей"
+    },
+    "groupCount": {
+      "one": "{count} группа",
+      "few": "{count} группы",
+      "many": "{count} групп"
     }
   },
   "nav": {
@@ -160,6 +165,7 @@
     "total": "Всего трафика",
     "usersOnline": "Пользователей в сети",
     "systemInfo": "Система",
+    "server": "Сервер",
     "cpu": "CPU",
     "memory": "Память",
     "uptime": "Аптайм",
@@ -202,6 +208,18 @@
     "consoleKicker": "Панель управления инфраструктурой",
     "heroEyebrow": "Управление сетью",
     "heroDescription": "Оперативная панель для контроля нод, подключений и состояния сервиса. Всё ключевое видно сразу, без лишних переходов.",
+    "settingsHeroEyebrow": "Центр конфигурации",
+    "settingsHeroTitle": "Настраиваем панель как продукт, а не как набор полей",
+    "settingsHeroDescription": "Здесь собраны инфраструктурные, клиентские и HAPP-настройки. Основные блоки отделены визуально, чтобы быстрее видеть, что относится к сервису, а что к клиентскому опыту.",
+    "settingsClientsKicker": "Клиенты",
+    "settingsClientsTitle": "Подписки и HAPP",
+    "settingsClientsDescription": "Логотип, deeplink-кнопки, баннеры и мягкая поддержка инфраструктуры.",
+    "settingsOperationsKicker": "Операции",
+    "settingsOperationsTitle": "Система и бэкапы",
+    "settingsOperationsDescription": "Кэш, S3, резервные копии и сервисные операции без лишнего шума.",
+    "settingsSecurityKicker": "Безопасность",
+    "settingsSecurityTitle": "Граница контроля",
+    "settingsSecurityDescription": "Ограничения, rate limit, maintenance-операции и чувствительные флаги.",
     "nodesHealthy": "Ноды в строю",
     "nodesHealthyHint": "активны",
     "usersEnabledHint": "включены",
