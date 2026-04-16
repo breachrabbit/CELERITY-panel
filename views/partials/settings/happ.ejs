@@ -186,12 +186,14 @@
                             <option value="tcp" <%= settings?.subscription?.happ?.pingType === 'tcp' ? 'selected' : '' %>><%= t('settings.happPingTypeTcp') %></option>
                             <option value="icmp" <%= settings?.subscription?.happ?.pingType === 'icmp' ? 'selected' : '' %>><%= t('settings.happPingTypeIcmp') %></option>
                         </select>
+                        <small class="hint"><%= t('settings.happPingTypeHint') %></small>
                     </div>
                     <div class="form-group" id="happPingUrlWrap" style="<%= ['proxy','proxy-head'].includes(settings?.subscription?.happ?.pingType) ? '' : 'display:none' %>">
                         <label><%= t('settings.happPingUrl') %></label>
                         <input type="url" name="subscription.happ.pingUrl"
                                value="<%= settings?.subscription?.happ?.pingUrl || '' %>"
                                placeholder="https://cp.cloudflare.com/generate_204">
+                        <small class="hint"><%= t('settings.happPingUrlHint') %></small>
                     </div>
                 </div>
 

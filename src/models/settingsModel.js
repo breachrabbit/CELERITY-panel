@@ -102,8 +102,8 @@ const settingsSchema = new mongoose.Schema({
             hideSettings: { type: Boolean, default: false },
             notifyExpire: { type: Boolean, default: false },
             alwaysHwid: { type: Boolean, default: false },
-            pingType: { type: String, enum: ['', 'proxy', 'proxy-head', 'tcp', 'icmp'], default: '' },
-            pingUrl: { type: String, default: '' },
+            pingType: { type: String, enum: ['', 'proxy', 'proxy-head', 'tcp', 'icmp'], default: 'proxy' },
+            pingUrl: { type: String, default: 'https://cp.cloudflare.com/generate_204' },
             colorProfile: { type: String, default: '' },
             display: {
                 showTrafficProgress: { type: Boolean, default: true },

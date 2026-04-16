@@ -56,6 +56,10 @@ router.get('/settings', async (req, res) => {
         if (settings?.backup?.s3?.secretAccessKey) {
             settings.backup.s3.secretAccessKey = cryptoService.decryptSafe(settings.backup.s3.secretAccessKey);
         }
+        if (!settings.subscription) settings.subscription = {};
+        if (!settings.subscription.happ) settings.subscription.happ = {};
+        if (!settings.subscription.happ.pingType) settings.subscription.happ.pingType = 'proxy';
+        if (!settings.subscription.happ.pingUrl) settings.subscription.happ.pingUrl = 'https://cp.cloudflare.com/generate_204';
 
         render(res, 'settings', {
             title: res.locals.locales.settings.title,
@@ -136,7 +140,7 @@ router.post('/settings', async (req, res) => {
             if (req.body['_happSettings'] !== undefined) {
                 const validPingTypes = ['', 'proxy', 'proxy-head', 'tcp', 'icmp'];
                 const validInfoColors = ['', 'blue', 'green', 'red'];
-                const rawPingType = req.body['subscription.happ.pingType'] || '';
+                const rawPingType = req.body['subscription.happ.pingType'] || 'proxy';
                 const rawInfoColor = req.body['subscription.happ.infoColor'] || 'blue';
 
                 updates['subscription.happ.announce'] = String(req.body['subscription.happ.announce'] || '').trim().slice(0, 200);
@@ -149,8 +153,9 @@ router.post('/settings', async (req, res) => {
                 updates['subscription.happ.hideSettings'] = req.body['subscription.happ.hideSettings'] === 'on';
                 updates['subscription.happ.notifyExpire'] = req.body['subscription.happ.notifyExpire'] === 'on';
                 updates['subscription.happ.alwaysHwid'] = req.body['subscription.happ.alwaysHwid'] === 'on';
-                updates['subscription.happ.pingType'] = validPingTypes.includes(rawPingType) ? rawPingType : '';
-                updates['subscription.happ.pingUrl'] = String(req.body['subscription.happ.pingUrl'] || '').trim().slice(0, 500);
+                updates['subscription.happ.pingType'] = validPingTypes.includes(rawPingType) ? rawPingType : 'proxy';
+                const rawPingUrl = String(req.body['subscription.happ.pingUrl'] || '').trim().slice(0, 500);
+                updates['subscription.happ.pingUrl'] = rawPingUrl || 'https://cp.cloudflare.com/generate_204';
                 updates['subscription.happ.display.showTrafficProgress'] = req.body['subscription.happ.display.showTrafficProgress'] === 'on';
                 updates['subscription.happ.display.showTrafficDetails'] = req.body['subscription.happ.display.showTrafficDetails'] === 'on';
                 updates['subscription.happ.display.showDevices'] = req.body['subscription.happ.display.showDevices'] === 'on';
