@@ -129,7 +129,10 @@ function setSidebarCollapsed(collapsed, persist = false) {
     if (persist) {
         localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0');
     }
-    stabilizeLayout();
+    syncShellDimensions();
+    requestAnimationFrame(() => {
+        syncShellDimensions();
+    });
 }
 
 function initSidebar() {

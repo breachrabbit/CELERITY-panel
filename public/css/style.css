@@ -138,6 +138,7 @@ html.layout-stabilizing * {
     min-width: 0;
     overflow-x: hidden;
     isolation: isolate;
+    transition: grid-template-columns 0.22s ease;
 }
 
 /* Sidebar */
@@ -152,6 +153,7 @@ html.layout-stabilizing * {
     z-index: 100;
     min-width: 0;
     align-self: stretch;
+    transition: width 0.22s ease, border-color 0.22s ease;
 }
 
 .sidebar-inner {
@@ -161,6 +163,7 @@ html.layout-stabilizing * {
     display: flex;
     flex-direction: column;
     background: inherit;
+    transition: padding 0.22s ease;
 }
 
 :root[data-theme="dark"] .sidebar {
@@ -194,6 +197,7 @@ html.layout-stabilizing * {
     align-items: center;
     gap: 12px;
     border-bottom: 0;
+    transition: padding 0.22s ease, gap 0.22s ease;
 }
 
 .logo-icon {
@@ -855,6 +859,22 @@ html.layout-stabilizing * {
     line-height: 1;
     cursor: pointer;
     transition: var(--transition);
+}
+
+.nav-menu,
+.nav-menu a,
+.sidebar-footer,
+.sidebar-toggle,
+.logout-btn,
+.nav-icon {
+    transition:
+        padding 0.22s ease,
+        gap 0.22s ease,
+        width 0.22s ease,
+        min-height 0.22s ease,
+        background-color 0.18s ease,
+        color 0.18s ease,
+        border-color 0.18s ease;
 }
 
 .sparkline-period-btn:hover {
