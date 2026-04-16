@@ -87,12 +87,18 @@ const deviceUsagePct = limitedDeviceCapacity
         </div>
         <div class="hero-sparkline-card">
             <div class="sparkline-copy">
-                <span><%= formatTrafficPeriodLabel(stats.trafficWindow?.period) %></span>
+                <span class="sparkline-title" data-sparkline-title><%= formatTrafficPeriodLabel(stats.trafficWindow?.period) %></span>
                 <strong><%= formatTrafficDashboard(trafficWindowTotalGB) %></strong>
+                <div class="sparkline-periods" role="group" aria-label="Traffic period">
+                    <button type="button" class="sparkline-period-btn" data-sparkline-period="24h">24ч</button>
+                    <button type="button" class="sparkline-period-btn active" data-sparkline-period="7d">7д</button>
+                    <button type="button" class="sparkline-period-btn" data-sparkline-period="30d">30д</button>
+                </div>
             </div>
             <div
                 class="sparkline-visual interactive"
                 data-sparkline-chart
+                data-period="<%= stats.trafficWindow?.period || '7d' %>"
                 data-points='<%- JSON.stringify(sparklinePoints) %>'
                 aria-label="График трафика"
             >
@@ -564,9 +570,6 @@ function initTrafficSparkline() {
     const chart = document.querySelector('[data-sparkline-chart]');
     if (!chart) return;
 
-    const rawPoints = JSON.parse(chart.dataset.points || '[]');
-    if (!Array.isArray(rawPoints) || rawPoints.length < 2) return;
-
     const svg = chart.querySelector('.sparkline-svg');
     const line = chart.querySelector('.sparkline-line');
     const area = chart.querySelector('.sparkline-area');
@@ -577,6 +580,10 @@ function initTrafficSparkline() {
     const tooltip = chart.querySelector('.sparkline-tooltip');
     const tooltipLabel = chart.querySelector('.sparkline-tooltip-label');
     const tooltipValue = chart.querySelector('.sparkline-tooltip-value');
+    const title = document.querySelector('[data-sparkline-title]');
+    const totalNode = chart.parentElement?.querySelector('.sparkline-copy strong');
+    const footerNodes = chart.parentElement?.querySelectorAll('.sparkline-foot span');
+    const periodButtons = Array.from(document.querySelectorAll('[data-sparkline-period]'));
     const width = 320;
     const height = 116;
     const paddingX = 10;
@@ -584,19 +591,44 @@ function initTrafficSparkline() {
     const paddingBottom = 18;
     const usableWidth = width - paddingX * 2;
     const usableHeight = height - paddingTop - paddingBottom;
-    const values = rawPoints.map((point) => Number(point.raw || 0));
-    const maxValue = Math.max(...values, 1);
-    const minValue = Math.min(...values, 0);
-    const valueRange = Math.max(maxValue - minValue, Math.max(maxValue, 1) * 0.18, 1);
-    const upperBound = maxValue + valueRange * 0.18;
-    const lowerBound = Math.max(0, minValue - valueRange * 0.12);
-    const normalizedRange = Math.max(upperBound - lowerBound, 1);
+    let points = [];
 
-    const points = rawPoints.map((point, index) => {
-        const x = paddingX + (usableWidth / (rawPoints.length - 1)) * index;
-        const y = paddingTop + usableHeight - (((Number(point.raw || 0) - lowerBound) / normalizedRange) * usableHeight);
-        return { ...point, x, y };
-    });
+    const formatTrafficWindowValue = (bytes) => {
+        const kb = bytes / 1024;
+        const mb = bytes / (1024 * 1024);
+        const gb = bytes / (1024 * 1024 * 1024);
+        if (gb >= 1) return gb.toFixed(2) + ' GB';
+        if (mb >= 1) return mb.toFixed(1) + ' MB';
+        if (kb >= 1) return kb.toFixed(0) + ' KB';
+        return Math.max(bytes, 0).toFixed(0) + ' B';
+    };
+
+    const formatTrafficDashboard = (bytes) => {
+        const gb = bytes / (1024 * 1024 * 1024);
+        if (gb >= 1000) return (gb / 1024).toFixed(2) + ' TB';
+        if (gb >= 1) return gb.toFixed(1) + ' GB';
+        const mb = bytes / (1024 * 1024);
+        if (mb >= 1) return mb.toFixed(0) + ' MB';
+        return formatTrafficWindowValue(bytes);
+    };
+
+    const formatTrafficPeriodLabel = (period) => {
+        if (period === '24h') return 'Трафик за 24 часа';
+        if (period === '30d') return 'Трафик за 30 дней';
+        return 'Трафик за 7 дней';
+    };
+
+    const formatPointLabel = (rawLabel, period) => {
+        const value = new Date(rawLabel);
+        if (Number.isNaN(value.getTime())) return rawLabel || '—';
+        if (period === '24h') {
+            return value.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        }
+        if (period === '30d') {
+            return value.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+        }
+        return value.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+    };
 
     const getSmoothPath = (dataset) => dataset.map((point, index) => {
         if (index === 0) return `M ${point.x} ${point.y}`;
@@ -604,16 +636,6 @@ function initTrafficSparkline() {
         const controlX = (prev.x + point.x) / 2;
         return `C ${controlX} ${prev.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
     }).join(' ');
-
-    const linePath = getSmoothPath(points);
-    const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - 4} L ${points[0].x} ${height - 4} Z`;
-
-    line.setAttribute('d', linePath);
-    area.setAttribute('d', areaPath);
-
-    pointsGroup.innerHTML = points.map((point) => (
-        `<circle class="sparkline-point" cx="${point.x}" cy="${point.y}" r="3.5"></circle>`
-    )).join('');
 
     const showPoint = (index) => {
         const point = points[index];
@@ -632,7 +654,7 @@ function initTrafficSparkline() {
         tooltip.style.top = `${Math.max(point.y - 18, 10)}px`;
 
         pointsGroup.querySelectorAll('.sparkline-point').forEach((node, pointIndex) => {
-            node.classList.toggle('is-active', pointIndex === index);
+            node.classList.toggle('is-active', Number(node.dataset.index) === index);
         });
     };
 
@@ -645,6 +667,7 @@ function initTrafficSparkline() {
     };
 
     chart.addEventListener('mousemove', (event) => {
+        if (!points.length) return;
         const rect = chart.getBoundingClientRect();
         const relativeX = ((event.clientX - rect.left) / rect.width) * width;
         let nearestIndex = 0;
@@ -662,10 +685,78 @@ function initTrafficSparkline() {
     });
 
     chart.addEventListener('mouseleave', hidePoint);
-    chart.addEventListener('touchstart', () => showPoint(points.length - 1), { passive: true });
+    chart.addEventListener('touchstart', () => points.length && showPoint(points.length - 1), { passive: true });
     chart.addEventListener('touchend', hidePoint, { passive: true });
 
-    showPoint(points.length - 1);
+    const renderChart = (rawPoints, period) => {
+        if (!Array.isArray(rawPoints) || rawPoints.length < 2) return;
+
+        const values = rawPoints.map((point) => Number(point.raw || 0));
+        const maxValue = Math.max(...values, 1);
+        const minValue = Math.min(...values, 0);
+        const valueRange = Math.max(maxValue - minValue, Math.max(maxValue, 1) * 0.18, 1);
+        const upperBound = maxValue + valueRange * 0.18;
+        const lowerBound = Math.max(0, minValue - valueRange * 0.12);
+        const normalizedRange = Math.max(upperBound - lowerBound, 1);
+
+        points = rawPoints.map((point, index) => {
+            const x = paddingX + (usableWidth / (rawPoints.length - 1)) * index;
+            const y = paddingTop + usableHeight - (((Number(point.raw || 0) - lowerBound) / normalizedRange) * usableHeight);
+            return { ...point, x, y };
+        });
+
+        const linePath = getSmoothPath(points);
+        const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - 4} L ${points[0].x} ${height - 4} Z`;
+        line.setAttribute('d', linePath);
+        area.setAttribute('d', areaPath);
+
+        const step = Math.max(1, Math.ceil(points.length / 6));
+        pointsGroup.innerHTML = points
+            .filter((point, index) => index === 0 || index === points.length - 1 || index % step === 0)
+            .map((point, index) => `<circle class="sparkline-point" data-index="${points.indexOf(point)}" cx="${point.x}" cy="${point.y}" r="3.5"></circle>`)
+            .join('');
+
+        if (title) title.textContent = formatTrafficPeriodLabel(period);
+        periodButtons.forEach((button) => button.classList.toggle('active', button.dataset.sparklinePeriod === period));
+        chart.dataset.period = period;
+        showPoint(points.length - 1);
+    };
+
+    const toPoints = (payload) => (payload?.labels || []).map((label, index) => ({
+        label: formatPointLabel(label, payload.period),
+        raw: (payload?.datasets?.tx?.[index] || 0) + (payload?.datasets?.rx?.[index] || 0),
+        display: formatTrafficWindowValue((payload?.datasets?.tx?.[index] || 0) + (payload?.datasets?.rx?.[index] || 0)),
+    }));
+
+    const updateFromPayload = (payload) => {
+        const nextPoints = toPoints(payload);
+        if (totalNode) totalNode.textContent = formatTrafficDashboard(payload?.totals?.total || 0);
+        if (footerNodes?.[0]) footerNodes[0].innerHTML = `<i class="ti ti-arrow-up-right"></i> ${formatTrafficDashboard(payload?.totals?.tx || 0)}`;
+        if (footerNodes?.[1]) footerNodes[1].innerHTML = `<i class="ti ti-arrow-down-right"></i> ${formatTrafficDashboard(payload?.totals?.rx || 0)}`;
+        renderChart(nextPoints, payload?.period || '7d');
+    };
+
+    periodButtons.forEach((button) => {
+        button.addEventListener('click', async () => {
+            const period = button.dataset.sparklinePeriod;
+            try {
+                const response = await fetch(`/panel/stats/api/traffic?period=${period}`, { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to load traffic chart');
+                const payload = await response.json();
+                updateFromPayload(payload);
+            } catch (error) {
+                console.error(error);
+            }
+        });
+    });
+
+    renderChart(
+        (JSON.parse(chart.dataset.points || '[]')).map((point) => ({
+            ...point,
+            label: formatPointLabel(point.label, chart.dataset.period || '7d'),
+        })),
+        chart.dataset.period || '7d'
+    );
 }
 
 function connectLogsWebSocket() {

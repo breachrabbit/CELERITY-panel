@@ -439,7 +439,7 @@ router.get('/', async (req, res) => {
         
         const { usersTotal, usersEnabled, nodesTotal, trafficStats } = counts;
 
-        const [rawNodes, enabledUsers, settings, trafficWindow] = await Promise.all([
+        const [rawNodes, enabledUsers, settings] = await Promise.all([
             HyNode.find({ active: true })
                 .select('name ip status onlineUsers maxOnlineUsers groups traffic type flag rankingCoefficient')
                 .populate('groups', 'name color')
@@ -449,7 +449,6 @@ router.get('/', async (req, res) => {
                 .populate('groups', 'maxDevices')
                 .lean(),
             Settings.findOne().lean(),
-            statsService.getTrafficChart('24h'),
         ]);
 
         const nodes = await applyCascadeDisplayStatus(rawNodes);
@@ -492,9 +491,12 @@ router.get('/', async (req, res) => {
             capacity: 0,
         });
 
-        const trafficHistoryPoints = (trafficWindow?.labels || []).map((label, index) => ({
+        const trafficWindowPeriod = '7d';
+        const trafficWindowData = await statsService.getTrafficChart(trafficWindowPeriod);
+
+        const trafficHistoryPoints = (trafficWindowData?.labels || []).map((label, index) => ({
             label,
-            value: (trafficWindow?.datasets?.tx?.[index] || 0) + (trafficWindow?.datasets?.rx?.[index] || 0),
+            value: (trafficWindowData?.datasets?.tx?.[index] || 0) + (trafficWindowData?.datasets?.rx?.[index] || 0),
         }));
         
         render(res, 'dashboard', {
@@ -511,10 +513,10 @@ router.get('/', async (req, res) => {
                     total: totalTrafficBytes,
                 },
                 trafficWindow: {
-                    period: '24h',
-                    tx: trafficWindow?.totals?.tx || 0,
-                    rx: trafficWindow?.totals?.rx || 0,
-                    total: trafficWindow?.totals?.total || 0,
+                    period: trafficWindowData?.period || trafficWindowPeriod,
+                    tx: trafficWindowData?.totals?.tx || 0,
+                    rx: trafficWindowData?.totals?.rx || 0,
+                    total: trafficWindowData?.totals?.total || 0,
                     points: trafficHistoryPoints,
                 },
                 devices: {

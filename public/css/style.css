@@ -85,13 +85,20 @@ body {
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    overflow-x: clip;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Smooth scrolling */
 html {
     scroll-behavior: smooth;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    scrollbar-gutter: stable;
 }
 
 html.layout-stabilizing * {
@@ -119,11 +126,14 @@ html.layout-stabilizing * {
 
 /* Layout */
 .app {
-    display: flex;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     min-height: 100vh;
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    min-width: 0;
+    overflow-x: clip;
+    isolation: isolate;
 }
 
 /* Sidebar */
@@ -133,9 +143,12 @@ html.layout-stabilizing * {
     border-right: 1px dashed var(--border);
     display: flex;
     flex-direction: column;
-    position: fixed;
+    position: sticky;
+    top: 0;
     height: 100vh;
     z-index: 100;
+    min-width: 0;
+    align-self: start;
 }
 
 :root[data-theme="dark"] .sidebar {
@@ -316,20 +329,19 @@ html.layout-stabilizing * {
 
 /* Content */
 .content {
-    flex: 1 1 auto;
-    margin-left: var(--sidebar-width);
-    width: auto;
-    max-width: calc(100vw - var(--sidebar-width));
+    width: 100%;
+    max-width: 100%;
     min-height: 100vh;
     min-width: 0;
     overflow-x: clip;
+    position: relative;
     background:
         radial-gradient(circle at 1px 1px, rgba(5, 10, 60, 0.08) 1px, transparent 0),
         linear-gradient(135deg, rgba(5, 10, 60, 0.025) 25%, transparent 25%, transparent 50%, rgba(5, 10, 60, 0.025) 50%, rgba(5, 10, 60, 0.025) 75%, transparent 75%, transparent),
         var(--bg-primary);
     background-size: 32px 32px, 128px 128px, auto;
     background-position: 0 0, 0 0, 0 0;
-    transition: margin-left 0.18s ease, max-width 0.18s ease;
+    transition: none;
 }
 
 :root[data-theme="dark"] .content {
@@ -344,6 +356,9 @@ html.layout-stabilizing * {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 20px 32px;
     background: rgba(255, 255, 255, 0.92);
     border-bottom: 1px dashed var(--border);
@@ -452,6 +467,10 @@ html.layout-stabilizing * {
     width: 100%;
     max-width: 100%;
     overflow-x: clip;
+}
+
+.main-content > * {
+    max-width: 100%;
 }
 
 .experience-hero {
@@ -701,11 +720,45 @@ html.layout-stabilizing * {
     display: flex;
     justify-content: space-between;
     gap: 12px;
-    align-items: baseline;
+    align-items: flex-start;
+    flex-wrap: wrap;
 }
 
 .sparkline-copy strong {
     font-size: 26px;
+}
+
+.sparkline-periods {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    border: 1px dashed var(--border);
+    border-radius: 999px;
+    background: var(--bg-secondary);
+}
+
+.sparkline-period-btn {
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.sparkline-period-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.sparkline-period-btn.active {
+    background: var(--brand-navy);
+    color: var(--brand-white);
 }
 
 .sparkline-visual {
@@ -760,7 +813,7 @@ html.layout-stabilizing * {
     fill: var(--brand-white);
     stroke: currentColor;
     stroke-width: 1.5;
-    opacity: 0.48;
+    opacity: 0.6;
     transition: transform 0.2s ease, opacity 0.2s ease;
     transform-origin: center;
 }
@@ -2710,7 +2763,7 @@ html.layout-stabilizing * {
     
     /* Content */
     .content {
-        margin-left: 0;
+        grid-column: 1 / -1;
         padding-top: 60px;
         width: 100%;
         max-width: 100%;
