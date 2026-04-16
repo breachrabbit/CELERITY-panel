@@ -522,8 +522,21 @@ router.get('/users/:userId', async (req, res) => {
             };
         });
 
+        const effectiveNodeMap = new Map(
+            effectiveNodeCards.map((node) => [String(node._id), node]),
+        );
+
+        const enrichedActiveDeviceEntries = activeDeviceEntries.map((entry) => {
+            const fallbackNode = entry.nodeId ? effectiveNodeMap.get(String(entry.nodeId)) : null;
+            return {
+                ...entry,
+                nodeName: entry.nodeName || fallbackNode?.name || '',
+                nodeType: entry.nodeType || fallbackNode?.type || '',
+            };
+        });
+
         const activeNodeHints = Array.from(new Map(
-            activeDeviceEntries
+            enrichedActiveDeviceEntries
                 .filter((entry) => entry.nodeName)
                 .map((entry) => [entry.nodeId || entry.nodeName, {
                     nodeId: entry.nodeId || '',
@@ -540,7 +553,7 @@ router.get('/users/:userId', async (req, res) => {
             allGroups,
             effectiveNodes: effectiveNodeCards,
             activeDevices,
-            activeDeviceEntries,
+            activeDeviceEntries: enrichedActiveDeviceEntries,
             activeNodeHints,
             deviceLimitInfo,
             totalTraffic,

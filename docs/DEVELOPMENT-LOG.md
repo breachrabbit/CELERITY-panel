@@ -42,6 +42,17 @@
   - segmented ring style;
   - blue QR presentation;
   - further removal of visible `Celerity` branding.
+- Finished and deployed the paused shell rewrite:
+  - grid shell + sticky sidebar committed and shipped;
+  - added overflow guards for page headers, table wrappers, charts, cards, and dashboard columns;
+  - moved language controls into the topbar next to theme controls;
+  - made sidebar collapse affordance clearer with labeled control.
+- Reduced stats chart point density adaptively and improved time-axis readability.
+- Recolored subscription/user-detail/TOTP QR presentation to the project palette.
+- Improved node attribution path:
+  - auth endpoint now accepts several `x-node-*` header aliases;
+  - user detail view enriches session entries from effective-node lookup when only `nodeId` is available.
+- Replaced the most visible `Celerity` branding on layout/login/setup/TOTP surfaces with `Hidden Rabbit`.
 
 Change types:
 
@@ -52,3 +63,7 @@ Change types:
 - `upstream sync review` — divergence audit baseline
 - `investigation` — persistent shell/layout drift
 - `local patch (paused)` — uncommitted shell CSS rewrite attempt
+- `stability fix` — deployed shell rewrite and overflow containment
+- `local patch` — chart readability and period UX polish
+- `local patch` — node attribution enrichment
+- `local override` — visible branding shift toward Hidden Rabbit

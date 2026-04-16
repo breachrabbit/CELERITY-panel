@@ -16,5 +16,5 @@
   - then continue with node attribution, rebrand cleanup, and upstream triage.
 
 - Additional note:
-  - the session ended with one local uncommitted CSS diff intentionally left in place for review;
-  - no further deploy was made after that paused patch.
+  - the previously paused CSS diff was finished, committed, and deployed;
+  - next session should verify whether the live stand still has any drifting page after the shell rewrite.

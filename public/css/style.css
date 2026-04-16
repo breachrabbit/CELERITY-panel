@@ -1,4 +1,4 @@
-/* C³ CELERITY - Hidden Rabbit UI foundation */
+/* Hidden Rabbit panel UI foundation */
 
 :root {
     --brand-navy: #050A3C;
@@ -166,7 +166,7 @@ html.layout-stabilizing * {
 .sidebar-controls {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 8px;
     padding: 14px 16px 0;
 }
@@ -213,8 +213,9 @@ html.layout-stabilizing * {
 }
 
 .sidebar-toggle {
-    width: 38px;
+    min-width: 38px;
     height: 38px;
+    padding: 0 12px;
     border: 1px dashed var(--border);
     border-radius: 999px;
     background: var(--bg-secondary);
@@ -222,15 +223,22 @@ html.layout-stabilizing * {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     cursor: pointer;
     transition: var(--transition);
     flex-shrink: 0;
+    font-family: inherit;
+    font-size: 12px;
 }
 
 .sidebar-toggle:hover {
     color: var(--text-primary);
     border-color: var(--accent);
     background: var(--bg-hover);
+}
+
+.sidebar-toggle-label {
+    white-space: nowrap;
 }
 
 .nav-menu {
@@ -336,20 +344,17 @@ html.layout-stabilizing * {
     overflow-x: clip;
     position: relative;
     background:
-        radial-gradient(circle at 1px 1px, rgba(5, 10, 60, 0.08) 1px, transparent 0),
-        linear-gradient(135deg, rgba(5, 10, 60, 0.025) 25%, transparent 25%, transparent 50%, rgba(5, 10, 60, 0.025) 50%, rgba(5, 10, 60, 0.025) 75%, transparent 75%, transparent),
+        radial-gradient(circle at top right, rgba(8, 197, 203, 0.045), transparent 30%),
+        repeating-linear-gradient(135deg, rgba(5, 10, 60, 0.03) 0 1px, transparent 1px 30px),
         var(--bg-primary);
-    background-size: 32px 32px, 128px 128px, auto;
-    background-position: 0 0, 0 0, 0 0;
     transition: none;
 }
 
 :root[data-theme="dark"] .content {
     background:
-        radial-gradient(circle at 1px 1px, rgba(191, 208, 235, 0.08) 1px, transparent 0),
-        linear-gradient(135deg, rgba(191, 208, 235, 0.02) 25%, transparent 25%, transparent 50%, rgba(191, 208, 235, 0.02) 50%, rgba(191, 208, 235, 0.02) 75%, transparent 75%, transparent),
+        radial-gradient(circle at top right, rgba(8, 197, 203, 0.08), transparent 30%),
+        repeating-linear-gradient(135deg, rgba(191, 208, 235, 0.035) 0 1px, transparent 1px 32px),
         var(--bg-primary);
-    background-size: 32px 32px, 128px 128px, auto;
 }
 
 .topbar {
@@ -396,6 +401,17 @@ html.layout-stabilizing * {
     gap: 14px;
     font-size: 13px;
     color: var(--text-secondary);
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.topbar-utility {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex-wrap: wrap;
 }
 
 .theme-switcher {
@@ -1483,6 +1499,8 @@ html.layout-stabilizing * {
     align-items: center;
     gap: 24px;
     margin-bottom: 24px;
+    min-width: 0;
+    flex-wrap: wrap;
 }
 
 .sticky-header {
@@ -1499,12 +1517,23 @@ html.layout-stabilizing * {
     flex: 1;
     display: flex;
     justify-content: center;
+    min-width: 0;
+}
+
+.page-header-left,
+.page-header-right,
+.page-header-center,
+.header-actions {
+    min-width: 0;
 }
 
 .filters-bar {
     display: flex;
     gap: 12px;
     align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
 }
 
 .search-box {
@@ -1567,6 +1596,7 @@ html.layout-stabilizing * {
     font-size: 14px;
     cursor: pointer;
     transition: all var(--transition);
+    max-width: 100%;
 }
 
 .filter-select:focus {
@@ -1587,6 +1617,14 @@ html.layout-stabilizing * {
 
 .table-wrapper {
     overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.table {
+    width: max-content;
+    min-width: 100%;
 }
 
 .user-row {
@@ -1672,18 +1710,21 @@ html.layout-stabilizing * {
     display: grid;
     grid-template-columns: 1fr 320px;
     gap: 24px;
+    min-width: 0;
 }
 
 .dashboard-main {
     display: flex;
     flex-direction: column;
     gap: 24px;
+    min-width: 0;
 }
 
 .dashboard-sidebar {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-width: 0;
 }
 
 /* Nodes Table */
@@ -3077,6 +3118,11 @@ html.layout-stabilizing * {
     min-width: 112px;
 }
 
+.lang-switcher-topbar {
+    min-width: 96px;
+    background: var(--bg-secondary);
+}
+
 .lang-btn {
     flex: 1;
     padding: 6px 12px;
@@ -3104,18 +3150,8 @@ html.layout-stabilizing * {
 }
 
 :root.sidebar-collapsed .sidebar-controls {
-    flex-direction: column;
+    justify-content: center;
     padding: 14px 10px 0;
-}
-
-:root.sidebar-collapsed .lang-switcher-top {
-    width: 100%;
-    min-width: 0;
-}
-
-:root.sidebar-collapsed .lang-btn {
-    padding: 6px 0;
-    font-size: 11px;
 }
 
 :root.sidebar-collapsed .logo {
@@ -3125,7 +3161,8 @@ html.layout-stabilizing * {
 
 :root.sidebar-collapsed .logo-content,
 :root.sidebar-collapsed .nav-label,
-:root.sidebar-collapsed .logout-label {
+:root.sidebar-collapsed .logout-label,
+:root.sidebar-collapsed .sidebar-toggle-label {
     display: none;
 }
 
@@ -3163,6 +3200,20 @@ html.layout-stabilizing * {
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
+}
+
+.card,
+.card-header,
+.card-body,
+.charts-grid,
+.chart-card,
+.chart-body,
+.stats-grid,
+.experience-hero,
+.hero-metrics,
+.hero-copy,
+.view-tabs {
+    min-width: 0;
 }
 
 .form-group .datetime-input {

@@ -547,7 +547,23 @@ function copySubscription() {
 }
 
 const subUrl = document.getElementById('subLink').value;
-QRCode.toCanvas(document.createElement('canvas'), subUrl, { width: 180, margin: 1 }, (err, canvas) => {
-    if (!err) document.getElementById('qrcode').appendChild(canvas);
+QRCode.toCanvas(document.createElement('canvas'), subUrl, {
+    width: 180,
+    margin: 1,
+    color: {
+        dark: '#050A3C',
+        light: '#DDE5ED'
+    }
+}, (err, canvas) => {
+    if (!err) {
+        const shell = document.createElement('div');
+        shell.style.display = 'inline-flex';
+        shell.style.padding = '14px';
+        shell.style.borderRadius = '16px';
+        shell.style.background = '#050A3C';
+        shell.style.boxShadow = 'none';
+        shell.appendChild(canvas);
+        document.getElementById('qrcode').appendChild(shell);
+    }
 });
 </script>

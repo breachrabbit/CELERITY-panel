@@ -9,8 +9,8 @@ User reports that parts of the panel still move outside the browser width until 
 Current state:
 
 - multiple earlier stabilization attempts were already deployed;
-- one additional shell rewrite attempt exists locally in `public/css/style.css`;
-- that patch is paused, uncommitted, and undeployed.
+- the shell rewrite (`grid + sticky sidebar` plus overflow containment) is now committed and deployed;
+- bug still needs live verification because the user previously reported the drift across multiple views.
 
 Status: `broken`
 
@@ -34,10 +34,15 @@ Status: `pending`
 
 Current chart is interactive and visually improved, but the user still reports:
 
-- too many visible points;
+- too many visible points in earlier iterations;
 - awkward visual density;
-- need for a compact period switcher;
 - need for better labels and calmer presentation.
+
+Latest progress:
+
+- compact period switchers are now present;
+- point density is reduced adaptively based on dataset length;
+- time-axis labels are more human-readable.
 
 Status: `pending`
 
@@ -76,6 +81,13 @@ Open user requests include:
 - make background texture more neutral;
 - use segmented ring styling matching the provided reference;
 - recolor subscription QR presentation toward project blue.
+
+Latest progress:
+
+- language control was moved to the topbar near theme controls;
+- sidebar collapse control is now more explicit;
+- background was neutralized;
+- QR presentation was recolored toward the project palette.
 
 Status: `pending`
 

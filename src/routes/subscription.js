@@ -762,7 +762,14 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
     let qrDataUrl = await cache.getQR(baseUrl);
     if (!qrDataUrl) {
         try {
-            qrDataUrl = await QRCode.toDataURL(baseUrl, { width: 180, margin: 1, color: { dark: '#ffffff', light: '#141414' } });
+            qrDataUrl = await QRCode.toDataURL(baseUrl, {
+                width: 180,
+                margin: 1,
+                color: {
+                    dark: '#050A3C',
+                    light: '#DDE5ED'
+                }
+            });
             await cache.setQR(baseUrl, qrDataUrl);
         } catch (e) {
             logger.warn(`[Sub] QR generation failed: ${e.message}`);

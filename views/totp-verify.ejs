@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= typeof t !== 'undefined' ? t('auth.totpTitle') : 'Two-factor verification' %> | C³ CELERITY</title>
+    <title><%= typeof t !== 'undefined' ? t('auth.totpTitle') : 'Two-factor verification' %> | Hidden Rabbit Panel</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
@@ -36,7 +36,7 @@
         <div class="login-box">
             <div class="login-header">
                 <span class="logo-icon large">⚡</span>
-                <h1>C³ CELERITY</h1>
+                <h1>Hidden Rabbit</h1>
                 <p style="margin-top: 12px; color: var(--text-secondary);">
                     <%= resolvedTitle %>
                 </p>
@@ -51,7 +51,7 @@
                 <%= resolvedDescription %>
             </div>
             <div style="display:flex; justify-content:center; margin-bottom: 1rem;">
-                <img src="<%= qrDataUrl %>" alt="TOTP QR" style="width: 220px; height: 220px; border-radius: 10px; background: #fff; padding: 10px;">
+                <img src="<%= qrDataUrl %>" alt="TOTP QR" style="width: 220px; height: 220px; border-radius: 16px; background: #DDE5ED; padding: 10px; box-shadow: 0 0 0 14px #050A3C;">
             </div>
             <div class="alert alert-info" style="margin-bottom: 1rem;">
                 <strong><%= typeof t !== 'undefined' ? t('auth.totpManualSecret') : 'Manual secret' %>:</strong>

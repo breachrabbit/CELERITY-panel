@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#6366f1">
-    <title><%= title %> | C³ CELERITY</title>
+    <meta name="theme-color" content="#050A3C">
+    <title><%= title %> | Hidden Rabbit Panel</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@500;600;700&family=Lilex:wght@400;500;600&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
             </button>
             <div class="mobile-logo">
                 <span class="logo-icon">⚡</span>
-                <span class="logo-text">C³ CELERITY</span>
+                <span class="logo-text">Hidden Rabbit</span>
             </div>
             <div class="mobile-status">
                 <span class="status-dot online"></span>
@@ -36,19 +36,16 @@
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-head">
                 <div class="sidebar-controls">
-                    <div class="lang-switcher lang-switcher-top">
-                        <a href="?lang=ru" class="lang-btn <%= lang === 'ru' ? 'active' : '' %>">RU</a>
-                        <a href="?lang=en" class="lang-btn <%= lang === 'en' ? 'active' : '' %>">EN</a>
-                    </div>
                     <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" title="Toggle sidebar">
                         <i class="ti ti-panel-left-close"></i>
+                        <span class="sidebar-toggle-label">Collapse</span>
                     </button>
                 </div>
                 <div class="logo">
                     <span class="logo-icon">⚡</span>
                     <div class="logo-content">
-                        <span class="logo-text">C³ CELERITY</span>
-                        <a href="https://t.me/First_VPN_Click_bot" target="_blank" class="logo-sub">by Click Connect</a>
+                        <span class="logo-text">Hidden Rabbit</span>
+                        <span class="logo-sub">secure control surface</span>
                     </div>
                 </div>
             </div>
@@ -89,19 +86,25 @@
             <header class="topbar">
                 <div class="topbar-left">
                     <h1><%= title %></h1>
-                    <span class="topbar-kicker">Hidden Rabbit control surface</span>
+                    <span class="topbar-kicker">Secure infrastructure console</span>
                 </div>
                 <div class="topbar-right">
-                    <div class="theme-switcher" role="group" aria-label="Theme switcher">
-                        <button type="button" class="theme-btn" data-theme-choice="light" aria-label="Light theme" title="Light">
-                            <i class="ti ti-sun"></i>
-                        </button>
-                        <button type="button" class="theme-btn" data-theme-choice="dark" aria-label="Dark theme" title="Dark">
-                            <i class="ti ti-moon"></i>
-                        </button>
-                        <button type="button" class="theme-btn" data-theme-choice="system" aria-label="System theme" title="System">
-                            <i class="ti ti-device-desktop"></i>
-                        </button>
+                    <div class="topbar-utility">
+                        <div class="lang-switcher lang-switcher-topbar">
+                            <a href="?lang=ru" class="lang-btn <%= lang === 'ru' ? 'active' : '' %>">RU</a>
+                            <a href="?lang=en" class="lang-btn <%= lang === 'en' ? 'active' : '' %>">EN</a>
+                        </div>
+                        <div class="theme-switcher" role="group" aria-label="Theme switcher">
+                            <button type="button" class="theme-btn" data-theme-choice="light" aria-label="Light theme" title="Light">
+                                <i class="ti ti-sun"></i>
+                            </button>
+                            <button type="button" class="theme-btn" data-theme-choice="dark" aria-label="Dark theme" title="Dark">
+                                <i class="ti ti-moon"></i>
+                            </button>
+                            <button type="button" class="theme-btn" data-theme-choice="system" aria-label="System theme" title="System">
+                                <i class="ti ti-device-desktop"></i>
+                            </button>
+                        </div>
                     </div>
                     <span class="status-dot online"></span>
                     <span class="status-text"><%= t('common.online') %></span>

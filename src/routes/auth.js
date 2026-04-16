@@ -80,11 +80,22 @@ async function checkDeviceLimit(userId, clientIP, maxDevices, nodeMeta = {}) {
 }
 
 function extractNodeMeta(req) {
+    const readHeader = (...keys) => {
+        for (const key of keys) {
+            const value = String(req.headers[key] || '').trim();
+            if (value) return value;
+        }
+        return '';
+    };
+
+    const nodeTypeRaw = readHeader('x-node-type', 'x-panel-node-type', 'x-hy-node-type', 'x-xray-node-type');
+    const sourceRaw = readHeader('x-auth-source', 'x-panel-auth-source', 'x-device-source');
+
     return {
-        nodeId: String(req.headers['x-node-id'] || '').trim(),
-        nodeName: String(req.headers['x-node-name'] || '').trim(),
-        nodeType: String(req.headers['x-node-type'] || '').trim(),
-        source: String(req.headers['x-auth-source'] || 'hysteria').trim(),
+        nodeId: readHeader('x-node-id', 'x-panel-node-id', 'x-hy-node-id', 'x-xray-node-id'),
+        nodeName: readHeader('x-node-name', 'x-panel-node-name', 'x-hy-node-name', 'x-xray-node-name', 'x-server-name'),
+        nodeType: (nodeTypeRaw || 'hysteria').toLowerCase(),
+        source: (sourceRaw || 'auth').toLowerCase(),
     };
 }
 
