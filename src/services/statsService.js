@@ -568,15 +568,26 @@ class StatsService {
             granularity
         );
 
+        const totalBeforeWindow = await HyUser.countDocuments({
+            createdAt: { $lt: startDate },
+        });
+        let runningTotal = totalBeforeWindow;
+        const cumulative = buckets.map((bucket) => {
+            runningTotal += bucket.value;
+            return runningTotal;
+        });
+
         const result = {
             period,
             type: granularity === 'hour' ? 'hourly' : 'daily',
             labels: buckets.map((bucket) => bucket.ts),
             datasets: {
                 registrations: buckets.map((bucket) => bucket.value),
+                cumulative,
             },
             totals: {
                 registrations: buckets.reduce((sum, bucket) => sum + bucket.value, 0),
+                cumulative: runningTotal,
             },
         };
 

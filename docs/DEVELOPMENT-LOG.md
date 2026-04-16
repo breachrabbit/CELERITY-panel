@@ -150,3 +150,19 @@ Change type:
 Change type:
 
 - `local patch` — statistics UX and user activity visibility
+
+## 2026-04-16 Stats and User Detail Refinement
+
+- Refined user detail stats wording:
+  - `Traffic progress` now presents as traffic used;
+  - devices wording now explicitly means connected devices;
+  - node coverage wording now means connected nodes.
+- Adjusted unlimited traffic display so `∞` can be visually larger without changing normal numeric values.
+- Made the sidebar footer controls sticky so collapse/logout controls stay attached to the viewport.
+- Added a `24h / 48h` switcher for the users activity heatmap.
+- Added a cumulative total line to the registrations chart so new-profile flow and total profile growth can be read together.
+- Tightened shared card/header vertical rhythm for the shell, dashboard/statistics/users surfaces.
+
+Change type:
+
+- `local patch` — operator stats UX and shell polish

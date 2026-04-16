@@ -118,7 +118,13 @@
 <div class="card chart-card chart-card-wide mt-2">
     <div class="card-header">
         <h2><i class="ti ti-layout-grid"></i> <%= t('stats.usersHeatmap') %></h2>
-        <div class="chart-legend" id="usersHeatmapLegend"></div>
+        <div class="header-actions heatmap-header-actions">
+            <div class="compact-toggle" role="group" aria-label="<%= t('stats.usersHeatmap') %>">
+                <button class="compact-toggle-btn heatmap-period-btn" data-hours="24">24<%= t('stats.h') %></button>
+                <button class="compact-toggle-btn heatmap-period-btn active" data-hours="48">48<%= t('stats.h') %></button>
+            </div>
+            <div class="chart-legend" id="usersHeatmapLegend"></div>
+        </div>
     </div>
     <div class="card-body">
         <div class="users-heatmap" id="usersHeatmap"></div>
@@ -267,12 +273,60 @@
     display: flex;
     gap: 16px;
     font-size: 12px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .legend-item {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.heatmap-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.compact-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border: 1px dashed var(--border);
+    border-radius: 999px;
+    background: var(--bg-secondary);
+}
+
+.compact-toggle-btn {
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.compact-toggle-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.compact-toggle-btn.active {
+    color: var(--brand-white);
+    background: var(--brand-navy);
+}
+
+:root[data-theme="dark"] .compact-toggle-btn.active {
+    color: var(--brand-navy);
+    background: var(--brand-cyan);
 }
 
 .legend-dot {
@@ -435,7 +489,9 @@ const i18n = {
     activeUsersOnly: <%- JSON.stringify(t('stats.activeUsersOnly')) %>,
     registrations: <%- JSON.stringify(t('stats.newProfiles')) %>,
     registrationsSeries: <%- JSON.stringify(t('stats.newProfilesSeries')) %>,
+    profilesTotalSeries: <%- JSON.stringify(t('stats.profilesTotalSeries')) %>,
     usersHeatmap: <%- JSON.stringify(t('stats.usersHeatmap')) %>,
+    recent24h: <%- JSON.stringify(t('stats.recent24h')) %>,
     recent48h: <%- JSON.stringify(t('stats.recent48h')) %>,
     low: <%- JSON.stringify(t('stats.low')) %>,
     high: <%- JSON.stringify(t('stats.high')) %>,
@@ -461,6 +517,7 @@ let nodesTrafficChart = null;
 
 // Current period
 let currentPeriod = '7d';
+let currentHeatmapHours = 48;
 
 function getTickUnit(period) {
     if (period === '24h' || period === '6h' || period === '1h') return 'hour';
@@ -522,6 +579,15 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             currentPeriod = btn.dataset.period;
             loadData(currentPeriod);
+        });
+    });
+
+    document.querySelectorAll('.heatmap-period-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.heatmap-period-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentHeatmapHours = Number(btn.dataset.hours || 48) === 24 ? 24 : 48;
+            loadUsersHeatmap(currentHeatmapHours);
         });
     });
     
@@ -662,20 +728,37 @@ function initCharts() {
         type: 'line',
         data: {
             labels: [],
-            datasets: [{
-                label: i18n.registrationsSeries,
-                data: [],
-                borderColor: '#44EFF4',
-                backgroundColor: 'rgba(68, 239, 244, 0.12)',
-                fill: true,
-                borderWidth: 2.5,
-                tension: 0.36,
-                pointRadius: 3,
-                pointHoverRadius: 6,
-                pointBackgroundColor: '#ffffff',
-                pointBorderColor: '#44EFF4',
-                pointBorderWidth: 2,
-            }]
+            datasets: [
+                {
+                    label: i18n.registrationsSeries,
+                    data: [],
+                    borderColor: '#44EFF4',
+                    backgroundColor: 'rgba(68, 239, 244, 0.12)',
+                    fill: true,
+                    borderWidth: 2.5,
+                    tension: 0.36,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#44EFF4',
+                    pointBorderWidth: 2,
+                },
+                {
+                    label: i18n.profilesTotalSeries,
+                    data: [],
+                    borderColor: colors.usersTotal.border,
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    borderWidth: 2.25,
+                    tension: 0.38,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: colors.usersTotal.border,
+                    pointBorderWidth: 2,
+                    borderDash: [7, 7],
+                }
+            ]
         },
         options: getChartOptions('registrations')
     });
@@ -797,7 +880,7 @@ async function loadData(period) {
             fetch(`/panel/stats/api/traffic?period=${period}`, { credentials: 'include' }).then(r => r.json()),
             fetch(`/panel/stats/api/users?period=${period}`, { credentials: 'include' }).then(r => r.json()),
             fetch(`/panel/stats/api/users-registrations?period=${period}`, { credentials: 'include' }).then(r => r.json()),
-            fetch('/panel/stats/api/users-heatmap', { credentials: 'include' }).then(r => r.json()),
+            fetch(`/panel/stats/api/users-heatmap?hours=${currentHeatmapHours}`, { credentials: 'include' }).then(r => r.json()),
             fetch(`/panel/stats/api/nodes?period=${period}`, { credentials: 'include' }).then(r => r.json()),
         ]);
         
@@ -817,6 +900,15 @@ async function loadData(period) {
     } catch (error) {
         console.error('Failed to load stats:', error);
         showToast('Error loading stats', 'error');
+    }
+}
+
+async function loadUsersHeatmap(hours = currentHeatmapHours) {
+    try {
+        const data = await fetch(`/panel/stats/api/users-heatmap?hours=${hours}`, { credentials: 'include' }).then(r => r.json());
+        renderUsersHeatmap(data);
+    } catch (error) {
+        console.error('Failed to load users heatmap:', error);
     }
 }
 
@@ -936,19 +1028,27 @@ function updateRegistrationsChart(data) {
 
     registrationsChart.data.labels = data.labels.map(l => new Date(l));
     registrationsChart.data.datasets[0].data = data.datasets.registrations;
+    registrationsChart.data.datasets[1].data = data.datasets.cumulative || [];
     const pointRadius = getPointRadius(data.labels.length);
     registrationsChart.data.datasets[0].pointRadius = pointRadius;
     registrationsChart.data.datasets[0].pointHoverRadius = Math.max(4, pointRadius + 2);
+    registrationsChart.data.datasets[1].pointRadius = Math.max(0, pointRadius - 0.5);
+    registrationsChart.data.datasets[1].pointHoverRadius = Math.max(4, pointRadius + 1.5);
     registrationsChart.options.scales.x.time.unit = getTickUnit(currentPeriod);
     registrationsChart.options.scales.x.ticks.maxTicksLimit = getTickLimit(currentPeriod);
     registrationsChart.update('none');
 
     const total = data.totals?.registrations || 0;
+    const cumulative = data.totals?.cumulative || 0;
     const latest = data.datasets.registrations[data.datasets.registrations.length - 1] || 0;
     document.getElementById('registrationsLegend').innerHTML = `
         <span class="legend-item">
             <span class="legend-dot" style="background: #44EFF4"></span>
             ${i18n.registrations}: ${total}
+        </span>
+        <span class="legend-item">
+            <span class="legend-dot" style="background: ${colors.usersTotal.border}"></span>
+            ${i18n.profilesTotalSeries}: ${cumulative}
         </span>
         <span class="legend-item" style="color: var(--text-muted)">
             ${i18n.registrationsSeries}: ${latest}
@@ -968,8 +1068,9 @@ function renderUsersHeatmap(data) {
     }
 
     const max = Math.max(data.max || 0, 1);
-    const formatDate = (value) => new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short' }).format(new Date(value));
-    const formatHour = (value) => new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+    const locale = document.documentElement.lang === 'en' ? 'en-US' : 'ru-RU';
+    const formatDate = (value) => new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' }).format(new Date(value));
+    const formatHour = (value) => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
     const getOpacity = (value) => {
         if (!value) return 0.06;
         return Math.min(1, 0.18 + (value / max) * 0.82);
@@ -992,7 +1093,7 @@ function renderUsersHeatmap(data) {
 
     legend.innerHTML = `
         <div class="users-heatmap-scale">
-            <span>${i18n.recent48h}</span>
+            <span>${data.hours === 24 ? i18n.recent24h : i18n.recent48h}</span>
             <span>${i18n.low}</span>
             <div class="users-heatmap-scale-bar">
                 ${[0.14, 0.28, 0.46, 0.68, 0.92].map((opacity) => `
@@ -1163,7 +1264,7 @@ document.getElementById('nodeTrafficSelector')?.addEventListener('change', funct
 });
 
 function resizeStatsCharts() {
-    [onlineChart, trafficChart, usersChart, nodesChart, nodesTrafficChart].forEach((chart) => {
+    [onlineChart, trafficChart, usersChart, activeUsersMiniChart, registrationsChart, nodesChart, nodesTrafficChart].forEach((chart) => {
         if (chart) chart.resize();
     });
 }

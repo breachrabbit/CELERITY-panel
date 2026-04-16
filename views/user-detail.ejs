@@ -87,6 +87,18 @@
     color: var(--text-secondary);
 }
 
+.user-stat-meta .infinity-symbol {
+    display: inline-block;
+    font-family: var(--font-heading);
+    font-size: 28px;
+    line-height: 0.75;
+    color: var(--brand-navy);
+}
+
+:root[data-theme="dark"] .user-stat-meta .infinity-symbol {
+    color: var(--brand-cyan);
+}
+
 .traffic-bar {
     position: relative;
     height: 10px;
@@ -306,12 +318,16 @@
                         <div class="traffic-bar-fill" style="width:<%= trafficProgress === null ? 100 : trafficProgress %>%"></div>
                     </div>
                     <span class="user-stat-meta">
-                        <%= trafficLimit > 0 ? `${trafficProgress || 0}% / ${formatTrafficValue(trafficLimit)}` : '∞' %>
+                        <% if (trafficLimit > 0) { %>
+                            <%= `${trafficProgress || 0}% / ${formatTrafficValue(trafficLimit)}` %>
+                        <% } else { %>
+                            <span class="infinity-symbol">∞</span>
+                        <% } %>
                     </span>
                 </div>
 
                 <div class="user-stat-tile">
-                    <span class="user-stat-label"><%= t('users.devices') %></span>
+                    <span class="user-stat-label"><%= t('users.connectedDevices') %></span>
                     <span class="user-stat-value"><%= activeDevices || 0 %> / <%= deviceLimitInfo?.label || '∞' %></span>
                     <span class="user-stat-meta">
                         <%= deviceLimitInfo?.source === 'group' ? t('users.deviceLimitFromGroup') : t('users.deviceLimitDirect') %>

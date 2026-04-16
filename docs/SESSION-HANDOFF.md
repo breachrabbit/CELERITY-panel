@@ -120,6 +120,26 @@
   - HAPP color profile preset behavior;
   - users list actions and topbar controls.
 
+## 2026-04-16 Stats and Detail Polish Update
+
+- Prepared a deployable refinement batch:
+  - user detail labels now say traffic used, connected devices, and connected nodes;
+  - unlimited traffic uses an enlarged `∞` indicator while normal numeric limits keep regular sizing;
+  - sidebar footer controls are sticky so collapse/logout stay attached to the viewport;
+  - statistics heatmap now has a `24h / 48h` switcher;
+  - registrations chart now includes a cumulative total profile line;
+  - shared card/header vertical rhythm was tightened across core shell surfaces.
+
+### Current Verification Need
+
+After deploy, verify:
+
+1. user detail stat wording and enlarged `∞`;
+2. sidebar footer stickiness on long pages;
+3. statistics heatmap switching between `24h` and `48h`;
+4. registrations chart showing both new profiles and total profiles;
+5. dashboard/statistics/users card headers feeling aligned and stable.
+
 ## Known Broken / Risky / Pending
 
 - page-drift / width-shift bug is still the highest current UX blocker until the deployed shell rewrite is verified;

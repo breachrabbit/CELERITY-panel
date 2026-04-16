@@ -1432,7 +1432,9 @@ router.get('/stats/api/users-registrations', async (req, res) => {
 
 router.get('/stats/api/users-heatmap', async (req, res) => {
     try {
-        const data = await statsService.getUsersHeatmap(48);
+        const requestedHours = Number(req.query.hours || 48);
+        const hours = requestedHours === 24 ? 24 : 48;
+        const data = await statsService.getUsersHeatmap(hours);
         res.json(data);
     } catch (error) {
         res.status(500).json({ error: error.message });

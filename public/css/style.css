@@ -331,11 +331,16 @@ html.layout-stabilizing * {
 }
 
 .sidebar-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
     padding: 16px;
     border-top: 1px dashed var(--border);
     display: flex;
     flex-direction: column;
     gap: 10px;
+    margin-top: auto;
+    background: inherit;
 }
 
 .logout-btn {
@@ -1308,9 +1313,12 @@ html.layout-stabilizing * {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
+    min-height: 76px;
     padding: 20px 24px;
     border-bottom: 1px dashed var(--border);
     background: transparent;
+    flex-wrap: wrap;
 }
 
 .card-header h2 {
@@ -1320,6 +1328,8 @@ html.layout-stabilizing * {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
+    line-height: 1.25;
 }
 
 .card-header h2 i {
@@ -1619,6 +1629,7 @@ html.layout-stabilizing * {
     justify-content: space-between;
     align-items: center;
     gap: 24px;
+    min-height: 88px;
     margin-bottom: 24px;
     min-width: 0;
     flex-wrap: wrap;
@@ -1646,6 +1657,14 @@ html.layout-stabilizing * {
 .page-header-center,
 .header-actions {
     min-width: 0;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .filters-bar {

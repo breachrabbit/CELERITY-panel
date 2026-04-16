@@ -60,3 +60,14 @@
   - deploy and verify whether the sidebar now truly reaches the bottom on long pages;
   - re-test page transitions for remaining drift;
   - only then continue with the next responsive/UI pass.
+
+- Stats/detail refinement:
+  - renamed user-detail stats toward clearer operator language;
+  - enlarged only the unlimited `∞` indicator;
+  - made sidebar footer controls sticky;
+  - added `24h / 48h` heatmap switching;
+  - added cumulative profile growth to the registrations chart;
+  - tightened shared card/header rhythm.
+- Next step:
+  - deploy and verify the statistics page and user detail page visually;
+  - continue the broader responsive pass if any page still drifts or compresses awkwardly.
