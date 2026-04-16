@@ -64,6 +64,18 @@ function pickPreferredServiceState(...states) {
     return firstKnown || 'unknown';
 }
 
+function calculateEffectiveUserDeviceLimit(user) {
+    const directLimit = parseInt(user?.maxDevices, 10) || 0;
+    if (directLimit === -1) return 0;
+    if (directLimit > 0) return directLimit;
+
+    const groupLimits = (user?.groups || [])
+        .map((group) => parseInt(group?.maxDevices, 10) || 0)
+        .filter((limit) => limit > 0);
+
+    return groupLimits.length ? Math.min(...groupLimits) : 0;
+}
+
 async function applyCascadeDisplayStatus(nodes) {
     const topology = await cascadeService.getTopology().catch(() => null);
     const displayStatusById = new Map(
@@ -427,10 +439,18 @@ router.get('/', async (req, res) => {
         
         const { usersTotal, usersEnabled, nodesTotal, trafficStats } = counts;
 
-        const rawNodes = await HyNode.find({ active: true })
-            .select('name ip status onlineUsers maxOnlineUsers groups traffic type flag rankingCoefficient')
-            .populate('groups', 'name color')
-            .sort({ rankingCoefficient: 1, name: 1 });
+        const [rawNodes, enabledUsers, settings, trafficWindow] = await Promise.all([
+            HyNode.find({ active: true })
+                .select('name ip status onlineUsers maxOnlineUsers groups traffic type flag rankingCoefficient')
+                .populate('groups', 'name color')
+                .sort({ rankingCoefficient: 1, name: 1 }),
+            HyUser.find({ enabled: true })
+                .select('userId maxDevices groups')
+                .populate('groups', 'maxDevices')
+                .lean(),
+            Settings.findOne().lean(),
+            statsService.getTrafficChart('7d'),
+        ]);
 
         const nodes = await applyCascadeDisplayStatus(rawNodes);
         const nodesOnline = nodes.filter(node => node.status === 'online').length;
@@ -438,6 +458,44 @@ router.get('/', async (req, res) => {
         const totalOnline = nodes.reduce((sum, n) => sum + (n.onlineUsers || 0), 0);
         
         const totalTrafficBytes = (trafficStats.tx || 0) + (trafficStats.rx || 0);
+        const gracePeriodMs = ((settings?.deviceGracePeriod ?? 15) * 60 * 1000);
+        const now = Date.now();
+
+        const deviceEntries = await Promise.all(enabledUsers.map(async (user) => {
+            const deviceIPs = user?.userId ? await cache.getDeviceIPs(user.userId) : {};
+            const activeDevices = Object.values(deviceIPs).filter((timestamp) => (
+                now - parseInt(timestamp, 10) < gracePeriodMs
+            )).length;
+
+            return {
+                activeDevices,
+                hasActivity: activeDevices > 0,
+                limit: calculateEffectiveUserDeviceLimit(user),
+            };
+        }));
+
+        const deviceStats = deviceEntries.reduce((acc, entry) => {
+            acc.activeDevices += entry.activeDevices;
+            if (entry.hasActivity) acc.activeProfiles += 1;
+            if (entry.limit > 0) {
+                acc.limitedProfiles += 1;
+                acc.capacity += entry.limit;
+            } else {
+                acc.unlimitedProfiles += 1;
+            }
+            return acc;
+        }, {
+            activeDevices: 0,
+            activeProfiles: 0,
+            limitedProfiles: 0,
+            unlimitedProfiles: 0,
+            capacity: 0,
+        });
+
+        const trafficHistoryPoints = (trafficWindow?.labels || []).map((label, index) => ({
+            label,
+            value: (trafficWindow?.datasets?.tx?.[index] || 0) + (trafficWindow?.datasets?.rx?.[index] || 0),
+        }));
         
         render(res, 'dashboard', {
             title: 'Dashboard',
@@ -451,6 +509,20 @@ router.get('/', async (req, res) => {
                     tx: trafficStats.tx || 0,
                     rx: trafficStats.rx || 0,
                     total: totalTrafficBytes,
+                },
+                trafficWindow: {
+                    period: '7d',
+                    tx: trafficWindow?.totals?.tx || 0,
+                    rx: trafficWindow?.totals?.rx || 0,
+                    total: trafficWindow?.totals?.total || 0,
+                    points: trafficHistoryPoints,
+                },
+                devices: {
+                    activeDevices: deviceStats.activeDevices,
+                    activeProfiles: deviceStats.activeProfiles,
+                    capacity: deviceStats.capacity,
+                    limitedProfiles: deviceStats.limitedProfiles,
+                    unlimitedProfiles: deviceStats.unlimitedProfiles,
                 },
             },
             nodes,

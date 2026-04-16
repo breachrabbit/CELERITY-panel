@@ -2,29 +2,40 @@
 const totalTrafficGB = (stats.traffic?.total || 0) / (1024 * 1024 * 1024);
 const totalTxGB = (stats.traffic?.tx || 0) / (1024 * 1024 * 1024);
 const totalRxGB = (stats.traffic?.rx || 0) / (1024 * 1024 * 1024);
+const trafficWindowTotalGB = (stats.trafficWindow?.total || 0) / (1024 * 1024 * 1024);
+const trafficWindowTxGB = (stats.trafficWindow?.tx || 0) / (1024 * 1024 * 1024);
+const trafficWindowRxGB = (stats.trafficWindow?.rx || 0) / (1024 * 1024 * 1024);
 const formatTrafficDashboard = (gb) => {
     if (gb >= 1000) {
         return (gb / 1024).toFixed(2) + ' TB';
     }
     return gb.toFixed(1) + ' GB';
 };
+const formatTrafficWindowValue = (bytes) => {
+    const kb = bytes / 1024;
+    const mb = bytes / (1024 * 1024);
+    const gb = bytes / (1024 * 1024 * 1024);
+    if (gb >= 1) return gb.toFixed(2) + ' GB';
+    if (mb >= 1) return mb.toFixed(1) + ' MB';
+    if (kb >= 1) return kb.toFixed(0) + ' KB';
+    return Math.max(bytes, 0).toFixed(0) + ' B';
+};
 const nodeHealthPct = stats.nodes.total ? Math.round((stats.nodes.online / stats.nodes.total) * 100) : 0;
 const userHealthPct = stats.users.total ? Math.round((stats.users.enabled / stats.users.total) * 100) : 0;
-const sparklinePoints = (() => {
-    const base = Math.max(totalTrafficGB, totalTxGB + totalRxGB, 0.1);
-    const seed = [
-        Math.max(base * 0.14, 0.04),
-        Math.max(base * 0.29, 0.09),
-        Math.max(base * 0.24, 0.08),
-        Math.max(base * 0.46, 0.13),
-        Math.max(base * 0.38, 0.11),
-        Math.max(base, 0.16)
-    ];
-    return seed.map((value, index) => ({
-        label: `T${index + 1}`,
-        value: Number(value.toFixed(2))
-    }));
-})();
+const sparklinePoints = (stats.trafficWindow?.points || []).length
+    ? stats.trafficWindow.points.map((point) => ({
+        label: point.label,
+        value: Number(((point.value || 0) / (1024 * 1024 * 1024)).toFixed(3)),
+        display: formatTrafficWindowValue(point.value || 0)
+    }))
+    : [{ label: '—', value: 0 }, { label: '—', value: 0.01 }];
+const limitedDeviceCapacity = stats.devices?.capacity || 0;
+const activeDevices = stats.devices?.activeDevices || 0;
+const activeProfiles = stats.devices?.activeProfiles || 0;
+const activeProfilePct = stats.users.enabled ? Math.min(100, Math.round((activeProfiles / stats.users.enabled) * 100)) : 0;
+const deviceUsagePct = limitedDeviceCapacity
+    ? Math.min(100, Math.round((activeDevices / limitedDeviceCapacity) * 100))
+    : Math.min(100, Math.max(activeProfiles ? 100 : 0, Math.round((activeProfiles / Math.max(stats.users.enabled, 1)) * 100)));
 %>
 
 <section class="experience-hero dashboard-hero">
@@ -68,8 +79,8 @@ const sparklinePoints = (() => {
         </div>
         <div class="hero-sparkline-card">
             <div class="sparkline-copy">
-                <span>Трафик за всё время</span>
-                <strong><%= formatTrafficDashboard(totalTrafficGB) %></strong>
+                <span>Трафик за 7 дней</span>
+                <strong><%= formatTrafficDashboard(trafficWindowTotalGB) %></strong>
             </div>
             <div
                 class="sparkline-visual interactive"
@@ -99,8 +110,30 @@ const sparklinePoints = (() => {
                 </div>
             </div>
             <div class="sparkline-foot">
-                <span><i class="ti ti-arrow-up-right"></i> <%= formatTrafficDashboard(totalTxGB) %></span>
-                <span><i class="ti ti-arrow-down-right"></i> <%= formatTrafficDashboard(totalRxGB) %></span>
+                <span><i class="ti ti-arrow-up-right"></i> <%= formatTrafficDashboard(trafficWindowTxGB) %></span>
+                <span><i class="ti ti-arrow-down-right"></i> <%= formatTrafficDashboard(trafficWindowRxGB) %></span>
+            </div>
+        </div>
+        <div class="hero-mini-card hero-device-card">
+            <div class="hero-device-rings">
+                <div class="hero-meter-ring mini" style="--meter-value:<%= activeProfilePct %>;">
+                    <span><%= activeProfiles %></span>
+                </div>
+                <div class="hero-meter-ring mini soft" style="--meter-value:<%= deviceUsagePct %>;">
+                    <span><%= activeDevices %></span>
+                </div>
+            </div>
+            <div class="hero-meter-copy">
+                <strong>Профили и устройства</strong>
+                <span><%= activeProfiles %> активных профилей из <%= stats.users.enabled %></span>
+                <span>
+                    <%= activeDevices %> устройств
+                    <% if (limitedDeviceCapacity) { %>
+                        / <%= limitedDeviceCapacity %> доступных
+                    <% } else { %>
+                        • без жёсткого лимита
+                    <% } %>
+                </span>
             </div>
         </div>
     </div>
@@ -580,7 +613,7 @@ function initTrafficSparkline() {
         focusDot.setAttribute('cx', point.x);
         focusDot.setAttribute('cy', point.y);
         tooltipLabel.textContent = point.label;
-        tooltipValue.textContent = `${point.value.toFixed(2)} ${unit}`.trim();
+        tooltipValue.textContent = point.display || `${point.value.toFixed(2)} ${unit}`.trim();
 
         const left = (point.x / width) * chart.clientWidth;
         tooltip.style.left = `${left}px`;

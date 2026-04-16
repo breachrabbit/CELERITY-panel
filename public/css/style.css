@@ -565,6 +565,12 @@ html.layout-stabilizing * {
     color: var(--brand-navy);
 }
 
+.hero-meter-ring.mini {
+    width: 58px;
+    height: 58px;
+    font-size: 15px;
+}
+
 .hero-meter-ring.soft {
     background:
         radial-gradient(circle closest-side, var(--bg-secondary) 66%, transparent 67%),
@@ -595,6 +601,24 @@ html.layout-stabilizing * {
 .hero-sparkline-card span,
 .hero-mini-card p {
     color: var(--text-secondary);
+}
+
+.hero-device-card {
+    justify-content: space-between;
+}
+
+.hero-device-rings {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.hero-device-card .hero-meter-copy {
+    flex: 1;
+}
+
+.hero-device-card .hero-meter-copy span + span {
+    margin-top: 2px;
 }
 
 .hero-sparkline-card {
@@ -728,6 +752,13 @@ html.layout-stabilizing * {
     justify-content: space-between;
     gap: 10px;
     color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+    .hero-device-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 .settings-shell {
