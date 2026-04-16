@@ -348,6 +348,10 @@ html.layout-stabilizing * {
     flex-shrink: 0;
 }
 
+.mobile-sidebar-controls {
+    display: none;
+}
+
 .logout-btn {
     display: inline-flex;
     align-items: center;
@@ -2811,6 +2815,10 @@ html.layout-stabilizing * {
     display: none;
 }
 
+body.mobile-menu-open {
+    overflow: hidden;
+}
+
 /* Mobile Cards - скрыты по умолчанию (показываются только на мобилке) */
 .mobile-nodes-list,
 .mobile-users-list {
@@ -2945,8 +2953,8 @@ html.layout-stabilizing * {
         background: rgba(0, 0, 0, 0.6);
         opacity: 0;
         visibility: hidden;
-        transition: all 0.3s ease;
-        z-index: 150;
+        transition: opacity 0.24s ease, visibility 0.24s ease;
+        z-index: 240;
     }
     
     .mobile-overlay.active {
@@ -2957,17 +2965,20 @@ html.layout-stabilizing * {
     /* Sidebar Mobile */
     .sidebar {
         position: fixed;
-        left: -280px;
+        left: 0;
         top: 0;
-        width: 280px;
-        height: 100vh;
-        z-index: 200;
-        transition: left 0.3s ease;
+        width: min(88vw, 320px);
+        height: 100dvh;
+        z-index: 260;
+        transform: translateX(-100%);
+        transition: transform 0.28s ease;
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
     }
 
     .sidebar-inner {
-        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-y: auto;
     }
 
     :root.sidebar-collapsed {
@@ -2975,7 +2986,7 @@ html.layout-stabilizing * {
     }
     
     .sidebar.active {
-        left: 0;
+        transform: translateX(0);
     }
     
     /* Content */
@@ -2992,6 +3003,14 @@ html.layout-stabilizing * {
         padding: 16px;
         align-items: flex-start;
         gap: 12px;
+    }
+
+    .topbar-utility {
+        display: none;
+    }
+
+    .topbar-right {
+        margin-left: auto;
     }
     
     .topbar h1 {
@@ -3218,7 +3237,8 @@ html.layout-stabilizing * {
     }
 
     .hero-metrics {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
     }
 
     .hero-meter-card,
@@ -3231,11 +3251,34 @@ html.layout-stabilizing * {
     .hero-meter-card,
     .hero-device-card {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
+        text-align: center;
+    }
+
+    .hero-meter-card .hero-meter-copy,
+    .hero-meter-card .hero-meter-copy strong,
+    .hero-meter-card .hero-meter-copy span {
+        width: 100%;
+        text-align: center;
+        align-items: center;
+    }
+
+    .hero-sparkline-card,
+    .hero-device-card {
+        grid-column: 1 / -1;
     }
 
     .hero-device-rings {
+        width: 100%;
         gap: 10px;
+        justify-content: space-between;
+        padding-inline: 20px;
+    }
+
+    .hero-device-card .hero-meter-copy {
+        width: 100%;
+        text-align: center;
+        align-items: center;
     }
 
     .sparkline-visual {
@@ -3258,6 +3301,25 @@ html.layout-stabilizing * {
 
     .hero-action-row > * {
         width: 100%;
+    }
+
+    .mobile-sidebar-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 4px;
+    }
+
+    .sidebar-footer {
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+
+    .sidebar-footer-toggle {
+        order: 2;
+    }
+
+    .sidebar-footer .logout-btn {
+        order: 3;
     }
     
     /* Nodes table scrollable */

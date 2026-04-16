@@ -28,6 +28,14 @@ const formatTrafficPeriodLabel = (period) => {
         default: return t('dashboard.trafficLive');
     }
 };
+const statusLabel = (status) => {
+    switch (status) {
+        case 'online': return t('common.online');
+        case 'offline': return t('common.offline');
+        case 'error': return t('common.error');
+        default: return status;
+    }
+};
 const nodeHealthPct = stats.nodes.total ? Math.round((stats.nodes.online / stats.nodes.total) * 100) : 0;
 const userHealthPct = stats.users.total ? Math.round((stats.users.enabled / stats.users.total) * 100) : 0;
 const sparklinePoints = (stats.trafficWindow?.points || []).length
@@ -121,7 +129,7 @@ const deviceUsagePct = limitedDeviceCapacity
                 <strong><%= t('dashboard.profilesAndDevices') %></strong>
                 <span><%= activeProfiles %> <%= t('dashboard.activeProfilesHint') %> <%= stats.users.enabled %></span>
                 <span>
-                    <%= activeDevices %> <%= t('dashboard.devices') %>
+                    <%= activeDevices %> <%= tp('common.deviceCount', activeDevices) %>
                     <% if (limitedDeviceCapacity) { %>
                         / <%= limitedDeviceCapacity %> <%= t('dashboard.available') %>
                     <% } else { %>
@@ -140,7 +148,7 @@ const deviceUsagePct = limitedDeviceCapacity
             <span class="stat-trend"><%= t('dashboard.activeUsers') %></span>
         </div>
         <div class="stat-value"><%= stats.users.enabled %></div>
-        <div class="stat-label"><%= t('common.of') %> <%= stats.users.total %> <%= t('nav.users').toLowerCase() %></div>
+        <div class="stat-label"><%= t('common.of') %> <%= stats.users.total %> <%= tp('common.userCount', stats.users.total) %></div>
     </div>
     
     <div class="stat-card stat-nodes">
@@ -149,16 +157,16 @@ const deviceUsagePct = limitedDeviceCapacity
             <span class="stat-trend"><%= t('dashboard.onlineNodes') %></span>
         </div>
         <div class="stat-value"><%= stats.nodes.online %></div>
-        <div class="stat-label"><%= t('common.of') %> <%= stats.nodes.total %> <%= t('nav.nodes').toLowerCase() %></div>
+        <div class="stat-label"><%= t('common.of') %> <%= stats.nodes.total %> <%= tp('common.nodeCount', stats.nodes.total) %></div>
     </div>
     
     <div class="stat-card stat-online">
         <div class="stat-header">
             <span class="stat-icon"><i class="ti ti-world"></i></span>
-            <span class="stat-trend"><%= t('common.now') %></span>
+            <span class="stat-trend"><%= t('dashboard.usersOnline') %></span>
         </div>
         <div class="stat-value" id="onlineCount"><%= stats.onlineUsers %></div>
-        <div class="stat-label"><%= t('common.connections') %></div>
+        <div class="stat-label"><%= tp('common.connectionCount', stats.onlineUsers) %></div>
     </div>
     
     <div class="stat-card stat-traffic">
@@ -205,7 +213,7 @@ const deviceUsagePct = limitedDeviceCapacity
                             </td>
                 </tr>
                 <% } %>
-                <% nodes.forEach(function(node, idx) { const displayStatus = node.displayStatus || node.status; %>
+                <% nodes.forEach(function(node, idx) { const displayStatus = node.displayStatus || node.status; const localizedStatus = statusLabel(displayStatus); %>
                         <tr class="node-row<%= idx >= 20 ? ' node-collapsed' : '' %>" data-nodeid="<%= node._id %>">
                             <td>
                                 <div class="node-cell">
@@ -222,7 +230,7 @@ const deviceUsagePct = limitedDeviceCapacity
                     <td>
                                 <span class="status-indicator status-<%= displayStatus %>">
                                     <span class="status-dot"></span>
-                            <%= displayStatus %>
+                            <%= localizedStatus %>
                         </span>
                     </td>
                             <td class="online-count"><%= node.onlineUsers || 0 %><% if (node.maxOnlineUsers) { %><span class="online-limit">/<%= node.maxOnlineUsers %></span><% } %></td>
@@ -260,7 +268,7 @@ const deviceUsagePct = limitedDeviceCapacity
                             <a href="/panel/nodes/add" class="btn btn-primary btn-sm"><%= t('dashboard.addNode') %></a>
                         </div>
                     <% } %>
-                    <% nodes.forEach(function(node, idx) { const displayStatus = node.displayStatus || node.status; %>
+                    <% nodes.forEach(function(node, idx) { const displayStatus = node.displayStatus || node.status; const localizedStatus = statusLabel(displayStatus); %>
                         <div class="mobile-node-card<%= idx >= 20 ? ' node-collapsed' : '' %>" data-nodeid="<%= node._id %>">
                         <div class="mobile-node-header">
                             <div class="mobile-node-title">
@@ -285,7 +293,7 @@ const deviceUsagePct = limitedDeviceCapacity
                                 </div>
                                 <div class="mobile-stat-item">
                                     <span class="mobile-stat-label"><%= t('common.status') %></span>
-                                    <span class="mobile-stat-value"><%= displayStatus %></span>
+                                    <span class="mobile-stat-value"><%= localizedStatus %></span>
                                 </div>
                                 <div class="mobile-stat-item node-load-mobile" data-nodeid="<%= node._id %>">
                                     <span class="mobile-stat-label"><%= t('dashboard.load') %></span>
@@ -298,7 +306,7 @@ const deviceUsagePct = limitedDeviceCapacity
                             </div>
                             
                             <div class="mobile-node-actions">
-                                <button class="btn btn-sm" onclick="restartNode('<%= node._id %>')" style="flex: 1;"><i class="ti ti-refresh"></i> Restart</button>
+                                <button class="btn btn-sm" onclick="restartNode('<%= node._id %>')" style="flex: 1;"><i class="ti ti-refresh"></i> <%= t('nodes.restart') %></button>
                                 <a href="/panel/nodes/<%= node._id %>" class="btn btn-sm" style="flex: 1;"><i class="ti ti-settings"></i> <%= t('common.settings') %></a>
                                 <a href="/panel/nodes/<%= node._id %>/terminal" class="btn-icon"><i class="ti ti-terminal-2"></i></a>
                             </div>
@@ -400,19 +408,19 @@ const deviceUsagePct = limitedDeviceCapacity
                         <span class="sys-value" id="rpsValue">—</span>
                     </div>
                     <div class="sys-item">
-                        <span class="sys-label">Connections</span>
+                        <span class="sys-label"><%= t('dashboard.connectionsLabel') %></span>
                         <span class="sys-value" id="connectionsValue">—</span>
                     </div>
                     <div class="sys-item">
-                        <span class="sys-label">Redis Keys</span>
+                        <span class="sys-label"><%= t('dashboard.cacheLabel') %></span>
                         <span class="sys-value" id="cacheValue">—</span>
                     </div>
                     <div class="sys-item">
-                        <span class="sys-label">Process</span>
+                        <span class="sys-label"><%= t('dashboard.processLabel') %></span>
                         <span class="sys-value" id="processValue">—</span>
                     </div>
                     <div class="sys-item">
-                        <span class="sys-label">Uptime</span>
+                        <span class="sys-label"><%= t('dashboard.uptime') %></span>
                         <span class="sys-value" id="uptime">—</span>
                     </div>
                 </div>
@@ -521,6 +529,7 @@ const i18n = {
     loading: <%- JSON.stringify(t("common.loading")) %>,
     loadError: <%- JSON.stringify(t("dashboard.loadError")) %>,
     error: <%- JSON.stringify(t("common.error")) %>,
+    online: <%- JSON.stringify(t("common.online")) %>,
     nodeRestarted: <%- JSON.stringify(t("dashboard.nodeRestarted")) %>,
     restartError: <%- JSON.stringify(t("dashboard.restartError")) %>,
     creatingBackup: <%- JSON.stringify(t("dashboard.creatingBackup")) %>,
@@ -1045,8 +1054,8 @@ async function loadNodesStats(onlyIds) {
                 mobileEl.innerHTML = `<span style="color: ${cpuColor}">${cpuPercent}%</span> / ${memPercent}%`;
             }
         } else {
-            if (desktopEl) desktopEl.innerHTML = '<span class="load-placeholder">N/A</span>';
-            if (mobileEl) mobileEl.textContent = 'N/A';
+            if (desktopEl) desktopEl.innerHTML = '<span class="load-placeholder">—</span>';
+            if (mobileEl) mobileEl.textContent = '—';
         }
     };
     
@@ -1111,8 +1120,8 @@ async function loadNodesSpeed(onlyIds) {
                 `;
             }
         } else {
-            if (desktopEl) desktopEl.innerHTML = '<span class="load-placeholder">N/A</span>';
-            if (mobileEl) mobileEl.textContent = 'N/A';
+            if (desktopEl) desktopEl.innerHTML = '<span class="load-placeholder">—</span>';
+            if (mobileEl) mobileEl.textContent = '—';
         }
     };
     
@@ -1191,7 +1200,7 @@ async function restartNode(nodeId) {
         if (data.success) {
             showToast(i18n.nodeRestarted);
             row.querySelector('.status-indicator').className = 'status-indicator status-online';
-            row.querySelector('.status-indicator').innerHTML = '<span class="status-dot"></span>online';
+            row.querySelector('.status-indicator').innerHTML = `<span class="status-dot"></span>${i18n.online}`;
         } else {
             showToast(i18n.error + ': ' + (data.error || 'unknown'), 'error');
         }

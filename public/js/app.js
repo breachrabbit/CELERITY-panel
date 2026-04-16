@@ -141,7 +141,12 @@ function initSidebar() {
     const shouldCollapse = getPreferredSidebarState() === '1' && window.innerWidth > 768;
     setSidebarCollapsed(shouldCollapse, false);
     toggle.addEventListener('click', () => {
-        if (window.innerWidth <= 768) return;
+        if (window.innerWidth <= 768) {
+            if (typeof window.toggleMobileMenu === 'function') {
+                window.toggleMobileMenu(false);
+            }
+            return;
+        }
         setSidebarCollapsed(!document.documentElement.classList.contains('sidebar-collapsed'), true);
     });
     window.addEventListener('resize', () => {

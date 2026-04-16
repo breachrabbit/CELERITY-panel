@@ -45,6 +45,8 @@
     "of": "of",
     "now": "now",
     "connections": "connections",
+    "language": "Language",
+    "menu": "Menu",
     "server": "Server",
     "ports": "Ports",
     "clear": "Clear",
@@ -57,7 +59,27 @@
     "themeSwitcher": "Theme switcher",
     "lightTheme": "Light theme",
     "darkTheme": "Dark theme",
-    "systemTheme": "System theme"
+    "systemTheme": "System theme",
+    "connectionCount": {
+      "one": "{count} connection",
+      "other": "{count} connections"
+    },
+    "userCount": {
+      "one": "{count} user",
+      "other": "{count} users"
+    },
+    "nodeCount": {
+      "one": "{count} node",
+      "other": "{count} nodes"
+    },
+    "deviceCount": {
+      "one": "{count} device",
+      "other": "{count} devices"
+    },
+    "profileCount": {
+      "one": "{count} profile",
+      "other": "{count} profiles"
+    }
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -126,15 +148,20 @@
   "dashboard": {
     "title": "Control Panel",
     "totalUsers": "Total Users",
-    "activeUsers": "active",
+    "activeUsers": "Active users",
     "totalNodes": "Total Nodes",
-    "onlineNodes": "online",
+    "onlineNodes": "Nodes online",
     "totalTraffic": "Total Traffic",
-    "total": "total",
+    "total": "Total traffic",
+    "usersOnline": "Users online",
     "systemInfo": "System Info",
     "cpu": "CPU",
     "memory": "Memory",
     "uptime": "Uptime",
+    "connectionsLabel": "Connections",
+    "processLabel": "Process",
+    "cacheLabel": "Redis Cache",
+    "rpsLabel": "RPS",
     "panelVersion": "Panel Version",
     "quickActions": "Quick Actions",
     "createBackup": "Create Backup",

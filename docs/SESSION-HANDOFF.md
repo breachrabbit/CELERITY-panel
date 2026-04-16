@@ -14,6 +14,22 @@
   - `views/users.ejs`
 - These edits were not finalized in this session and must be reviewed before any deploy.
 
+## 2026-04-16 Mobile / i18n In-Progress Stop-Point
+
+- There is now a reviewed local patch set extending the current shell/UI work in:
+  - `public/css/style.css`
+  - `public/js/app.js`
+  - `src/locales/en.json`
+  - `src/locales/ru.json`
+  - `src/middleware/i18n.js`
+  - `views/layout.ejs`
+  - `views/dashboard.ejs`
+- This batch has already passed:
+  - `git diff --check`
+  - EJS compile for `views/layout.ejs`
+  - EJS compile for `views/dashboard.ejs`
+- It has **not** been committed/deployed yet at this stop-point.
+
 ## Stable / Confirmed
 
 - panel is deployed in Coolify and can be updated from `main`;
@@ -62,6 +78,10 @@
 
 ## Not Done Yet
 
+- responsive/mobile polish is still incomplete:
+  - user specifically reported Android issues with overlapping mobile controls and hard-to-click menu state;
+  - the current local patch moves language/theme controls into mobile sidebar and locks page scroll while menu is open, but this still needs real-device/live verification;
+  - other pages beyond dashboard/layout still need responsive cleanup.
 - shell/layout bug is still unresolved:
   - user reports the design still shifts / drifts outside the browser width;
   - this happens on navigation and in some views;
@@ -105,6 +125,11 @@
   - dark-themed default HAPP color profile has now been added at settings/model level;
   - light preset button has also been added in the panel for Apple-platform testing;
   - still need real-device verification for iOS/macOS behavior and whether light/dark/system can truly follow the client theme automatically.
+
+- localization/pluralization is only partially expanded:
+  - local middleware now supports interpolation and plural forms;
+  - dashboard counters/status strings were updated first;
+  - the rest of the panel still needs a deliberate pass so Russian wording is natural everywhere visible to users/operators.
 
 ## 2026-04-16 UI Follow-Up Update
 

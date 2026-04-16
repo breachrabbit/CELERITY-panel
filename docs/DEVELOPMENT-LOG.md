@@ -189,6 +189,35 @@ Change type:
 - `local patch` — visual consistency and chart UX
 - `stability fix` — dashboard logs height alignment
 
+## 2026-04-16 Mobile Shell and Dashboard Localization Pass
+
+- Continued the responsive/dashboard follow-up after live Android feedback.
+- Moved language/theme controls into the mobile sidebar flow and hid the desktop utility cluster on mobile.
+- Reworked mobile menu behavior:
+  - explicit open/close state;
+  - overlay click closes reliably;
+  - body scroll is locked while mobile menu is open;
+  - sidebar toggle closes the mobile menu instead of trying to collapse desktop shell state.
+- Added interpolation + pluralization support to the local i18n middleware:
+  - `t(key, params)`;
+  - `tp(key, count, params)` with Russian plural rules.
+- Applied the new pluralization layer to visible dashboard counters so Russian labels read naturally (`подключение / подключения / подключений`, etc.).
+- Localized more dashboard/operator UI:
+  - status labels (`Онлайн`, `Офлайн`, `Ошибка`);
+  - restart action on mobile node cards;
+  - dashboard summary headings;
+  - system widget labels (`Подключения`, `Кэш Redis`, `Процесс`, `Аптайм`);
+  - sidebar subtitle now uses the project RU/EN console kicker.
+- Adjusted mobile dashboard hero composition:
+  - top metric cards remain a 2-column grid;
+  - profile/device rings are centered and stretched more evenly across the card width;
+  - mobile cards center their copy more consistently.
+
+Change type:
+
+- `stability fix` — mobile shell/menu interaction
+- `local patch` — dashboard localization and pluralization
+
 ## 2026-04-16 Sticky Sidebar Fix
 
 - Changed the desktop sidebar from a normal grid column with only an inner sticky layer into a viewport-sticky shell block.

@@ -45,10 +45,11 @@
     "of": "из",
     "now": "сейчас",
     "connections": "подключений",
+    "language": "Язык",
+    "menu": "Меню",
     "server": "Сервер",
     "ports": "Порты",
-    "clear": "Очистить"
-    ,
+    "clear": "Очистить",
     "collapse": "Свернуть",
     "expand": "Развернуть",
     "toggleSidebar": "Переключить боковую панель",
@@ -58,7 +59,32 @@
     "themeSwitcher": "Переключение темы",
     "lightTheme": "Светлая тема",
     "darkTheme": "Тёмная тема",
-    "systemTheme": "Системная тема"
+    "systemTheme": "Системная тема",
+    "connectionCount": {
+      "one": "{count} подключение",
+      "few": "{count} подключения",
+      "many": "{count} подключений"
+    },
+    "userCount": {
+      "one": "{count} пользователь",
+      "few": "{count} пользователя",
+      "many": "{count} пользователей"
+    },
+    "nodeCount": {
+      "one": "{count} нода",
+      "few": "{count} ноды",
+      "many": "{count} нод"
+    },
+    "deviceCount": {
+      "one": "{count} устройство",
+      "few": "{count} устройства",
+      "many": "{count} устройств"
+    },
+    "profileCount": {
+      "one": "{count} профиль",
+      "few": "{count} профиля",
+      "many": "{count} профилей"
+    }
   },
   "nav": {
     "dashboard": "Главная",
@@ -127,15 +153,20 @@
   "dashboard": {
     "title": "Панель управления",
     "totalUsers": "Всего пользователей",
-    "activeUsers": "активных",
+    "activeUsers": "Активных пользователей",
     "totalNodes": "Всего нод",
-    "onlineNodes": "онлайн",
+    "onlineNodes": "Ноды онлайн",
     "totalTraffic": "Всего трафика",
-    "total": "всего",
+    "total": "Всего трафика",
+    "usersOnline": "Пользователей в сети",
     "systemInfo": "Система",
     "cpu": "CPU",
     "memory": "Память",
     "uptime": "Аптайм",
+    "connectionsLabel": "Подключения",
+    "processLabel": "Процесс",
+    "cacheLabel": "Кэш Redis",
+    "rpsLabel": "RPS",
     "panelVersion": "Версия панели",
     "quickActions": "Быстрые действия",
     "createBackup": "Создать бэкап",
@@ -161,8 +192,8 @@
     "restoringDb": "Восстановление БД...",
     "dbRestored": "БД восстановлена! Перезагрузка...",
     "restoreConfirm": "Восстановить базу данных из \"{filename}\"?\n\n⚠️ Текущие данные будут заменены!",
-    "backupDb": "Backup БД",
-    "restoreDb": "Restore БД",
+    "backupDb": "Бэкап БД",
+    "restoreDb": "Восстановить БД",
     "showAll": "Показать все",
     "pauseLogs": "Пауза",
     "resumeLogs": "Продолжить",

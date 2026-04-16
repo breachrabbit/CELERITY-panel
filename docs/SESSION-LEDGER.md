@@ -122,3 +122,14 @@
   - deploy and verify that the sidebar stays pinned while pages render normally;
   - visually review the new dashboard/statistics chart language on the live stand;
   - then continue the remaining responsive and users/subscription polish queue.
+
+- Mobile shell/localization continuation:
+  - moved language/theme controls into the mobile menu flow;
+  - made mobile overlay/menu closing explicit and locked body scroll while menu is open;
+  - added Russian/English pluralization support in middleware and applied it to visible dashboard counters;
+  - localized more dashboard labels and status text;
+  - re-centered mobile hero metric cards and profile/device rings.
+- Next step:
+  - deploy and verify mobile menu clickability on Android;
+  - check remaining untranslated strings on dashboard and then continue into other pages;
+  - continue responsive cleanup on statistics, users, settings, and subscription.
