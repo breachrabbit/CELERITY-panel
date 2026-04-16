@@ -197,6 +197,28 @@ After deploy, verify:
 4. `24h / 7d / 30d` traffic totals refresh consistently;
 5. statistics charts feel visually aligned with the dashboard chart language.
 
+## 2026-04-16 Settings / Stats / Subscription Mobile Cleanup
+
+- Prepared another deployable UI batch around adjacent pages after the dashboard recovery:
+  - settings tabs now behave like a horizontal mobile strip instead of wrapping into broken rows;
+  - settings grid and subscription preview surfaces collapse more cleanly on narrow screens;
+  - subscription button-builder rows stack correctly on mobile and the template dropdown/icon picker are less cramped;
+  - statistics mobile chart headers, legends, period selector, and heatmap overflow were softened for phone layouts.
+- Continued wording cleanup:
+  - dashboard traffic period chips now use locale-backed `h/d` labels instead of hardcoded Russian text;
+  - subscription settings preview copy/chips are now locale-backed;
+  - backup restore buttons in settings are locale-backed instead of hardcoded `Restore`;
+  - public subscription page eyebrow no longer shows the stray English `Access Profile`.
+
+### Current Verification Need
+
+After deploy, verify:
+
+1. `Settings` tabs scroll horizontally and remain tap-friendly on mobile;
+2. subscription settings preview and button-builder do not crush into unusable rows on phones;
+3. `Statistics` period selector and heatmap remain readable on mobile widths;
+4. dashboard period pills and backup restore labels switch correctly with `ru/en`.
+
 ## 2026-04-16 Sticky Sidebar Update
 
 - Prepared a shell fix for long-page scrolling:

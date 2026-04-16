@@ -471,23 +471,39 @@
     
     .period-selector {
         width: 100%;
-        justify-content: space-between;
-        flex-wrap: wrap;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-inline: 6px;
+        scrollbar-width: none;
+    }
+
+    .period-selector::-webkit-scrollbar {
+        display: none;
     }
     
     .period-btn {
-        flex: 1;
-        min-width: 50px;
+        flex: 0 0 auto;
+        min-width: 58px;
         padding: 8px 12px;
         font-size: 13px;
     }
     
     .chart-body {
-        height: 280px;
+        height: 300px;
     }
     
     .chart-body-tall {
-        height: 320px;
+        height: 340px;
+    }
+
+    .chart-card .card-header {
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .chart-card .card-header h2 {
+        font-size: 15px;
     }
     
     .traffic-totals {
@@ -497,12 +513,12 @@
     }
 
     .users-heatmap-row {
-        grid-template-columns: 1fr;
-        gap: 8px;
+        min-width: 560px;
     }
 
-    .users-heatmap-cells {
-        gap: 4px;
+    .users-heatmap {
+        overflow-x: auto;
+        padding-bottom: 4px;
     }
 }
 </style>

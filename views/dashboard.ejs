@@ -96,10 +96,10 @@ const deviceUsagePct = limitedDeviceCapacity
             <div class="sparkline-copy">
                 <span class="sparkline-title" data-sparkline-title><%= formatTrafficPeriodLabel(stats.trafficWindow?.period) %></span>
                 <strong><%= formatTrafficDashboard(trafficWindowTotalGB) %></strong>
-                <div class="sparkline-periods" role="group" aria-label="Traffic period">
-                    <button type="button" class="sparkline-period-btn" data-sparkline-period="24h">24ч</button>
-                    <button type="button" class="sparkline-period-btn active" data-sparkline-period="7d">7д</button>
-                    <button type="button" class="sparkline-period-btn" data-sparkline-period="30d">30д</button>
+                <div class="sparkline-periods" role="group" aria-label="<%= t('dashboard.trafficChart') %>">
+                    <button type="button" class="sparkline-period-btn" data-sparkline-period="24h">24<%= t('stats.h') %></button>
+                    <button type="button" class="sparkline-period-btn active" data-sparkline-period="7d">7<%= t('stats.d') %></button>
+                    <button type="button" class="sparkline-period-btn" data-sparkline-period="30d">30<%= t('stats.d') %></button>
                 </div>
             </div>
             <div

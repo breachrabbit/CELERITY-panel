@@ -1095,7 +1095,7 @@ async function generateHTML(user, nodes, token, baseUrl, settings) {
     <div class="container">
         <div class="hero">
             <div class="hero-copy">
-                <span class="eyebrow">Access Profile</span>
+                <span class="eyebrow">Профиль доступа</span>
                 <h1>${logoHtml} ${pageTitle}</h1>
                 <p>Персональная страница подключения с готовой ссылкой, QR-кодом и быстрым импортом в совместимые приложения.</p>
             </div>

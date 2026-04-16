@@ -6,19 +6,19 @@
                 <h2><i class="ti ti-device-mobile"></i> <%= t('settings.subClientApps') || 'Клиентские приложения' %></h2>
                 <p class="hint" style="margin:0;">Оформление страницы подписки, deeplink-кнопки и интеграции с приложениями.</p>
             </div>
-            <span class="feature-badge">Client UX</span>
+            <span class="feature-badge"><%= t('dashboard.settingsClientsKicker') %></span>
         </div>
         <div class="card-body">
             <div class="preview-surface">
                 <div class="preview-surface-copy">
-                    <span class="preview-kicker">Subscription page</span>
-                    <strong>Аккуратная первая точка входа</strong>
-                    <p>Логотип, QR, deeplink-кнопки и персональная ссылка должны выглядеть как единый сервис, а не как техстраница.</p>
+                    <span class="preview-kicker"><%= t('settings.subPreviewKicker') %></span>
+                    <strong><%= t('settings.subPreviewTitle') %></strong>
+                    <p><%= t('settings.subPreviewDescription') %></p>
                 </div>
                 <div class="preview-surface-card preview-subscription-card">
                     <div class="preview-sub-row">
-                        <span class="preview-sub-chip">Link</span>
-                        <span class="preview-sub-chip cyan">QR</span>
+                        <span class="preview-sub-chip"><%= t('settings.subPreviewLinkChip') %></span>
+                        <span class="preview-sub-chip cyan"><%= t('settings.subPreviewQrChip') %></span>
                     </div>
                     <strong><%= settings?.subscription?.pageTitle || 'Подключение' %></strong>
                     <span class="preview-sub-url"><%= settings?.subscription?.supportUrl || 'support.hiddenrabbit.net' %></span>
@@ -173,6 +173,27 @@
             .tpl-item { display:flex; align-items:center; gap:8px; padding:7px 14px; font-size:13px; cursor:pointer; color:var(--text); transition: background .1s; }
             .tpl-item:hover { background:var(--primary); color:#fff; }
             .tpl-item i { font-size:16px; width:20px; text-align:center; }
+            @media (max-width: 768px) {
+                .sub-btn-row {
+                    grid-template-columns: 1fr;
+                }
+                .icon-pick-btn {
+                    width: 100%;
+                }
+                .tpl-dropdown {
+                    position: fixed;
+                    left: 16px;
+                    right: 16px;
+                    bottom: auto;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    min-width: 0;
+                    max-height: min(60dvh, 420px);
+                }
+                .icon-picker {
+                    width: min(320px, calc(100vw - 24px));
+                }
+            }
             </style>
 
             <script>

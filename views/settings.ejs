@@ -75,6 +75,7 @@ const i18n = {
     s3TestError: <%- JSON.stringify(t("settings.s3TestError")) %>,
     createBackupNow: <%- JSON.stringify(t("settings.createBackupNow")) %>,
     creatingBackup: <%- JSON.stringify(t("settings.creatingBackup")) %>,
+    restoreDb: <%- JSON.stringify(t("dashboard.restoreDb")) %>,
     backupCreated: <%- JSON.stringify(t("settings.backupCreated")) %>,
     backupError: <%- JSON.stringify(t("settings.backupError")) %>,
     restoreConfirm: <%- JSON.stringify(t("settings.restoreConfirm") || "Восстановить из этого бэкапа? Текущие данные будут заменены!") %>,
@@ -226,7 +227,7 @@ async function loadBackupsList() {
                             <div style="font-size: 11px; color: var(--text-muted);">${date} • ${b.sizeMB} MB</div>
                         </div>
                         <button class="btn btn-warning btn-sm" onclick="restoreBackup('local', '${b.name}')" style="padding: 4px 10px; font-size: 11px;">
-                            Restore
+                            ${i18n.restoreDb}
                         </button>
                     </div>
                 `;
@@ -246,7 +247,7 @@ async function loadBackupsList() {
                             <div style="font-size: 11px; color: var(--text-muted);">${date} • ${b.sizeMB} MB</div>
                         </div>
                         <button class="btn btn-warning btn-sm" onclick="restoreBackup('s3', '${b.key}')" style="padding: 4px 10px; font-size: 11px;">
-                            Restore
+                            ${i18n.restoreDb}
                         </button>
                     </div>
                 `;

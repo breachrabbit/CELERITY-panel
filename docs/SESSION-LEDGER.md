@@ -143,3 +143,12 @@
   - deploy and verify the dashboard no longer crashes on render;
   - visually check the new double-ring treatment;
   - continue the responsive/mobile cleanup across statistics, settings, and subscription page.
+
+- Mobile/settings/subscription cleanup continuation:
+  - made settings tabs horizontally scrollable on mobile instead of wrapping badly;
+  - collapsed settings and subscription preview surfaces more cleanly for narrow screens;
+  - improved statistics mobile chart headers/legends/heatmap overflow behavior;
+  - localized remaining visible tails in dashboard period chips, subscription settings preview, backup restore buttons, and public subscription eyebrow text.
+- Next step:
+  - deploy and verify `Statistics`, `Settings`, and subscription-related screens on a real phone;
+  - continue the remaining Russian wording pass and then return to ring/visual refinement.

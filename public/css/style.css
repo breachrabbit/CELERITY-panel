@@ -1019,6 +1019,14 @@ html.layout-stabilizing * {
     flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 0.25rem;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.settings-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .settings-tab {
@@ -1032,6 +1040,7 @@ html.layout-stabilizing * {
     font-weight: 500;
     white-space: nowrap;
     transition: all 0.2s;
+    flex: 0 0 auto;
 }
 
 :root[data-theme="dark"] .settings-tab {
@@ -3041,6 +3050,25 @@ body.mobile-menu-open {
         grid-template-columns: 1fr;
         gap: 12px;
     }
+
+    .settings-shell {
+        gap: 14px;
+    }
+
+    .settings-tabs {
+        flex-wrap: nowrap;
+        gap: 8px;
+        margin-inline: -4px;
+        padding-inline: 4px 12px;
+    }
+
+    .settings-tab {
+        padding: 10px 14px;
+    }
+
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
     
     .stat-card {
         padding: 20px;
@@ -3064,6 +3092,21 @@ body.mobile-menu-open {
     
     .col-4, .col-6, .col-8 {
         flex: 1;
+    }
+
+    .preview-surface {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 16px;
+    }
+
+    .preview-surface-card {
+        min-height: 0;
+    }
+
+    .preview-subscription-card strong,
+    .preview-sub-url {
+        word-break: break-word;
     }
     
     /* Page Header */
@@ -3304,6 +3347,31 @@ body.mobile-menu-open {
 
     .sparkline-periods {
         width: fit-content;
+    }
+
+    .chart-card .card-header {
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .chart-card .card-header h2 {
+        font-size: 15px;
+    }
+
+    .chart-legend,
+    .traffic-totals,
+    .heatmap-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .users-heatmap {
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .users-heatmap-row {
+        min-width: 560px;
     }
 
     .sparkline-copy strong {

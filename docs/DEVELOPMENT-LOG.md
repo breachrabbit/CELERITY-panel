@@ -318,3 +318,22 @@ Change type:
 - `local patch` — dashboard traffic sparkline proportion and geometry refinement
 - `stability fix` — fixed desktop shell behavior
 - `local patch` — dashboard chart system migration to Chart.js
+
+## 2026-04-16 Mobile Settings / Stats / Subscription Cleanup Pass
+
+- Continued the post-dashboard cleanup on adjacent surfaces instead of opening new features.
+- Improved mobile/responsive behavior in shared shell CSS:
+  - settings tab strip now scrolls horizontally instead of wrapping into awkward broken rows;
+  - settings grid collapses more cleanly to a single column on narrow screens;
+  - subscription preview surface stacks cleanly on mobile and no longer over-compresses URL/title blocks;
+  - chart headers, legends, and heatmap regions on `Statistics` now wrap/scroll more gracefully on phones.
+- Cleaned visible wording/localization:
+  - localized the dashboard traffic period pills instead of keeping hardcoded `24ч / 7д / 30д`;
+  - localized subscription settings preview labels/chips;
+  - replaced the lingering public subscription-page eyebrow `Access Profile` with `Профиль доступа`;
+  - removed hardcoded `Restore` buttons in settings backup lists and switched them to locale-backed labels.
+
+Change type:
+
+- `local patch` — mobile/responsive cleanup for settings, subscription, and statistics
+- `local override` — visible wording cleanup on dashboard/settings/public subscription page
