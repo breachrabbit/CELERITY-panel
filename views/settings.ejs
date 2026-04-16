@@ -375,7 +375,7 @@ async function resetTraffic() {
 
     const claudeConfig = JSON.stringify({
         mcpServers: {
-            'celerity': {
+            'hidden-rabbit': {
                 type: 'sse',
                 url: endpoint,
                 headers: { Authorization: 'Bearer YOUR_API_KEY' },
@@ -384,7 +384,7 @@ async function resetTraffic() {
     }, null, 2);
 
     const cursorConfig = JSON.stringify({
-        'celerity': {
+        'hidden-rabbit': {
             url: endpoint,
             headers: { Authorization: 'Bearer YOUR_API_KEY' },
         },

@@ -1,11 +1,17 @@
-// Hysteria Panel - Frontend JS
+// Hidden Rabbit Panel - Frontend JS
 
-const THEME_STORAGE_KEY = 'celerity-theme';
-const SIDEBAR_STORAGE_KEY = 'celerity-sidebar-collapsed';
+const THEME_STORAGE_KEY = 'hidden-rabbit-theme';
+const LEGACY_THEME_STORAGE_KEY = 'celerity-theme';
+const SIDEBAR_STORAGE_KEY = 'hidden-rabbit-sidebar-collapsed';
+const LEGACY_SIDEBAR_STORAGE_KEY = 'celerity-sidebar-collapsed';
 
 function getPreferredTheme() {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    const stored = localStorage.getItem(THEME_STORAGE_KEY) || localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
     return ['light', 'dark', 'system'].includes(stored) ? stored : 'system';
+}
+
+function getPreferredSidebarState() {
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY) || localStorage.getItem(LEGACY_SIDEBAR_STORAGE_KEY);
 }
 
 function resolveTheme(mode) {
@@ -52,23 +58,53 @@ function initTheme() {
 function stabilizeLayout() {
     const root = document.documentElement;
     root.classList.add('layout-stabilizing');
+    syncShellDimensions();
     void document.body.offsetWidth;
     window.dispatchEvent(new Event('resize'));
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
+            syncShellDimensions();
             root.classList.remove('layout-stabilizing');
         });
     });
 }
 
+function syncShellDimensions() {
+    const root = document.documentElement;
+    const app = document.querySelector('.app');
+    const content = document.querySelector('.content');
+
+    if (!app || !content || window.innerWidth <= 768) {
+        root.style.removeProperty('--shell-sidebar-height');
+        return;
+    }
+
+    const targetHeight = Math.max(
+        window.innerHeight,
+        Math.ceil(app.scrollHeight || 0),
+        Math.ceil(content.scrollHeight || 0),
+        Math.ceil(content.getBoundingClientRect().height || 0)
+    );
+
+    root.style.setProperty('--shell-sidebar-height', `${targetHeight}px`);
+}
+
 function initLayoutStability() {
     window.addEventListener('load', stabilizeLayout);
     window.addEventListener('pageshow', stabilizeLayout);
+    window.addEventListener('resize', syncShellDimensions);
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') stabilizeLayout();
     });
     if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => stabilizeLayout()).catch(() => {});
+    }
+    if (typeof ResizeObserver !== 'undefined') {
+        const content = document.querySelector('.content');
+        if (content) {
+            const observer = new ResizeObserver(() => syncShellDimensions());
+            observer.observe(content);
+        }
     }
 }
 
@@ -99,7 +135,7 @@ function setSidebarCollapsed(collapsed, persist = false) {
 function initSidebar() {
     const toggle = document.getElementById('sidebarToggle');
     if (!toggle) return;
-    const shouldCollapse = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1' && window.innerWidth > 768;
+    const shouldCollapse = getPreferredSidebarState() === '1' && window.innerWidth > 768;
     setSidebarCollapsed(shouldCollapse, false);
     toggle.addEventListener('click', () => {
         if (window.innerWidth <= 768) return;
@@ -109,9 +145,10 @@ function initSidebar() {
         if (window.innerWidth <= 768) {
             document.documentElement.classList.remove('sidebar-collapsed');
         } else {
-            const collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
+            const collapsed = getPreferredSidebarState() === '1';
             document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
         }
+        syncShellDimensions();
     });
 }
 

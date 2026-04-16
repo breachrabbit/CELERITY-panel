@@ -46,6 +46,7 @@
     --transition: 0.15s ease;
     --sidebar-width: 260px;
     --sidebar-collapsed-width: 84px;
+    --shell-sidebar-height: 100dvh;
 }
 
 :root[data-theme="dark"] {
@@ -128,7 +129,8 @@ html.layout-stabilizing * {
 .app {
     display: grid;
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-    min-height: 100vh;
+    min-height: 100dvh;
+    height: auto;
     align-items: stretch;
     width: 100%;
     max-width: 100%;
@@ -144,8 +146,8 @@ html.layout-stabilizing * {
     border-right: 1px dashed var(--border);
     display: block;
     position: relative;
-    min-height: 100%;
-    height: auto;
+    min-height: var(--shell-sidebar-height);
+    height: 100%;
     z-index: 100;
     min-width: 0;
     align-self: stretch;
@@ -154,7 +156,7 @@ html.layout-stabilizing * {
 .sidebar-inner {
     position: sticky;
     top: 0;
-    min-height: 100dvh;
+    min-height: min(100dvh, var(--shell-sidebar-height));
     display: flex;
     flex-direction: column;
     background: inherit;
@@ -358,10 +360,12 @@ html.layout-stabilizing * {
 .content {
     width: 100%;
     max-width: 100%;
-    min-height: 100vh;
+    min-height: 100dvh;
     min-width: 0;
     overflow-x: hidden;
     position: relative;
+    display: flex;
+    flex-direction: column;
     background:
         radial-gradient(circle at top right, rgba(8, 197, 203, 0.02), transparent 22%),
         radial-gradient(circle at 16% 12%, rgba(5, 10, 60, 0.018) 0 0.9px, transparent 1.2px),
@@ -372,7 +376,6 @@ html.layout-stabilizing * {
     background-size: auto, 34px 34px, 54px 54px, 78px 78px, auto;
     background-position: 0 0, 0 0, 7px 11px, 19px 15px, 0 0;
     transition: none;
-    contain: inline-size;
 }
 
 :root[data-theme="dark"] .content {
@@ -521,11 +524,12 @@ html.layout-stabilizing * {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
-    contain: inline-size;
+    flex: 1 1 auto;
 }
 
 .main-content > * {
     max-width: 100%;
+    width: 100%;
 }
 
 .experience-hero {
@@ -537,11 +541,12 @@ html.layout-stabilizing * {
     border: 1px dashed var(--border);
     border-radius: 18px;
     background:
-        linear-gradient(rgba(5,10,60,0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(5,10,60,0.06) 1px, transparent 1px),
+        radial-gradient(circle at 14% 18%, rgba(5, 10, 60, 0.03) 0 1px, transparent 1.3px),
+        radial-gradient(circle at 76% 36%, rgba(5, 10, 60, 0.02) 0 0.9px, transparent 1.2px),
+        radial-gradient(circle at 44% 72%, rgba(5, 10, 60, 0.018) 0 0.8px, transparent 1.1px),
         var(--bg-secondary);
-    background-size: 84px 84px, 84px 84px, auto;
-    background-position: right -1px bottom -1px, right -1px bottom -1px, 0 0;
+    background-size: 38px 38px, 64px 64px, 88px 88px, auto;
+    background-position: 0 0, 8px 16px, 18px 12px, 0 0;
     box-shadow: none;
     overflow: hidden;
     position: relative;
@@ -550,11 +555,12 @@ html.layout-stabilizing * {
 
 :root[data-theme="dark"] .experience-hero {
     background:
-        linear-gradient(rgba(191,208,235,0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(191,208,235,0.05) 1px, transparent 1px),
+        radial-gradient(circle at 16% 18%, rgba(221, 229, 237, 0.045) 0 1px, transparent 1.3px),
+        radial-gradient(circle at 70% 34%, rgba(221, 229, 237, 0.03) 0 0.9px, transparent 1.2px),
+        radial-gradient(circle at 48% 74%, rgba(221, 229, 237, 0.024) 0 0.8px, transparent 1.1px),
         var(--bg-secondary);
-    background-size: 84px 84px, 84px 84px, auto;
-    background-position: right -1px bottom -1px, right -1px bottom -1px, 0 0;
+    background-size: 38px 38px, 64px 64px, 88px 88px, auto;
+    background-position: 0 0, 8px 16px, 18px 12px, 0 0;
 }
 
 .experience-hero::after {

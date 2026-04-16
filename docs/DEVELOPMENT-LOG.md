@@ -120,3 +120,22 @@ Change type:
 Change type:
 
 - `local patch` — shell stretch, accent cleanup, users UX, and HAPP theming defaults
+
+## 2026-04-16 Shell Continuation and MCP Rebrand Cleanup
+
+- Continued the shell/layout stabilization pass after the deployable UI follow-up.
+- Added JS-driven shell height synchronization:
+  - calculates `--shell-sidebar-height`;
+  - syncs on `load`, `pageshow`, `resize`, `visibilitychange`, and `ResizeObserver`.
+- Removed `contain: inline-size` from key shell containers to reduce the chance of page-width drift on some browser/window states.
+- Switched content shell to a more stable flex-column arrangement.
+- Softened the remaining hero/grid texture toward the calmer paper-noise direction.
+- Renamed frontend preference storage keys from `celerity-*` to `hidden-rabbit-*` while keeping legacy fallback.
+- Continued visible rebrand cleanup:
+  - MCP settings snippets now use `hidden-rabbit`;
+  - MCP route server info now reports `hidden-rabbit-panel`.
+
+Change type:
+
+- `stability fix` — shell height synchronization and width-drift mitigation
+- `local override` — MCP-visible brand cleanup

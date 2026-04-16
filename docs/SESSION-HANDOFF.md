@@ -199,3 +199,32 @@ The user still reports that the layout can drift on the live stand, so this fix 
 1. Open the live stand and switch between `Dashboard / Statistics / Nodes / Users / Settings`.
 2. Confirm whether the right edge still drifts off-screen.
 3. Confirm dashboard/topbar copy is now consistently localized in both `ru` and `en`.
+
+## 2026-04-16 Shell Continuation Update
+
+- Continued the shell stabilization pass after the last deployable batch instead of branching into new features.
+- Strengthened the shell in code:
+  - replaced viewport-only assumptions with a calculated `--shell-sidebar-height` CSS variable;
+  - added client-side shell-dimension syncing in `public/js/app.js` using `ResizeObserver`, `resize`, `load`, and `pageshow`;
+  - removed `contain: inline-size` from `.content` and `.main-content`, because it remained a likely contributor to the width-drift behavior on some browser/window combinations;
+  - converted `.content` into a flex column so the shell height is less brittle on long pages.
+- Continued visual normalization:
+  - replaced the remaining square/grid feel in the main hero surface with the calmer paper-noise direction;
+  - renamed client storage keys from `celerity-*` to `hidden-rabbit-*` with legacy fallback so existing users do not lose preferences.
+- Continued rebrand cleanup:
+  - MCP UI snippets now use `hidden-rabbit` instead of `celerity`;
+  - MCP server info now reports `hidden-rabbit-panel`.
+
+### Current Verification Need
+
+This pass is specifically aimed at:
+
+1. left sidebar full-height behavior on long `Settings` pages;
+2. persistent layout drift / right-edge shift after page switches;
+3. confirming that the calmer paper-noise and hero background direction still fit both light and dark themes.
+
+### Immediate Next Check
+
+1. Verify `Settings` on the live stand and confirm the sidebar reaches the bottom.
+2. Re-test page transitions for the drift bug.
+3. If drift remains, inspect the exact page/layout combination and continue with a targeted shell fix rather than more broad CSS churn.

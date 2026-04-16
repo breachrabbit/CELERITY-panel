@@ -48,3 +48,12 @@
   - users list actions were expanded and visually clarified;
   - HAPP settings now ship with a dark default color profile plus light/dark preset buttons;
   - next step is live verification on the stand and then another responsive/layout pass where needed.
+
+- Shell continuation:
+  - added JS-based shell height syncing for the sidebar/content relationship;
+  - removed width-containment from core shell containers to further reduce drift risk;
+  - continued rebrand cleanup in frontend storage keys and MCP-visible names.
+- Next step:
+  - deploy and verify whether the sidebar now truly reaches the bottom on long pages;
+  - re-test page transitions for remaining drift;
+  - only then continue with the next responsive/UI pass.

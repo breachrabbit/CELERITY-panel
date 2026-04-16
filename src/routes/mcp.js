@@ -25,7 +25,7 @@ const mcpService = require('../services/mcpService');
 const logger = require('../utils/logger');
 const { requireScope } = require('../middleware/auth');
 
-const SERVER_INFO = { name: 'celerity', version: '1.0.0' };
+const SERVER_INFO = { name: 'hidden-rabbit-panel', version: '1.0.0' };
 const PROTOCOL_VERSION = '2024-11-05';
 const CAPABILITIES = { tools: {}, prompts: {} };
 
