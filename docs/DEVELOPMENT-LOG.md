@@ -218,6 +218,25 @@ Change type:
 - `stability fix` — mobile shell/menu interaction
 - `local patch` — dashboard localization and pluralization
 
+## 2026-04-16 Xray Session Telemetry and Dashboard Ratio Cleanup
+
+- Added true Xray session telemetry foundation:
+  - `cc-agent` now exposes authenticated `/sessions`;
+  - agent parses Xray access log records into active sessions;
+  - panel polls `/stats` and `/sessions` together when supported;
+  - Redis activity records now preserve real session metadata such as client address.
+- Updated Xray config generation and node setup so Xray access/error logs are prepared for session tracking.
+- Kept backward compatibility with older agents by falling back to `/stats` when `/sessions` is not available.
+- Normalized dashboard ratio labels so numeric relationships use `/` instead of mixed `из` wording.
+- Deployed the latest state to the Coolify stand and confirmed the application returned `running:healthy`.
+
+Change type:
+
+- `local patch` — true Xray session telemetry foundation
+- `stability fix` — backward-compatible agent polling
+- `local patch` — dashboard ratio label cleanup
+- `deployment` — Coolify stand updated from `main`
+
 ## 2026-04-16 Dashboard Ring Iteration Continuation
 
 - Replaced the earlier SVG-based dashboard ring rendering with a simpler CSS pseudo-layer approach:

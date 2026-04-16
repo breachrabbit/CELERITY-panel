@@ -608,3 +608,117 @@ After deploy, verify on Android / mobile browser:
 1. Keep one Xray client connected and generate traffic.
 2. Wait for the next agent stats poll.
 3. Verify `Profiles and devices` and user detail activity move from estimated/fallback to Redis-backed active entries.
+
+## 2026-04-16 Xray True Session Telemetry + Ratio Label Cleanup
+
+- Current repo state: `main` is clean and matches `origin/main`.
+- Current deployed stand: `https://tunnel.hiddenrabbit.net.ru/panel`.
+- Latest deployed code commit:
+  - `9e2bed1 — fix: normalize dashboard ratio labels`
+- Important previous telemetry commit:
+  - `f519a93 — feat: add xray session telemetry foundation`
+
+### What Was Completed
+
+- Added a true Xray session telemetry foundation:
+  - `cc-agent` now has authenticated `GET /sessions`;
+  - `cc-agent` parses Xray `access.log` and extracts active sessions;
+  - panel polls `/stats` and `/sessions` together when the agent supports it;
+  - panel writes real Xray session activity into Redis when `/sessions` is available;
+  - older agents gracefully continue using `/stats` fallback.
+- Xray generated config now enables access/error logs:
+  - `/var/log/xray/access.log`
+  - `/var/log/xray/error.log`
+- Node setup now creates the Xray log directory/files and writes agent config fields:
+  - `access_log`;
+  - `session_window_seconds`.
+- User/device activity data now stores extra fields for true sessions:
+  - `remoteIp`;
+  - `clientAddr`;
+  - source label `xray-agent-sessions`.
+- Dashboard ratio labels were normalized:
+  - numeric relationships should use `/` instead of `из`;
+  - examples:
+    - `2 / 2 включены`;
+    - `0 активных профилей / 2`;
+    - `0 устройств / 10 доступно`.
+
+### Verification Already Done
+
+- Node syntax checks passed for touched JS service files.
+- Locale JSON parsing passed.
+- `git diff --check` passed.
+- `cc-agent` Go tests passed with local cache path:
+  - `GOCACHE=/tmp/codex-go-build-cache go test ./...`
+- Coolify deploy completed successfully.
+- Application status after deploy:
+  - `running:healthy`.
+
+### Critical Caveat
+
+- The deployed panel side is ready for `/sessions`, but existing Xray nodes will not expose true sessions until their `cc-agent` binary and Xray config are refreshed.
+- For true per-device/session attribution on live nodes, the next session must:
+  - build or install the updated `cc-agent` binary on the test Xray node(s);
+  - regenerate or patch Xray config so access logs are enabled;
+  - restart Xray and `cc-agent`;
+  - verify `/sessions` returns active records;
+  - verify user detail shows `Xray-сессия` / real client IP rather than fallback-only stats.
+
+### Immediate Next Work
+
+1. Roll out updated `cc-agent` to a test node and verify real `/sessions` telemetry.
+2. Re-test Android mobile menu accessibility; it was still a recurring issue earlier.
+3. Continue responsive/mobile cleanup on:
+   - Statistics;
+   - Users;
+   - Settings;
+   - subscription page.
+4. Continue visual polish:
+   - chart consistency;
+   - dashboard mobile rhythm;
+   - remaining Russian labels/plurals;
+   - remaining visible Celerity references.
+
+### Prompt For Next Session
+
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+
+Потом сразу приступай к работе без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связанный с Rabbit Platform;
+- continuity docs являются source of truth;
+- main чистый и уже выкатан на https://tunnel.hiddenrabbit.net.ru/panel;
+- последний выкатанный коммит: 9e2bed1 — fix: normalize dashboard ratio labels;
+- важный предыдущий коммит: f519a93 — feat: add xray session telemetry foundation.
+
+Что уже сделано:
+- панель умеет опрашивать новый cc-agent endpoint /sessions;
+- cc-agent умеет парсить /var/log/xray/access.log;
+- Xray setup теперь готовит access/error logs;
+- старые агенты продолжают работать через /stats fallback;
+- dashboard labels теперь используют "/" вместо "из" в числовых отношениях.
+
+Приоритет:
+1. сначала доведи true Xray per-device/session telemetry на живой тестовой ноде:
+   - собрать/установить обновленный cc-agent;
+   - включить/проверить /var/log/xray/access.log;
+   - перезапустить Xray и cc-agent;
+   - проверить GET /sessions на ноде;
+   - проверить user detail в панели: реальная Xray-сессия, IP клиента, node attribution;
+2. затем вернись к Android mobile menu accessibility;
+3. потом продолжай responsive cleanup для Statistics / Users / Settings / subscription page;
+4. потом продолжай визуальную унификацию графиков, русских подписей и удаление оставшихся Celerity references.
+
+Важно:
+- не смешивай agent rollout/debug commit с UI cleanup;
+- если меняешь continuity docs, делай это отдельным docs-коммитом;
+- после существенного шага снова обнови SESSION-HANDOFF, DEVELOPMENT-LOG и SESSION-LEDGER.
+```

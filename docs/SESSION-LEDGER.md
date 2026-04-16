@@ -219,6 +219,22 @@
   - confirm that the user detail page shows a readable Xray activity source and node name;
   - then continue either true per-device agent support or Android mobile-menu accessibility.
 
+- Xray true session telemetry continuation:
+  - added `/sessions` support to `cc-agent`;
+  - enabled panel-side polling/consumption of real Xray session records;
+  - prepared Xray config/node setup for access logs;
+  - preserved fallback behavior for old agents;
+  - normalized dashboard numeric ratio labels to use `/` instead of `из`.
+- Finished with:
+  - `main` clean and matching `origin/main`;
+  - latest deployed commit `9e2bed1`;
+  - Coolify deployment finished and app status `running:healthy`.
+- Next step:
+  - install/update the new `cc-agent` binary on a test Xray node;
+  - verify Xray access logs and `GET /sessions`;
+  - confirm real session/client IP attribution in the panel;
+  - then return to Android mobile menu accessibility and responsive page cleanup.
+
 - Mobile menu accessibility continuation:
   - moved the mobile overlay into the `.app` shell to avoid stacking-context mismatch;
   - raised sidebar over overlay explicitly and kept page content blocked while the menu is open;
