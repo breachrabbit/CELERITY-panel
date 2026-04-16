@@ -334,7 +334,7 @@ const deviceUsagePct = limitedDeviceCapacity
 </div>
 
         <!-- Logs -->
-        <div class="card mt-2">
+        <div class="card mt-2 logs-card">
             <div class="card-header">
                 <h2>
                     <span class="logs-status-dot" id="logsStatusDot"></span>
@@ -712,7 +712,8 @@ function initTrafficSparkline() {
         line.setAttribute('d', linePath);
         area.setAttribute('d', areaPath);
 
-        const step = Math.max(1, Math.ceil(points.length / 6));
+        const desiredMarkers = Math.max(4, Math.floor((chart.clientWidth || 320) / 72));
+        const step = Math.max(1, Math.ceil(points.length / desiredMarkers));
         pointsGroup.innerHTML = points
             .filter((point, index) => index === 0 || index === points.length - 1 || index % step === 0)
             .map((point, index) => `<circle class="sparkline-point" data-index="${points.indexOf(point)}" cx="${point.x}" cy="${point.y}" r="3.5"></circle>`)

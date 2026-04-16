@@ -129,6 +129,7 @@ html.layout-stabilizing * {
     display: grid;
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     min-height: 100vh;
+    align-items: stretch;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -145,10 +146,11 @@ html.layout-stabilizing * {
     flex-direction: column;
     position: sticky;
     top: 0;
-    height: 100vh;
+    min-height: 100vh;
+    height: 100%;
     z-index: 100;
     min-width: 0;
-    align-self: start;
+    align-self: stretch;
 }
 
 :root[data-theme="dark"] .sidebar {
@@ -213,13 +215,13 @@ html.layout-stabilizing * {
 }
 
 .sidebar-toggle {
-    min-width: 38px;
-    height: 38px;
-    padding: 0 12px;
-    border: 1px dashed var(--border);
-    border-radius: 999px;
+    width: 100%;
+    min-height: 44px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     background: var(--bg-secondary);
-    color: var(--text-secondary);
+    color: var(--text-muted);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -228,13 +230,14 @@ html.layout-stabilizing * {
     transition: var(--transition);
     flex-shrink: 0;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
 }
 
 .sidebar-toggle:hover {
+    background: var(--bg-hover);
     color: var(--text-primary);
     border-color: var(--accent);
-    background: var(--bg-hover);
 }
 
 .sidebar-toggle-label {
@@ -311,6 +314,9 @@ html.layout-stabilizing * {
 .sidebar-footer {
     padding: 16px;
     border-top: 1px dashed var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .logout-btn {
@@ -329,6 +335,12 @@ html.layout-stabilizing * {
     font-weight: 500;
 }
 
+.sidebar-toggle i,
+.logout-btn i {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
 .logout-btn:hover {
     background: var(--danger);
     border-color: var(--danger);
@@ -344,20 +356,28 @@ html.layout-stabilizing * {
     overflow-x: hidden;
     position: relative;
     background:
-        radial-gradient(circle at top right, rgba(8, 197, 203, 0.035), transparent 24%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0)),
-        repeating-linear-gradient(135deg, rgba(5, 10, 60, 0.015) 0 1px, transparent 1px 36px),
+        radial-gradient(circle at top right, rgba(8, 197, 203, 0.028), transparent 24%),
+        radial-gradient(circle, rgba(5, 10, 60, 0.022) 0 1px, transparent 1.4px),
+        radial-gradient(circle, rgba(5, 10, 60, 0.014) 0 1px, transparent 1.6px),
+        radial-gradient(circle, rgba(5, 10, 60, 0.01) 0 1px, transparent 1.8px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0)),
         var(--bg-primary);
+    background-size: auto, 22px 22px, 30px 30px, 36px 36px, auto;
+    background-position: 0 0, 0 0, 11px 9px, 18px 14px, 0 0;
     transition: none;
     contain: inline-size;
 }
 
 :root[data-theme="dark"] .content {
     background:
-        radial-gradient(circle at top right, rgba(8, 197, 203, 0.06), transparent 24%),
-        linear-gradient(180deg, rgba(17, 29, 76, 0.24), rgba(17, 29, 76, 0)),
-        repeating-linear-gradient(135deg, rgba(191, 208, 235, 0.02) 0 1px, transparent 1px 36px),
+        radial-gradient(circle at top right, rgba(8, 197, 203, 0.05), transparent 24%),
+        radial-gradient(circle, rgba(191, 208, 235, 0.034) 0 1px, transparent 1.5px),
+        radial-gradient(circle, rgba(191, 208, 235, 0.022) 0 1px, transparent 1.7px),
+        radial-gradient(circle, rgba(191, 208, 235, 0.016) 0 1px, transparent 2px),
+        linear-gradient(180deg, rgba(17, 29, 76, 0.2), rgba(17, 29, 76, 0)),
         var(--bg-primary);
+    background-size: auto, 24px 24px, 32px 32px, 38px 38px, auto;
+    background-position: 0 0, 0 0, 10px 8px, 17px 13px, 0 0;
 }
 
 .topbar {
@@ -439,8 +459,8 @@ html.layout-stabilizing * {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 0 12px;
+    gap: 0;
+    padding: 0;
     border: 0;
     border-radius: 999px;
     background: transparent;
@@ -462,26 +482,12 @@ html.layout-stabilizing * {
 }
 
 .theme-btn-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0;
-    white-space: nowrap;
+    display: none;
 }
 
 :root[data-theme="dark"] .theme-btn.active {
     background: var(--brand-cyan);
     color: var(--brand-navy);
-}
-
-@media (max-width: 1080px) {
-    .theme-btn {
-        min-width: 34px;
-        padding: 0;
-    }
-
-    .theme-btn-label {
-        display: none;
-    }
 }
 
 .status-dot {
@@ -517,7 +523,7 @@ html.layout-stabilizing * {
 
 .experience-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.95fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     margin-bottom: 24px;
     padding: 24px 28px;
@@ -586,7 +592,7 @@ html.layout-stabilizing * {
     font-family: var(--font-heading);
     font-size: clamp(28px, 3.6vw, 40px);
     line-height: 1.02;
-    max-width: 12ch;
+    max-width: 14ch;
 }
 
 .hero-copy p,
@@ -601,6 +607,11 @@ html.layout-stabilizing * {
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+}
+
+.hero-action-row .btn,
+.hero-action-row .hero-link-chip {
+    flex: 0 0 auto;
 }
 
 .hero-link-chip {
@@ -622,11 +633,17 @@ html.layout-stabilizing * {
 .hero-metrics,
 .settings-hero-grid {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
     align-content: stretch;
     position: relative;
     z-index: 1;
     min-width: 0;
+}
+
+.hero-sparkline-card,
+.hero-device-card {
+    grid-column: 1 / -1;
 }
 
 .hero-meter-card,
@@ -640,6 +657,7 @@ html.layout-stabilizing * {
     border: 1px dashed var(--border);
     background: var(--bg-secondary);
     min-width: 0;
+    min-height: 112px;
 }
 
 :root[data-theme="dark"] .hero-meter-card,
@@ -762,6 +780,7 @@ html.layout-stabilizing * {
 
 .hero-device-card {
     justify-content: space-between;
+    align-items: center;
 }
 
 .hero-device-rings {
@@ -831,8 +850,9 @@ html.layout-stabilizing * {
 }
 
 .sparkline-visual {
+    --sparkline-height: clamp(184px, 24vw, 240px);
     position: relative;
-    min-height: 152px;
+    min-height: var(--sparkline-height);
     border-radius: 18px;
     border: 1px dashed rgba(5,10,60,0.12);
     background:
@@ -859,7 +879,7 @@ html.layout-stabilizing * {
 .sparkline-svg {
     display: block;
     width: 100%;
-    height: 152px;
+    height: var(--sparkline-height);
 }
 
 .sparkline-area {
@@ -922,6 +942,7 @@ html.layout-stabilizing * {
     box-shadow: none;
     pointer-events: none;
     z-index: 2;
+    max-width: min(220px, calc(100% - 20px));
 }
 
 :root[data-theme="dark"] .sparkline-tooltip {
@@ -946,6 +967,7 @@ html.layout-stabilizing * {
     justify-content: space-between;
     gap: 10px;
     color: var(--text-secondary);
+    flex-wrap: wrap;
 }
 
 @media (max-width: 900px) {
@@ -1135,7 +1157,7 @@ html.layout-stabilizing * {
 /* Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
     margin-bottom: 32px;
     width: 100%;
@@ -1774,7 +1796,7 @@ html.layout-stabilizing * {
     min-width: 0;
     width: 100%;
     max-width: 100%;
-    align-items: start;
+    align-items: stretch;
 }
 
 .dashboard-main {
@@ -1784,6 +1806,7 @@ html.layout-stabilizing * {
     min-width: 0;
     width: 100%;
     overflow: hidden;
+    min-height: 100%;
 }
 
 .dashboard-sidebar {
@@ -1793,6 +1816,20 @@ html.layout-stabilizing * {
     min-width: 0;
     width: 100%;
     overflow: hidden;
+    min-height: 100%;
+}
+
+.logs-card {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.logs-card .card-body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 /* Nodes Table */
@@ -1937,7 +1974,9 @@ html.layout-stabilizing * {
 
 /* Logs */
 .logs-container {
-    max-height: 300px;
+    height: 100%;
+    min-height: 420px;
+    max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
     font-family: 'JetBrains Mono', monospace;
@@ -2760,13 +2799,32 @@ html.layout-stabilizing * {
 }
 
 /* Responsive */
-@media (max-width: 1200px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+@media (max-width: 1380px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
+
+    .dashboard-sidebar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+}
+
+@media (max-width: 1200px) {
+    .hero-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-sparkline-card,
+    .hero-device-card {
+        grid-column: auto;
+    }
+
+    .dashboard-sidebar {
+        grid-template-columns: 1fr;
+    }
+
     .settings-grid {
         grid-template-columns: 1fr;
     }
@@ -2881,6 +2939,8 @@ html.layout-stabilizing * {
     .topbar {
         position: relative;
         padding: 16px;
+        align-items: flex-start;
+        gap: 12px;
     }
     
     .topbar h1 {
@@ -3048,6 +3108,7 @@ html.layout-stabilizing * {
     
     /* Logs Container Mobile */
     .logs-container {
+        min-height: 200px;
         max-height: 200px;
         font-size: 11px;
     }
@@ -3097,6 +3158,54 @@ html.layout-stabilizing * {
     .dashboard-sidebar {
         width: 100%;
         margin-top: 0;
+    }
+
+    .experience-hero {
+        padding: 18px;
+        gap: 16px;
+        border-radius: 14px;
+    }
+
+    .hero-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-meter-card,
+    .hero-mini-card,
+    .hero-sparkline-card {
+        padding: 14px;
+        min-height: auto;
+    }
+
+    .hero-meter-card,
+    .hero-device-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hero-device-rings {
+        gap: 10px;
+    }
+
+    .sparkline-visual {
+        --sparkline-height: 196px;
+    }
+
+    .sparkline-copy {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sparkline-periods {
+        width: fit-content;
+    }
+
+    .sparkline-copy strong {
+        font-size: 22px;
+    }
+
+    .hero-action-row > * {
+        width: 100%;
     }
     
     /* Nodes table scrollable */
@@ -3173,12 +3282,13 @@ html.layout-stabilizing * {
 
 /* Language Switcher */
 .lang-switcher {
-    display: flex;
+    display: inline-flex;
+    align-items: center;
     gap: 4px;
-    background: var(--bg-tertiary);
     padding: 4px;
-    border-radius: var(--radius-sm);
-    border: 1px dashed var(--border);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-secondary);
 }
 
 .lang-switcher-top {
@@ -3187,39 +3297,40 @@ html.layout-stabilizing * {
 }
 
 .lang-switcher-topbar {
-    min-width: 96px;
-    background: var(--bg-secondary);
+    min-width: 104px;
 }
 
 .lang-btn {
     flex: 1;
-    padding: 6px 12px;
+    min-width: 44px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
     text-align: center;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     color: var(--text-secondary);
     text-decoration: none;
-    border-radius: var(--radius-xs);
-    transition: var(--transition);
+    border-radius: 999px;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .lang-btn:hover {
-    color: var(--text-primary);
-    background: var(--bg-hover);
+    background: var(--accent-soft);
+    color: var(--accent);
+    transform: translateY(-1px);
 }
 
 .lang-btn.active {
     color: #ffffff;
-    background: var(--accent);
+    background: var(--brand-navy);
 }
 
 :root[data-theme="dark"] .lang-btn.active {
     color: var(--brand-navy);
-}
-
-:root.sidebar-collapsed .sidebar-controls {
-    justify-content: center;
-    padding: 14px 10px 0;
+    background: var(--brand-cyan);
 }
 
 :root.sidebar-collapsed .logo {
@@ -3260,8 +3371,9 @@ html.layout-stabilizing * {
     padding: 12px 10px 16px;
 }
 
+:root.sidebar-collapsed .sidebar-toggle,
 :root.sidebar-collapsed .logout-btn {
-    padding: 12px 10px;
+    padding: 12px 0;
 }
 
 .radio-group {

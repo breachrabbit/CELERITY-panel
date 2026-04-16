@@ -306,7 +306,7 @@
                         <div class="traffic-bar-fill" style="width:<%= trafficProgress === null ? 100 : trafficProgress %>%"></div>
                     </div>
                     <span class="user-stat-meta">
-                        <%= trafficLimit > 0 ? `${trafficProgress || 0}% / ${formatTrafficValue(trafficLimit)}` : t('users.unlimitedTraffic') %>
+                        <%= trafficLimit > 0 ? `${trafficProgress || 0}% / ${formatTrafficValue(trafficLimit)}` : '∞' %>
                     </span>
                 </div>
 
