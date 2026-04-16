@@ -186,3 +186,10 @@
   - verify the two mini rings now match in size;
   - verify dashboard counts read naturally again;
   - then return to mobile menu accessibility.
+
+- Dashboard mini-ring / label deploy pass:
+  - captured and shipped the narrow fix for equal mini-ring sizing;
+  - captured and shipped the cleanup for duplicated pluralized counts on dashboard labels.
+- Next step:
+  - verify mini rings on desktop/mobile against the live stand;
+  - then continue with Android mobile menu accessibility.

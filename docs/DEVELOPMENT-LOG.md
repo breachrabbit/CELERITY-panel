@@ -383,3 +383,12 @@ Change type:
 
 - `local patch` — dashboard metric ring rendering correction
 - `stability fix` — mobile menu interaction / z-index / pointer-event recovery
+
+## 2026-04-16 Dashboard Mini-Ring / Label Cleanup
+
+- Removed the conflicting `.hero-meter-ring.soft` size override so both dashboard mini rings inherit the same mini geometry again.
+- Cleaned pluralized dashboard labels so they no longer print the raw count next to `tp(...)` output, avoiding duplicated strings such as `0 0 устройств` and `из 2 2 пользователя`.
+
+Change type:
+
+- `stability fix` — dashboard mini-ring sizing and pluralized label cleanup

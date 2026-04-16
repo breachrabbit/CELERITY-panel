@@ -510,3 +510,18 @@ This pass is specifically aimed at:
 1. Open the live stand on a real phone and verify the mobile menu blocks background interaction and is fully tappable.
 2. Verify the duplicated status dot is gone from the mobile header area.
 3. Verify the dashboard rings now read as thin segmented double rings rather than solid circles.
+
+## 2026-04-16 Dashboard Mini-Ring / Label Cleanup
+
+- Finalized the small dashboard follow-up that was still local-only:
+  - removed `width/height` from `.hero-meter-ring.soft`, so mini rings share the same base size again;
+  - removed duplicate raw counts in dashboard labels that already used `tp(...)`.
+- This is a narrow deployable fix aimed at:
+  - equal mini ring sizes in `Profiles and devices`;
+  - natural labels like `0 устройств` and `из 2 пользователей`.
+
+### Immediate Next Check
+
+1. Verify the two mini rings match in size on desktop and mobile.
+2. Verify dashboard labels no longer duplicate counts.
+3. After that, return to the still-unresolved Android mobile menu accessibility issue.
