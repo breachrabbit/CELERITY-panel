@@ -2,13 +2,19 @@
 
 ## Active Product / UX Issues
 
-### 1. User-level operational stats are incomplete
+### 1. User-level operational stats are only partially complete
 
-Missing or incomplete:
+Done now:
 
-- per-user traffic visibility in admin UX;
-- connected devices per user profile in an operator-friendly view;
-- node / cascade visibility for user sessions when topology grows.
+- per-user traffic progress in admin UX;
+- connected-device visibility from Redis activity;
+- effective node coverage per user.
+
+Still missing or incomplete:
+
+- exact live node attribution for every session;
+- reliable cascade-hop visibility per user session when topology grows;
+- protocol-specific attribution for Xray paths equal to Hysteria device tracking.
 
 Status: `pending`
 
@@ -30,9 +36,16 @@ There are still visible references to `Celerity` in repo text, UI labels, commen
 
 Status: `pending`
 
-### 5. Upstream divergence has not been fully audited
+### 5. Upstream divergence is mapped, but not yet triaged for adoption
 
-The fork already has meaningful local divergence, but upstream changes have not yet been systematically reviewed for safe adoption.
+The fork already has meaningful local divergence. A fresh comparison against `upstream/main` now exists, but safe ports still need triage.
+
+Main upstream areas worth evaluating:
+
+- onboarding and first-run bootstrap;
+- broadcast execution tooling for nodes;
+- Marzban migration/import flow;
+- client statistics experiments.
 
 Status: `pending`
 

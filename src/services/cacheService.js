@@ -47,6 +47,32 @@ class CacheService {
         // Dynamic TTL from panel settings
         this.ttl = { ...DEFAULT_TTL };
     }
+
+    _parseDeviceRecord(ip, rawValue) {
+        if (!rawValue) return null;
+
+        if (/^\d+$/.test(String(rawValue))) {
+            const ts = parseInt(rawValue, 10);
+            return Number.isFinite(ts) ? { ip, ts } : null;
+        }
+
+        try {
+            const parsed = JSON.parse(rawValue);
+            const ts = parseInt(parsed?.ts ?? parsed?.timestamp ?? parsed?.lastSeen ?? 0, 10);
+            if (!Number.isFinite(ts)) return null;
+
+            return {
+                ip,
+                ts,
+                nodeId: parsed?.nodeId || '',
+                nodeName: parsed?.nodeName || '',
+                nodeType: parsed?.nodeType || '',
+                source: parsed?.source || '',
+            };
+        } catch (_) {
+            return null;
+        }
+    }
     
     /**
      * Update TTL from panel settings
@@ -308,10 +334,41 @@ class CacheService {
         try {
             const key = `${PREFIX.DEVICES}${userId}`;
             const data = await this.redis.hgetall(key);
-            return data || {};
+            const normalized = {};
+
+            for (const [ip, rawValue] of Object.entries(data || {})) {
+                const record = this._parseDeviceRecord(ip, rawValue);
+                if (record?.ts) {
+                    normalized[ip] = record.ts.toString();
+                }
+            }
+
+            return normalized;
         } catch (err) {
             logger.error(`[Cache] getDeviceIPs error: ${err.message}`);
             return {};
+        }
+    }
+
+    /**
+     * Get structured device activity for a user
+     * @param {string} userId
+     * @returns {Array<{ip:string, ts:number, nodeId?:string, nodeName?:string, nodeType?:string, source?:string}>}
+     */
+    async getDeviceActivity(userId) {
+        if (!this.isConnected()) return [];
+
+        try {
+            const key = `${PREFIX.DEVICES}${userId}`;
+            const data = await this.redis.hgetall(key);
+
+            return Object.entries(data || {})
+                .map(([ip, rawValue]) => this._parseDeviceRecord(ip, rawValue))
+                .filter(Boolean)
+                .sort((left, right) => right.ts - left.ts);
+        } catch (err) {
+            logger.error(`[Cache] getDeviceActivity error: ${err.message}`);
+            return [];
         }
     }
 
@@ -321,13 +378,20 @@ class CacheService {
      * @param {string} userId 
      * @param {string} ip 
      */
-    async updateDeviceIP(userId, ip) {
+    async updateDeviceIP(userId, ip, metadata = {}) {
         if (!this.isConnected()) return;
         
         try {
             const key = `${PREFIX.DEVICES}${userId}`;
+            const value = JSON.stringify({
+                ts: Date.now(),
+                nodeId: metadata?.nodeId || '',
+                nodeName: metadata?.nodeName || '',
+                nodeType: metadata?.nodeType || '',
+                source: metadata?.source || '',
+            });
             await this.redis.pipeline()
-                .hset(key, ip, Date.now().toString())
+                .hset(key, ip, value)
                 .expire(key, 86400) // 24 hours TTL for auto-cleanup
                 .exec();
         } catch (err) {
@@ -350,7 +414,8 @@ class CacheService {
             
             const toDelete = [];
             for (const [ip, timestamp] of Object.entries(devices)) {
-                if (now - parseInt(timestamp) > gracePeriodMs) {
+                const record = this._parseDeviceRecord(ip, timestamp);
+                if (!record?.ts || (now - record.ts) > gracePeriodMs) {
                     toDelete.push(ip);
                 }
             }
@@ -740,4 +805,3 @@ class CacheService {
 const cacheService = new CacheService();
 
 module.exports = cacheService;
-

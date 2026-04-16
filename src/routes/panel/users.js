@@ -90,6 +90,44 @@ function scheduleXrayReconcile(user, logContext) {
     });
 }
 
+function calculateEffectiveUserDeviceLimit(user) {
+    const directLimit = parseInt(user?.maxDevices, 10) || 0;
+    if (directLimit === -1) {
+        return { limit: 0, label: '∞', source: 'unlimited' };
+    }
+    if (directLimit > 0) {
+        return { limit: directLimit, label: String(directLimit), source: 'user' };
+    }
+
+    const groupLimits = (user?.groups || [])
+        .map((group) => parseInt(group?.maxDevices, 10) || 0)
+        .filter((limit) => limit > 0);
+
+    if (groupLimits.length > 0) {
+        const limit = Math.min(...groupLimits);
+        return { limit, label: String(limit), source: 'group' };
+    }
+
+    return { limit: 0, label: '∞', source: 'none' };
+}
+
+function formatTrafficValue(bytes) {
+    const value = Number(bytes) || 0;
+    if (value <= 0) return '0 B';
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let current = value;
+    let unitIndex = 0;
+
+    while (current >= 1024 && unitIndex < units.length - 1) {
+        current /= 1024;
+        unitIndex += 1;
+    }
+
+    const precision = current >= 100 || unitIndex === 0 ? 0 : current >= 10 ? 1 : 2;
+    return `${current.toFixed(precision)} ${units[unitIndex]}`;
+}
+
 // ==================== USERS ====================
 
 // GET /users - User list (with search and sorting)
@@ -436,7 +474,7 @@ router.get('/users/:userId', async (req, res) => {
     try {
         const [user, allGroups] = await Promise.all([
             HyUser.findOne({ userId: req.params.userId })
-                .populate('nodes', 'name ip domain active groups')
+                .populate('nodes', 'name ip domain active groups type status flag country')
                 .populate('groups', 'name color maxDevices'),
             getActiveGroups(),
         ]);
@@ -447,29 +485,68 @@ router.get('/users/:userId', async (req, res) => {
         
         let effectiveNodes = [];
         const directNodes = (user.nodes || []).filter(n => n && n.active);
+        const directNodeIdSet = new Set(directNodes.map((node) => String(node._id)));
         if (directNodes.length > 0) {
             effectiveNodes = directNodes;
         } else if (user.groups && user.groups.length > 0) {
             effectiveNodes = await HyNode.find({ active: true, groups: { $in: user.groups } })
-                .select('name ip domain groups').lean();
+                .select('name ip domain groups type status flag country').lean();
         }
 
         const settings = await getSettings();
         const gracePeriodMinutes = settings?.deviceGracePeriod ?? 15;
-        const deviceIPs = await cache.getDeviceIPs(user.userId);
         const now = Date.now();
-        const activeDevices = Object.values(deviceIPs).filter((timestamp) => {
-            const ts = parseInt(timestamp, 10);
-            return Number.isFinite(ts) && (now - ts) < (gracePeriodMinutes * 60 * 1000);
-        }).length;
+        const gracePeriodMs = gracePeriodMinutes * 60 * 1000;
+        const deviceActivity = await cache.getDeviceActivity(user.userId);
+        const activeDeviceEntries = deviceActivity
+            .filter((entry) => Number.isFinite(entry.ts) && (now - entry.ts) < gracePeriodMs)
+            .map((entry) => ({
+                ...entry,
+                lastSeenAt: new Date(entry.ts),
+                lastSeenAgoMinutes: Math.max(0, Math.round((now - entry.ts) / 60000)),
+            }));
+        const activeDevices = activeDeviceEntries.length;
+
+        const deviceLimitInfo = calculateEffectiveUserDeviceLimit(user);
+        const totalTraffic = (user.traffic?.tx || 0) + (user.traffic?.rx || 0);
+        const trafficLimit = Number(user.trafficLimit || 0);
+        const trafficProgress = trafficLimit > 0
+            ? Math.min(100, Math.round((totalTraffic / trafficLimit) * 100))
+            : null;
+
+        const effectiveNodeCards = effectiveNodes.map((node) => {
+            const plain = typeof node?.toObject === 'function' ? node.toObject() : { ...node };
+            return {
+                ...plain,
+                assignmentType: directNodeIdSet.has(String(plain._id)) ? 'direct' : 'group',
+            };
+        });
+
+        const activeNodeHints = Array.from(new Map(
+            activeDeviceEntries
+                .filter((entry) => entry.nodeName)
+                .map((entry) => [entry.nodeId || entry.nodeName, {
+                    nodeId: entry.nodeId || '',
+                    nodeName: entry.nodeName,
+                    nodeType: entry.nodeType || '',
+                    source: entry.source || '',
+                }]),
+        ).values());
         
         render(res, 'user-detail', {
             title: `Пользователь ${user.userId}`,
             page: 'users',
             user,
             allGroups,
-            effectiveNodes,
+            effectiveNodes: effectiveNodeCards,
             activeDevices,
+            activeDeviceEntries,
+            activeNodeHints,
+            deviceLimitInfo,
+            totalTraffic,
+            trafficLimit,
+            trafficProgress,
+            formatTrafficValue,
         });
     } catch (error) {
         res.status(500).send('Error: ' + error.message);

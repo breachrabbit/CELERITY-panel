@@ -41,7 +41,7 @@ function extractIP(addr) {
 /**
  * Check device limit by unique IPs
  */
-async function checkDeviceLimit(userId, clientIP, maxDevices) {
+async function checkDeviceLimit(userId, clientIP, maxDevices, nodeMeta = {}) {
     try {
         const settings = await getSettings();
         const gracePeriodMinutes = settings?.deviceGracePeriod ?? 15;
@@ -64,7 +64,7 @@ async function checkDeviceLimit(userId, clientIP, maxDevices) {
             return { allowed: false, activeCount };
         }
         
-        await cache.updateDeviceIP(userId, clientIP);
+        await cache.updateDeviceIP(userId, clientIP, nodeMeta);
         
         // Periodically clean old IPs (not on every request)
         if (Math.random() < 0.1) {
@@ -77,6 +77,15 @@ async function checkDeviceLimit(userId, clientIP, maxDevices) {
         // On error - allow (fail open)
         return { allowed: true, activeCount: 0 };
     }
+}
+
+function extractNodeMeta(req) {
+    return {
+        nodeId: String(req.headers['x-node-id'] || '').trim(),
+        nodeName: String(req.headers['x-node-name'] || '').trim(),
+        nodeType: String(req.headers['x-node-type'] || '').trim(),
+        source: String(req.headers['x-auth-source'] || 'hysteria').trim(),
+    };
 }
 
 /**
@@ -173,7 +182,12 @@ router.post('/', async (req, res) => {
         if (maxDevices > 0) {
             const clientIP = extractIP(addr);
             
-            const { allowed, activeCount } = await checkDeviceLimit(userId, clientIP, maxDevices);
+            const { allowed, activeCount } = await checkDeviceLimit(
+                userId,
+                clientIP,
+                maxDevices,
+                extractNodeMeta(req),
+            );
             
             if (!allowed) {
                 logger.warn(`[Auth] Device limit exceeded (${activeCount}/${maxDevices} IP): ${userId} (${addr})`);

@@ -1,114 +1,335 @@
+<style>
+.user-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.user-overview-card,
+.user-side-column {
+    min-width: 0;
+}
+
+.user-overview-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.user-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.user-kicker {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.user-id-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.user-id-line h2 {
+    font-family: var(--font-heading);
+    font-size: 28px;
+    line-height: 1;
+}
+
+.user-identity-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.user-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.user-stat-tile {
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.user-stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.user-stat-value {
+    font-family: var(--font-heading);
+    font-size: 28px;
+    line-height: 1;
+}
+
+.user-stat-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.traffic-bar {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(8, 197, 203, 0.1);
+    overflow: hidden;
+}
+
+.traffic-bar-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background: repeating-linear-gradient(
+        90deg,
+        var(--brand-cyan) 0 12px,
+        rgba(8, 197, 203, 0.7) 12px 20px
+    );
+}
+
+.user-section-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 18px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.info-tile {
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.info-tile label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.info-tile .value {
+    font-size: 14px;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.info-tile code.value {
+    font-family: var(--font-body);
+}
+
+.group-tag-list,
+.node-chip-list,
+.hint-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.node-chip,
+.hint-chip {
+    min-width: 0;
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: var(--bg-secondary);
+}
+
+.node-chip strong,
+.hint-chip strong {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 14px;
+}
+
+.node-chip span,
+.hint-chip span {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.session-list {
+    display: grid;
+    gap: 10px;
+}
+
+.session-card {
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: var(--bg-secondary);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+}
+
+.session-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.session-main strong {
+    font-family: var(--font-heading);
+}
+
+.session-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.session-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.user-side-column {
+    display: grid;
+    gap: 18px;
+}
+
+.actions-list {
+    display: grid;
+    gap: 10px;
+}
+
+.subscription-card .input-readonly {
+    margin-top: 8px;
+}
+
+.empty-note {
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+@media (max-width: 1200px) {
+    .user-hero,
+    .user-section-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .user-hero-stats,
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .session-card,
+    .user-overview-top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
 <div class="page-header">
     <a href="/panel/users" class="btn btn-back"><i class="ti ti-chevron-left"></i> <%= t('common.backToList') %></a>
 </div>
 
-<div class="row">
-    <div class="col-8">
-        <div class="card">
-            <div class="card-header">
-                <h2><%= t('users.user') %> <%= user.userId %></h2>
-                <% const isExpired = user.expireAt && new Date(user.expireAt).getTime() < Date.now(); %>
-                <span class="badge badge-<%= isExpired ? 'danger' : (user.enabled ? 'success' : 'secondary') %> badge-lg">
-                    <%= isExpired ? t('common.expired') : (user.enabled ? t('common.active') : t('common.inactive')) %>
-                </span>
-            </div>
-            <div class="card-body">
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <label>User ID</label>
-                        <code class="value"><%= user.userId %></code>
-                    </div>
-                    <div class="detail-item">
-                        <label>Username</label>
-                        <span class="value"><%= user.username || '—' %></span>
-                    </div>
-                    <div class="detail-item">
-                        <label><%= t('users.hysteriaPassword') %></label>
-                        <code class="value"><%= user.password %></code>
-                    </div>
-                </div>
-                
-                <h3 class="section-title"><%= t('users.groups') %></h3>
-                <div class="groups-list">
-                    <% if (user.groups && user.groups.length > 0) { %>
-                        <% user.groups.forEach(group => { %>
-                            <span class="group-tag" style="background: <%= group.color %>20; border-color: <%= group.color %>; color: <%= group.color %>">
-                                <%= group.name %>
-                            </span>
-                        <% }); %>
-                    <% } else { %>
-                        <span class="text-muted"><%= t('users.noGroupsAccess') %></span>
-                    <% } %>
-                </div>
-                
-                <h3 class="section-title"><%= t('users.limits') %></h3>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <label><%= t('users.traffic') %></label>
-                        <% const used = ((user.traffic?.tx || 0) + (user.traffic?.rx || 0)) / (1024*1024*1024); %>
-                        <% const limit = user.trafficLimit ? user.trafficLimit / (1024*1024*1024) : 0; %>
-                        <span class="value"><%= used.toFixed(2) %> / <%= limit > 0 ? limit.toFixed(0) + ' GB' : '∞' %></span>
-                    </div>
-                    <div class="detail-item">
-                        <label><%= t('users.devices') %></label>
-                        <% 
-                            let deviceLimit = user.maxDevices;
-                            let deviceLimitStr = '∞';
-                            if (deviceLimit === 0) {
-                                const groupLimits = (user.groups || []).filter(g => g.maxDevices > 0).map(g => g.maxDevices);
-                                if (groupLimits.length > 0) {
-                                    deviceLimit = Math.min(...groupLimits);
-                                    deviceLimitStr = deviceLimit + ' ' + t('users.deviceFromGroup');
-                                }
-                            } else if (deviceLimit > 0) {
-                                deviceLimitStr = deviceLimit.toString();
-                            }
-                        %>
-                        <span class="value"><%= activeDevices || 0 %> / <%= deviceLimitStr %></span>
-                    </div>
-                    <div class="detail-item">
-                        <label><%= t('users.txRx') %></label>
-                        <span class="value">
-                            <i class="ti ti-arrow-up" style="color:#22c55e"></i> <%= ((user.traffic?.tx || 0) / (1024*1024*1024)).toFixed(2) %> / 
-                            <i class="ti ti-arrow-down" style="color:#3b82f6"></i> <%= ((user.traffic?.rx || 0) / (1024*1024*1024)).toFixed(2) %> GB
+<%
+    const isExpired = user.expireAt && new Date(user.expireAt).getTime() < Date.now();
+    const activeNodeHintCount = activeNodeHints?.length || 0;
+%>
+
+<div class="user-hero">
+    <div class="card user-overview-card">
+        <div class="card-body">
+            <div class="user-overview-top">
+                <div class="user-identity">
+                    <span class="user-kicker"><%= t('users.user') %></span>
+                    <div class="user-id-line">
+                        <h2><%= user.userId %></h2>
+                        <span class="badge badge-<%= isExpired ? 'danger' : (user.enabled ? 'success' : 'secondary') %> badge-lg">
+                            <%= isExpired ? t('common.expired') : (user.enabled ? t('common.active') : t('common.inactive')) %>
                         </span>
                     </div>
-                    <div class="detail-item">
-                        <label><%= t('users.createdAt') %></label>
-                        <span class="value"><%= user.createdAt ? new Date(user.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></span>
-                    </div>
-                    <div class="detail-item">
-                        <label><%= t('users.expires') %></label>
-                        <span class="value"><%= user.expireAt ? new Date(user.expireAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : t('users.forever') %></span>
-                    </div>
-                    <div class="detail-item">
-                        <label><%= t('users.supportDueAt') %></label>
-                        <span class="value"><%= user.support?.dueAt ? new Date(user.support.dueAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></span>
-                    </div>
-                    <div class="detail-item">
-                        <label><%= t('users.supportLastPaymentAt') %></label>
-                        <span class="value"><%= user.support?.lastPaymentAt ? new Date(user.support.lastPaymentAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></span>
+                    <div class="user-identity-meta">
+                        <span><%= user.username || '—' %></span>
+                        <span><%= user.createdAt ? new Date(user.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></span>
                     </div>
                 </div>
-                
-                <h3 class="section-title"><%= t('users.availableNodes') %> (<%= effectiveNodes?.length || 0 %>)</h3>
-                <div class="nodes-list">
-                    <% if (effectiveNodes && effectiveNodes.length > 0) { %>
-                        <% effectiveNodes.forEach(node => { %>
-                        <div class="node-badge">
-                            <span class="node-name"><%= node.name %></span>
-                            <span class="node-ip"><%= node.ip %></span>
-                        </div>
-                        <% }); %>
-                    <% } else { %>
-                        <span class="text-muted"><%= t('users.noNodes') %></span>
-                    <% } %>
+                <div class="session-pill">
+                    <i class="ti ti-devices"></i>
+                    <span><%= activeDevices || 0 %> <%= t('users.devicesNow') %></span>
+                </div>
+            </div>
+
+            <div class="user-hero-stats">
+                <div class="user-stat-tile">
+                    <span class="user-stat-label"><%= t('users.trafficProgress') %></span>
+                    <span class="user-stat-value"><%= formatTrafficValue(totalTraffic) %></span>
+                    <div class="traffic-bar">
+                        <div class="traffic-bar-fill" style="width:<%= trafficProgress === null ? 100 : trafficProgress %>%"></div>
+                    </div>
+                    <span class="user-stat-meta">
+                        <%= trafficLimit > 0 ? `${trafficProgress || 0}% / ${formatTrafficValue(trafficLimit)}` : t('users.unlimitedTraffic') %>
+                    </span>
+                </div>
+
+                <div class="user-stat-tile">
+                    <span class="user-stat-label"><%= t('users.devices') %></span>
+                    <span class="user-stat-value"><%= activeDevices || 0 %> / <%= deviceLimitInfo?.label || '∞' %></span>
+                    <span class="user-stat-meta">
+                        <%= deviceLimitInfo?.source === 'group' ? t('users.deviceLimitFromGroup') : t('users.deviceLimitDirect') %>
+                    </span>
+                </div>
+
+                <div class="user-stat-tile">
+                    <span class="user-stat-label"><%= t('users.nodeCoverage') %></span>
+                    <span class="user-stat-value"><%= activeNodeHintCount %></span>
+                    <span class="user-stat-meta">
+                        <%= activeNodeHintCount > 0 ? t('users.liveNodeHints') : t('users.nodeAttributionPending') %>
+                    </span>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-4">
+
+    <div class="user-side-column">
         <div class="card">
             <div class="card-header">
                 <h2><%= t('common.actions') %></h2>
@@ -126,40 +347,154 @@
                         </button>
                         <% } %>
                     <% } %>
-                    
+
                     <a href="/panel/users/<%= user.userId %>/edit" class="btn btn-primary btn-block">
                         <%= t('users.editUser') %>
                     </a>
-                    
+
                     <button class="btn btn-block" onclick="copySubscription()">
                         <i class="ti ti-clipboard"></i> <%= t('users.copySubscription') %>
                     </button>
-                    
-                    <a href="<%= baseUrl %>/api/files/<%= user.subscriptionToken || user.userId %>" 
+
+                    <a href="<%= baseUrl %>/api/files/<%= user.subscriptionToken || user.userId %>"
                        target="_blank" class="btn btn-block">
                         <i class="ti ti-external-link"></i> <%= t('users.openSubscription') %>
                     </a>
-                    
-                    <hr>
-                    
+
                     <button class="btn btn-danger btn-block" onclick="deleteUser()">
                         <%= t('users.deleteUser') %>
                     </button>
                 </div>
             </div>
         </div>
-        
-        <div class="card mt-2">
+
+        <div class="card subscription-card">
             <div class="card-header">
                 <h2><%= t('users.subscriptionLink') %></h2>
             </div>
             <div class="card-body">
                 <div id="qrcode" style="text-align:center;margin-bottom:12px;"></div>
                 <p class="hint mb-1"><%= t('users.universalLink') %></p>
-                <input type="text" readonly class="input-readonly" 
+                <input type="text" readonly class="input-readonly"
                        value="<%= baseUrl %>/api/files/<%= user.subscriptionToken || user.userId %>" id="subLink">
                 <button class="btn btn-sm btn-block mt-1" onclick="copySubscription()"><%= t('common.copy') %></button>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="user-section-grid">
+    <div class="card">
+        <div class="card-header">
+            <h2><%= t('users.details') %></h2>
+        </div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-tile">
+                    <label>User ID</label>
+                    <code class="value"><%= user.userId %></code>
+                </div>
+                <div class="info-tile">
+                    <label>Username</label>
+                    <span class="value"><%= user.username || '—' %></span>
+                </div>
+                <div class="info-tile">
+                    <label><%= t('users.hysteriaPassword') %></label>
+                    <code class="value"><%= user.password %></code>
+                </div>
+                <div class="info-tile">
+                    <label><%= t('users.txRx') %></label>
+                    <span class="value"><%= formatTrafficValue(user.traffic?.tx || 0) %> / <%= formatTrafficValue(user.traffic?.rx || 0) %></span>
+                </div>
+                <div class="info-tile">
+                    <label><%= t('users.expires') %></label>
+                    <span class="value"><%= user.expireAt ? new Date(user.expireAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : t('users.forever') %></span>
+                </div>
+                <div class="info-tile">
+                    <label><%= t('users.supportDueAt') %></label>
+                    <span class="value"><%= user.support?.dueAt ? new Date(user.support.dueAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></span>
+                </div>
+                <div class="info-tile">
+                    <label><%= t('users.supportLastPaymentAt') %></label>
+                    <span class="value"><%= user.support?.lastPaymentAt ? new Date(user.support.lastPaymentAt).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'medium', timeStyle: 'short' }) : '—' %></span>
+                </div>
+                <div class="info-tile">
+                    <label><%= t('users.subscriptionLink') %></label>
+                    <code class="value"><%= user.subscriptionToken || user.userId %></code>
+                </div>
+            </div>
+
+            <h3 class="section-title"><%= t('users.groups') %></h3>
+            <div class="group-tag-list">
+                <% if (user.groups && user.groups.length > 0) { %>
+                    <% user.groups.forEach(group => { %>
+                        <span class="group-tag" style="background: <%= group.color %>20; border-color: <%= group.color %>; color: <%= group.color %>">
+                            <%= group.name %>
+                        </span>
+                    <% }); %>
+                <% } else { %>
+                    <span class="text-muted"><%= t('users.noGroupsAccess') %></span>
+                <% } %>
+            </div>
+
+            <h3 class="section-title"><%= t('users.availableNodes') %> (<%= effectiveNodes?.length || 0 %>)</h3>
+            <% if (effectiveNodes && effectiveNodes.length > 0) { %>
+                <div class="node-chip-list">
+                    <% effectiveNodes.forEach(node => { %>
+                        <div class="node-chip">
+                            <strong><%= node.flag ? `${node.flag} ` : '' %><%= node.name %></strong>
+                            <span><%= node.domain || node.ip %></span>
+                            <span><%= node.assignmentType === 'direct' ? t('users.assignedDirect') : t('users.assignedByGroup') %></span>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="empty-note"><%= t('users.noNodes') %></div>
+            <% } %>
+
+            <h3 class="section-title"><%= t('users.liveNodes') %></h3>
+            <% if (activeNodeHints && activeNodeHints.length > 0) { %>
+                <div class="hint-chip-list">
+                    <% activeNodeHints.forEach((nodeHint) => { %>
+                        <div class="hint-chip">
+                            <strong><%= nodeHint.nodeName %></strong>
+                            <span><%= nodeHint.nodeType || 'node' %></span>
+                            <span><%= nodeHint.source || 'auth' %></span>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } else { %>
+                <div class="empty-note"><%= t('users.nodeAttributionPending') %></div>
+            <% } %>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2><%= t('users.activeSessions') %></h2>
+        </div>
+        <div class="card-body">
+            <% if (activeDeviceEntries && activeDeviceEntries.length > 0) { %>
+                <div class="session-list">
+                    <% activeDeviceEntries.forEach((entry) => { %>
+                        <div class="session-card">
+                            <div class="session-main">
+                                <strong><%= entry.ip %></strong>
+                                <div class="session-meta">
+                                    <span><%= t('users.lastSeen') %>: <%= entry.lastSeenAt.toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', { dateStyle: 'short', timeStyle: 'short' }) %></span>
+                                    <span><%= entry.lastSeenAgoMinutes %> <%= t('users.minutesAgo') %></span>
+                                </div>
+                            </div>
+                            <div class="session-pill">
+                                <i class="ti ti-route-alt-left"></i>
+                                <span><%= entry.nodeName || t('users.nodeUnknown') %></span>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } else { %>
+                <div class="empty-note"><%= t('users.noActiveSessions') %></div>
+            <% } %>
         </div>
     </div>
 </div>
@@ -188,7 +523,7 @@ async function toggleUser(enabled) {
 
 async function deleteUser() {
     if (!confirm(i18n.confirmDelete)) return;
-    
+
     const res = await fetch(`/api/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include'
@@ -205,9 +540,9 @@ function copySubscription() {
     navigator.clipboard.writeText(link).then(() => {
         alert(i18n.linkCopied);
     }).catch(() => {
-    document.getElementById('subLink').select();
-    document.execCommand('copy');
-    alert(i18n.linkCopied);
+        document.getElementById('subLink').select();
+        document.execCommand('copy');
+        alert(i18n.linkCopied);
     });
 }
 

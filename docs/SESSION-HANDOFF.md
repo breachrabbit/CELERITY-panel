@@ -21,6 +21,11 @@
   - import behavior has been improved versus the earlier broken state;
 - dashboard traffic card now uses an interactive smooth SVG line chart with hover point and tooltip;
 - layout stabilization work was added for the page-shift bug after navigation.
+- user detail view now shows:
+  - traffic progress;
+  - active device sessions from Redis;
+  - effective node coverage;
+  - live node hints when attribution metadata is available.
 
 ## Done Recently
 
@@ -32,10 +37,9 @@
 
 ## Not Done Yet
 
-- user-level stats page/model is still incomplete:
-  - traffic by user;
-  - connected devices per profile;
-  - node / cascade visibility;
+- user-level stats are improved but not complete:
+  - per-user traffic and device activity now exist in operator UI;
+  - exact live node attribution is only partial until node-id metadata is sent consistently;
 - upstream comparison review is not yet done;
 - repository separation from visible Celerity identity is not complete;
 - dashboard traffic graph still uses derived points, not true historical samples.
@@ -43,8 +47,9 @@
 ## Known Broken / Risky / Pending
 
 - some panel behavior still needs manual UX verification on live pages after redesign;
-- dashboard graph interaction is working, but it is still presentation-first rather than history-backed analytics;
+- dashboard graph interaction is working, but it still needs fuller history-backed analytics in all views;
 - HAPP behavior should keep being tested on real clients after UI changes;
+- user live-node visibility currently depends on optional device metadata headers and is not guaranteed for every session;
 - old historical docs exist, but the new continuity set is now the primary path.
 
 ## Stop Point

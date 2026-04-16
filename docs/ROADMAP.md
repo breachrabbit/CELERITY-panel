@@ -5,9 +5,8 @@
 - finish current admin UI redesign in a flatter, cleaner visual language;
 - improve dashboard analytics and make traffic graphs reflect real data history;
 - add user-level operational stats:
-  - total traffic used;
-  - connected devices;
-  - node / cascade visibility where possible;
+  - extend current traffic/device view into exact node attribution;
+  - add better cascade visibility where technically possible;
 - complete HAPP polish:
   - clean texts;
   - reliable import flow;
@@ -17,6 +16,11 @@
 ## Mid Term
 
 - review upstream changes and decide which fixes or improvements should be ported;
+- evaluate specific upstream features now visible in audit:
+  - onboarding flow;
+  - broadcast tools;
+  - Marzban migration;
+  - client stats experiments;
 - separate local branding and language from legacy Celerity naming where safe and license-compliant;
 - tighten deployment notes and repeatable update flow;
 - improve observability around panel state, node health, and subscription behavior;
