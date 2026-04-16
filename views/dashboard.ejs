@@ -560,27 +560,32 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function renderHeroMeterRings() {
-    const buildDash = (radius, segments, fillRatio = 0.54) => {
+    const buildDash = (radius, segments, fillRatio = 0.5) => {
         const circumference = 2 * Math.PI * radius;
         const segmentSize = circumference / segments;
         const dash = segmentSize * fillRatio;
-        const gap = Math.max(segmentSize - dash, 1.4);
+        const gap = Math.max(segmentSize - dash, 1.6);
         return `${dash.toFixed(2)} ${gap.toFixed(2)}`;
     };
 
-    const buildArc = (radius, value) => {
-        const circumference = 2 * Math.PI * radius;
-        const progress = circumference * (Math.max(0, Math.min(100, value)) / 100);
-        return `${progress.toFixed(2)} ${circumference.toFixed(2)}`;
+    const polarPoint = (radius, value) => {
+        const ratio = Math.max(0, Math.min(100, value)) / 100;
+        const angle = (Math.PI * 2 * ratio) - (Math.PI / 2);
+        return {
+            x: 50 + (Math.cos(angle) * radius),
+            y: 50 + (Math.sin(angle) * radius)
+        };
     };
 
     document.querySelectorAll('.hero-meter-ring').forEach((ring) => {
         const value = parseFloat(getComputedStyle(ring).getPropertyValue('--meter-value')) || 0;
         const isMini = ring.classList.contains('mini');
-        const outerRadius = isMini ? 41 : 42;
-        const innerRadius = isMini ? 31 : 30;
-        const outerDash = buildDash(outerRadius, isMini ? 18 : 20);
-        const innerDash = buildDash(innerRadius, isMini ? 16 : 18, 0.5);
+        const outerRadius = isMini ? 40 : 40;
+        const innerRadius = isMini ? 31 : 31;
+        const outerDash = buildDash(outerRadius, isMini ? 16 : 18, 0.42);
+        const innerDash = buildDash(innerRadius, isMini ? 14 : 16, 0.38);
+        const outerPoint = polarPoint(outerRadius, value);
+        const innerPoint = polarPoint(innerRadius, value);
         const existing = ring.querySelector('.hero-meter-svg');
         if (existing) existing.remove();
 
@@ -590,9 +595,9 @@ function renderHeroMeterRings() {
         svg.classList.add('hero-meter-svg');
         svg.innerHTML = `
             <circle class="hero-meter-track outer" cx="50" cy="50" r="${outerRadius}" style="stroke-dasharray:${outerDash};"></circle>
-            <circle class="hero-meter-progress outer" cx="50" cy="50" r="${outerRadius}" style="stroke-dasharray:${buildArc(outerRadius, value)};"></circle>
             <circle class="hero-meter-track inner" cx="50" cy="50" r="${innerRadius}" style="stroke-dasharray:${innerDash};"></circle>
-            <circle class="hero-meter-progress inner" cx="50" cy="50" r="${innerRadius}" style="stroke-dasharray:${buildArc(innerRadius, value)};"></circle>
+            <circle class="hero-meter-marker outer" cx="${outerPoint.x.toFixed(2)}" cy="${outerPoint.y.toFixed(2)}" r="${isMini ? 4.1 : 4.4}"></circle>
+            <circle class="hero-meter-marker inner" cx="${innerPoint.x.toFixed(2)}" cy="${innerPoint.y.toFixed(2)}" r="${isMini ? 3.4 : 3.6}"></circle>
         `;
 
         ring.prepend(svg);

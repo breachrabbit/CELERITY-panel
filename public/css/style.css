@@ -789,14 +789,20 @@ html.layout-stabilizing * {
     stroke-linecap: round;
 }
 
+.hero-meter-marker {
+    fill: var(--meter-color);
+    stroke: var(--bg-secondary);
+    stroke-width: 1.4;
+}
+
 .hero-meter-track.outer,
 .hero-meter-progress.outer {
-    stroke-width: 5.5;
+    stroke-width: 3;
 }
 
 .hero-meter-track.inner,
 .hero-meter-progress.inner {
-    stroke-width: 4;
+    stroke-width: 2.2;
 }
 
 .hero-meter-ring.mini {
@@ -813,12 +819,12 @@ html.layout-stabilizing * {
 
 .hero-meter-ring.mini .hero-meter-track.outer,
 .hero-meter-ring.mini .hero-meter-progress.outer {
-    stroke-width: 5;
+    stroke-width: 2.8;
 }
 
 .hero-meter-ring.mini .hero-meter-track.inner,
 .hero-meter-ring.mini .hero-meter-progress.inner {
-    stroke-width: 3.5;
+    stroke-width: 2;
 }
 
 .hero-meter-ring.soft {
@@ -2983,12 +2989,14 @@ body.mobile-menu-open {
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.24s ease, visibility 0.24s ease;
-        z-index: 240;
+        z-index: 280;
+        pointer-events: none;
     }
     
     .mobile-overlay.active {
         opacity: 1;
         visibility: visible;
+        pointer-events: auto;
     }
     
     /* Sidebar Mobile */
@@ -2998,7 +3006,7 @@ body.mobile-menu-open {
         top: 0;
         width: min(88vw, 320px);
         height: 100dvh;
-        z-index: 260;
+        z-index: 320;
         transform: translateX(-100%);
         transition: transform 0.28s ease;
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
@@ -3016,6 +3024,18 @@ body.mobile-menu-open {
     
     .sidebar.active {
         transform: translateX(0);
+    }
+
+    body.mobile-menu-open .content,
+    body.mobile-menu-open .mobile-header {
+        pointer-events: none;
+        user-select: none;
+    }
+
+    body.mobile-menu-open .sidebar,
+    body.mobile-menu-open .mobile-overlay {
+        pointer-events: auto;
+        user-select: auto;
     }
     
     /* Content */
@@ -3039,7 +3059,7 @@ body.mobile-menu-open {
     }
 
     .topbar-right {
-        margin-left: auto;
+        display: none;
     }
     
     .topbar h1 {
@@ -3232,10 +3252,30 @@ body.mobile-menu-open {
     }
     
     .mobile-node-actions {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 8px;
         padding-top: 12px;
         border-top: 1px solid var(--border);
+    }
+
+    .mobile-node-actions .btn,
+    .mobile-node-actions .btn-icon {
+        width: 100%;
+        min-width: 0;
+        height: 42px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .mobile-node-actions .btn {
+        font-size: 0;
+    }
+
+    .mobile-node-actions .btn i,
+    .mobile-node-actions .btn-icon i {
+        margin: 0;
+        font-size: 18px;
     }
     
     
@@ -3392,10 +3432,16 @@ body.mobile-menu-open {
     }
 
     .mobile-sidebar-controls {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
         margin-bottom: 4px;
+    }
+
+    .mobile-sidebar-controls .lang-switcher,
+    .mobile-sidebar-controls .theme-switcher {
+        width: 100%;
+        min-width: 0;
     }
 
     .sidebar-footer {
@@ -3403,11 +3449,11 @@ body.mobile-menu-open {
     }
 
     .sidebar-footer-toggle {
-        order: 2;
+        display: none;
     }
 
     .sidebar-footer .logout-btn {
-        order: 3;
+        order: 2;
     }
     
     /* Nodes table scrollable */

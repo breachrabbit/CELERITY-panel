@@ -437,3 +437,35 @@ This pass is specifically aimed at:
 1. Verify `Settings` on the live stand and confirm the sidebar reaches the bottom.
 2. Re-test page transitions for the drift bug.
 3. If drift remains, inspect the exact page/layout combination and continue with a targeted shell fix rather than more broad CSS churn.
+
+## 2026-04-16 Dashboard Rings / Mobile Shell Follow-up
+
+- The dashboard ring implementation was adjusted again after the live stand showed the wrong visual language:
+  - previous CSS/SVG version rendered thick solid circles;
+  - current local fix switches the rings toward a thinner segmented double-ring treatment with small progress markers.
+- The mobile shell was tightened in the same local pass:
+  - desktop topbar status controls are hidden on small screens to avoid the duplicated blinking dot;
+  - overlay/sidebar z-index and pointer-events were rebalanced so the mobile menu should become tappable and block the page behind it;
+  - mobile sidebar controls are now arranged as a 2-column language/theme area;
+  - the mobile `Collapse` control is hidden;
+  - dashboard mobile node actions are converted to a 3-column icon layout.
+
+### Current State
+
+- Status: `pending verification`
+- Local files changed:
+  - `public/css/style.css`
+  - `views/dashboard.ejs`
+- This pass was prepared specifically in response to the user reporting:
+  1. wrong ring visual treatment;
+  2. duplicated mobile status dot;
+  3. inaccessible mobile menu;
+  4. unwanted mobile collapse button;
+  5. need for 2-column language/theme controls;
+  6. need for clean icon-only 3-column mobile node actions.
+
+### Immediate Next Check
+
+1. Open the live stand on a real phone and verify the mobile menu blocks background interaction and is fully tappable.
+2. Verify the duplicated status dot is gone from the mobile header area.
+3. Verify the dashboard rings now read as thin segmented double rings rather than solid circles.

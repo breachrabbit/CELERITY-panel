@@ -337,3 +337,19 @@ Change type:
 
 - `local patch` — mobile/responsive cleanup for settings, subscription, and statistics
 - `local override` — visible wording cleanup on dashboard/settings/public subscription page
+
+## 2026-04-16 Dashboard Rings / Mobile Shell Recovery
+
+- Reworked the dashboard metric rings again after the previous version rendered as thick solid circles instead of thin segmented rings.
+- Replaced the fragile ring presentation with a lighter dashed double-ring treatment plus compact progress markers in the dashboard client script.
+- Continued the mobile shell pass:
+  - hid duplicated desktop status controls from the mobile topbar;
+  - raised sidebar / overlay stacking and blocked background interaction while the mobile menu is open;
+  - moved mobile language/theme controls toward a 2-column layout;
+  - removed the mobile collapse button from the visible footer flow;
+  - converted mobile node actions (`restart / settings / terminal`) to a clean 3-column icon grid.
+
+Change type:
+
+- `local patch` — dashboard metric ring rendering correction
+- `stability fix` — mobile menu interaction / z-index / pointer-event recovery

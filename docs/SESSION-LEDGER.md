@@ -152,3 +152,12 @@
 - Next step:
   - deploy and verify `Statistics`, `Settings`, and subscription-related screens on a real phone;
   - continue the remaining Russian wording pass and then return to ring/visual refinement.
+
+- Dashboard rings / mobile menu recovery:
+  - corrected the dashboard ring direction again after the live stand showed thick solid rings instead of thin segmented ones;
+  - tightened the mobile shell so the menu should stop leaking clicks to the page behind it;
+  - hid the mobile collapse control and converted node action controls to an icon-only 3-column layout on phones.
+- Next step:
+  - verify on a real phone that the menu is fully clickable and background content is no longer interactive while open;
+  - visually confirm the new thin ring treatment in both themes;
+  - continue the broader mobile cleanup on `Statistics`, `Users`, `Settings`, and the subscription page.
