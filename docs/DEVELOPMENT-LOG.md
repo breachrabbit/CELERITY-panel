@@ -198,3 +198,23 @@ Change type:
 Change type:
 
 - `stability fix` — shell/sidebar scroll behavior
+
+## 2026-04-16 Sidebar Footer and Chart Polish
+
+- Changed sidebar scrolling so only the navigation middle scrolls; the collapse/logout footer stays fixed at the bottom of the viewport-height sidebar.
+- Kept segmented dashboard rings on the Java accent family in both light and dark themes.
+- Refined the dashboard traffic chart:
+  - slightly taller adaptive chart surface;
+  - fewer visible markers;
+  - calmer plot texture.
+- Nudged dashboard log height syncing closer to the right sidebar bottom.
+- Tightened statistics chart visuals:
+  - reduced point noise;
+  - calmer plot texture;
+  - Java-only node chart palette;
+  - added a subtle chart-area background plugin for a more unified live-chart surface.
+
+Change type:
+
+- `local patch` — shell footer and chart visual polish
+- `stability fix` — dashboard logs height alignment follow-up

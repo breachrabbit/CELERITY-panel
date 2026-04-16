@@ -86,3 +86,12 @@
   - kept sidebar internals scrollable inside the viewport height.
 - Next step:
   - verify long-page scrolling on dashboard/settings and confirm the sidebar no longer moves upward with page content.
+
+- Sidebar/chart polish:
+  - changed sidebar internals so the nav area scrolls independently while footer controls remain attached to the bottom;
+  - kept dashboard segmented rings in the Java accent family;
+  - reduced dashboard traffic markers and softened the plot texture;
+  - nudged dashboard log height syncing;
+  - made statistics charts cleaner and more consistent with the dashboard chart style.
+- Next step:
+  - deploy and visually verify sidebar footer stickiness, dashboard logs alignment, and statistics chart readability.

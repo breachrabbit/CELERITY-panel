@@ -176,6 +176,36 @@ After deploy, verify on long pages:
 3. collapsed sidebar scroll;
 4. mobile menu still opens normally.
 
+## 2026-04-16 Sidebar Footer and Chart Polish Update
+
+- Continued the shell/chart polish queue after the sticky sidebar deployment.
+- Sidebar behavior was tightened:
+  - `.sidebar` remains viewport-sticky;
+  - `.sidebar-inner` no longer scrolls as one whole block;
+  - `.nav-menu` is now the scrollable middle area;
+  - footer controls remain attached to the bottom of the viewport-height sidebar.
+- Dashboard chart polish:
+  - traffic chart surface is slightly taller and calmer;
+  - visible markers are capped more aggressively;
+  - segmented rings are kept in the Java accent family in light and dark themes.
+- Dashboard logs:
+  - height syncing was nudged closer to the right sidebar bottom and cap increased.
+- Statistics chart polish:
+  - reduced visible point noise;
+  - softened chart grid texture;
+  - changed multi-node chart palette away from navy/black toward Java tones;
+  - added a subtle chart-area background plugin for a more cohesive live chart surface.
+
+### Current Verification Need
+
+After deploy, verify:
+
+1. sidebar footer stays visible while long pages scroll;
+2. collapsed sidebar still shows the expand icon;
+3. dashboard logs align better with the right widget stack;
+4. dashboard traffic chart and statistics charts feel visually consistent;
+5. dark-theme dashboard rings are not black.
+
 ## Known Broken / Risky / Pending
 
 - page-drift / width-shift bug is still the highest current UX blocker until the deployed shell rewrite is verified;

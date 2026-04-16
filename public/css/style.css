@@ -166,7 +166,7 @@ html.layout-stabilizing * {
     display: flex;
     flex-direction: column;
     background: inherit;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
     transition: padding 0.22s ease;
 }
@@ -272,6 +272,10 @@ html.layout-stabilizing * {
     list-style: none;
     padding: 16px 12px;
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
 }
 
 .nav-menu li {
@@ -336,8 +340,7 @@ html.layout-stabilizing * {
 }
 
 .sidebar-footer {
-    position: sticky;
-    bottom: 0;
+    position: relative;
     z-index: 3;
     padding: 16px;
     border-top: 1px dashed var(--border);
@@ -346,6 +349,7 @@ html.layout-stabilizing * {
     gap: 10px;
     margin-top: auto;
     background: inherit;
+    flex-shrink: 0;
 }
 
 .logout-btn {
@@ -772,7 +776,7 @@ html.layout-stabilizing * {
 
 .hero-meter-ring.soft {
     --meter-color: var(--brand-cyan);
-    --meter-track: rgba(8, 197, 203, 0.16);
+    --meter-track: rgba(8, 197, 203, 0.18);
 }
 
 :root[data-theme="dark"] .hero-meter-ring,
@@ -781,12 +785,13 @@ html.layout-stabilizing * {
 }
 
 :root[data-theme="dark"] .hero-meter-ring {
-    --meter-track: rgba(68, 239, 244, 0.18);
+    --meter-color: var(--brand-cyan);
+    --meter-track: rgba(68, 239, 244, 0.2);
 }
 
 :root[data-theme="dark"] .hero-meter-ring.soft {
     --meter-color: var(--brand-cyan);
-    --meter-track: rgba(68, 239, 244, 0.16);
+    --meter-track: rgba(68, 239, 244, 0.2);
 }
 
 .hero-meter-copy,
@@ -898,22 +903,22 @@ html.layout-stabilizing * {
 }
 
 .sparkline-visual {
-    --sparkline-height: clamp(220px, 24vw, 272px);
+    --sparkline-height: clamp(226px, 23vw, 284px);
     position: relative;
     min-height: var(--sparkline-height);
     border-radius: 18px;
     border: 1px dashed rgba(5,10,60,0.12);
     background:
-        linear-gradient(to top, rgba(8,197,203,0.055), rgba(8,197,203,0.012)),
+        linear-gradient(to top, rgba(8,197,203,0.05), rgba(8,197,203,0.008)),
         repeating-linear-gradient(
             to right,
-            rgba(5,10,60,0.04) 0 1px,
-            transparent 1px 52px
+            rgba(5,10,60,0.03) 0 1px,
+            transparent 1px 64px
         ),
         repeating-linear-gradient(
             to top,
-            rgba(5,10,60,0.026) 0 1px,
-            transparent 1px 44px
+            rgba(5,10,60,0.02) 0 1px,
+            transparent 1px 54px
         );
     overflow: hidden;
 }
@@ -924,13 +929,13 @@ html.layout-stabilizing * {
         linear-gradient(to top, rgba(8,197,203,0.1), rgba(8,197,203,0.018)),
         repeating-linear-gradient(
             to right,
-            rgba(255,255,255,0.05) 0 1px,
-            transparent 1px 52px
+            rgba(255,255,255,0.036) 0 1px,
+            transparent 1px 64px
         ),
         repeating-linear-gradient(
             to top,
-            rgba(255,255,255,0.035) 0 1px,
-            transparent 1px 44px
+            rgba(255,255,255,0.026) 0 1px,
+            transparent 1px 54px
         );
 }
 
@@ -947,7 +952,7 @@ html.layout-stabilizing * {
 .sparkline-line {
     fill: none;
     stroke: var(--brand-cyan);
-    stroke-width: 3.6;
+    stroke-width: 3.4;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
@@ -960,7 +965,7 @@ html.layout-stabilizing * {
     fill: var(--brand-white);
     stroke: currentColor;
     stroke-width: 1.8;
-    opacity: 0.72;
+    opacity: 0.66;
     transition: transform 0.2s ease, opacity 0.2s ease;
     transform-origin: center;
 }
@@ -1902,6 +1907,11 @@ html.layout-stabilizing * {
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
+    width: 100%;
+    min-width: 0;
+}
+
+.logs-container {
     width: 100%;
     min-width: 0;
 }

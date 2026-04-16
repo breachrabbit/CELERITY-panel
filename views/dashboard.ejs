@@ -574,10 +574,10 @@ function syncDashboardLogsHeight() {
 
     const sidebarRect = sidebar.getBoundingClientRect();
     const logsRect = logsContainer.getBoundingClientRect();
-    const available = Math.floor(sidebarRect.bottom - logsRect.top - 2);
+    const available = Math.floor(sidebarRect.bottom - logsRect.top);
     if (!Number.isFinite(available) || available < 260) return;
 
-    const capped = Math.max(360, Math.min(available, 640));
+    const capped = Math.max(360, Math.min(available, 720));
     logsContainer.style.height = `${capped}px`;
 }
 
@@ -728,7 +728,7 @@ function initTrafficSparkline() {
         line.setAttribute('d', linePath);
         area.setAttribute('d', areaPath);
 
-        const desiredMarkers = Math.max(4, Math.floor((chart.clientWidth || 320) / 96));
+        const desiredMarkers = Math.max(4, Math.min(8, Math.floor((chart.clientWidth || 320) / 128)));
         const step = Math.max(1, Math.ceil(points.length / desiredMarkers));
         pointsGroup.innerHTML = points
             .filter((point, index) => index === 0 || index === points.length - 1 || index % step === 0)
