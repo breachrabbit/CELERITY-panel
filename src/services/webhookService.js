@@ -95,7 +95,7 @@ async function send(event, data) {
                 'X-Webhook-Event': event,
                 'X-Webhook-Timestamp': timestamp,
                 'X-Webhook-Signature': signature,
-                'User-Agent': 'C3-Celerity-Webhook/1.0',
+                'User-Agent': 'Hidden-Rabbit-Panel-Webhook/1.0',
             },
         });
         logger.debug(`[Webhook] Sent ${event} to ${webhookSettings.url}`);
@@ -121,7 +121,7 @@ async function test(url, secret) {
     const payload = JSON.stringify({
         event: 'test',
         timestamp: new Date().toISOString(),
-        data: { message: 'Test webhook from C³ CELERITY' },
+        data: { message: 'Test webhook from Hidden Rabbit Panel' },
     });
 
     const signature = sign(secret || '', timestamp, payload);
@@ -134,7 +134,7 @@ async function test(url, secret) {
                 'X-Webhook-Event': 'test',
                 'X-Webhook-Timestamp': timestamp,
                 'X-Webhook-Signature': signature,
-                'User-Agent': 'C3-Celerity-Webhook/1.0',
+                'User-Agent': 'Hidden-Rabbit-Panel-Webhook/1.0',
             },
         });
         return { success: true, status: response.status };

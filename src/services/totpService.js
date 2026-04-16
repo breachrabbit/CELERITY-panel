@@ -2,7 +2,7 @@ const QRCode = require('qrcode');
 const otplib = require('otplib');
 const cryptoService = require('./cryptoService');
 
-const DEFAULT_ISSUER = 'C3 CELERITY';
+const DEFAULT_ISSUER = 'Hidden Rabbit Panel';
 
 class TotpService {
     generateSecret() {

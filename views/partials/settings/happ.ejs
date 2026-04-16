@@ -226,10 +226,12 @@
 
                 <div class="form-group" style="margin-top:1rem;">
                     <label><%= t('settings.happColorProfile') %></label>
-                    <input type="hidden" name="subscription.happ.colorProfile" value="<%= settings?.subscription?.happ?.colorProfile || '' %>">
-                    <div class="hint" style="padding:0.85rem 1rem; border:1px dashed var(--border); border-radius:8px; background:var(--bg-secondary);">
-                        <%= t('settings.happColorProfileDisabled') %>
-                    </div>
+                    <textarea
+                        name="subscription.happ.colorProfile"
+                        rows="6"
+                        style="width:100%; resize:vertical; font-family:var(--font-mono);"
+                        placeholder='{"buttonColor":"#050A3C","buttonTextColor":"#FFFFFF"}'
+                    ><%= settings?.subscription?.happ?.colorProfile || '' %></textarea>
                     <small class="hint"><%= t('settings.happColorProfileHint') %></small>
                 </div>
             </details>

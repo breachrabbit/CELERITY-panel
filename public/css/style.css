@@ -641,7 +641,11 @@ html.layout-stabilizing * {
 .hero-meter-ring {
     --meter-value: 72;
     --meter-color: var(--brand-cyan);
-    --meter-track: rgba(5, 10, 60, 0.1);
+    --meter-track: rgba(5, 10, 60, 0.14);
+    --ring-cutout: 58%;
+    --ring-thickness: 69%;
+    --segment-fill: 8deg;
+    --segment-gap: 12deg;
     width: 72px;
     height: 72px;
     border-radius: 50%;
@@ -664,29 +668,46 @@ html.layout-stabilizing * {
 }
 
 .hero-meter-ring::before {
-    background: repeating-conic-gradient(from -90deg, var(--meter-track) 0deg 10deg, transparent 10deg 20deg);
-    -webkit-mask: radial-gradient(circle, transparent 57%, #000 58% 70%, transparent 71%);
-    mask: radial-gradient(circle, transparent 57%, #000 58% 70%, transparent 71%);
+    background: repeating-conic-gradient(
+        from -90deg,
+        var(--meter-track) 0deg var(--segment-fill),
+        transparent var(--segment-fill) var(--segment-gap)
+    );
+    -webkit-mask: radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%));
+    mask: radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%));
 }
 
 .hero-meter-ring::after {
     background:
-        conic-gradient(from -90deg, var(--meter-color) 0deg calc(var(--meter-value) * 3.6deg), transparent calc(var(--meter-value) * 3.6deg) 360deg),
-        repeating-conic-gradient(from -90deg, #000 0deg 8deg, transparent 8deg 16deg);
+        conic-gradient(from -90deg, #000 0deg calc(var(--meter-value) * 3.6deg), transparent calc(var(--meter-value) * 3.6deg) 360deg),
+        repeating-conic-gradient(
+            from -90deg,
+            var(--meter-color) 0deg var(--segment-fill),
+            transparent var(--segment-fill) var(--segment-gap)
+        );
     -webkit-mask:
-        radial-gradient(circle, transparent 57%, #000 58% 70%, transparent 71%),
+        radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
         linear-gradient(#000 0 0);
     -webkit-mask-composite: source-in;
     mask:
-        radial-gradient(circle, transparent 57%, #000 58% 70%, transparent 71%),
+        radial-gradient(circle, transparent var(--ring-cutout), #000 calc(var(--ring-cutout) + 1%), #000 var(--ring-thickness), transparent calc(var(--ring-thickness) + 1%)),
         linear-gradient(#000 0 0);
     mask-composite: intersect;
+}
+
+.hero-meter-ring > span {
+    position: relative;
+    z-index: 1;
 }
 
 .hero-meter-ring.mini {
     width: 58px;
     height: 58px;
     font-size: 15px;
+    --ring-cutout: 55%;
+    --ring-thickness: 71%;
+    --segment-fill: 9deg;
+    --segment-gap: 15deg;
 }
 
 .hero-meter-ring.soft {
@@ -700,7 +721,7 @@ html.layout-stabilizing * {
 }
 
 :root[data-theme="dark"] .hero-meter-ring {
-    --meter-track: rgba(191, 208, 235, 0.16);
+    --meter-track: rgba(191, 208, 235, 0.18);
 }
 
 :root[data-theme="dark"] .hero-meter-ring.soft {
