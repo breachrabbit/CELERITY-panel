@@ -449,7 +449,7 @@ router.get('/', async (req, res) => {
                 .populate('groups', 'maxDevices')
                 .lean(),
             Settings.findOne().lean(),
-            statsService.getTrafficChart('7d'),
+            statsService.getTrafficChart('24h'),
         ]);
 
         const nodes = await applyCascadeDisplayStatus(rawNodes);
@@ -511,7 +511,7 @@ router.get('/', async (req, res) => {
                     total: totalTrafficBytes,
                 },
                 trafficWindow: {
-                    period: '7d',
+                    period: '24h',
                     tx: trafficWindow?.totals?.tx || 0,
                     rx: trafficWindow?.totals?.rx || 0,
                     total: trafficWindow?.totals?.total || 0,

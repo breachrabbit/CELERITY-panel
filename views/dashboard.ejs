@@ -20,15 +20,23 @@ const formatTrafficWindowValue = (bytes) => {
     if (kb >= 1) return kb.toFixed(0) + ' KB';
     return Math.max(bytes, 0).toFixed(0) + ' B';
 };
+const formatTrafficPeriodLabel = (period) => {
+    switch (period) {
+        case '24h': return 'Трафик за 24 часа';
+        case '7d': return 'Трафик за 7 дней';
+        case '30d': return 'Трафик за 30 дней';
+        default: return 'Живой трафик';
+    }
+};
 const nodeHealthPct = stats.nodes.total ? Math.round((stats.nodes.online / stats.nodes.total) * 100) : 0;
 const userHealthPct = stats.users.total ? Math.round((stats.users.enabled / stats.users.total) * 100) : 0;
 const sparklinePoints = (stats.trafficWindow?.points || []).length
     ? stats.trafficWindow.points.map((point) => ({
         label: point.label,
-        value: Number(((point.value || 0) / (1024 * 1024 * 1024)).toFixed(3)),
+        raw: point.value || 0,
         display: formatTrafficWindowValue(point.value || 0)
     }))
-    : [{ label: '—', value: 0 }, { label: '—', value: 0.01 }];
+    : [{ label: '—', raw: 0, display: '0 B' }, { label: '—', raw: 1, display: '1 B' }];
 const limitedDeviceCapacity = stats.devices?.capacity || 0;
 const activeDevices = stats.devices?.activeDevices || 0;
 const activeProfiles = stats.devices?.activeProfiles || 0;
@@ -79,17 +87,16 @@ const deviceUsagePct = limitedDeviceCapacity
         </div>
         <div class="hero-sparkline-card">
             <div class="sparkline-copy">
-                <span>Трафик за 7 дней</span>
+                <span><%= formatTrafficPeriodLabel(stats.trafficWindow?.period) %></span>
                 <strong><%= formatTrafficDashboard(trafficWindowTotalGB) %></strong>
             </div>
             <div
                 class="sparkline-visual interactive"
                 data-sparkline-chart
                 data-points='<%- JSON.stringify(sparklinePoints) %>'
-                data-unit="GB"
                 aria-label="График трафика"
             >
-                <svg class="sparkline-svg" viewBox="0 0 320 92" preserveAspectRatio="none" aria-hidden="true">
+                <svg class="sparkline-svg" viewBox="0 0 320 116" preserveAspectRatio="none" aria-hidden="true">
                     <defs>
                         <linearGradient id="trafficLineFill" x1="0" x2="0" y1="0" y2="1">
                             <stop offset="0%" stop-color="rgba(8,197,203,0.18)"></stop>
@@ -100,7 +107,7 @@ const deviceUsagePct = limitedDeviceCapacity
                     <path class="sparkline-line" d=""></path>
                     <g class="sparkline-points"></g>
                     <g class="sparkline-focus" hidden>
-                        <line class="sparkline-focus-line" x1="0" y1="8" x2="0" y2="84"></line>
+                        <line class="sparkline-focus-line" x1="0" y1="10" x2="0" y2="98"></line>
                         <circle class="sparkline-focus-dot" cx="0" cy="0" r="5"></circle>
                     </g>
                 </svg>
@@ -570,19 +577,24 @@ function initTrafficSparkline() {
     const tooltip = chart.querySelector('.sparkline-tooltip');
     const tooltipLabel = chart.querySelector('.sparkline-tooltip-label');
     const tooltipValue = chart.querySelector('.sparkline-tooltip-value');
-    const unit = chart.dataset.unit || '';
     const width = 320;
-    const height = 92;
+    const height = 116;
     const paddingX = 10;
-    const paddingTop = 12;
-    const paddingBottom = 16;
+    const paddingTop = 14;
+    const paddingBottom = 18;
     const usableWidth = width - paddingX * 2;
     const usableHeight = height - paddingTop - paddingBottom;
-    const maxValue = Math.max(...rawPoints.map((point) => point.value), 0.1);
+    const values = rawPoints.map((point) => Number(point.raw || 0));
+    const maxValue = Math.max(...values, 1);
+    const minValue = Math.min(...values, 0);
+    const valueRange = Math.max(maxValue - minValue, Math.max(maxValue, 1) * 0.18, 1);
+    const upperBound = maxValue + valueRange * 0.18;
+    const lowerBound = Math.max(0, minValue - valueRange * 0.12);
+    const normalizedRange = Math.max(upperBound - lowerBound, 1);
 
     const points = rawPoints.map((point, index) => {
         const x = paddingX + (usableWidth / (rawPoints.length - 1)) * index;
-        const y = paddingTop + usableHeight - (point.value / maxValue) * usableHeight;
+        const y = paddingTop + usableHeight - (((Number(point.raw || 0) - lowerBound) / normalizedRange) * usableHeight);
         return { ...point, x, y };
     });
 
@@ -613,7 +625,7 @@ function initTrafficSparkline() {
         focusDot.setAttribute('cx', point.x);
         focusDot.setAttribute('cy', point.y);
         tooltipLabel.textContent = point.label;
-        tooltipValue.textContent = point.display || `${point.value.toFixed(2)} ${unit}`.trim();
+        tooltipValue.textContent = point.display || '0 B';
 
         const left = (point.x / width) * chart.clientWidth;
         tooltip.style.left = `${left}px`;
