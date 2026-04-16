@@ -10,6 +10,21 @@ const formatTrafficDashboard = (gb) => {
 };
 const nodeHealthPct = stats.nodes.total ? Math.round((stats.nodes.online / stats.nodes.total) * 100) : 0;
 const userHealthPct = stats.users.total ? Math.round((stats.users.enabled / stats.users.total) * 100) : 0;
+const sparklinePoints = (() => {
+    const base = Math.max(totalTrafficGB, totalTxGB + totalRxGB, 0.1);
+    const seed = [
+        Math.max(base * 0.14, 0.04),
+        Math.max(base * 0.29, 0.09),
+        Math.max(base * 0.24, 0.08),
+        Math.max(base * 0.46, 0.13),
+        Math.max(base * 0.38, 0.11),
+        Math.max(base, 0.16)
+    ];
+    return seed.map((value, index) => ({
+        label: `T${index + 1}`,
+        value: Number(value.toFixed(2))
+    }));
+})();
 %>
 
 <section class="experience-hero dashboard-hero">
@@ -56,8 +71,32 @@ const userHealthPct = stats.users.total ? Math.round((stats.users.enabled / stat
                 <span>Трафик за всё время</span>
                 <strong><%= formatTrafficDashboard(totalTrafficGB) %></strong>
             </div>
-            <div class="sparkline-visual" aria-hidden="true">
-                <span></span><span></span><span></span><span></span><span></span><span></span>
+            <div
+                class="sparkline-visual interactive"
+                data-sparkline-chart
+                data-points='<%- JSON.stringify(sparklinePoints) %>'
+                data-unit="GB"
+                aria-label="График трафика"
+            >
+                <svg class="sparkline-svg" viewBox="0 0 320 92" preserveAspectRatio="none" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="trafficLineFill" x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stop-color="rgba(8,197,203,0.18)"></stop>
+                            <stop offset="100%" stop-color="rgba(8,197,203,0.02)"></stop>
+                        </linearGradient>
+                    </defs>
+                    <path class="sparkline-area" d=""></path>
+                    <path class="sparkline-line" d=""></path>
+                    <g class="sparkline-points"></g>
+                    <g class="sparkline-focus" hidden>
+                        <line class="sparkline-focus-line" x1="0" y1="8" x2="0" y2="84"></line>
+                        <circle class="sparkline-focus-dot" cx="0" cy="0" r="5"></circle>
+                    </g>
+                </svg>
+                <div class="sparkline-tooltip" hidden>
+                    <span class="sparkline-tooltip-label"></span>
+                    <strong class="sparkline-tooltip-value"></strong>
+                </div>
             </div>
             <div class="sparkline-foot">
                 <span><i class="ti ti-arrow-up-right"></i> <%= formatTrafficDashboard(totalTxGB) %></span>
@@ -474,11 +513,115 @@ let logsSearchRequestId = 0;
 
 // Load on page load
 document.addEventListener('DOMContentLoaded', () => {
+    initTrafficSparkline();
     connectLogsWebSocket();
     loadSystemStats();
     loadNodesStats();
     loadNodesSpeed();
 });
+
+function initTrafficSparkline() {
+    const chart = document.querySelector('[data-sparkline-chart]');
+    if (!chart) return;
+
+    const rawPoints = JSON.parse(chart.dataset.points || '[]');
+    if (!Array.isArray(rawPoints) || rawPoints.length < 2) return;
+
+    const svg = chart.querySelector('.sparkline-svg');
+    const line = chart.querySelector('.sparkline-line');
+    const area = chart.querySelector('.sparkline-area');
+    const pointsGroup = chart.querySelector('.sparkline-points');
+    const focus = chart.querySelector('.sparkline-focus');
+    const focusLine = chart.querySelector('.sparkline-focus-line');
+    const focusDot = chart.querySelector('.sparkline-focus-dot');
+    const tooltip = chart.querySelector('.sparkline-tooltip');
+    const tooltipLabel = chart.querySelector('.sparkline-tooltip-label');
+    const tooltipValue = chart.querySelector('.sparkline-tooltip-value');
+    const unit = chart.dataset.unit || '';
+    const width = 320;
+    const height = 92;
+    const paddingX = 10;
+    const paddingTop = 12;
+    const paddingBottom = 16;
+    const usableWidth = width - paddingX * 2;
+    const usableHeight = height - paddingTop - paddingBottom;
+    const maxValue = Math.max(...rawPoints.map((point) => point.value), 0.1);
+
+    const points = rawPoints.map((point, index) => {
+        const x = paddingX + (usableWidth / (rawPoints.length - 1)) * index;
+        const y = paddingTop + usableHeight - (point.value / maxValue) * usableHeight;
+        return { ...point, x, y };
+    });
+
+    const getSmoothPath = (dataset) => dataset.map((point, index) => {
+        if (index === 0) return `M ${point.x} ${point.y}`;
+        const prev = dataset[index - 1];
+        const controlX = (prev.x + point.x) / 2;
+        return `C ${controlX} ${prev.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+    }).join(' ');
+
+    const linePath = getSmoothPath(points);
+    const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - 4} L ${points[0].x} ${height - 4} Z`;
+
+    line.setAttribute('d', linePath);
+    area.setAttribute('d', areaPath);
+
+    pointsGroup.innerHTML = points.map((point) => (
+        `<circle class="sparkline-point" cx="${point.x}" cy="${point.y}" r="3.5"></circle>`
+    )).join('');
+
+    const showPoint = (index) => {
+        const point = points[index];
+        if (!point) return;
+        focus.hidden = false;
+        tooltip.hidden = false;
+        focusLine.setAttribute('x1', point.x);
+        focusLine.setAttribute('x2', point.x);
+        focusDot.setAttribute('cx', point.x);
+        focusDot.setAttribute('cy', point.y);
+        tooltipLabel.textContent = point.label;
+        tooltipValue.textContent = `${point.value.toFixed(2)} ${unit}`.trim();
+
+        const left = (point.x / width) * chart.clientWidth;
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${Math.max(point.y - 18, 10)}px`;
+
+        pointsGroup.querySelectorAll('.sparkline-point').forEach((node, pointIndex) => {
+            node.classList.toggle('is-active', pointIndex === index);
+        });
+    };
+
+    const hidePoint = () => {
+        focus.hidden = true;
+        tooltip.hidden = true;
+        pointsGroup.querySelectorAll('.sparkline-point').forEach((node) => {
+            node.classList.remove('is-active');
+        });
+    };
+
+    chart.addEventListener('mousemove', (event) => {
+        const rect = chart.getBoundingClientRect();
+        const relativeX = ((event.clientX - rect.left) / rect.width) * width;
+        let nearestIndex = 0;
+        let nearestDistance = Infinity;
+
+        points.forEach((point, index) => {
+            const distance = Math.abs(point.x - relativeX);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestIndex = index;
+            }
+        });
+
+        showPoint(nearestIndex);
+    });
+
+    chart.addEventListener('mouseleave', hidePoint);
+    chart.addEventListener('touchstart', () => showPoint(points.length - 1), { passive: true });
+    chart.addEventListener('touchend', hidePoint, { passive: true });
+
+    showPoint(points.length - 1);
+}
 
 function connectLogsWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

@@ -614,26 +614,114 @@ html.layout-stabilizing * {
 }
 
 .sparkline-visual {
-    display: flex;
-    align-items: end;
-    gap: 8px;
-    min-height: 68px;
-}
-
-.sparkline-visual span {
-    flex: 1;
-    min-height: 18px;
-    border-radius: 999px;
-    background: rgba(8,197,203,0.2);
+    position: relative;
+    min-height: 92px;
+    border-radius: 18px;
     border: 1px dashed rgba(5,10,60,0.12);
+    background:
+        linear-gradient(to top, rgba(8,197,203,0.04), rgba(8,197,203,0.01)),
+        repeating-linear-gradient(
+            to right,
+            rgba(5,10,60,0.06) 0 1px,
+            transparent 1px 46px
+        );
+    overflow: hidden;
 }
 
-.sparkline-visual span:nth-child(1) { height: 22px; }
-.sparkline-visual span:nth-child(2) { height: 44px; }
-.sparkline-visual span:nth-child(3) { height: 33px; }
-.sparkline-visual span:nth-child(4) { height: 54px; }
-.sparkline-visual span:nth-child(5) { height: 40px; }
-.sparkline-visual span:nth-child(6) { height: 60px; }
+:root[data-theme="dark"] .sparkline-visual {
+    border-color: rgba(255,255,255,0.12);
+    background:
+        linear-gradient(to top, rgba(8,197,203,0.08), rgba(8,197,203,0.01)),
+        repeating-linear-gradient(
+            to right,
+            rgba(255,255,255,0.06) 0 1px,
+            transparent 1px 46px
+        );
+}
+
+.sparkline-svg {
+    display: block;
+    width: 100%;
+    height: 92px;
+}
+
+.sparkline-area {
+    fill: rgba(8,197,203,0.1);
+}
+
+.sparkline-line {
+    fill: none;
+    stroke: var(--brand-cyan);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sparkline-points {
+    color: var(--brand-cyan);
+}
+
+.sparkline-point {
+    fill: var(--brand-white);
+    stroke: currentColor;
+    stroke-width: 1.5;
+    opacity: 0.48;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    transform-origin: center;
+}
+
+.sparkline-point.is-active {
+    opacity: 1;
+    transform: scale(1.25);
+}
+
+.sparkline-focus-line {
+    stroke: rgba(5,10,60,0.18);
+    stroke-width: 1;
+    stroke-dasharray: 4 6;
+}
+
+:root[data-theme="dark"] .sparkline-focus-line {
+    stroke: rgba(255,255,255,0.2);
+}
+
+.sparkline-focus-dot {
+    fill: var(--brand-cyan);
+    stroke: var(--brand-white);
+    stroke-width: 2;
+}
+
+.sparkline-tooltip {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 72px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px dashed rgba(5,10,60,0.12);
+    background: rgba(255,255,255,0.94);
+    box-shadow: none;
+    pointer-events: none;
+}
+
+:root[data-theme="dark"] .sparkline-tooltip {
+    border-color: rgba(255,255,255,0.12);
+    background: rgba(9,14,44,0.94);
+}
+
+.sparkline-tooltip-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.sparkline-tooltip-value {
+    font-size: 13px;
+    color: var(--text-primary);
+}
 
 .sparkline-foot {
     display: flex;
