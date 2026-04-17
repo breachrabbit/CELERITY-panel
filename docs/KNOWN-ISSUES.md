@@ -117,23 +117,31 @@ There are still visible references to `Celerity` in repo text, UI labels, commen
 
 Status: `pending`
 
-### 6. Upstream divergence is mapped, but not yet triaged for adoption
+### 6. Upstream divergence is triaged, but migration waves are still in progress
 
-The fork already has meaningful local divergence. A fresh comparison against `upstream/main` now exists, but safe ports still need triage.
+The fork already has meaningful local divergence. Full `v1.0.0...v1.1.0` triage is now completed, but not all selected waves are ported yet.
 
 Latest progress:
 
-- upstream `v1.0.0...v1.1.0` execution has started;
-- first safe port batch is already in `main` (commit `171b7a7`):
+- finalized shortlist document:
+  - `docs/UPSTREAM-V1.1-AUDIT-SHORTLIST.md`;
+- safe-port batches already in `main`:
+  - `171b7a7`:
   - ObjectId-safe group filter,
   - Xray stats compatibility + outbound counters,
   - same-VPS agent firewall hardening.
+  - `ac88f5e`:
+    - node init-script pre-setup hook integrated into durable path.
+  - `0418b6d`:
+    - Hysteria port-hopping idempotency hardening + same-VPS skip.
 
 Still missing:
 
-- full categorized triage (`security/stability/UX/infra`) of the whole upstream delta;
-- explicit shortlist completion (`take now` / `take with adaptation` / `skip`);
-- next safe waves with stand regression checks.
+- adaptation waves from shortlist:
+  - broadcast terminal (with RBAC/audit constraints),
+  - selected HAPP routing train pieces with fork compatibility pass,
+  - onboarding diagnostics UX parity layers.
+- continued safe-wave rollout with stand regressions after each batch.
 
 Main upstream areas worth evaluating:
 

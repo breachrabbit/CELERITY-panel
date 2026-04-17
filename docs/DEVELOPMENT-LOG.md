@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-04-17 Upstream Audit Finalized + Safe-Port Batches #2/#3
+
+- Completed full categorized shortlist for upstream release train:
+  - `docs/UPSTREAM-V1.1-AUDIT-SHORTLIST.md` now contains final decisions:
+    - `take now`,
+    - `take with adaptation`,
+    - `skip`,
+    with category tags `security/stability/UX/infra`.
+- Safe-port batch #2 delivered:
+  - pre-setup `initScript` field for nodes (adapted for durable onboarding/runtime path);
+  - local code commit: `ac88f5e`.
+- Safe-port batch #3 delivered:
+  - hardened Hysteria port-hopping rule application:
+    - idempotent INPUT/NAT rules (`-C` checks + clean old INPUT rules),
+    - same-VPS skip for port-hopping in runtime setup;
+  - local code commit: `0418b6d`.
+- Deployment/verification:
+  - forced deploy `l3lbf0a84t4qtlk031uat7nk` finished;
+  - stand status: `running:healthy`;
+  - regression checks:
+    - `/panel/login` -> HTTP 200,
+    - `/panel/nodes/add` -> HTTP 200,
+    - `/panel/cascades/builder` -> HTTP 200,
+    - `/api/cascade-builder/state` -> HTTP 200,
+    - `/api/nodes/:id/onboarding/jobs` -> HTTP 200.
+
+Change types:
+
+- `stability fix` — upstream safe-port reliability wave for node setup
+- `infra` — finalized upstream audit shortlist and migration queue
+- `deployment` — forced redeploy + stand regression verification
+
 ## 2026-04-17 Upstream v1.1.0 Audit Execution Started + Safe-Port Batch #1
 
 - Started practical upstream delta execution for:

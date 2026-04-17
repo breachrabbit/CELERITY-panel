@@ -2,6 +2,20 @@
 
 ## 2026-04-17
 
+- Worked on: finishing upstream `v1.0.0...v1.1.0` shortlist + next safe-port wave.
+- Finished with:
+  - completed final shortlist document with decision buckets and category coverage:
+    - `docs/UPSTREAM-V1.1-AUDIT-SHORTLIST.md`;
+  - confirmed safe-port batch #2 is live (`ac88f5e`: node `initScript` pre-setup hook);
+  - shipped safe-port batch #3 (`0418b6d`):
+    - hardened Hysteria port-hopping rule handling (idempotent INPUT/NAT),
+    - skip port-hopping on same-VPS setup path;
+  - redeployed stand (`l3lbf0a84t4qtlk031uat7nk`) and revalidated key endpoints (`/panel/login`, nodes add, builder, onboarding APIs).
+- Next step:
+  - run live onboarding smoke with Hysteria node using non-empty portRange and same-VPS case to confirm new behavior in real setup logs;
+  - continue cascade diagnostics depth (chain/hop/node reason precision + repair ergonomics);
+  - continue staged retirement of legacy `setupJobs` in remaining non-critical status/control touches.
+
 - Worked on: upstream `v1.0.0...v1.1.0` execution start + first safe port wave.
 - Finished with:
   - completed forced redeploy for stand health confirmation:

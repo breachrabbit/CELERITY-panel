@@ -47,12 +47,59 @@
   - hybrid cascade feature flag moved to always-on runtime policy:
     - settings UI now shows informational always-enabled state;
     - runtime config reload forces hybrid enabled.
-  - started practical upstream v1.1.0 safe-port batch:
-    - backported ObjectId-safe group filter in users aggregation;
-    - backported Xray stats compatibility (`cc-agent` stats v2 shape + panel-side backward compatibility);
-    - backported same-VPS agent firewall hardening (local/container subnet allow rules);
-    - enabled outbound traffic stats in generated Xray config.
-  - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+- started practical upstream v1.1.0 safe-port batch:
+  - backported ObjectId-safe group filter in users aggregation;
+  - backported Xray stats compatibility (`cc-agent` stats v2 shape + panel-side backward compatibility);
+  - backported same-VPS agent firewall hardening (local/container subnet allow rules);
+  - enabled outbound traffic stats in generated Xray config.
+- verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Stop-Point — Upstream Audit Finalized + Safe-Port Batch #3
+
+### What was delivered
+
+- Upstream audit `v1.0.0...v1.1.0` is now finalized in a dedicated shortlist doc:
+  - `docs/UPSTREAM-V1.1-AUDIT-SHORTLIST.md`
+  - includes decision buckets:
+    - `take now`,
+    - `take with adaptation`,
+    - `skip`,
+    plus category tagging (`security/stability/UX/infra`).
+- Safe-port batch #2 is live:
+  - node pre-setup `initScript` hook with durable onboarding integration;
+  - code commit: `ac88f5e`.
+- Safe-port batch #3 is live:
+  - Hysteria port-hopping rule hardening and idempotency:
+    - INPUT/NAT dedupe with `iptables -C` checks,
+    - cleanup of stale INPUT rules before apply;
+  - same-VPS runtime setup now skips port-hopping explicitly;
+  - code commit: `0418b6d`.
+- Forced stand deploy completed:
+  - deployment: `l3lbf0a84t4qtlk031uat7nk`;
+  - state: `finished`, app `running:healthy`.
+- Regression checks completed after deploy:
+  - `/panel/login` -> `200`,
+  - `/panel/nodes/add` -> `200`,
+  - `/panel/cascades/builder` -> `200`,
+  - `/api/cascade-builder/state` -> `200`,
+  - `/api/nodes/:id/onboarding/jobs` -> `200`.
+
+### What is pending
+
+1. Live setup verification for the new port-hopping behavior:
+   - one remote Hysteria node with portRange (ensure rules apply once, no duplicate pollution),
+   - one same-VPS Hysteria setup (ensure explicit skip and clean logs).
+2. Continue cascade diagnostics depth:
+   - stronger chain/hop/node reason extraction,
+   - faster repair/re-run ergonomics on failed chains.
+3. Continue staged retirement of legacy `setupJobs`:
+   - remove next safe non-critical reads/writes in status/control path without breaking legacy fallback.
+
+### Next step
+
+1. Execute two live onboarding smokes (remote + same-VPS) and capture logs.
+2. Apply the next small diagnostics-depth increment for cascade execution details/actions.
+3. Trim one additional non-critical legacy `setupJobs` touchpoint and verify panel setup-status parity.
 
 ## 2026-04-17 Stop-Point — Redeploy Done + Upstream v1.1.0 Safe-Port Batch #1
 
