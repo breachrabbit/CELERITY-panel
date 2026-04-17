@@ -202,6 +202,48 @@ function formatOnboardingStepLog(log) {
     return `[${ts}] ${prefix}${String(log?.message || '').trim()}`.trim();
 }
 
+function detectOnboardingStepFromLine(line) {
+    const normalized = String(line || '').trim().toLowerCase();
+    if (!normalized) return 'preflight';
+    const bracketMatch = normalized.match(/^\[([^\]]+)\]/);
+    const bracketStep = String(bracketMatch?.[1] || '').trim().toLowerCase();
+    if (isKnownStep(bracketStep)) return bracketStep;
+
+    for (const step of ONBOARDING_RERUN_ALLOWED_STEPS) {
+        if (normalized.includes(step)) return step;
+    }
+    return 'preflight';
+}
+
+function shouldSkipOnboardingLiveLine(line) {
+    const text = String(line || '').trim();
+    if (!text) return true;
+    if (/^[.+*\- ]{40,}$/.test(text)) return true;
+    if (/^\s*%\s*Total\s+%\s*Received/i.test(text)) return true;
+    if (/^\s*\d+\s+\d+\s+\d+\s+\d+/.test(text)) return true;
+    return false;
+}
+
+function appendOnboardingLiveLog(onboardingJobId, rawLine) {
+    const jobId = String(onboardingJobId || '').trim();
+    const line = String(rawLine || '').trimEnd();
+    if (!jobId || shouldSkipOnboardingLiveLine(line)) return;
+
+    const step = detectOnboardingStepFromLine(line);
+    const lower = line.toLowerCase();
+    const level = lower.includes('failed') || lower.includes('error')
+        ? 'error'
+        : (lower.includes('[stderr]') || lower.includes('warning') ? 'warning' : 'info');
+
+    nodeOnboardingService.appendStepLog(jobId, {
+        step,
+        level,
+        message: line,
+    }).catch((error) => {
+        logger.warn(`[Panel] onboarding live log append failed for job ${jobId}: ${error.message}`);
+    });
+}
+
 function normalizeSetupMode(value) {
     const normalized = String(value || '').trim().toLowerCase();
     if (normalized === SETUP_MODE_ONBOARDING_FULL || normalized === 'onboarding') {
@@ -601,57 +643,34 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
 }
 
 async function runNodeOnboardingJob(nodeId, onboardingJobId = '') {
-    const key = String(nodeId);
+    const normalizedJobId = String(onboardingJobId || '').trim();
     const node = await HyNode.findById(nodeId);
-    const pushLiveLog = (line) => appendSetupJobLiveLog(key, line);
+    const pushLiveLog = (line) => appendOnboardingLiveLog(normalizedJobId, line);
     if (!node) {
         const fallbackError = 'Нода не найдена';
-        if (onboardingJobId) {
-            await safeOnboardingUpdate(onboardingJobId, 'fail preflight', [], async () => {
+        if (normalizedJobId) {
+            await safeOnboardingUpdate(normalizedJobId, 'fail preflight', [], async () => {
                 await nodeOnboardingService.markStepFailed(
-                    onboardingJobId,
+                    normalizedJobId,
                     'preflight',
                     { message: fallbackError },
                     { repairable: false }
                 );
             });
         }
-        setSetupJob(key, {
-            state: 'error',
-            error: fallbackError,
-            finishedAt: Date.now(),
-            logs: ['Node not found'],
-            onboardingJobId: String(onboardingJobId || ''),
-            setupMode: SETUP_MODE_ONBOARDING_FULL,
-        });
         return;
     }
 
     logger.info(`[Panel] Durable onboarding runFull started for ${node.name} (${node.type || 'hysteria'})`);
     try {
-        const job = await nodeOnboardingPipeline.runFull(onboardingJobId, {
+        const job = await nodeOnboardingPipeline.runFull(normalizedJobId, {
             source: 'panel',
             actor: `panel:${node.name}`,
             setupMode: SETUP_MODE_ONBOARDING_FULL,
             onLogLine: pushLiveLog,
         });
 
-        const onboardingLogs = Array.isArray(job?.stepLogs)
-            ? job.stepLogs.map(formatOnboardingStepLog)
-            : [];
-        const streamedLogs = Array.isArray(getSetupJob(key)?.logs) ? getSetupJob(key).logs : [];
-        const combinedLogs = mergeSetupStatusLogs(onboardingLogs, streamedLogs);
-
         if (job?.status === 'completed') {
-            setSetupJob(key, {
-                state: 'success',
-                message: 'Нода успешно настроена',
-                logs: combinedLogs,
-                finishedAt: Date.now(),
-                error: '',
-                onboardingJobId: String(onboardingJobId || ''),
-                setupMode: SETUP_MODE_ONBOARDING_FULL,
-            });
             logger.info(`[Panel] Durable onboarding completed for ${node.name}`);
             return;
         }
@@ -660,25 +679,16 @@ async function runNodeOnboardingJob(nodeId, onboardingJobId = '') {
         await HyNode.findByIdAndUpdate(node._id, {
             $set: { status: 'error', lastError: onboardingError, healthFailures: 0 },
         });
-        setSetupJob(key, {
-            state: 'error',
-            error: onboardingError,
-            logs: combinedLogs,
-            finishedAt: Date.now(),
-            onboardingJobId: String(onboardingJobId || ''),
-            setupMode: SETUP_MODE_ONBOARDING_FULL,
-        });
         logger.warn(`[Panel] Durable onboarding failed for ${node.name}: ${onboardingError}`);
     } catch (error) {
         logger.error(`[Panel] Durable onboarding exception for ${node.name}: ${error.message}`);
-        const setupLogs = Array.isArray(getSetupJob(key)?.logs) ? getSetupJob(key).logs : [];
-        const mergedLogs = [...setupLogs, `Exception: ${error.message}`];
+        const mergedLogs = [`Exception: ${error.message}`];
 
-        await safeOnboardingUpdate(onboardingJobId, 'mark failed on exception', mergedLogs, async () => {
-            const job = await nodeOnboardingService.getJob(onboardingJobId);
+        await safeOnboardingUpdate(normalizedJobId, 'mark failed on exception', mergedLogs, async () => {
+            const job = await nodeOnboardingService.getJob(normalizedJobId);
             const failedStep = job?.currentStep || 'preflight';
             await nodeOnboardingService.markStepFailed(
-                onboardingJobId,
+                normalizedJobId,
                 failedStep,
                 error,
                 { repairable: true }
@@ -687,14 +697,6 @@ async function runNodeOnboardingJob(nodeId, onboardingJobId = '') {
 
         await HyNode.findByIdAndUpdate(node._id, {
             $set: { status: 'error', lastError: error.message, healthFailures: 0 },
-        });
-        setSetupJob(key, {
-            state: 'error',
-            error: error.message,
-            logs: mergedLogs,
-            finishedAt: Date.now(),
-            onboardingJobId: String(onboardingJobId || ''),
-            setupMode: SETUP_MODE_ONBOARDING_FULL,
         });
     }
 }
@@ -714,16 +716,6 @@ function startPanelOnboardingRun(node, onboardingJob, {
     const startedAt = Date.now();
     const fallbackLog = `[${new Date(startedAt).toISOString()}] ${message}`;
     const initialLogs = Array.isArray(logs) && logs.length ? logs : [fallbackLog];
-    setSetupJob(node._id, {
-        state: 'running',
-        startedAt,
-        finishedAt: null,
-        logs: initialLogs,
-        error: '',
-        message: '',
-        onboardingJobId: onboardingJob.id,
-        setupMode: SETUP_MODE_ONBOARDING_FULL,
-    });
     schedulePanelOnboardingRunner(node._id, onboardingJob.id);
     return {
         startedAt,
@@ -1470,20 +1462,19 @@ router.post('/nodes/:id/setup', async (req, res) => {
             : SETUP_MODE_LEGACY;
 
         const startedAt = Date.now();
-        setSetupJob(req.params.id, {
-            state: 'running',
-            startedAt,
-            finishedAt: null,
-            logs: [`[${new Date(startedAt).toISOString()}] Setup queued...`],
-            error: '',
-            message: '',
-            onboardingJobId,
-            setupMode,
-        });
-
         if (setupMode === SETUP_MODE_ONBOARDING_FULL) {
             schedulePanelOnboardingRunner(req.params.id, onboardingJobId);
         } else {
+            setSetupJob(req.params.id, {
+                state: 'running',
+                startedAt,
+                finishedAt: null,
+                logs: [`[${new Date(startedAt).toISOString()}] Setup queued...`],
+                error: '',
+                message: '',
+                onboardingJobId,
+                setupMode,
+            });
             setImmediate(() => {
                 runNodeSetupJob(req.params.id, onboardingJobId).catch((err) => {
                     logger.error(`[Panel] setup background runner fatal: ${err.message}`);
@@ -1496,7 +1487,9 @@ router.post('/nodes/:id/setup', async (req, res) => {
             running: true,
             state: 'running',
             message: 'Setup запущен в фоне',
-            logs: getSetupJob(req.params.id)?.logs || [],
+            logs: setupMode === SETUP_MODE_LEGACY
+                ? (getSetupJob(req.params.id)?.logs || [])
+                : [`[${new Date(startedAt).toISOString()}] Setup queued...`],
             startedAt,
             onboardingJobId,
             setupMode,
@@ -1893,8 +1886,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
         if (onboardingStatus) {
             const mappedState = mapOnboardingStatusToSetupState(onboardingStatus.status);
             const onboardingLogs = Array.isArray(onboardingStatus.logs) ? onboardingStatus.logs : [];
-            const setupLiveLogs = Array.isArray(getSetupJob(req.params.id)?.logs) ? getSetupJob(req.params.id).logs : [];
-            const mergedLogs = mergeSetupStatusLogs(onboardingLogs, setupLiveLogs);
+            const mergedLogs = trimSetupLogs(onboardingLogs);
             return res.json({
                 success: true,
                 state: mappedState,
