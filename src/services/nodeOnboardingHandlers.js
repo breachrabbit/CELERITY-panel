@@ -9,13 +9,15 @@ function tailText(value, maxLen = 1200) {
     return text.slice(text.length - maxLen);
 }
 
+function shellSingleQuote(value) {
+    return `'${String(value || '').replace(/'/g, `'\"'\"'`)}'`;
+}
+
 function buildNonLoginShCommand(script) {
     const normalized = String(script || '')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .join('; ');
-    return `sh -c ${JSON.stringify(normalized)}`;
+        .replace(/\r\n?/g, '\n')
+        .trim();
+    return `sh -c ${shellSingleQuote(normalized)}`;
 }
 
 function buildSshStepFailure(step, result, fallbackMessage = '') {
