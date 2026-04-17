@@ -295,12 +295,11 @@ async function reloadSettings() {
     }
 
     const hybridFromSettings = settings?.featureFlags?.cascadeHybrid;
-    if (typeof hybridFromSettings === 'boolean') {
-        config.FEATURE_CASCADE_HYBRID = hybridFromSettings;
-    } else {
-        config.FEATURE_CASCADE_HYBRID = process.env.FEATURE_CASCADE_HYBRID === 'true';
+    if (hybridFromSettings === false) {
+        logger.warn('[Settings] featureFlags.cascadeHybrid=false is ignored in Hidden Rabbit mode (hybrid always enabled)');
     }
-    logger.info(`[Settings] Hybrid cascade: ${config.FEATURE_CASCADE_HYBRID ? 'enabled' : 'disabled'}`);
+    config.FEATURE_CASCADE_HYBRID = true;
+    logger.info('[Settings] Hybrid cascade: enabled (forced by Hidden Rabbit runtime policy)');
 }
 module.exports = { reloadSettings };
 

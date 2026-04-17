@@ -174,118 +174,211 @@ function getPanelCertificates(domain) {
     }
 }
 
-const INSTALL_SCRIPT = `#!/bin/bash
+const HYSTERIA_PINNED_VERSION = String(config.HYSTERIA_VERSION || '').trim();
+
+const HYSTERIA_INSTALL_SCRIPT = `#!/bin/bash
 set -e
 
-echo "=== [0/5] System diagnostics ==="
-echo "--- OS info ---"
-cat /etc/os-release 2>/dev/null | grep -E "^(NAME|VERSION|ID)=" || echo "(os-release not found)"
-uname -a 2>/dev/null || true
-echo "--- Disk space ---"
-df -h / 2>/dev/null || true
-echo "--- Memory ---"
-free -h 2>/dev/null || true
-echo "--- Network interfaces ---"
-ip addr show 2>/dev/null | grep -E "^[0-9]+:|inet " || ifconfig 2>/dev/null | grep -E "^[a-z]|inet " || true
-echo "--- Checking required tools ---"
+echo "=== [1/5] Installing Hysteria runtime ==="
+echo "Checking system..."
+echo "OS: $(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || uname -a)"
+echo "Arch: $(uname -m)"
 
-MISSING_TOOLS=""
+install_pkg() {
+    PKG="$1"
 
-if command -v curl &> /dev/null; then
-    echo "OK: curl $(curl --version 2>&1 | head -1)"
-else
-    echo "MISSING: curl is not installed — trying to install..."
-    if command -v apt-get &> /dev/null; then
-        apt-get update -qq && apt-get install -y curl
-        if command -v curl &> /dev/null; then
-            echo "Done: curl installed via apt-get"
-        else
-            echo "ERROR: Failed to install curl via apt-get"
-            MISSING_TOOLS="$MISSING_TOOLS curl"
-        fi
-    elif command -v yum &> /dev/null; then
-        yum install -y curl
-        if command -v curl &> /dev/null; then
-            echo "Done: curl installed via yum"
-        else
-            echo "ERROR: Failed to install curl via yum"
-            MISSING_TOOLS="$MISSING_TOOLS curl"
-        fi
-    elif command -v dnf &> /dev/null; then
-        dnf install -y curl
-        if command -v curl &> /dev/null; then
-            echo "Done: curl installed via dnf"
-        else
-            echo "ERROR: Failed to install curl via dnf"
-            MISSING_TOOLS="$MISSING_TOOLS curl"
-        fi
-    else
-        echo "ERROR: No package manager found (apt-get/yum/dnf). Cannot install curl."
-        MISSING_TOOLS="$MISSING_TOOLS curl"
+    if command -v apt-get >/dev/null 2>&1; then
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y && apt-get install -y "$PKG"
+        return $?
     fi
-fi
-
-if command -v bash &> /dev/null; then
-    echo "OK: bash $(bash --version 2>&1 | head -1)"
-else
-    echo "ERROR: bash is not available — this is very unusual"
-    MISSING_TOOLS="$MISSING_TOOLS bash"
-fi
-
-if command -v systemctl &> /dev/null; then
-    echo "OK: systemctl available ($(systemctl --version 2>&1 | head -1))"
-else
-    echo "WARNING: systemctl not found — service management may fail"
-fi
-
-if command -v openssl &> /dev/null; then
-    echo "OK: openssl $(openssl version 2>&1)"
-else
-    echo "WARNING: openssl not installed (needed for self-signed cert)"
-fi
-
-if [ -n "$MISSING_TOOLS" ]; then
-    echo "ERROR: Required tools are missing:$MISSING_TOOLS"
-    echo "Cannot continue setup. Please install missing tools and try again."
-    exit 1
-fi
-
-echo "--- Checking connectivity ---"
-if curl -s --max-time 5 https://get.hy2.sh/ -o /dev/null -w "HTTPS connectivity: HTTP %{http_code}\\n"; then
-    echo "OK: HTTPS connectivity confirmed"
-else
-    echo "WARNING: Could not reach get.hy2.sh — internet access may be limited"
-fi
-
-echo "=== [1/5] Checking Hysteria installation ==="
-
-if ! command -v hysteria &> /dev/null; then
-    echo "Hysteria not found. Installing..."
-    echo "Running: bash <(curl -fsSL https://get.hy2.sh/)"
-    INSTALL_EXIT=0
-    bash <(curl -fsSL https://get.hy2.sh/) || INSTALL_EXIT=$?
-    if [ "$INSTALL_EXIT" -ne 0 ]; then
-        echo "WARNING: Install script exited with code $INSTALL_EXIT"
+    if command -v dnf >/dev/null 2>&1; then
+        dnf install -y "$PKG"
+        return $?
     fi
-    if command -v hysteria &> /dev/null; then
-        echo "Done: Hysteria installed successfully"
-    else
-        echo "ERROR: Hysteria binary not found after installation script"
-        echo "Install script exit code: $INSTALL_EXIT"
-        echo "Checking common paths:"
-        ls -la /usr/local/bin/hysteria 2>/dev/null || echo "  /usr/local/bin/hysteria — not found"
-        ls -la /usr/bin/hysteria 2>/dev/null || echo "  /usr/bin/hysteria — not found"
-        echo "Checking PATH:"
-        echo "  PATH=$PATH"
-        which hysteria 2>/dev/null || echo "  which hysteria — not found"
+    if command -v yum >/dev/null 2>&1; then
+        yum install -y "$PKG"
+        return $?
+    fi
+    if command -v apk >/dev/null 2>&1; then
+        apk add --no-cache "$PKG"
+        return $?
+    fi
+
+    echo "ERROR: No supported package manager found to install $PKG"
+    return 1
+}
+
+if [ -z "\${TERM:-}" ]; then
+    export TERM=dumb
+fi
+
+if ! command -v curl >/dev/null 2>&1; then
+    echo "curl not found, installing..."
+    install_pkg curl
+fi
+
+if ! command -v openssl >/dev/null 2>&1; then
+    echo "openssl not found, installing..."
+    install_pkg openssl || true
+fi
+
+if ! command -v update-ca-certificates >/dev/null 2>&1 && ! [ -f /etc/ssl/certs/ca-certificates.crt ]; then
+    echo "ca-certificates may be missing, trying to install..."
+    install_pkg ca-certificates || true
+fi
+
+if command -v hysteria >/dev/null 2>&1; then
+    echo "Done: Hysteria already installed ($(hysteria version 2>/dev/null | head -1 || echo 'version unknown'))"
+else
+    HYSTERIA_VERSION="\${HYSTERIA_VERSION:-${HYSTERIA_PINNED_VERSION || 'latest'}}"
+    INSTALL_OK=0
+    INSTALLER_URLS="
+https://get.hy2.sh/
+https://raw.githubusercontent.com/apernet/hysteria/master/install_server.sh
+https://github.com/apernet/hysteria/raw/master/install_server.sh
+"
+
+    for ATTEMPT in 1 2 3; do
+        echo "Attempt $ATTEMPT/3: downloading Hysteria installer..."
+        for INSTALLER_URL in $INSTALLER_URLS; do
+            echo "Installer URL: $INSTALLER_URL"
+            rm -f /tmp/hysteria-install.sh
+            if ! curl -fL --retry 8 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 300 \
+                "$INSTALLER_URL" -o /tmp/hysteria-install.sh; then
+                echo "WARN: Failed to download installer from $INSTALLER_URL"
+                continue
+            fi
+            if [ ! -s /tmp/hysteria-install.sh ]; then
+                echo "WARN: Installer is empty ($INSTALLER_URL)"
+                rm -f /tmp/hysteria-install.sh
+                continue
+            fi
+
+            SCRIPT_SIZE=$(wc -c < /tmp/hysteria-install.sh | tr -d ' ')
+            if [ "\${SCRIPT_SIZE:-0}" -lt 5000 ] || ! grep -qi "hysteria" /tmp/hysteria-install.sh; then
+                echo "WARN: Installer content looks invalid (size=\${SCRIPT_SIZE:-0})"
+                rm -f /tmp/hysteria-install.sh
+                continue
+            fi
+
+            chmod +x /tmp/hysteria-install.sh
+            echo "Attempt $ATTEMPT/3: running installer..."
+            INSTALL_EXIT=0
+            if [ "$HYSTERIA_VERSION" = "latest" ]; then
+                bash /tmp/hysteria-install.sh 2>&1 || INSTALL_EXIT=$?
+            else
+                HYSTERIA_VERSION="$HYSTERIA_VERSION" bash /tmp/hysteria-install.sh 2>&1 || INSTALL_EXIT=$?
+            fi
+            rm -f /tmp/hysteria-install.sh
+
+            if [ $INSTALL_EXIT -eq 0 ] && command -v hysteria >/dev/null 2>&1; then
+                INSTALL_OK=1
+                break 2
+            fi
+            echo "WARN: Installer run failed from $INSTALLER_URL (exit: $INSTALL_EXIT)"
+        done
+
+        if [ "$ATTEMPT" -lt 3 ]; then
+            sleep $((ATTEMPT * 3))
+        fi
+    done
+
+    if [ "$INSTALL_OK" -ne 1 ]; then
+        echo "Official installer failed, trying binary fallback..."
+        ARCH=$(uname -m)
+        case "$ARCH" in
+            x86_64|amd64) HY_BIN="hysteria-linux-amd64" ;;
+            aarch64|arm64) HY_BIN="hysteria-linux-arm64" ;;
+            *)
+                echo "ERROR: Unsupported architecture for Hysteria fallback: $ARCH"
+                exit 1
+                ;;
+        esac
+
+        if [ "$HYSTERIA_VERSION" = "latest" ]; then
+            TAG_JSON=$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 60 \
+                "https://api.github.com/repos/apernet/hysteria/releases/latest" || true)
+            RESOLVED_TAG=$(echo "$TAG_JSON" | sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\\1/p' | head -n 1)
+            if [ -n "$RESOLVED_TAG" ]; then
+                HYSTERIA_VERSION="$RESOLVED_TAG"
+                echo "Resolved latest Hysteria version: $HYSTERIA_VERSION"
+            fi
+        fi
+
+        if [ -z "$HYSTERIA_VERSION" ] || [ "$HYSTERIA_VERSION" = "latest" ]; then
+            echo "ERROR: Could not resolve Hysteria release tag for fallback"
+            exit 1
+        fi
+
+        TMP_DIR=$(mktemp -d)
+        BIN_PATH="$TMP_DIR/hysteria"
+        DOWNLOADED=0
+        for HY_URL in \
+            "https://github.com/apernet/hysteria/releases/download/$HYSTERIA_VERSION/$HY_BIN" \
+            "https://ghproxy.com/https://github.com/apernet/hysteria/releases/download/$HYSTERIA_VERSION/$HY_BIN" \
+            "https://mirror.ghproxy.com/https://github.com/apernet/hysteria/releases/download/$HYSTERIA_VERSION/$HY_BIN" \
+            "https://ghproxy.net/https://github.com/apernet/hysteria/releases/download/$HYSTERIA_VERSION/$HY_BIN"; do
+            echo "Fallback download URL: $HY_URL"
+            rm -f "$BIN_PATH"
+            if curl -fL --retry 10 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 900 \
+                --speed-time 30 --speed-limit 32768 "$HY_URL" -o "$BIN_PATH"; then
+                BIN_SIZE=$(wc -c < "$BIN_PATH" | tr -d ' ')
+                if [ "\${BIN_SIZE:-0}" -lt 5000000 ]; then
+                    echo "WARN: Downloaded binary looks too small (\${BIN_SIZE:-0} bytes), trying next mirror"
+                    continue
+                fi
+                if command -v file >/dev/null 2>&1 && ! file "$BIN_PATH" 2>/dev/null | grep -q "ELF"; then
+                    echo "WARN: Downloaded file is not an ELF binary, trying next mirror"
+                    continue
+                fi
+                chmod +x "$BIN_PATH"
+                install -m 0755 "$BIN_PATH" /usr/local/bin/hysteria
+                DOWNLOADED=1
+                break
+            fi
+        done
+
+        rm -rf "$TMP_DIR"
+        if [ "$DOWNLOADED" -ne 1 ]; then
+            echo "ERROR: Fallback download failed from all mirrors"
+            exit 1
+        fi
+    fi
+
+    if ! command -v hysteria >/dev/null 2>&1; then
+        echo "ERROR: Hysteria binary not found after installation"
         exit 1
     fi
-else
-    echo "Done: Hysteria already installed"
+
+    echo "Done: Hysteria installed ($(hysteria version 2>/dev/null | head -1 || echo 'version unknown'))"
 fi
 
-mkdir -p /etc/hysteria
-echo "Done: Directory /etc/hysteria ready"
+mkdir -p /etc/hysteria /var/lib/hysteria
+chmod 755 /etc/hysteria /var/lib/hysteria
+echo "Done: Hysteria directories ready"
+
+if command -v systemctl >/dev/null 2>&1; then
+    if ! systemctl cat hysteria-server >/dev/null 2>&1 && ! systemctl cat hysteria >/dev/null 2>&1; then
+        echo "Creating fallback hysteria-server.service unit..."
+        cat > /etc/systemd/system/hysteria-server.service <<'EOFHYUNIT'
+[Unit]
+Description=Hysteria Server Service
+After=network.target nss-lookup.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/hysteria server -c /etc/hysteria/config.yaml
+Restart=always
+RestartSec=5
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+EOFHYUNIT
+        systemctl daemon-reload
+    fi
+fi
 
 echo "Hysteria version:"
 hysteria version
@@ -767,6 +860,50 @@ async function waitForListeningPort(conn, port, options = {}) {
     throw new Error(`Port ${portNum} is not listening after service start`);
 }
 
+async function waitForListeningSocket(conn, port, options = {}) {
+    const protocol = String(options.protocol || 'tcp').toLowerCase() === 'udp' ? 'udp' : 'tcp';
+    const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 15000;
+    const intervalMs = Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 1000;
+    const deadline = Date.now() + timeoutMs;
+    const portNum = Number(port);
+
+    const buildCheck = () => {
+        if (protocol === 'udp') {
+            return `
+if command -v ss >/dev/null 2>&1; then
+    ss -lun 2>/dev/null | awk '{print $5}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting
+elif command -v netstat >/dev/null 2>&1; then
+    netstat -lun 2>/dev/null | awk '{print $4}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting
+else
+    echo unknown
+fi
+            `;
+        }
+        return `
+if command -v ss >/dev/null 2>&1; then
+    ss -ltn 2>/dev/null | awk '{print $4}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting
+elif command -v netstat >/dev/null 2>&1; then
+    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting
+else
+    echo unknown
+fi
+        `;
+    };
+
+    while (Date.now() <= deadline) {
+        const result = await execSSH(conn, buildCheck());
+        const state = String(result.output || '').trim().split('\n').pop();
+        if (state === 'listening' || state === 'unknown') {
+            return true;
+        }
+        if (Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+    }
+
+    throw new Error(`${protocol.toUpperCase()} port ${portNum} is not listening after service start`);
+}
+
 async function pickAvailableTcpPort(conn, preferredPort, candidates = []) {
     const ports = [preferredPort, ...candidates]
         .map(port => Number(port))
@@ -878,56 +1015,59 @@ async function resolvePanelFirewallIp() {
     return { ip: '0.0.0.0/0', source: `dns-failed:${host}` };
 }
 
-async function setupNode(node, options = {}) {
+async function setupHysteriaNode(node, options = {}) {
     const { installHysteria = true, setupPortHopping = true, restartService = true } = options;
-    
+    const onLogLine = typeof options.onLogLine === 'function' ? options.onLogLine : null;
+
     const logs = [];
+    const pushLiveLine = (line, source = 'stdout') => {
+        if (!onLogLine || !line) return;
+        const text = String(line).trimEnd();
+        if (!text) return;
+        onLogLine(source === 'stderr' ? `[STDERR] ${text}` : text);
+    };
     const log = (msg) => {
         const line = `[${new Date().toISOString()}] ${msg}`;
         logs.push(line);
+        pushLiveLine(line);
         logger.info(`[NodeSetup] ${msg}`);
     };
-    
+
     log(`Starting setup for ${node.name} (${node.ip})`);
-    
-    // Get settings for auth insecure option
+
     const settings = await Settings.get();
     const authInsecure = settings?.nodeAuth?.insecure ?? true;
-    
     const authUrl = `${config.BASE_URL}/api/auth`;
     log(`Auth URL: ${authUrl} (insecure: ${authInsecure})`);
-    
+
     let conn;
-    
+    let useTlsFiles = false;
     try {
         log('Connecting via SSH...');
         conn = await connectSSH(node);
         log('SSH connected');
-        
+
+        const execRemote = (command, timeoutMs = 0) => execSSH(conn, command, {
+            timeoutMs,
+            onStdoutLine: (line) => pushLiveLine(line, 'stdout'),
+            onStderrLine: (line) => pushLiveLine(line, 'stderr'),
+        });
+
         if (installHysteria) {
-            log('Running system diagnostics and installing Hysteria...');
-            const installResult = await execSSH(conn, INSTALL_SCRIPT);
-            logs.push(installResult.output);
-            
+            log('Installing Hysteria runtime...');
+            const installResult = await execRemote(HYSTERIA_INSTALL_SCRIPT);
+            if (!onLogLine && installResult.output) logs.push(installResult.output);
             if (!installResult.success) {
-                log(`ERROR: Installation script failed (exit code: ${installResult.code})`);
-                log('Last output lines:');
-                const lastLines = (installResult.output || '').split('\n').slice(-10).join('\n');
-                log(lastLines);
                 throw new Error(`Hysteria installation failed (exit code ${installResult.code}): ${installResult.error}`);
             }
-            log('System diagnostics passed, Hysteria installed');
+            await assertRemoteFileExists(conn, '/usr/local/bin/hysteria', 'Hysteria binary');
+            log('Hysteria runtime installed');
         }
-        
-        // Determine TLS mode: same-VPS (copy panel certs), ACME, or self-signed
-        // Use improved detection: checks domain match, localhost, and PANEL_IP env
+
         const isSameVpsSetup = await isSameVpsAsPanel(node);
-        let useTlsFiles = false;
-        
         if (isSameVpsSetup) {
-            // Same server as panel - try to copy panel's certificates
             log(`Same-VPS setup detected (node IP: ${node.ip}, panel domain: ${config.PANEL_DOMAIN})`);
-            log('Note: Hysteria main listener uses UDP/QUIC, so it can coexist with the panel on TCP 443.');
+            log('Note: Hysteria main listener uses UDP/QUIC, so it can coexist with panel TCP services.');
 
             const sameHostTcpConflicts = getHysteriaSameHostTcpConflicts(node);
             if (sameHostTcpConflicts.length > 0) {
@@ -938,16 +1078,11 @@ async function setupNode(node, options = {}) {
             }
 
             log('Attempting to copy panel certificates to node...');
-            
             const panelCerts = getPanelCertificates(config.PANEL_DOMAIN);
-            
             if (panelCerts) {
-                // Upload certificates to node
                 await uploadFile(conn, panelCerts.cert, '/etc/hysteria/cert.pem');
                 await uploadFile(conn, panelCerts.key, '/etc/hysteria/key.pem');
-                
-                // Set correct permissions
-                await execSSH(conn, `
+                const permsResult = await execRemote(`
 chmod 644 /etc/hysteria/cert.pem
 chmod 600 /etc/hysteria/key.pem
 if id "hysteria" &>/dev/null; then
@@ -956,73 +1091,63 @@ fi
 echo "Done: Panel certificates copied to node"
 ls -la /etc/hysteria/*.pem
                 `);
-                
+                if (!onLogLine && permsResult.output) logs.push(permsResult.output);
                 log('Panel certificates copied successfully');
                 useTlsFiles = true;
             } else {
-                log('Warning: Could not read panel certificates, falling back to self-signed');
-                const certResult = await execSSH(conn, SELF_SIGNED_CERT_SCRIPT);
-                logs.push(certResult.output);
+                log('Warning: could not read panel certificates, falling back to self-signed');
+                const certResult = await execRemote(SELF_SIGNED_CERT_SCRIPT);
+                if (!onLogLine && certResult.output) logs.push(certResult.output);
+                if (!certResult.success) {
+                    throw new Error(`Certificate generation failed: ${certResult.error || `exit ${certResult.code}`}`);
+                }
                 useTlsFiles = true;
             }
-            
         } else if (!node.domain) {
-            // No domain and not same VPS - use self-signed certificate
             log('No domain specified, generating self-signed certificate...');
-            const certResult = await execSSH(conn, SELF_SIGNED_CERT_SCRIPT);
-            logs.push(certResult.output);
-            
+            const certResult = await execRemote(SELF_SIGNED_CERT_SCRIPT);
+            if (!onLogLine && certResult.output) logs.push(certResult.output);
             if (!certResult.success) {
-                throw new Error(`Certificate generation failed: ${certResult.error}`);
+                throw new Error(`Certificate generation failed: ${certResult.error || `exit ${certResult.code}`}`);
             }
             log('Certificate ready (self-signed)');
             useTlsFiles = true;
-            
         } else {
-            // Different domain on different VPS - use ACME
-            log(`Domain detected (${node.domain}), ACME will be used`);
-            log('⚠️  WARNING: If this node is on the same VPS as the panel, ACME may fail!');
-            log('⚠️  Port 80 is used by the panel for its own ACME challenges.');
-            log('⚠️  Consider using the panel domain or no domain (self-signed) for same-VPS setup.');
+            log(`Domain detected (${node.domain}), ACME mode will be used`);
             log('Opening port 80 for ACME HTTP-01 challenge...');
-            
-            const acmeSetup = await execSSH(conn, `
+            const acmeSetup = await execRemote(`
 echo "=== Setting up for ACME ==="
-
 mkdir -p /etc/hysteria/acme
 chmod 700 /etc/hysteria/acme
 chmod 755 /etc/hysteria
 echo "Done: ACME directory created with correct permissions"
-
 ls -la /etc/hysteria/
-
 if command -v iptables &> /dev/null; then
     iptables -I INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
     iptables -I INPUT -p udp --dport 80 -j ACCEPT 2>/dev/null || true
     echo "Done: Port 80 opened in iptables"
 fi
-
 if command -v ufw &> /dev/null && ufw status | grep -q "active"; then
     ufw allow 80/tcp 2>/dev/null || true
     ufw allow 80/udp 2>/dev/null || true
     echo "Done: Port 80 opened in ufw"
 fi
-
 if ss -tlnp | grep -q ':80 '; then
-    echo "⚠️  Warning: Port 80 is already in use (likely by the panel):"
+    echo "⚠️  Warning: Port 80 is already in use:"
     ss -tlnp | grep ':80 '
-    echo "ACME challenge will likely fail if panel is on the same server!"
 else
     echo "Done: Port 80 is free"
 fi
-
 echo "Done: ACME preparation complete"
 echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
             `);
-            logs.push(acmeSetup.output);
+            if (!onLogLine && acmeSetup.output) logs.push(acmeSetup.output);
+            if (!acmeSetup.success) {
+                throw new Error(`ACME preparation failed: ${acmeSetup.error || `exit ${acmeSetup.code}`}`);
+            }
             log('ACME preparation done');
         }
-        
+
         const hybridSidecarEnabled = config.FEATURE_CASCADE_HYBRID && (node?.cascadeSidecar?.enabled !== false);
         const rawSidecar = hybridSidecarEnabled ? (node?.cascadeSidecar || {}) : {};
         const socksPort = Number(rawSidecar.socksPort) > 0 ? Number(rawSidecar.socksPort) : 11080;
@@ -1045,7 +1170,7 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
         }
         await uploadFile(conn, hysteriaConfig, '/etc/hysteria/config.yaml');
         if (hybridSidecarEnabled) {
-            const overlayCheck = await execSSH(conn, `grep -F ${shellQuote(CASCADE_SIDECAR_OUTBOUND)} /etc/hysteria/config.yaml >/dev/null && echo ok || echo missing`);
+            const overlayCheck = await execRemote(`grep -F ${shellQuote(CASCADE_SIDECAR_OUTBOUND)} /etc/hysteria/config.yaml >/dev/null && echo ok || echo missing`);
             if (!String(overlayCheck.output || '').includes('ok')) {
                 throw new Error(`Hybrid cascade overlay marker ${CASCADE_SIDECAR_OUTBOUND} is missing from /etc/hysteria/config.yaml after upload`);
             }
@@ -1058,8 +1183,8 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
         if (hybridSidecarEnabled) {
             log(`Preparing hybrid sidecar runtime (${serviceUnitName}, socks:${socksPort})...`);
             try {
-                const xrayInstallResult = await execSSH(conn, XRAY_INSTALL_SCRIPT);
-                logs.push(xrayInstallResult.output);
+                const xrayInstallResult = await execRemote(XRAY_INSTALL_SCRIPT);
+                if (!onLogLine && xrayInstallResult.output) logs.push(xrayInstallResult.output);
                 if (!xrayInstallResult.success) {
                     throw new Error(`Xray install failed (${xrayInstallResult.error || `exit ${xrayInstallResult.code}`})`);
                 }
@@ -1067,17 +1192,17 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
 
                 const sidecarConfig = configGenerator.generateXrayCascadeSidecarConfig(socksPort);
                 const sidecarDir = path.dirname(sidecarConfigPath);
-                await execSSH(conn, `mkdir -p ${shellQuote(sidecarDir)}`);
+                await execRemote(`mkdir -p ${shellQuote(sidecarDir)}`);
                 await uploadFile(conn, sidecarConfig, sidecarConfigPath);
                 await uploadFile(conn, generateCascadeSidecarServiceUnit(sidecarConfigPath), `/etc/systemd/system/${serviceUnitName}`);
                 await assertRemoteFileExists(conn, sidecarConfigPath, 'Hybrid sidecar config');
 
-                const sidecarStart = await execSSH(conn, `
+                const sidecarStart = await execRemote(`
 systemctl daemon-reload
 systemctl enable ${shellQuote(serviceUnitName)}
 systemctl restart ${shellQuote(serviceUnitName)}
-                    `);
-                logs.push(sidecarStart.output);
+                `);
+                if (!onLogLine && sidecarStart.output) logs.push(sidecarStart.output);
                 if (!sidecarStart.success) {
                     throw new Error(`${serviceUnitName} restart failed: ${sidecarStart.error || `exit ${sidecarStart.code}`}`);
                 }
@@ -1088,14 +1213,13 @@ systemctl restart ${shellQuote(serviceUnitName)}
                 throw new Error(`Hybrid sidecar setup failed: ${sidecarErr.message}`);
             }
         }
-        
+
         if (setupPortHopping && node.portRange) {
             log(`Setting up port hopping (${node.portRange})...`);
             const portHoppingScript = getPortHoppingScript(node.portRange, node.port || 443);
             if (portHoppingScript) {
-                const hopResult = await execSSH(conn, portHoppingScript, 180000);
-                logs.push(hopResult.output);
-                
+                const hopResult = await execRemote(portHoppingScript, 180000);
+                if (!onLogLine && hopResult.output) logs.push(hopResult.output);
                 if (!hopResult.success) {
                     log(`Port hopping setup warning: ${hopResult.error}`);
                 } else {
@@ -1103,36 +1227,37 @@ systemctl restart ${shellQuote(serviceUnitName)}
                 }
             }
         }
-        
+
         const statsPort = node.statsPort || 9999;
         const mainPort = node.port || 443;
         log(`Opening firewall ports (${mainPort}, ${statsPort})...`);
-        const firewallResult = await execSSH(conn, `
+        const firewallResult = await execRemote(`
 echo "=== [5/6] Opening firewall ports ==="
-
 if command -v iptables &> /dev/null; then
     iptables -I INPUT -p tcp --dport ${mainPort} -j ACCEPT 2>/dev/null || true
     iptables -I INPUT -p udp --dport ${mainPort} -j ACCEPT 2>/dev/null || true
     iptables -I INPUT -p tcp --dport ${statsPort} -j ACCEPT 2>/dev/null || true
     echo "Done: Ports ${mainPort}, ${statsPort} opened in iptables"
 fi
-
 if command -v ufw &> /dev/null && ufw status | grep -q "active"; then
     ufw allow ${mainPort}/tcp 2>/dev/null || true
     ufw allow ${mainPort}/udp 2>/dev/null || true
     ufw allow ${statsPort}/tcp 2>/dev/null || true
     echo "Done: Ports ${mainPort}, ${statsPort} opened in ufw"
 fi
-
 echo "Done: Firewall configured"
         `);
-        logs.push(firewallResult.output);
+        if (!onLogLine && firewallResult.output) logs.push(firewallResult.output);
+        if (!firewallResult.success) {
+            throw new Error(`Firewall configuration failed: ${firewallResult.error || `exit ${firewallResult.code}`}`);
+        }
         log('Firewall ports opened');
-        
+
         if (restartService) {
             log('Restarting Hysteria service...');
-            const restartResult = await execSSH(conn, `
+            const restartResult = await execRemote(`
 echo "=== [6/6] Restarting Hysteria service ==="
+systemctl daemon-reload
 systemctl enable hysteria-server 2>/dev/null || systemctl enable hysteria 2>/dev/null || true
 systemctl restart hysteria-server 2>/dev/null || systemctl restart hysteria 2>/dev/null
 sleep 3
@@ -1142,8 +1267,7 @@ echo ""
 echo "Journal logs (last 20 lines):"
 journalctl -u hysteria-server -u hysteria -n 20 --no-pager || true
             `);
-            logs.push(restartResult.output);
-            
+            if (!onLogLine && restartResult.output) logs.push(restartResult.output);
             if (!restartResult.success) {
                 throw new Error(`Hysteria service restart failed: ${restartResult.error || `exit ${restartResult.code}`}`);
             }
@@ -1152,22 +1276,25 @@ journalctl -u hysteria-server -u hysteria -n 20 --no-pager || true
                 timeoutMs: 25000,
                 journalLines: 20,
             });
-            log('Service restarted');
+            await waitForListeningSocket(conn, mainPort, { protocol: 'udp', timeoutMs: 15000 });
+            log('Hysteria service restarted');
         }
-        
-        log('Setup completed successfully!');
+
+        log('Hysteria setup completed successfully!');
         return { success: true, logs, useTlsFiles };
-        
     } catch (error) {
         const normalizedError = normalizeSetupError(error);
         log(`Error: ${normalizedError}`);
         return { success: false, error: normalizedError, logs, useTlsFiles: false };
-        
     } finally {
         if (conn) {
             conn.end();
         }
     }
+}
+
+async function setupNode(node, options = {}) {
+    return setupHysteriaNode(node, options);
 }
 
 async function checkNodeStatus(node) {
@@ -2414,6 +2541,7 @@ async function setupXrayNodeWithAgent(node, options = {}) {
 }
 
 module.exports = {
+    setupHysteriaNode,
     setupNode,
     checkNodeStatus,
     getNodeLogs,

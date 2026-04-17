@@ -219,7 +219,7 @@ async function runInstallRuntime({ job, context = {} }) {
     } else if (node.type === 'xray') {
         result = await nodeSetup.setupXrayNode(node, { restartService: true, onLogLine });
     } else {
-        result = await nodeSetup.setupNode(node, {
+        result = await nodeSetup.setupHysteriaNode(node, {
             installHysteria: true,
             setupPortHopping: true,
             restartService: true,

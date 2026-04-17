@@ -47,9 +47,7 @@ router.get('/settings', async (req, res) => {
         const settings = settingsDoc ? settingsDoc.toObject() : settingsDoc;
 
         if (!settings.featureFlags) settings.featureFlags = {};
-        if (typeof settings.featureFlags.cascadeHybrid !== 'boolean') {
-            settings.featureFlags.cascadeHybrid = !!config.FEATURE_CASCADE_HYBRID;
-        }
+        settings.featureFlags.cascadeHybrid = true;
 
         // Decrypt secrets for form display (stored encrypted since P1-encrypt-secrets)
         if (settings?.webhook?.secret) {
@@ -105,7 +103,7 @@ router.post('/settings', async (req, res) => {
                 'sshPool.keepAliveInterval': parseInt(req.body['sshPool.keepAliveInterval']) || 30,
                 'sshPool.maxRetries': parseInt(req.body['sshPool.maxRetries']) || 2,
                 'nodeAuth.insecure': parseBool(req.body, 'nodeAuth.insecure'),
-                'featureFlags.cascadeHybrid': parseBool(req.body, 'featureFlags.cascadeHybrid'),
+                'featureFlags.cascadeHybrid': true,
             });
         }
         

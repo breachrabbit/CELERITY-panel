@@ -88,14 +88,12 @@
                     </div>
                     <div class="card-body">
                         <div class="settings-list">
-                            <input type="hidden" name="featureFlags.cascadeHybrid" value="off">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="featureFlags.cascadeHybrid"
-                                       <%= (settings?.featureFlags?.cascadeHybrid ?? config.FEATURE_CASCADE_HYBRID) ? 'checked' : '' %>>
-                                <span><%= t('settings.hybridCascadeEnabled') %></span>
-                            </label>
+                            <div class="setting-item">
+                                <label><%= t('settings.hybridCascadeEnabled') %></label>
+                                <span class="status-badge status-online"><%= t('common.enabled') %></span>
+                            </div>
                             <small class="hint" style="display: block; margin-top: 0.25rem;">
-                                <%= t('settings.hybridCascadeHint') %>
+                                <%= t('settings.hybridCascadeAlwaysOnHint') %>
                             </small>
                         </div>
                     </div>

@@ -308,14 +308,7 @@ function resolvePanelSetupMode(node, req) {
         return requestedMode;
     }
 
-    if (process.env.FEATURE_ONBOARDING_RUN_FULL === 'true') {
-        return SETUP_MODE_ONBOARDING_FULL;
-    }
-
-    // Staged cutover: default to durable onboarding for xray nodes first.
-    return String(node?.type || '').toLowerCase() === 'xray'
-        ? SETUP_MODE_ONBOARDING_FULL
-        : SETUP_MODE_LEGACY;
+    return SETUP_MODE_ONBOARDING_FULL;
 }
 
 function mapOnboardingStatusToSetupState(status) {
@@ -586,12 +579,13 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
                 pushLiveLog('[Bridge] Xray installed. Create a cascade link to deploy bridge config.');
             }
         } else if (node.type === 'xray') {
-            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true, strictAgent: false, onLogLine: pushLiveLog });
+            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true, strictAgent: true, onLogLine: pushLiveLog });
         } else {
             result = await nodeSetup.setupNode(node, {
                 installHysteria: true,
                 setupPortHopping: true,
                 restartService: true,
+                onLogLine: pushLiveLog,
             });
         }
 

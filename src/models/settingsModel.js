@@ -62,8 +62,8 @@ const settingsSchema = new mongoose.Schema({
     },
 
     featureFlags: {
-        // Hybrid cascade (Xray + Hysteria sidecar) toggle from admin panel
-        cascadeHybrid: { type: Boolean, default: process.env.FEATURE_CASCADE_HYBRID === 'true' },
+        // Hybrid cascade stays enabled in Hidden Rabbit fork.
+        cascadeHybrid: { type: Boolean, default: true },
     },
     
     backup: {

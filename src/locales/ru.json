@@ -784,6 +784,7 @@
     "hybridCascadeSettings": "Гибридный каскад",
     "hybridCascadeEnabled": "Включить гибридный каскад (Xray + Hysteria sidecar)",
     "hybridCascadeHint": "Разрешает смешанные каскадные связи между Xray и Hysteria-нодами. После изменения рекомендуется пересинхронизировать задействованные ноды.",
+    "hybridCascadeAlwaysOnHint": "Гибридный каскад всегда включён в Hidden Rabbit. Смешанные связи Xray/Hysteria доступны по умолчанию.",
     "saveAllSettings": "Сохранить все настройки",
     "security": "Безопасность",
     "administrator": "Администратор",

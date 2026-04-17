@@ -778,6 +778,7 @@
     "hybridCascadeSettings": "Hybrid Cascade",
     "hybridCascadeEnabled": "Enable hybrid cascade (Xray + Hysteria sidecar)",
     "hybridCascadeHint": "Allows mixed cascade links between Xray and Hysteria nodes. After changing this setting, resync affected nodes.",
+    "hybridCascadeAlwaysOnHint": "Hybrid cascade is always enabled in Hidden Rabbit mode. Mixed Xray/Hysteria links are available by default.",
     "saveAllSettings": "Save All Settings",
     "security": "Security",
     "administrator": "Administrator",

@@ -53,9 +53,7 @@ function resolveApiSetupMode(reqBody = {}) {
     if (requested) {
         return requested;
     }
-    return process.env.FEATURE_ONBOARDING_RUN_FULL === 'true'
-        ? SETUP_MODE_ONBOARDING_FULL
-        : SETUP_MODE_LEGACY;
+    return SETUP_MODE_ONBOARDING_FULL;
 }
 
 function resolveOnboardingJobSetupMode(jobLike) {
@@ -869,7 +867,7 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
         if (node.type === 'xray' && node.cascadeRole === 'bridge') {
             result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true });
         } else if (node.type === 'xray') {
-            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService, strictAgent: false });
+            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService, strictAgent: true });
         } else {
             result = await nodeSetup.setupNode(node, {
                 installHysteria,
