@@ -1,5 +1,29 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder TLS/REALITY Draft Security Settings
+
+- Extended draft-hop inspector with security-level fields:
+  - common TLS/REALITY: `realitySni`, `realityFingerprint`;
+  - REALITY-only: `realityDest`, `realityShortId`.
+- Backend (`src/routes/cascadeBuilder.js`):
+  - draft update path now validates/saves security fields and returns localized validation errors for invalid fingerprint/shortId;
+  - commit bridge now maps security fields into resulting legacy `CascadeLink`;
+  - commit path now has safe REALITY keypair/shortId fallback generation when security is `reality` and draft keys are missing/invalid.
+- Domain (`src/domain/cascade-builder/*`):
+  - normalizer and suggestion defaults now include security fields;
+  - commit preview payload now includes security fields;
+  - assumptions now report auto-generation behavior for REALITY key material when applicable.
+- UI (`public/js/cascade-builder.js`, `views/cascade-builder.ejs`):
+  - added security sections that toggle by selected tunnel security;
+  - wired security fields into draft save payload.
+- Locales (`src/locales/ru.json`, `src/locales/en.json`):
+  - added labels for security fields and new validation/assumption messages.
+
+Change types:
+
+- `local patch` — TLS/REALITY draft security controls in cascade builder inspector
+- `stability fix` — REALITY shortId/fingerprint validation + commit-time key fallback
+
 ## 2026-04-17 Cascade Builder Local Graph Assets (No CDN Runtime)
 
 - Replaced external graph-library CDN usage on builder page with local vendor assets.

@@ -15,7 +15,45 @@
   - added builder-side per-hop draft settings editor with backend payload validation and per-hop remove;
   - added builder-side advanced transport settings for draft hops (WS/gRPC/XHTTP fields);
   - replaced builder runtime CDN graph dependency with local vendor graph assets via postinstall sync.
+  - added builder-side draft security settings for TLS/REALITY and commit-time REALITY key fallback.
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Cascade Builder TLS/REALITY Draft Security Stop-Point
+
+### What was delivered
+
+- `public/js/cascade-builder.js` + `views/cascade-builder.ejs`:
+  - draft inspector now has security-aware sections:
+    - TLS/REALITY: SNI list + fingerprint;
+    - REALITY: destination + shortId.
+  - sections toggle by selected tunnel security.
+- `src/routes/cascadeBuilder.js`:
+  - draft update endpoint now validates/saves security fields;
+  - localized validation errors added for invalid fingerprint/shortId;
+  - commit bridge now propagates security fields into created legacy links;
+  - REALITY links now auto-generate valid keypair/shortId at commit when draft does not provide valid key material.
+- `src/domain/cascade-builder/flowValidator.js` + `flowNormalizer.js` + `commitPlanner.js`:
+  - defaults/state/preview now carry security fields;
+  - commit assumptions include REALITY auto-generation behavior.
+- locales:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added security labels, validation messages, and planning assumption text.
+
+### Current stop-point
+
+- Builder now supports base per-hop transport + security editing before commit/deploy.
+- REALITY draft commits are safer because missing key material no longer silently breaks deployment payload.
+- Flow is still transitional (`draft -> legacy link`), but operator control and commit resilience improved materially.
+
+### Best next step
+
+1. Live smoke:
+   - draft with `security=none`, `tls`, and `reality`;
+   - run plan preview + commit/deploy;
+   - verify resulting `CascadeLink` security fields and deploy diagnostics.
+2. Continue with deeper per-hop policy knobs (beyond base TLS/REALITY fields).
+3. Keep onboarding parity track running in parallel until legacy fallback can be retired safely.
 
 ## 2026-04-17 Cascade Builder Local Graph Assets Stop-Point
 

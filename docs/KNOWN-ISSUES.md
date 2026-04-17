@@ -15,13 +15,14 @@ Current state:
 - builder can now run `commit + deploy` in one action, but deploy execution still relies on legacy `deployChain`.
 - builder now has transport-specific draft editing for WS/gRPC/XHTTP payload fields before commit/deploy.
 - builder graph dependencies are now served from local vendor assets (no runtime CDN dependency).
+- builder now has base TLS/REALITY draft security controls (SNI/fingerprint/dest/shortId) with commit-time REALITY key fallback.
 
 Still missing:
 
 - shared/persistent flow storage;
 - executable synthetic chain preview against in-memory links;
 - flow-native deploy orchestration independent of legacy chain deploy;
-- deeper per-hop configuration UI (advanced TLS/REALITY key material and policy-level knobs);
+- deeper per-hop configuration UI (advanced policy-level knobs and explicit key-management controls);
 - true flow-native role storage independent of legacy node `cascadeRole`.
 
 Status: `pending`

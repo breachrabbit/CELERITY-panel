@@ -2,6 +2,16 @@
 
 ## 2026-04-17
 
+- Worked on: cascade builder per-hop security editor expansion.
+- Finished with:
+  - added TLS/REALITY security controls in draft inspector (`SNI`, `fingerprint`, `dest`, `shortId`);
+  - added backend validation for REALITY shortId and fingerprint;
+  - added commit-time fallback generation of REALITY keypair/shortId when missing;
+  - synced preview assumptions and locale coverage for new security behavior.
+- Next step:
+  - deploy and smoke test `security=none/tls/reality` scenarios with `commit + deploy`;
+  - continue into deeper policy knobs after confirming parity on live test nodes.
+
 - Worked on: cascade builder graph dependency hardening (CDN removal).
 - Finished with:
   - moved builder graph scripts to local `/vendor/cascade/*` paths;
