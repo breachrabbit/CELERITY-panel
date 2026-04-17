@@ -149,6 +149,7 @@
 .logs-output .error { color: #ff6b6b; }
 .logs-output .success { color: #51cf66; }
 .logs-output .warning { color: #ffd43b; }
+.logs-output .stderr { color: #9fb3ff; }
 
 .onboarding-jobs-summary {
     display: grid;
@@ -958,6 +959,28 @@ async function copyConfig(btn) {
 // ==================== Management actions ====================
 
 <% if (node) { %>
+function isCriticalLogLine(line) {
+    const text = String(line || '');
+    const lower = text.toLowerCase();
+    if (text.includes('❌')) return true;
+    if (/\b(fatal|panic|exception|traceback)\b/i.test(text)) return true;
+    if (/\b(exit code|failed|error:|permission denied|command not found|connection refused|no route to host)\b/i.test(text)) return true;
+    if (lower.includes('[stderr]') && /\berror\b/i.test(text)) return true;
+    return false;
+}
+
+function isWarningLogLine(line) {
+    const text = String(line || '');
+    if (text.includes('⚠')) return true;
+    if (/\bwarning\b/i.test(text)) return true;
+    return false;
+}
+
+function isSuccessLogLine(line) {
+    const text = String(line || '');
+    return text.includes('✓') || /\b(done|success|completed)\b/i.test(text);
+}
+
 function showLogs(logs) {
     const container = document.getElementById('logsContainer');
     const output = document.getElementById('logsOutput');
@@ -965,9 +988,11 @@ function showLogs(logs) {
     let html = '';
     if (Array.isArray(logs)) {
         html = logs.map(line => {
-            if (line.includes('✓') || line.includes('success')) return '<span class="success">' + escapeHtml(line) + '</span>';
-            if (line.includes('❌') || line.includes('Error') || line.includes('[STDERR]')) return '<span class="error">' + escapeHtml(line) + '</span>';
-            if (line.includes('⚠')) return '<span class="warning">' + escapeHtml(line) + '</span>';
+            const text = String(line || '');
+            if (isCriticalLogLine(text)) return '<span class="error">' + escapeHtml(text) + '</span>';
+            if (text.includes('[STDERR]')) return '<span class="stderr">' + escapeHtml(text) + '</span>';
+            if (isWarningLogLine(text)) return '<span class="warning">' + escapeHtml(text) + '</span>';
+            if (isSuccessLogLine(text)) return '<span class="success">' + escapeHtml(text) + '</span>';
             return escapeHtml(line);
         }).join('\n');
     } else {

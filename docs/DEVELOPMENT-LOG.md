@@ -256,6 +256,25 @@ Change types:
 - `local patch` — runtime install/verify onboarding handlers
 - `stability fix` — explicit runtime-online gate before agent step
 
+## 2026-04-17 Setup Logs UX + Live Streaming Stabilization
+
+- Fixed false “error-red” rendering in node setup console:
+  - frontend log classifier no longer marks every `[STDERR]` line as critical;
+  - added separate neutral stderr color;
+  - critical/error highlighting now targets actual failure patterns (`failed`, `fatal`, `exit code`, etc.).
+- Added near real-time setup output delivery for Xray onboarding path:
+  - `execSSH` now supports line callbacks (`onStdoutLine` / `onStderrLine`);
+  - Xray runtime setup and cc-agent install now stream remote output line-by-line;
+  - panel setup status now merges durable onboarding logs with live in-memory streaming buffer while job is running.
+- Added live onboarding stream propagation:
+  - onboarding runner emits step start/completion/failure lines into panel live log channel;
+  - runtime/agent onboarding handlers now forward live setup output into that channel.
+
+Change types:
+
+- `stability fix` — setup logs severity classification
+- `local patch` — live setup log streaming for Xray onboarding
+
 ## 2026-04-17 Onboarding Agent Handler Layer (Phase 2.3)
 
 - Extended pipeline with agent-focused handlers:

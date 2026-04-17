@@ -410,3 +410,13 @@
   - continue retiring in-memory `setupJobs` from remaining control paths;
   - keep legacy setup execution fallback;
   - then verify rerun/resume/repair behavior on live onboarding scenarios.
+
+- Setup logs UX + live-stream continuation:
+  - removed false red severity for benign stderr lines in node setup console;
+  - added line-by-line SSH output streaming callbacks in `execSSH`;
+  - wired live streaming through Xray runtime setup + cc-agent install;
+  - wired onboarding runner + handlers to emit live progress lines into panel setup status.
+- Next step:
+  - validate live setup output on a fresh Xray node (no second run);
+  - then apply the same line-stream channel to Hysteria setup path;
+  - then continue onboarding parity cleanup (legacy bridge retirement).

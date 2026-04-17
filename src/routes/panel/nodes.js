@@ -118,6 +118,7 @@ async function getHysteriaServiceState(ssh) {
 
 const setupJobs = new Map();
 const SETUP_JOB_TTL_MS = 1000 * 60 * 60; // keep finished jobs for 1 hour
+const SETUP_LOG_LIMIT = 3000;
 const SETUP_MODE_LEGACY = 'legacy';
 const SETUP_MODE_ONBOARDING_FULL = 'onboarding-full';
 const LEGACY_ONBOARDING_BRIDGE_STEPS = [
@@ -163,6 +164,35 @@ function setSetupJob(nodeId, patch) {
     const next = { ...prev, ...patch };
     setupJobs.set(key, next);
     return next;
+}
+
+function trimSetupLogs(logs, limit = SETUP_LOG_LIMIT) {
+    const arr = Array.isArray(logs) ? logs : [];
+    if (arr.length <= limit) return arr;
+    return arr.slice(arr.length - limit);
+}
+
+function appendSetupJobLiveLog(nodeId, rawLine) {
+    const line = String(rawLine || '').trimEnd();
+    if (!line) return;
+    const current = getSetupJob(nodeId) || {};
+    const nextLogs = trimSetupLogs([...(Array.isArray(current.logs) ? current.logs : []), line]);
+    setSetupJob(nodeId, { logs: nextLogs });
+}
+
+function mergeSetupStatusLogs(primaryLogs = [], secondaryLogs = []) {
+    const merged = [];
+    const seen = new Set();
+    const push = (line) => {
+        const text = String(line || '').trimEnd();
+        if (!text) return;
+        if (seen.has(text)) return;
+        seen.add(text);
+        merged.push(text);
+    };
+    (Array.isArray(primaryLogs) ? primaryLogs : []).forEach(push);
+    (Array.isArray(secondaryLogs) ? secondaryLogs : []).forEach(push);
+    return trimSetupLogs(merged);
 }
 
 function formatOnboardingStepLog(log) {
@@ -372,23 +402,31 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function finalizeXraySetup(node, logs) {
+async function finalizeXraySetup(node, logs, onLogLine = null) {
     if (node.type !== 'xray') {
         return;
     }
+    const pushLog = (line) => {
+        logs.push(line);
+        if (typeof onLogLine === 'function') onLogLine(line);
+    };
 
-    logs.push('[Xray] Finalizing setup with cascade/config sync...');
+    pushLog('[Xray] Finalizing setup with cascade/config sync...');
     const result = await syncService.finalizeNodeSetup(node);
     if (result.mode === 'cascade') {
-        logs.push(`[Cascade] Chain deployment completed (${result.deployed} node(s) updated)`);
+        pushLog(`[Cascade] Chain deployment completed (${result.deployed} node(s) updated)`);
     } else if (result.mode === 'xray-sync') {
-        logs.push('[Xray] Post-setup sync completed');
+        pushLog('[Xray] Post-setup sync completed');
     } else if (result.mode === 'bridge-ready') {
-        logs.push('[Bridge] Xray binary installed; waiting for cascade link deployment');
+        pushLog('[Bridge] Xray binary installed; waiting for cascade link deployment');
     }
 }
 
-async function warmXrayAgentAfterSetup(nodeId, logs) {
+async function warmXrayAgentAfterSetup(nodeId, logs, onLogLine = null) {
+    const pushLog = (line) => {
+        logs.push(line);
+        if (typeof onLogLine === 'function') onLogLine(line);
+    };
     const attempts = 6;
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -420,17 +458,17 @@ async function warmXrayAgentAfterSetup(nodeId, logs) {
             );
 
             const version = data.xray_version ? `, Xray ${data.xray_version}` : '';
-            logs.push(`[Xray] CC Agent is online after setup${version}`);
+            pushLog(`[Xray] CC Agent is online after setup${version}`);
             return;
         } catch (_) {}
 
         if (attempt < attempts) {
-            logs.push(`[Xray] Waiting for CC Agent warm-up (${attempt}/${attempts})...`);
+            pushLog(`[Xray] Waiting for CC Agent warm-up (${attempt}/${attempts})...`);
             await delay(2000);
         }
     }
 
-    logs.push('[Xray] CC Agent did not answer immediately after setup; background health check will finish metadata sync');
+    pushLog('[Xray] CC Agent did not answer immediately after setup; background health check will finish metadata sync');
 }
 
 async function runNodeSetupJob(nodeId, onboardingJobId = '') {
@@ -453,6 +491,7 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
     logger.info(`[Panel] Background setup started for node ${node.name} (type: ${node.type || 'hysteria'}, role: ${node.cascadeRole || 'standalone'})`);
 
     let logs = [];
+    const pushLiveLog = (line) => appendSetupJobLiveLog(key, line);
     let onboardingFailureStep = 'install-runtime';
     try {
         if (!effectiveOnboardingJobId) {
@@ -472,13 +511,14 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
 
         let result;
         if (node.type === 'xray' && node.cascadeRole === 'bridge') {
-            result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true });
+            result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true, onLogLine: pushLiveLog });
             if (result.success) {
                 result.logs = result.logs || [];
                 result.logs.push('[Bridge] Xray installed. Create a cascade link to deploy bridge config.');
+                pushLiveLog('[Bridge] Xray installed. Create a cascade link to deploy bridge config.');
             }
         } else if (node.type === 'xray') {
-            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true, strictAgent: false });
+            result = await nodeSetup.setupXrayNodeWithAgent(node, { restartService: true, strictAgent: false, onLogLine: pushLiveLog });
         } else {
             result = await nodeSetup.setupNode(node, {
                 installHysteria: true,
@@ -487,15 +527,19 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
             });
         }
 
-        logs = Array.isArray(result.logs) ? result.logs : [];
+        const streamedLogs = Array.isArray(getSetupJob(key)?.logs) ? getSetupJob(key).logs : [];
+        logs = streamedLogs.length
+            ? streamedLogs
+            : (Array.isArray(result.logs) ? result.logs : []);
 
         if (result.success) {
             try {
                 onboardingFailureStep = 'final-sync';
-                await finalizeXraySetup(node, logs);
-                await warmXrayAgentAfterSetup(node._id, logs);
+                await finalizeXraySetup(node, logs, pushLiveLog);
+                await warmXrayAgentAfterSetup(node._id, logs, pushLiveLog);
             } catch (syncErr) {
                 logs.push(`[Xray] Finalization failed: ${syncErr.message}`);
+                pushLiveLog(`[Xray] Finalization failed: ${syncErr.message}`);
                 throw syncErr;
             }
 
@@ -559,6 +603,7 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
 async function runNodeOnboardingJob(nodeId, onboardingJobId = '') {
     const key = String(nodeId);
     const node = await HyNode.findById(nodeId);
+    const pushLiveLog = (line) => appendSetupJobLiveLog(key, line);
     if (!node) {
         const fallbackError = 'Нода не найдена';
         if (onboardingJobId) {
@@ -588,17 +633,20 @@ async function runNodeOnboardingJob(nodeId, onboardingJobId = '') {
             source: 'panel',
             actor: `panel:${node.name}`,
             setupMode: SETUP_MODE_ONBOARDING_FULL,
+            onLogLine: pushLiveLog,
         });
 
         const onboardingLogs = Array.isArray(job?.stepLogs)
             ? job.stepLogs.map(formatOnboardingStepLog)
             : [];
+        const streamedLogs = Array.isArray(getSetupJob(key)?.logs) ? getSetupJob(key).logs : [];
+        const combinedLogs = mergeSetupStatusLogs(onboardingLogs, streamedLogs);
 
         if (job?.status === 'completed') {
             setSetupJob(key, {
                 state: 'success',
                 message: 'Нода успешно настроена',
-                logs: onboardingLogs,
+                logs: combinedLogs,
                 finishedAt: Date.now(),
                 error: '',
                 onboardingJobId: String(onboardingJobId || ''),
@@ -615,7 +663,7 @@ async function runNodeOnboardingJob(nodeId, onboardingJobId = '') {
         setSetupJob(key, {
             state: 'error',
             error: onboardingError,
-            logs: onboardingLogs,
+            logs: combinedLogs,
             finishedAt: Date.now(),
             onboardingJobId: String(onboardingJobId || ''),
             setupMode: SETUP_MODE_ONBOARDING_FULL,
@@ -1845,16 +1893,21 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
         if (onboardingStatus) {
             const mappedState = mapOnboardingStatusToSetupState(onboardingStatus.status);
             const onboardingLogs = Array.isArray(onboardingStatus.logs) ? onboardingStatus.logs : [];
+            const setupLiveLogs = Array.isArray(getSetupJob(req.params.id)?.logs) ? getSetupJob(req.params.id).logs : [];
+            const mergedLogs = mergeSetupStatusLogs(onboardingLogs, setupLiveLogs);
             return res.json({
                 success: true,
                 state: mappedState,
                 running: mappedState === 'running',
-                logs: onboardingLogs,
+                logs: mergedLogs,
                 message: mappedState === 'success' ? 'Нода успешно настроена' : '',
                 error: onboardingStatus.lastError || '',
                 startedAt: onboardingStatus.startedAt || null,
                 finishedAt: onboardingStatus.finishedAt || null,
-                onboarding: onboardingStatus,
+                onboarding: {
+                    ...onboardingStatus,
+                    logs: mergedLogs,
+                },
                 setupMode: resolveOnboardingJobSetupMode(onboardingJob) || SETUP_MODE_ONBOARDING_FULL,
                 nodeStatus: node.status || 'unknown',
                 lastError: node.lastError || '',

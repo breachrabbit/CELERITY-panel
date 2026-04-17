@@ -505,20 +505,69 @@ function connectSSH(node) {
     });
 }
 
-function execSSH(conn, command, timeoutMs = 0) {
+function execSSH(conn, command, timeoutMsOrOptions = 0, maybeOptions = {}) {
+    const options = (timeoutMsOrOptions && typeof timeoutMsOrOptions === 'object')
+        ? timeoutMsOrOptions
+        : { ...(maybeOptions || {}), timeoutMs: timeoutMsOrOptions };
+    const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 0;
+    const onStdoutLine = typeof options.onStdoutLine === 'function' ? options.onStdoutLine : null;
+    const onStderrLine = typeof options.onStderrLine === 'function' ? options.onStderrLine : null;
+
     return new Promise((resolve, reject) => {
         conn.exec(command, (err, stream) => {
             if (err) return reject(err);
             
             let stdout = '';
             let stderr = '';
+            let stdoutBuf = '';
+            let stderrBuf = '';
             let done = false;
             let timer = null;
+
+            const normalizeChunk = (chunk) => String(chunk || '').replace(/\r/g, '\n');
+
+            const emitBufferedLines = (kind, chunk) => {
+                const cb = kind === 'stderr' ? onStderrLine : onStdoutLine;
+                if (!cb) return;
+                if (!chunk) return;
+                if (kind === 'stderr') {
+                    stderrBuf += chunk;
+                    const parts = stderrBuf.split('\n');
+                    stderrBuf = parts.pop() || '';
+                    for (const line of parts) {
+                        const text = String(line || '').trimEnd();
+                        if (!text) continue;
+                        try { cb(text); } catch (_) {}
+                    }
+                } else {
+                    stdoutBuf += chunk;
+                    const parts = stdoutBuf.split('\n');
+                    stdoutBuf = parts.pop() || '';
+                    for (const line of parts) {
+                        const text = String(line || '').trimEnd();
+                        if (!text) continue;
+                        try { cb(text); } catch (_) {}
+                    }
+                }
+            };
+
+            const flushBufferedLine = (kind) => {
+                const cb = kind === 'stderr' ? onStderrLine : onStdoutLine;
+                if (!cb) return;
+                const pending = kind === 'stderr' ? stderrBuf : stdoutBuf;
+                const text = String(pending || '').trimEnd();
+                if (!text) return;
+                try { cb(text); } catch (_) {}
+                if (kind === 'stderr') stderrBuf = '';
+                else stdoutBuf = '';
+            };
 
             const finish = (result) => {
                 if (done) return;
                 done = true;
                 if (timer) clearTimeout(timer);
+                flushBufferedLine('stdout');
+                flushBufferedLine('stderr');
                 resolve(result);
             };
 
@@ -538,20 +587,30 @@ function execSSH(conn, command, timeoutMs = 0) {
                 const output = stdout + (stderr ? '\n[STDERR]:\n' + stderr : '');
                 
                 if (code === 0) {
-                    finish({ success: true, output, code });
+                    finish({ success: true, output, code, stdout, stderr });
                 } else {
-                    finish({ success: false, output, code, error: `Exit code: ${code}` });
+                    finish({ success: false, output, code, error: `Exit code: ${code}`, stdout, stderr });
                 }
             });
             
-            stream.on('data', (data) => { stdout += data.toString(); });
-            stream.stderr.on('data', (data) => { stderr += data.toString(); });
+            stream.on('data', (data) => {
+                const chunk = normalizeChunk(data);
+                stdout += chunk;
+                emitBufferedLines('stdout', chunk);
+            });
+            stream.stderr.on('data', (data) => {
+                const chunk = normalizeChunk(data);
+                stderr += chunk;
+                emitBufferedLines('stderr', chunk);
+            });
             stream.on('error', (streamErr) => {
                 finish({
                     success: false,
                     output: stdout + (stderr ? '\n[STDERR]:\n' + stderr : ''),
                     code: 255,
                     error: streamErr?.message || 'Stream error',
+                    stdout,
+                    stderr,
                 });
             });
         });
@@ -1472,11 +1531,19 @@ async function generateSingboxRealityKeys(conn) {
  */
 async function setupXrayNode(node, options = {}) {
     const { restartService = true, exitOnly = false } = options;
+    const onLogLine = typeof options.onLogLine === 'function' ? options.onLogLine : null;
 
     const logs = [];
+    const pushLiveLine = (line, source = 'stdout') => {
+        if (!onLogLine || !line) return;
+        const text = String(line).trimEnd();
+        if (!text) return;
+        onLogLine(source === 'stderr' ? `[STDERR] ${text}` : text);
+    };
     const log = (msg) => {
         const line = `[${new Date().toISOString()}] ${msg}`;
         logs.push(line);
+        pushLiveLine(line);
         logger.info(`[XraySetup] ${msg}`);
     };
 
@@ -1506,11 +1573,16 @@ async function setupXrayNode(node, options = {}) {
         log('Connecting via SSH...');
         conn = await connectSSH(node);
         log('SSH connected');
+        const execRemote = (command, timeoutMs = 0) => execSSH(conn, command, {
+            timeoutMs,
+            onStdoutLine: (line) => pushLiveLine(line, 'stdout'),
+            onStderrLine: (line) => pushLiveLine(line, 'stderr'),
+        });
 
         // Install Xray
         log('Installing Xray-core...');
-        const installResult = await execSSH(conn, XRAY_INSTALL_SCRIPT);
-        logs.push(installResult.output);
+        const installResult = await execRemote(XRAY_INSTALL_SCRIPT);
+        if (!onLogLine && installResult.output) logs.push(installResult.output);
         if (!installResult.success) {
             throw new Error(`Xray installation failed: ${installResult.error}`);
         }
@@ -1640,7 +1712,7 @@ async function setupXrayNode(node, options = {}) {
         const mainPort = node.port || 443;
         const apiPort = (node.xray || {}).apiPort || 61000;
         log(`Opening firewall ports (${mainPort}, api:${apiPort})...`);
-        const firewallResult = await execSSH(conn, `
+        const firewallResult = await execRemote(`
 echo "=== Opening firewall ports ==="
 if command -v iptables &> /dev/null; then
     iptables -I INPUT -p tcp --dport ${mainPort} -j ACCEPT 2>/dev/null || true
@@ -1654,14 +1726,14 @@ if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -q "Status: acti
 fi
 echo "Done: Firewall configured"
         `);
-        logs.push(firewallResult.output);
+        if (!onLogLine && firewallResult.output) logs.push(firewallResult.output);
         log('Firewall configured');
 
         if (restartService) {
             log('Installing systemd service and starting Xray...');
             const serviceContent = configGenerator.generateXraySystemdService();
             await uploadFile(conn, serviceContent, '/etc/systemd/system/xray.service');
-            const restartResult = await execSSH(conn, `
+            const restartResult = await execRemote(`
 echo "=== Starting Xray service ==="
 systemctl daemon-reload
 systemctl enable xray
@@ -1673,7 +1745,7 @@ echo ""
 echo "Journal (last 15 lines):"
 journalctl -u xray -n 15 --no-pager || true
             `);
-            logs.push(restartResult.output);
+            if (!onLogLine && restartResult.output) logs.push(restartResult.output);
             if (!restartResult.success) {
                 throw new Error(`Xray service restart failed: ${restartResult.error || `exit ${restartResult.code}`}`);
             }
@@ -1984,7 +2056,7 @@ function generateAgentToken() {
  * @param {Function} log - Logging callback
  * @returns {{ success, agentVersion }}
  */
-async function installCCAgent(conn, node, token, panelIp, log) {
+async function installCCAgent(conn, node, token, panelIp, log, streamLine = null) {
     const agentPort = (node.xray || {}).agentPort || 62080;
     const useTls = (node.xray || {}).agentTls !== false;
     const apiPort = (node.xray || {}).apiPort || 61000;
@@ -2137,7 +2209,14 @@ echo "cc-agent: running"
 echo "Done: cc-agent installed"
 `;
 
-    const result = await execSSH(conn, AGENT_INSTALL);
+    const result = await execSSH(conn, AGENT_INSTALL, {
+        onStdoutLine: typeof streamLine === 'function'
+            ? (line) => streamLine(line, 'stdout')
+            : null,
+        onStderrLine: typeof streamLine === 'function'
+            ? (line) => streamLine(line, 'stderr')
+            : null,
+    });
     const agentVersion = result.output.match(/cc-agent[:\s]+(v[\d.]+)/)?.[1] || 'installed';
     return { success: result.success, agentVersion, output: result.output };
 }
@@ -2180,10 +2259,17 @@ async function ensureXrayAgentToken(node, log = null) {
  */
 async function setupOrRepairXrayAgent(node, options = {}) {
     const strictAgent = options.strictAgent !== false;
+    const onLogLine = typeof options.onLogLine === 'function' ? options.onLogLine : null;
     const log = typeof options.log === 'function'
         ? options.log
         : (msg) => logger.info(`[AgentSetup] ${msg}`);
     const includeInstallerOutput = options.includeInstallerOutput !== false;
+    const streamLine = (line, source = 'stdout') => {
+        if (!onLogLine || !line) return;
+        const text = String(line).trimEnd();
+        if (!text) return;
+        onLogLine(source === 'stderr' ? `[STDERR] ${text}` : text);
+    };
 
     const token = await ensureXrayAgentToken(node, log);
 
@@ -2211,7 +2297,7 @@ async function setupOrRepairXrayAgent(node, options = {}) {
         };
 
         log('Installing CC Agent...');
-        agentResult = await installCCAgent(conn, nodeWithToken, token, panelIp, log);
+        agentResult = await installCCAgent(conn, nodeWithToken, token, panelIp, log, streamLine);
         if (!agentResult.success) {
             const msg = `Agent install failed: ${agentResult.output || 'unknown error'}`;
             if (strictAgent) {
@@ -2229,7 +2315,10 @@ if [ -x /usr/local/bin/cc-agent ]; then
 else
   echo "state:missing-binary"
 fi
-        `);
+        `, {
+            onStdoutLine: (line) => streamLine(line, 'stdout'),
+            onStderrLine: (line) => streamLine(line, 'stderr'),
+        });
         const sanityState = String(agentSanity.output || '').trim().split(':').pop();
         if (sanityState !== 'active') {
             const msg = `Agent sanity check failed (state=${sanityState || 'unknown'})`;
@@ -2281,7 +2370,8 @@ fi
  */
 async function setupXrayNodeWithAgent(node, options = {}) {
     const { strictAgent = true } = options;
-    const result = await setupXrayNode(node, options);
+    const onLogLine = typeof options.onLogLine === 'function' ? options.onLogLine : null;
+    const result = await setupXrayNode(node, { ...options, onLogLine });
 
     if (!result.success) {
         return result;
@@ -2290,6 +2380,7 @@ async function setupXrayNodeWithAgent(node, options = {}) {
     const log = (msg) => {
         const line = `[${new Date().toISOString()}] ${msg}`;
         result.logs.push(line);
+        if (onLogLine) onLogLine(line);
         logger.info(`[AgentSetup] ${msg}`);
     };
     try {
@@ -2297,9 +2388,10 @@ async function setupXrayNodeWithAgent(node, options = {}) {
             strictAgent,
             log,
             includeInstallerOutput: true,
+            onLogLine,
         });
 
-        if (agentState.output) {
+        if (agentState.output && !onLogLine) {
             result.logs.push(agentState.output);
         }
         result.agentToken = agentState.token;

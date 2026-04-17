@@ -6,10 +6,46 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (setupJobs status retirement + step-level rerun controls).
+- Current working focus: setup reliability UX for node onboarding (live logs + correct severity colors) on top of durable onboarding rollout.
 - Current local patch focus:
-  - no uncommitted local changes;
-  - next move is deeper setupJobs retirement (execution-path cleanup, not status only).
+  - active patch in progress for setup-log streaming and stderr severity coloring;
+  - after verification, continue deeper setupJobs retirement (execution-path cleanup, not status only).
+
+## 2026-04-17 Live Setup Logs + Severity Stop-Point
+
+Addressed the immediate operator pain from fresh auto-setup runs: false red output and delayed console visibility.
+
+### What was delivered
+
+- `src/services/nodeSetup.js`:
+  - `execSSH(...)` now supports line callbacks (`onStdoutLine` / `onStderrLine`) and returns `stdout/stderr` alongside `output`;
+  - Xray setup path now streams installer/service output line-by-line when `onLogLine` is provided;
+  - cc-agent installer and sanity checks now stream line-by-line;
+  - `setupXrayNodeWithAgent(...)` forwards live stream callback and avoids duplicate full-output dump when streaming is enabled.
+- `src/routes/panel/nodes.js`:
+  - added setup live-log helpers (`appendSetupJobLiveLog`, merge/trim helpers);
+  - legacy Xray setup now pushes live remote lines directly into setup-status stream;
+  - durable onboarding runner now receives `onLogLine` and writes live lines into the same stream buffer;
+  - setup-status now merges onboarding logs with live setup stream while job is running.
+- `src/services/nodeOnboardingRunner.js`:
+  - emits step start/completed/failed live lines.
+- `src/services/nodeOnboardingHandlers.js`:
+  - runtime/agent handlers forward line-stream callback into node setup routines.
+- `views/partials/node-form/scripts.ejs`:
+  - fixed log highlighting: `[STDERR]` is no longer auto-error;
+  - added neutral stderr style and stricter critical-pattern detection.
+
+### Current stop-point
+
+- Xray onboarding/setup output now arrives incrementally in panel polling loop (2s cadence) instead of only after command completion.
+- Benign stderr no longer looks like hard failure by default.
+- Legacy fallback still exists; Hysteria path is not yet upgraded to the same live line stream channel.
+
+### Best next step
+
+1. Validate on a clean Xray node that first-run output is now readable and status remains green without second pass.
+2. Apply the same live line stream callback pattern to `setupNode(...)` (Hysteria path).
+3. Continue staged retirement of legacy in-memory setup mirror after parity confirmation.
 
 ## 2026-04-17 setupJobs Status Retirement + Step Rerun Stop-Point
 

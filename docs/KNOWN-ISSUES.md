@@ -187,12 +187,16 @@ Latest progress:
 - step rerun flow improved:
   - safe step-level rerun action added for durable onboarding jobs;
   - terminal jobs can rerun from a selected step via repair-job bootstrap.
+- setup log UX improved:
+  - setup console no longer marks every `[STDERR]` line as hard error;
+  - Xray runtime/agent setup now streams live SSH lines into setup status (poll-based near real-time).
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
 
 - staged removal of synthetic bridge mirrors from the legacy setup runner once onboarding parity is fully confirmed.
 - full retirement of in-memory `setupJobs` from remaining non-status control paths once parity is confirmed.
+- same live-stream line channel for full Hysteria setup path.
 
 Status: `pending`
 

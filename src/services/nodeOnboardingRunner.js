@@ -10,10 +10,16 @@ class NodeOnboardingRunner {
         defaultRepairableOnError = true,
     } = {}) {
         let job = await nodeOnboardingService.startJob(jobId);
+        const emitLiveLog = typeof context?.onLogLine === 'function'
+            ? context.onLogLine
+            : null;
 
         while (job.status === 'running') {
             const step = job.currentStep || ONBOARDING_STEPS[0];
             if (stopBeforeStep && step === stopBeforeStep) {
+                if (emitLiveLog) {
+                    emitLiveLog(`[Onboarding] Runner stopped before step ${step}`);
+                }
                 await nodeOnboardingService.appendStepLog(job.id, {
                     step,
                     level: 'info',
@@ -35,14 +41,23 @@ class NodeOnboardingRunner {
                 : this._defaultStepHandler.bind(this);
 
             try {
+                if (emitLiveLog) {
+                    emitLiveLog(`[Onboarding] Step started: ${step}`);
+                }
                 job = await nodeOnboardingService.markStepRunning(job.id, step);
                 const handlerResult = await handler({ job, step, context });
                 job = await nodeOnboardingService.markStepCompleted(job.id, step, {
                     result: handlerResult && typeof handlerResult === 'object' ? handlerResult : {},
                 });
+                if (emitLiveLog) {
+                    emitLiveLog(`[Onboarding] Step completed: ${step}`);
+                }
                 job = await nodeOnboardingService.touchHeartbeat(job.id);
             } catch (error) {
                 logger.error(`[OnboardingRunner] ${step} failed for job ${job.id}: ${error.message}`);
+                if (emitLiveLog) {
+                    emitLiveLog(`[Onboarding] Step failed: ${step} — ${error.message}`);
+                }
                 job = await nodeOnboardingService.markStepFailed(
                     job.id,
                     step,

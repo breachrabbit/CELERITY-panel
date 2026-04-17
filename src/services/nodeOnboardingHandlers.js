@@ -109,22 +109,24 @@ async function runPrepareHost({ job }) {
     });
 }
 
-async function runInstallRuntime({ job }) {
+async function runInstallRuntime({ job, context = {} }) {
     const node = await HyNode.findById(job.nodeId);
     if (!node) {
         throw new Error('Onboarding node not found for runtime install');
     }
+    const onLogLine = typeof context?.onLogLine === 'function' ? context.onLogLine : null;
 
     let result;
     if (node.type === 'xray' && node.cascadeRole === 'bridge') {
-        result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true });
+        result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true, onLogLine });
     } else if (node.type === 'xray') {
-        result = await nodeSetup.setupXrayNode(node, { restartService: true });
+        result = await nodeSetup.setupXrayNode(node, { restartService: true, onLogLine });
     } else {
         result = await nodeSetup.setupNode(node, {
             installHysteria: true,
             setupPortHopping: true,
             restartService: true,
+            onLogLine,
         });
     }
 
@@ -170,11 +172,12 @@ function shouldSkipAgentSteps(node) {
     return node.type !== 'xray' || (node.cascadeRole || 'standalone') === 'bridge';
 }
 
-async function runInstallAgent({ job }) {
+async function runInstallAgent({ job, context = {} }) {
     const node = await HyNode.findById(job.nodeId);
     if (!node) {
         throw new Error('Onboarding node not found for agent install');
     }
+    const onLogLine = typeof context?.onLogLine === 'function' ? context.onLogLine : null;
 
     if (shouldSkipAgentSteps(node)) {
         return {
@@ -190,6 +193,7 @@ async function runInstallAgent({ job }) {
     const agentState = await nodeSetup.setupOrRepairXrayAgent(node, {
         strictAgent: true,
         includeInstallerOutput: true,
+        onLogLine,
         log: (line) => {
             if (line) logBuffer.push(String(line));
         },
