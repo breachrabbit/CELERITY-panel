@@ -180,6 +180,27 @@ Change types:
 - `local patch` — isolated onboarding API scaffold
 - `stability fix` — explicit transition guards and bounded onboarding logs
 
+## 2026-04-17 Onboarding Bridge Integration (Phase 2 start)
+
+- Started the staged integration of durable onboarding jobs into existing setup flows (without hard switch-off of legacy path).
+- Updated panel setup flow bridge in `src/routes/panel/nodes.js`:
+  - `/panel/nodes/:id/setup` now initializes a durable onboarding job on setup start;
+  - background setup runner now receives/stores `onboardingJobId`;
+  - legacy setup success/failure now mirrors into onboarding step/job status as a bridge;
+  - `/panel/nodes/:id/setup-status` now includes durable onboarding payload and can fall back to onboarding state when in-memory setup job is absent.
+- Updated API setup flow bridge in `src/routes/nodes.js`:
+  - `/api/nodes/:id/setup` now creates/starts onboarding job in staged mode;
+  - setup success/failure mirrors into onboarding status;
+  - setup responses now include `onboardingJobId`.
+- Important scope guard:
+  - legacy execution (`nodeSetup.*`, in-memory setup job map, finalization path) is still active;
+  - new onboarding layer is currently acting as durable state mirror + integration seam.
+
+Change types:
+
+- `local patch` — staged onboarding integration bridge for panel/API setup flows
+- `stability fix` — durable setup-status read model fallback from onboarding jobs
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.

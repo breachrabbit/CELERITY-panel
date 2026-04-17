@@ -154,6 +154,9 @@ Latest progress:
   - `NodeOnboardingJob` Mongo model;
   - onboarding state-machine/service/runner scaffold;
   - isolated onboarding API endpoints under `/api/nodes/:id/onboarding/*`.
+- staged bridge integration started:
+  - panel/API setup starts now initialize onboarding jobs;
+  - setup success/failure is mirrored to durable onboarding status.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:

@@ -14,6 +14,19 @@ const nodeOnboardingService = require('../services/nodeOnboardingService');
 const logger = require('../utils/logger');
 const { requireScope } = require('../middleware/auth');
 
+const LEGACY_ONBOARDING_BRIDGE_STEPS = [
+    'preflight',
+    'prepare-host',
+    'install-runtime',
+    'write-runtime-config',
+    'verify-runtime-local',
+    'install-agent',
+    'verify-agent-local',
+    'verify-panel-to-agent',
+    'seed-node-state',
+    'final-sync',
+];
+
 /**
  * Инвалидация кэша при изменении нод
  */
@@ -93,6 +106,34 @@ async function getScopedOnboardingJob(nodeId, jobId) {
         throw new Error('Onboarding job not found for this node');
     }
     return job;
+}
+
+async function safeOnboardingUpdate(onboardingJobId, updater) {
+    if (!onboardingJobId || typeof updater !== 'function') return;
+    try {
+        await updater();
+    } catch (error) {
+        logger.warn(`[Nodes API] Onboarding bridge warning for job ${onboardingJobId}: ${error.message}`);
+    }
+}
+
+async function completeLegacyOnboardingBridge(onboardingJobId, node, details = {}) {
+    if (!onboardingJobId) return;
+    const payload = {
+        bridgeMode: 'legacy-auto-setup',
+        nodeType: node.type || 'hysteria',
+        cascadeRole: node.cascadeRole || 'standalone',
+        ...details,
+    };
+
+    for (const step of LEGACY_ONBOARDING_BRIDGE_STEPS) {
+        await safeOnboardingUpdate(onboardingJobId, async () => {
+            await nodeOnboardingService.markStepCompleted(onboardingJobId, step, payload);
+        });
+    }
+    await safeOnboardingUpdate(onboardingJobId, async () => {
+        await nodeOnboardingService.completeJob(onboardingJobId, payload);
+    });
 }
 
 /**
@@ -652,6 +693,7 @@ router.post('/:id/generate-xray-keys', requireScope('nodes:write'), async (req, 
  */
 router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
     let logs = [];
+    let onboardingJobId = '';
     try {
         const node = await HyNode.findById(req.params.id);
 
@@ -673,6 +715,28 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
 
         const nodeSetup = require('../services/nodeSetup');
         const syncService = require('../services/syncService');
+
+        try {
+            const created = await nodeOnboardingService.createJob({
+                nodeId: node._id,
+                type: 'fresh-install',
+                trigger: {
+                    source: 'api',
+                    actorId: req.user?.id || '',
+                    actorLabel: req.user?.username || 'api',
+                },
+                metadata: {
+                    flow: 'legacy-setup-bridge',
+                    nodeType: node.type || 'hysteria',
+                },
+            });
+            const started = await nodeOnboardingService.startJob(created.job.id, {
+                actorLabel: req.user?.username || 'api',
+            });
+            onboardingJobId = started.id;
+        } catch (onboardingError) {
+            logger.warn(`[Nodes API] Could not initialize onboarding job for ${node.name}: ${onboardingError.message}`);
+        }
 
         let result;
         if (node.type === 'xray' && node.cascadeRole === 'bridge') {
@@ -705,18 +769,38 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
             if (node.type !== 'xray') updateFields.useTlsFiles = result.useTlsFiles;
             await HyNode.findByIdAndUpdate(req.params.id, { $set: updateFields });
             await invalidateNodesCache();
+            await completeLegacyOnboardingBridge(onboardingJobId, node, {
+                setupResult: 'success',
+                useTlsFiles: !!result.useTlsFiles,
+            });
             logger.info(`[Nodes API] Auto-setup completed for ${node.name} (${node.type})`);
-            res.json({ success: true, logs });
+            res.json({ success: true, logs, onboardingJobId });
         } else {
             await HyNode.findByIdAndUpdate(req.params.id, {
                 $set: { status: 'error', lastError: result.error, healthFailures: 0 },
             });
+            await safeOnboardingUpdate(onboardingJobId, async () => {
+                await nodeOnboardingService.markStepFailed(
+                    onboardingJobId,
+                    'install-runtime',
+                    { message: result.error || 'Setup failed' },
+                    { repairable: true }
+                );
+            });
             logger.warn(`[Nodes API] Auto-setup failed for ${node.name}: ${result.error}`);
-            res.status(500).json({ success: false, error: result.error, logs: result.logs });
+            res.status(500).json({ success: false, error: result.error, logs: result.logs, onboardingJobId });
         }
     } catch (error) {
         logger.error(`[Nodes API] Setup error: ${error.message}`);
-        res.status(500).json({ error: error.message, logs });
+        await safeOnboardingUpdate(onboardingJobId, async () => {
+            await nodeOnboardingService.markStepFailed(
+                onboardingJobId,
+                'install-runtime',
+                error,
+                { repairable: true }
+            );
+        });
+        res.status(500).json({ error: error.message, logs, onboardingJobId });
     }
 });
 

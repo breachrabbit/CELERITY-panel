@@ -310,3 +310,14 @@
   - start wiring the new onboarding job lifecycle into panel node-add/setup UX behind a safe staged path;
   - keep legacy setup as fallback while new onboarding jobs run in parallel/shadow;
   - then begin replacing in-memory `setupJobs` status surface with durable onboarding status read-model.
+
+- Onboarding bridge integration continuation:
+  - wired durable onboarding job initialization into panel setup start endpoint;
+  - bridged panel background setup success/fail into onboarding job state;
+  - exposed onboarding payload in panel setup-status responses;
+  - wired API `/nodes/:id/setup` to initialize and return `onboardingJobId`;
+  - kept legacy setup runner as primary executor (no hard cutover).
+- Next step:
+  - switch setup-status UI rendering to onboarding-first state model in panel templates/js;
+  - implement first true runner handlers (`preflight`, `prepare-host`) instead of synthetic bridge completion;
+  - start replacing in-memory panel `setupJobs` map with onboarding-job persistence.

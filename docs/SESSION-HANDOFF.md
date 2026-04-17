@@ -6,10 +6,47 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 1 scaffold).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2 bridge integration start).
 - Current local patch focus:
-  - durable onboarding model/service/state-machine;
-  - isolated onboarding API surface (without replacing legacy setup yet).
+  - staged bridge of durable onboarding status into legacy setup endpoints;
+  - next move from mirrored bridge steps to real runner handlers.
+
+## 2026-04-17 Onboarding Bridge Integration Stop-Point
+
+Durable onboarding jobs are now partially integrated into active setup flows in staged mode.
+
+### What was added after scaffold
+
+- Panel setup path (`src/routes/panel/nodes.js`):
+  - setup start now creates/starts durable onboarding job (best-effort);
+  - setup runner now carries `onboardingJobId`;
+  - legacy setup success/failure mirrors into onboarding job state;
+  - setup-status now returns onboarding payload and can use onboarding fallback if in-memory setup state is missing.
+- API setup path (`src/routes/nodes.js`):
+  - `/api/nodes/:id/setup` now initializes onboarding job and returns `onboardingJobId`;
+  - setup success/failure mirrors to onboarding status.
+
+### What is still intentionally unchanged
+
+- Legacy install execution remains primary:
+  - `nodeSetup.*` execution path is unchanged;
+  - panel in-memory `setupJobs` map still exists and is still used.
+- Step completion currently uses synthetic bridge completion for legacy-run setups.
+
+### Current stop-point
+
+- We now have a durable onboarding read/write seam in both panel/API setup starts.
+- We do **not** yet run true step-by-step onboarding handlers.
+- We do **not** yet have onboarding-first UI status rendering in panel templates/js.
+
+### Best next step
+
+1. Move panel setup UI polling/rendering to onboarding-first status.
+2. Implement first real runner handlers:
+   - `preflight`
+   - `prepare-host`
+3. Replace synthetic bridge step completion with real per-step transitions.
+4. Then start removing dependence on in-memory `setupJobs`.
 
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
 
@@ -154,11 +191,11 @@ Context:
 
 Priority:
 
-1. integrate durable onboarding jobs into panel setup UX in staged mode (no hard switch yet);
+1. switch panel setup-status UI to onboarding-first rendering (with legacy fallback only);
 2. implement first executable onboarding runner handlers (`preflight`, `prepare-host`);
-3. keep legacy setup as fallback until parity is proven on test nodes;
-4. move setup-status polling from process memory toward onboarding job read-model;
-5. only after this, start replacing legacy auto-setup execution path step by step.
+3. replace synthetic bridge completion with real per-step transitions;
+4. keep legacy setup as fallback until parity is proven on test nodes;
+5. then begin removing in-memory `setupJobs` from critical status path.
 
 ## 2026-04-16 Cascade Builder v1 Stop-Point
 
