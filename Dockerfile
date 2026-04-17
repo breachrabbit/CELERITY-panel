@@ -15,6 +15,9 @@ RUN npm install --omit=dev
 # Копируем исходники
 COPY . .
 
+# После копирования исходников синхронизируем локальные ассеты каскадного билдера
+RUN npm run sync:cascade-vendor
+
 # Создаём директории для логов, сертификатов и бэкапов
 RUN mkdir -p logs greenlock.d/live greenlock.d/accounts backups && \
     chmod -R 755 greenlock.d backups

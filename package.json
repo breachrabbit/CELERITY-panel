@@ -33,7 +33,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "sync:cascade-vendor": "node scripts/sync-cascade-vendors.js",
-    "postinstall": "node scripts/sync-cascade-vendors.js"
+    "postinstall": "sh -c 'if [ -f scripts/sync-cascade-vendors.js ]; then node scripts/sync-cascade-vendors.js; else echo \"[cascade-vendor] skipped (script not yet available)\"; fi'"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.500.0",
