@@ -440,3 +440,12 @@
   - re-test on fresh node with `Настроить автоматически` (or `Повторить шаг` for preflight) and confirm first-pass pass-through of `preflight -> prepare-host`;
   - if any preflight failure remains, capture new diagnostics block and patch exact command/tooling condition;
   - then continue onboarding pipeline diagnostics/actions improvements.
+
+- Verify-runtime false offline continuation:
+  - reproduced onboarding fail at `verify-runtime-local` with `Runtime is offline (no status)` while `xray.service` was active;
+  - normalized runtime status parsing in onboarding handler (supports string/object results);
+  - added bounded retry in verify-runtime-local to avoid transient startup races;
+  - deployed fix in commit `9f066c8`.
+- Next step:
+  - run fresh onboarding again and confirm pass through `verify-runtime-local`;
+  - if next failure appears, patch step-specific diagnostics/handler and keep durable flow moving.

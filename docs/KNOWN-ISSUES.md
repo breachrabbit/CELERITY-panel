@@ -301,3 +301,28 @@ What is still pending:
 - if a new concrete command-level failure appears, patch command idempotence accordingly.
 
 Status: `pending verification`
+
+### 11. Onboarding verify-runtime-local could report false offline state
+
+Issue history:
+
+- onboarding reached `verify-runtime-local` and failed with:
+  - `Runtime is offline (no status)`,
+  while setup log already contained active `xray.service` status output.
+
+Root cause:
+
+- runtime status providers returned string values in current setup service (`online/offline/error`);
+- verify handler expected object shape and treated string input as missing/false.
+
+Current state after patch:
+
+- runtime verify normalizes both string and object status formats;
+- verify step includes bounded retries for short startup races.
+
+What is still pending:
+
+- validate behavior on several fresh hosts and node roles;
+- tune retry window only if real hosts still need longer stabilization.
+
+Status: `pending verification`

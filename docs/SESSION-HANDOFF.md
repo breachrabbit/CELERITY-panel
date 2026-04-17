@@ -10,7 +10,35 @@
 - Current local patch focus:
   - hardened early onboarding steps (`preflight`, `prepare-host`) with real SSH failure details and live step output;
   - fixed durable preflight shell wrapper to preserve multiline script semantics under `/bin/sh`;
+  - fixed runtime verify step to correctly parse runtime status and tolerate startup races;
   - verify fresh-node run and then continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Verify-Runtime False Offline Fix Stop-Point
+
+### What was delivered
+
+- `src/services/nodeOnboardingHandlers.js`:
+  - added `normalizeRuntimeStatus(...)` to support both legacy string and structured object status formats;
+  - `runVerifyRuntimeLocal(...)` now:
+    - uses normalized status model;
+    - retries runtime check with bounded backoff (`8 x 1.5s`) before hard fail.
+- Targeted failure fixed:
+  - `verify-runtime-local — Runtime is offline (no status)` while runtime logs already showed active `xray.service`.
+- Deployed:
+  - commit `9f066c8`
+  - stand status `running:healthy`.
+
+### Current stop-point
+
+- Durable onboarding no longer fails `verify-runtime-local` because of status-shape mismatch.
+- Runtime verification is more resilient to short service restart windows.
+
+### Best next step
+
+1. Re-run onboarding on fresh node and confirm stable pass through:
+   - `preflight -> prepare-host -> install-runtime -> write-runtime-config -> verify-runtime-local`.
+2. Continue next failures (if any) step-by-step using diagnostics card details.
+3. After runtime/agent parity confidence, continue staged retirement of remaining legacy status bridges.
 
 ## 2026-04-17 Preflight Shell Wrapper Fix Stop-Point
 

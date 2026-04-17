@@ -952,3 +952,20 @@ Change type:
 Change type:
 
 - `stability fix` — durable onboarding preflight shell compatibility
+
+## 2026-04-17 Verify-Runtime Status Normalization + Retry
+
+- Investigated false onboarding failure after successful runtime setup:
+  - `verify-runtime-local` failed with `Runtime is offline (no status)` even when `xray.service` was active in logs.
+- Root cause:
+  - status checks returned string states (`online/offline/error`), while verify handler expected object shape (`{ online, status, error }`);
+  - immediate verify could also race with short service restart windows.
+- Updated `src/services/nodeOnboardingHandlers.js`:
+  - added runtime status normalizer supporting both string and object formats;
+  - switched verify logic to normalized status model;
+  - added bounded retry loop for runtime verify (`8` attempts, `1.5s` interval).
+- Deployed commit `9f066c8` to test stand; deployment finished healthy.
+
+Change type:
+
+- `stability fix` — onboarding runtime verification correctness and race tolerance
