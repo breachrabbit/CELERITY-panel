@@ -236,6 +236,11 @@
 - Next step:
   - commit and deploy the builder polish pass;
   - then begin turning the onboarding rewrite blueprint into a concrete state-machine/model implementation before test servers arrive.
+
+- Final stop-point update:
+  - builder polish pass is now already committed, pushed, and deployed on the live stand;
+  - onboarding rewrite still exists only as blueprint/docs, not as code;
+  - next session should start directly with `NodeOnboardingJob` / onboarding service scaffolding.
   - active Xray users now create synthetic device entries tied to node id/name/source;
   - this gives profile/node attribution without requiring immediate cc-agent binary changes.
 - Next step:
@@ -293,3 +298,15 @@
   - scaffold a separate experimental builder route/view in this fork;
   - add normalized builder state API;
   - then wire drag-to-connect, inspector, and validation in the new shell.
+
+- Onboarding rewrite implementation (phase 1 scaffold):
+  - added durable Mongo model `NodeOnboardingJob` with per-step state/logs and unique active-job guard;
+  - added onboarding state-machine domain constants and transition helpers;
+  - added onboarding service with start/resume/fail/complete/heartbeat + step transitions;
+  - added lightweight onboarding runner scaffold for ordered step execution with handler hooks;
+  - added isolated onboarding API endpoints under `/api/nodes/:id/onboarding/*`;
+  - kept legacy `/:id/setup` path unchanged at this stage.
+- Next step:
+  - start wiring the new onboarding job lifecycle into panel node-add/setup UX behind a safe staged path;
+  - keep legacy setup as fallback while new onboarding jobs run in parallel/shadow;
+  - then begin replacing in-memory `setupJobs` status surface with durable onboarding status read-model.

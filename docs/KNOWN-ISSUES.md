@@ -148,6 +148,20 @@ Reference:
 
 - `docs/node-onboarding-rewrite-blueprint.ru.md`
 
+Latest progress:
+
+- durable onboarding scaffold is now in code:
+  - `NodeOnboardingJob` Mongo model;
+  - onboarding state-machine/service/runner scaffold;
+  - isolated onboarding API endpoints under `/api/nodes/:id/onboarding/*`.
+- this new layer is intentionally still separate from legacy setup flow.
+
+Still missing:
+
+- integration of durable onboarding jobs into panel setup UI/status polling;
+- first executable handlers (`preflight`, `prepare-host`, runtime/agent steps);
+- staged cutover from in-memory `setupJobs` to durable job status.
+
 Status: `pending`
 
 ### 7. Several visual follow-ups are captured but not yet implemented

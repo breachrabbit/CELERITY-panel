@@ -6,10 +6,63 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Cascade Builder v1 polish + Hidden Rabbit node onboarding rewrite planning.
-- Current local patch focus has moved away from dashboard rings and onto:
-  - builder theme/i18n/responsive cleanup;
-  - onboarding / installer audit and replacement blueprint.
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 1 scaffold).
+- Current local patch focus:
+  - durable onboarding model/service/state-machine;
+  - isolated onboarding API surface (without replacing legacy setup yet).
+
+## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
+
+The first real onboarding rewrite layer is now in code.
+
+### What was added
+
+- New onboarding state-machine domain:
+  - `src/domain/node-onboarding/stateMachine.js`
+  - canonical onboarding steps and status transition guards.
+- New durable model:
+  - `src/models/nodeOnboardingJobModel.js`
+  - persistent step states/logs/errors/result snapshot;
+  - unique active-job-per-node constraint.
+- New service scaffold:
+  - `src/services/nodeOnboardingService.js`
+  - create/list/get active jobs;
+  - start/resume/fail/complete lifecycle;
+  - per-step transitions + heartbeat + bounded logs.
+- New runner scaffold:
+  - `src/services/nodeOnboardingRunner.js`
+  - ordered step execution with pluggable handlers.
+- New isolated API layer:
+  - `/api/nodes/:id/onboarding/active`
+  - `/api/nodes/:id/onboarding/jobs`
+  - `/api/nodes/:id/onboarding/jobs/:jobId/start`
+  - `/api/nodes/:id/onboarding/jobs/:jobId/resume`
+  - step start/complete/fail endpoints
+  - job complete endpoint
+
+### What intentionally was not changed yet
+
+- Legacy `setupJobs` in-memory flow in `src/routes/panel/nodes.js` is still the live setup path.
+- Legacy `/api/nodes/:id/setup` behavior is unchanged.
+- New onboarding runner does not execute real install/runtime steps yet (handler hooks only).
+
+### Current stop-point
+
+- Durable onboarding layer exists and is testable as a separate API/service surface.
+- Integration into panel node-add/setup UX has **not** started yet.
+- No replacement of legacy auto-setup has been attempted in this step.
+
+### Best next step
+
+1. Add a staged integration path in panel setup:
+   - create onboarding job on setup start;
+   - show durable status in UI polling;
+   - keep legacy setup path as fallback while new pipeline is shadowed.
+2. Implement first real handlers in runner:
+   - `preflight`
+   - `prepare-host`
+   - adapter hooks around existing `nodeSetup` pieces.
+3. Then migrate setup-status UI from process `Map` to durable onboarding job read-model.
 
 ## 2026-04-17 Builder + Onboarding Stop-Point
 
@@ -56,12 +109,56 @@ This document now captures:
 
 ### Best next step
 
-1. Commit and deploy the builder theme/i18n/responsive batch.
+1. Builder theme/i18n/responsive batch is already committed and deployed:
+   - commit: `567e8f1 — feat: polish cascade builder and audit onboarding`
+   - stand: `https://tunnel.hiddenrabbit.net.ru/panel`
 2. Start implementing the first real onboarding rewrite layer:
    - durable `NodeOnboardingJob`;
    - explicit step model;
    - remove process-only setup state from the critical path.
 3. Only after that, continue deeper cascade-builder UX work or test-server rollout.
+
+### Explicit stop-point
+
+- Do **not** re-audit the current installer again at the start of the next session.
+- The audit and replacement direction are already captured in:
+  - `docs/node-onboarding-rewrite-blueprint.ru.md`
+- Historical note: at this point onboarding rewrite code had not started yet.
+- The next session should begin from implementation, not from more exploration:
+  - add the first durable onboarding model/service layer;
+  - keep it separate from the legacy setup path at first;
+  - do not start rewiring the live auto-setup blindly before the durable job/state layer exists.
+
+## Prompt For Next Launch
+
+Read in order:
+
+1. `docs/PROJECT-BASELINE.md`
+2. `docs/ROADMAP.md`
+3. `docs/SESSION-HANDOFF.md`
+4. `docs/KNOWN-ISSUES.md`
+5. `docs/DEVELOPMENT-LOG.md`
+6. `docs/SESSION-LEDGER.md`
+7. `docs/node-onboarding-rewrite-blueprint.ru.md`
+
+Then continue without extra planning.
+
+Context:
+
+- this is an isolated fork, not part of Rabbit Platform;
+- continuity docs are the source of truth;
+- latest deployed commit before this local work: `567e8f1 — feat: polish cascade builder and audit onboarding`;
+- onboarding audit is done and documented in `docs/node-onboarding-rewrite-blueprint.ru.md`;
+- onboarding rewrite phase 1 scaffold is now implemented locally (model + service + runner + API);
+- legacy setup path is still active.
+
+Priority:
+
+1. integrate durable onboarding jobs into panel setup UX in staged mode (no hard switch yet);
+2. implement first executable onboarding runner handlers (`preflight`, `prepare-host`);
+3. keep legacy setup as fallback until parity is proven on test nodes;
+4. move setup-status polling from process memory toward onboarding job read-model;
+5. only after this, start replacing legacy auto-setup execution path step by step.
 
 ## 2026-04-16 Cascade Builder v1 Stop-Point
 

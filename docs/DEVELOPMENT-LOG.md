@@ -125,6 +125,9 @@ Change types:
   - resume/repair semantics.
 - Added a dedicated design note:
   - `docs/node-onboarding-rewrite-blueprint.ru.md`
+- Stopped intentionally before writing onboarding-rewrite code:
+  - builder polish is already committed, pushed, and deployed;
+  - next step should start from implementing the durable onboarding model/service layer, not from repeating the audit.
 
 Change types:
 
@@ -132,6 +135,50 @@ Change types:
 - `stability fix` — builder API localization and commit-summary correction
 - `investigation` — node onboarding / installer fragility audit
 - `design note` — Hidden Rabbit onboarding rewrite blueprint
+
+## 2026-04-17 Onboarding Rewrite Scaffold (Phase 1)
+
+- Started the first real code implementation for the new Hidden Rabbit onboarding pipeline without replacing legacy auto-setup yet.
+- Added a dedicated onboarding state-machine domain layer:
+  - `src/domain/node-onboarding/stateMachine.js`
+  - canonical step list (`preflight -> ready`);
+  - job/step status enums;
+  - transition helpers (`canTransitionStatus`, next-step navigation, active/terminal checks).
+- Added a durable onboarding job model in Mongo:
+  - `src/models/nodeOnboardingJobModel.js`
+  - persistent `stepStates`, `stepLogs`, `lastError`, `resultSnapshot`, trigger metadata;
+  - partial unique index for one active onboarding job per node.
+- Added onboarding service scaffold:
+  - `src/services/nodeOnboardingService.js`
+  - create/list/get active jobs;
+  - start/resume semantics;
+  - step transitions (`running/completed/failed/blocked/repairable`);
+  - heartbeat/log appends;
+  - terminal completion/failure handling.
+- Added a lightweight runner scaffold:
+  - `src/services/nodeOnboardingRunner.js`
+  - executes step handlers in order;
+  - persists transitions step by step;
+  - defaults to repairable fail mode on handler error.
+- Added isolated onboarding API endpoints (separate from legacy setup flow):
+  - `GET /nodes/:id/onboarding/active`
+  - `GET /nodes/:id/onboarding/jobs`
+  - `POST /nodes/:id/onboarding/jobs`
+  - `POST /nodes/:id/onboarding/jobs/:jobId/start`
+  - `POST /nodes/:id/onboarding/jobs/:jobId/resume`
+  - `POST /nodes/:id/onboarding/jobs/:jobId/steps/:step/start`
+  - `POST /nodes/:id/onboarding/jobs/:jobId/steps/:step/complete`
+  - `POST /nodes/:id/onboarding/jobs/:jobId/steps/:step/fail`
+  - `POST /nodes/:id/onboarding/jobs/:jobId/complete`
+- Kept legacy auto-setup path untouched:
+  - no replacement of `/nodes/:id/setup` yet;
+  - no change to current in-memory `setupJobs` behavior in panel route at this stage.
+
+Change types:
+
+- `local patch` — durable onboarding model and state-machine scaffold
+- `local patch` — isolated onboarding API scaffold
+- `stability fix` — explicit transition guards and bounded onboarding logs
 
 ## 2026-04-16 Session Continuity Update
 

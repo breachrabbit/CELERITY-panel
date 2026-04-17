@@ -10,6 +10,7 @@ const ServerGroup = require('../models/serverGroupModel');
 const cryptoService = require('../services/cryptoService');
 const cache = require('../services/cacheService');
 const nodeSetup = require('../services/nodeSetup');
+const nodeOnboardingService = require('../services/nodeOnboardingService');
 const logger = require('../utils/logger');
 const { requireScope } = require('../middleware/auth');
 
@@ -84,6 +85,14 @@ function parseCascadeSidecar(value) {
 
 function isInputValidationError(error) {
     return String(error?.message || '').startsWith('Invalid cascadeSidecar: ');
+}
+
+async function getScopedOnboardingJob(nodeId, jobId) {
+    const job = await nodeOnboardingService.getJob(jobId);
+    if (!job || String(job.nodeId) !== String(nodeId)) {
+        throw new Error('Onboarding job not found for this node');
+    }
+    return job;
 }
 
 /**
@@ -708,6 +717,187 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
     } catch (error) {
         logger.error(`[Nodes API] Setup error: ${error.message}`);
         res.status(500).json({ error: error.message, logs });
+    }
+});
+
+/**
+ * GET /nodes/:id/onboarding/active - Get active onboarding job for node
+ */
+router.get('/:id/onboarding/active', requireScope('nodes:read'), async (req, res) => {
+    try {
+        const node = await HyNode.findById(req.params.id).select('_id');
+        if (!node) {
+            return res.status(404).json({ error: 'Нода не найдена' });
+        }
+
+        const job = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+        res.json({ active: !!job, job: job || null });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding active error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET /nodes/:id/onboarding/jobs - List onboarding jobs for node
+ */
+router.get('/:id/onboarding/jobs', requireScope('nodes:read'), async (req, res) => {
+    try {
+        const node = await HyNode.findById(req.params.id).select('_id');
+        if (!node) {
+            return res.status(404).json({ error: 'Нода не найдена' });
+        }
+
+        const jobs = await nodeOnboardingService.listJobsByNode(req.params.id, {
+            limit: req.query.limit,
+        });
+        res.json({ jobs });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding list error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /nodes/:id/onboarding/jobs - Create onboarding job (scaffold layer)
+ */
+router.post('/:id/onboarding/jobs', requireScope('nodes:write'), async (req, res) => {
+    try {
+        const {
+            type = 'fresh-install',
+            triggerSource = 'api',
+            triggerActorId = '',
+            triggerActorLabel = '',
+            metadata = {},
+        } = req.body || {};
+
+        const result = await nodeOnboardingService.createJob({
+            nodeId: req.params.id,
+            type,
+            trigger: {
+                source: triggerSource,
+                actorId: triggerActorId,
+                actorLabel: triggerActorLabel || req.user?.username || '',
+            },
+            metadata,
+        });
+
+        res.status(result.created ? 201 : 200).json(result);
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding create error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/start - Start onboarding job
+ */
+router.post('/:id/onboarding/jobs/:jobId/start', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const job = await nodeOnboardingService.startJob(req.params.jobId, {
+            actorLabel: req.user?.username || '',
+        });
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding start error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/resume - Resume onboarding job
+ */
+router.post('/:id/onboarding/jobs/:jobId/resume', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const job = await nodeOnboardingService.resumeJob(req.params.jobId, {
+            step: req.body?.step,
+        });
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding resume error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/steps/:step/start - Mark step running
+ */
+router.post('/:id/onboarding/jobs/:jobId/steps/:step/start', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const job = await nodeOnboardingService.markStepRunning(
+            req.params.jobId,
+            req.params.step,
+            req.body?.details || {}
+        );
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding step-start error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/steps/:step/complete - Mark step completed
+ */
+router.post('/:id/onboarding/jobs/:jobId/steps/:step/complete', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const job = await nodeOnboardingService.markStepCompleted(
+            req.params.jobId,
+            req.params.step,
+            req.body?.details || {}
+        );
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding step-complete error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/steps/:step/fail - Mark step failed/blocked
+ */
+router.post('/:id/onboarding/jobs/:jobId/steps/:step/fail', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const {
+            code = '',
+            message = 'Step failed',
+            details = {},
+            repairable = false,
+            blocked = false,
+        } = req.body || {};
+
+        const job = await nodeOnboardingService.markStepFailed(
+            req.params.jobId,
+            req.params.step,
+            { code, message, details },
+            { repairable: !!repairable, blocked: !!blocked }
+        );
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding step-fail error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/complete - Mark onboarding job complete
+ */
+router.post('/:id/onboarding/jobs/:jobId/complete', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const job = await nodeOnboardingService.completeJob(
+            req.params.jobId,
+            req.body?.resultSnapshot || {}
+        );
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding complete error: ${error.message}`);
+        res.status(500).json({ error: error.message });
     }
 });
 
