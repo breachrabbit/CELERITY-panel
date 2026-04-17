@@ -36,6 +36,8 @@
     const HOP_TRANSPORT_OPTIONS = ['tcp', 'ws', 'grpc', 'xhttp', 'splithttp'];
     const HOP_SECURITY_OPTIONS = ['none', 'tls', 'reality'];
     const REALITY_FINGERPRINT_OPTIONS = ['chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'randomized'];
+    const BUILDER_NODE_WIDTH = 156;
+    const BUILDER_PORT_OFFSET = 10;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -235,6 +237,8 @@
                 nodeXrayBorder: '#08C5CB',
                 nodeHysteriaBackground: '#17214f',
                 nodeHysteriaBorder: '#44EFF4',
+                portBackground: '#0f183f',
+                portBorder: '#7dd3fc',
                 edgeColor: '#44EFF4',
                 edgeTextBackground: '#101948',
                 edgeTextColor: '#dbeafe',
@@ -249,6 +253,8 @@
             nodeXrayBorder: '#08C5CB',
             nodeHysteriaBackground: '#f4f6fb',
             nodeHysteriaBorder: '#182463',
+            portBackground: '#ffffff',
+            portBorder: '#6b7280',
             edgeColor: '#182463',
             edgeTextBackground: '#ffffff',
             edgeTextColor: '#64748b',
@@ -280,10 +286,10 @@
         const palette = getBuilderPalette();
         return [
             {
-                selector: 'node',
+                selector: 'node[isPort != 1]',
                 style: {
                     'shape': 'round-rectangle',
-                    'width': 156,
+                    'width': BUILDER_NODE_WIDTH,
                     'height': 58,
                     'background-color': palette.nodeBackground,
                     'border-width': 1.5,
@@ -303,21 +309,21 @@
                 },
             },
             {
-                selector: 'node[nodeType = "xray"]',
+                selector: 'node[isPort != 1][nodeType = "xray"]',
                 style: {
                     'background-color': palette.nodeXrayBackground,
                     'border-color': palette.nodeXrayBorder,
                 },
             },
             {
-                selector: 'node[nodeType = "hysteria"]',
+                selector: 'node[isPort != 1][nodeType = "hysteria"]',
                 style: {
                     'background-color': palette.nodeHysteriaBackground,
                     'border-color': palette.nodeHysteriaBorder,
                 },
             },
             {
-                selector: 'node[status = "online"]',
+                selector: 'node[isPort != 1][status = "online"]',
                 style: {
                     'border-width': 2,
                     'shadow-blur': 14,
@@ -326,13 +332,37 @@
                 },
             },
             {
-                selector: 'node:selected',
+                selector: 'node[isPort != 1]:selected',
                 style: {
                     'border-color': '#08C5CB',
                     'border-width': 2,
                     'shadow-blur': 20,
                     'shadow-color': '#08C5CB',
                     'shadow-opacity': 0.22,
+                },
+            },
+            {
+                selector: 'node[isPort = 1]',
+                style: {
+                    'shape': 'ellipse',
+                    'width': 14,
+                    'height': 14,
+                    'background-color': palette.portBackground,
+                    'border-width': 2,
+                    'border-style': 'solid',
+                    'border-color': palette.portBorder,
+                    'label': '',
+                    'text-opacity': 0,
+                    'overlay-opacity': 0,
+                    'z-index': 9999,
+                },
+            },
+            {
+                selector: 'node[isPort = 1].eh-source, node[isPort = 1].eh-target, node[isPort = 1].eh-hover',
+                style: {
+                    'border-color': '#08C5CB',
+                    'border-width': 3,
+                    'background-color': '#ffffff',
                 },
             },
             {
@@ -406,12 +436,79 @@
     function syncCyTheme() {
         if (!state.cy) return;
         state.cy.style(getBuilderStyle());
+        syncAllNodePorts();
         state.cy.resize();
     }
 
     function buildNodeLabel(node) {
         const prefix = node.flag ? `${node.flag} ` : '';
         return `${prefix}${node.name}`;
+    }
+
+    function buildPortId(nodeId, portType) {
+        return `${String(nodeId)}:port:${String(portType)}`;
+    }
+
+    function getPortPositionFromRaw(position, portType) {
+        const baseX = Number(position?.x) || 0;
+        const baseY = Number(position?.y) || 0;
+        const delta = (BUILDER_NODE_WIDTH / 2) + BUILDER_PORT_OFFSET;
+        const direction = String(portType) === 'out' ? 1 : -1;
+        return {
+            x: baseX + (direction * delta),
+            y: baseY,
+        };
+    }
+
+    function isPortElement(element) {
+        if (!element || !element.length) return false;
+        return Number(element.data('isPort')) === 1;
+    }
+
+    function getPortPositionFromNodeElement(nodeElement, portType) {
+        const width = Number(nodeElement.width()) || BUILDER_NODE_WIDTH;
+        const delta = (width / 2) + BUILDER_PORT_OFFSET;
+        const direction = String(portType) === 'out' ? 1 : -1;
+        const position = nodeElement.position();
+        return {
+            x: Number(position?.x || 0) + (direction * delta),
+            y: Number(position?.y || 0),
+        };
+    }
+
+    function syncNodePorts(nodeId) {
+        if (!state.cy) return;
+        const ownerId = String(nodeId || '').trim();
+        if (!ownerId) return;
+        const ownerNode = state.cy.getElementById(ownerId);
+        if (!ownerNode.length) return;
+        ['in', 'out'].forEach((portType) => {
+            const portNode = state.cy.getElementById(buildPortId(ownerId, portType));
+            if (!portNode.length) return;
+            portNode.position(getPortPositionFromNodeElement(ownerNode, portType));
+        });
+    }
+
+    function syncAllNodePorts() {
+        if (!state.cy) return;
+        state.cy.nodes('[isPort != 1]').forEach((node) => syncNodePorts(node.id()));
+    }
+
+    function runAutoLayout({ animate = true } = {}) {
+        if (!state.cy) return;
+        const layoutCollection = state.cy.elements().filter((element) => element.isEdge() || Number(element.data('isPort')) !== 1);
+        state.cy.one('layoutstop', () => {
+            syncAllNodePorts();
+            state.cy.fit(undefined, 48);
+        });
+        layoutCollection.layout({
+            name: 'dagre',
+            rankDir: 'LR',
+            nodeSep: 48,
+            rankSep: 96,
+            animate,
+            animationDuration: animate ? 320 : 0,
+        }).run();
     }
 
     function flowToElements(flow) {
@@ -424,8 +521,37 @@
                     label: buildNodeLabel(node),
                     nodeType: node.type,
                     status: node.status,
+                    isPort: 0,
                 },
                 position: node.position || undefined,
+            });
+            elements.push({
+                group: 'nodes',
+                data: {
+                    id: buildPortId(node.id, 'in'),
+                    label: '',
+                    isPort: 1,
+                    ownerNodeId: node.id,
+                    portType: 'in',
+                },
+                position: getPortPositionFromRaw(node.position, 'in'),
+                grabbable: false,
+                selectable: false,
+                locked: true,
+            });
+            elements.push({
+                group: 'nodes',
+                data: {
+                    id: buildPortId(node.id, 'out'),
+                    label: '',
+                    isPort: 1,
+                    ownerNodeId: node.id,
+                    portType: 'out',
+                },
+                position: getPortPositionFromRaw(node.position, 'out'),
+                grabbable: false,
+                selectable: false,
+                locked: true,
             });
         }
 
@@ -1757,21 +1883,22 @@
             wheelSensitivity: 0.25,
         });
 
+        const portNodes = state.cy.nodes('[isPort = 1]');
+        if (portNodes.length) {
+            portNodes.ungrabify();
+            portNodes.lock();
+        }
+        syncAllNodePorts();
+
         const hasPositions = flow.nodes.some((node) => node.position && typeof node.position.x === 'number');
         if (!hasPositions) {
-            state.cy.layout({
-                name: 'dagre',
-                rankDir: 'LR',
-                nodeSep: 48,
-                rankSep: 96,
-                animate: true,
-                animationDuration: 320,
-            }).run();
+            runAutoLayout({ animate: true });
         } else {
             state.cy.fit(undefined, 48);
         }
 
         state.cy.on('select', 'node', (event) => {
+            if (isPortElement(event.target)) return;
             const nodeId = event.target.id();
             const node = getNodeById(nodeId);
             if (node) renderNodeInspector(node);
@@ -1789,16 +1916,32 @@
             }
         });
 
+        state.cy.on('position', 'node[isPort != 1]', (event) => {
+            syncNodePorts(event.target.id());
+        });
+
         if (typeof state.cy.edgehandles === 'function') {
             state.edgehandles = state.cy.edgehandles({
-                handleNodes: 'node',
+                handleNodes: 'node[isPort = 1][portType = "out"]',
                 preview: true,
                 hoverDelay: 80,
+                canConnect: (sourceNode, targetNode) => {
+                    if (!isPortElement(sourceNode) || !isPortElement(targetNode)) return false;
+                    if (String(sourceNode.data('portType')) !== 'out') return false;
+                    if (String(targetNode.data('portType')) !== 'in') return false;
+                    const sourceOwner = String(sourceNode.data('ownerNodeId') || '').trim();
+                    const targetOwner = String(targetNode.data('ownerNodeId') || '').trim();
+                    if (!sourceOwner || !targetOwner) return false;
+                    return sourceOwner !== targetOwner;
+                },
                 noEdgeEventsInDraw: true,
                 disableBrowserGestures: true,
                 complete: async (sourceNode, targetNode, addedEles) => {
                     if (addedEles && addedEles.remove) addedEles.remove();
-                    await handleDraftConnect(sourceNode.id(), targetNode.id());
+                    const sourceNodeId = String(sourceNode?.data('ownerNodeId') || '').trim();
+                    const targetNodeId = String(targetNode?.data('ownerNodeId') || '').trim();
+                    if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
+                    await handleDraftConnect(sourceNodeId, targetNodeId);
                 },
             });
         }
@@ -1900,7 +2043,7 @@
 
     async function saveLayout() {
         try {
-            const positions = state.cy.nodes().toArray().map((node) => ({
+            const positions = state.cy.nodes('[isPort != 1]').toArray().map((node) => ({
                 id: node.id(),
                 x: node.position('x'),
                 y: node.position('y'),
@@ -2111,15 +2254,7 @@
         });
         document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));
         document.getElementById('builderAutoLayout')?.addEventListener('click', () => {
-            if (!state.cy) return;
-            state.cy.layout({
-                name: 'dagre',
-                rankDir: 'LR',
-                nodeSep: 48,
-                rankSep: 96,
-                animate: true,
-                animationDuration: 320,
-            }).run();
+            runAutoLayout({ animate: true });
         });
 
         if (typeof MutationObserver !== 'undefined') {

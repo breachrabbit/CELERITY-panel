@@ -1415,7 +1415,7 @@
     "summaryWarnings": "Warnings",
     "libraryTitle": "Node library",
     "libraryHint": "Use the current active nodes as the source set for the experimental builder.",
-    "dragHint": "Drag from one node to another to create a draft hop.",
+    "dragHint": "Drag from a node’s right port to the target node’s left port to create a draft hop.",
     "resetDrafts": "Reset drafts",
     "openLegacyMap": "Open legacy map",
     "inspectorTitle": "Inspector",
