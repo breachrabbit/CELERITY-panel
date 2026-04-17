@@ -364,6 +364,9 @@
   - setup-status now uses onboarding-first state/log/error mapping (legacy setup map is fallback);
   - API setup now supports `setupMode=onboarding-full` and returns durable onboarding logs;
   - duplicate-run guard added for active onboarding jobs.
+- Onboarding setup-mode normalization:
+  - onboarding job metadata now stores real flow/mode for durable vs legacy starts;
+  - panel setup UI now sends explicit setup mode (`onboarding-full` for Xray, `legacy` otherwise).
 - Next step:
   - remove synthetic bridge completion from paths already executing onboarding-full;
   - add operator-facing resume/repair actions for onboarding jobs in node setup UI;

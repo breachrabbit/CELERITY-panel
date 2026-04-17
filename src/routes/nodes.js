@@ -778,7 +778,10 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
                     actorLabel: req.user?.username || 'api',
                 },
                 metadata: {
-                    flow: 'legacy-setup-bridge',
+                    flow: setupMode === SETUP_MODE_ONBOARDING_FULL
+                        ? 'durable-onboarding-run-full'
+                        : 'legacy-setup-bridge',
+                    setupMode,
                     nodeType: node.type || 'hysteria',
                 },
             });

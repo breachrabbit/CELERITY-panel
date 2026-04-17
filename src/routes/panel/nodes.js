@@ -225,7 +225,11 @@ async function safeOnboardingUpdate(onboardingJobId, action, logs, updater) {
     }
 }
 
-async function ensureOnboardingJobForSetup(node, actorLabel = '') {
+async function ensureOnboardingJobForSetup(node, actorLabel = '', setupMode = SETUP_MODE_LEGACY) {
+    const normalizedMode = normalizeSetupMode(setupMode) || SETUP_MODE_LEGACY;
+    const flow = normalizedMode === SETUP_MODE_ONBOARDING_FULL
+        ? 'durable-onboarding-run-full'
+        : 'legacy-setup-bridge';
     const created = await nodeOnboardingService.createJob({
         nodeId: node._id,
         type: 'fresh-install',
@@ -234,7 +238,8 @@ async function ensureOnboardingJobForSetup(node, actorLabel = '') {
             actorLabel: actorLabel || `panel:${node.name}`,
         },
         metadata: {
-            flow: 'legacy-setup-bridge',
+            flow,
+            setupMode: normalizedMode,
             nodeType: node.type || 'hysteria',
             cascadeRole: node.cascadeRole || 'standalone',
         },
@@ -367,7 +372,7 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
     let onboardingFailureStep = 'install-runtime';
     try {
         if (!effectiveOnboardingJobId) {
-            effectiveOnboardingJobId = await ensureOnboardingJobForSetup(node, `panel:${node.name}`);
+            effectiveOnboardingJobId = await ensureOnboardingJobForSetup(node, `panel:${node.name}`, SETUP_MODE_LEGACY);
             setSetupJob(key, { onboardingJobId: effectiveOnboardingJobId });
         }
 
@@ -1289,7 +1294,7 @@ router.post('/nodes/:id/setup', async (req, res) => {
         const selectedMode = resolvePanelSetupMode(node, req);
         let onboardingJobId = '';
         try {
-            onboardingJobId = await ensureOnboardingJobForSetup(node, `panel:${node.name}`);
+            onboardingJobId = await ensureOnboardingJobForSetup(node, `panel:${node.name}`, selectedMode);
         } catch (onboardingError) {
             logger.warn(`[Panel] Failed to init durable onboarding job for ${node.name}: ${onboardingError.message}`);
         }

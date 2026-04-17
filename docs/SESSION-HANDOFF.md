@@ -199,6 +199,12 @@ Panel/API setup starts now support staged durable onboarding execution.
   - `/api/nodes/:id/setup` now accepts/setup-selects `setupMode`;
   - `setupMode=onboarding-full` runs durable `runFull` pipeline;
   - legacy setup path remains available.
+- setup mode/flow metadata is now normalized in onboarding jobs:
+  - durable runs: `flow=durable-onboarding-run-full`;
+  - legacy runs: `flow=legacy-setup-bridge`.
+- panel setup UI now sends explicit setup mode per node type:
+  - Xray -> onboarding-full;
+  - non-Xray -> legacy.
 
 ### Current stop-point
 

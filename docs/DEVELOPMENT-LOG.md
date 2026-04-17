@@ -339,6 +339,22 @@ Change types:
 - `local patch` — staged runFull cutover for panel/API setup start
 - `stability fix` — onboarding-first setup-status read path with legacy fallback
 
+## 2026-04-17 Onboarding Setup-Mode Normalization (Phase 3.1.1)
+
+- Normalized onboarding job metadata to reflect actual execution mode:
+  - `flow=durable-onboarding-run-full` for onboarding-full starts;
+  - `flow=legacy-setup-bridge` for legacy starts;
+  - explicit `setupMode` persisted in metadata.
+- Panel setup UI now sends explicit setup mode in start request:
+  - Xray nodes request `setupMode=onboarding-full`;
+  - non-Xray nodes request `setupMode=legacy`.
+- Keeps staged behavior deterministic and easier to audit from job history/logs.
+
+Change types:
+
+- `stability fix` — setup-mode metadata parity for durable onboarding jobs
+- `local patch` — explicit setup-mode request from panel setup UI
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.

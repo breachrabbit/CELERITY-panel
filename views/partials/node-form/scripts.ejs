@@ -840,9 +840,14 @@ async function setupNode() {
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.setupRunning + '</div>';
 
     const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    const setupMode = nodeType === 'xray' ? 'onboarding-full' : 'legacy';
 
     try {
-        const startRes = await fetch('/panel/nodes/<%= node._id %>/setup', { method: 'POST' });
+        const startRes = await fetch('/panel/nodes/<%= node._id %>/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ setupMode }),
+        });
         const startData = await startRes.json();
         if (startData.logs) showLogs(startData.logs);
         if (!startRes.ok && !startData.running) {
