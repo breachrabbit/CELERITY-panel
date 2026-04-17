@@ -17,10 +17,9 @@ Current state:
 Still missing:
 
 - shared/persistent flow storage;
-- per-hop settings before commit;
 - executable synthetic chain preview against in-memory links;
 - flow-native deploy orchestration independent of legacy chain deploy;
-- richer per-hop commit/configuration UI;
+- advanced per-hop configuration UI (transport-specific paths, advanced TLS/REALITY knobs);
 - local bundled graph assets instead of CDN dependency;
 - true flow-native role storage independent of legacy node `cascadeRole`.
 

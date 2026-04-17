@@ -2,6 +2,18 @@
 
 ## 2026-04-17
 
+- Worked on: cascade builder per-hop draft editing workflow.
+- Finished with:
+  - added draft-hop update/delete API endpoints in builder route;
+  - enabled inspector form for draft hops (`mode/protocol/transport/security/port/mux/name`);
+  - added strict backend allowlists and validation-reject path before draft persistence;
+  - added per-hop remove action without full draft reset;
+  - synced new UI/backend messages in `ru/en` locales.
+- Next step:
+  - run live smoke from `/panel/cascades/builder` with real draft edits and `commit + deploy`;
+  - extend inspector to transport-specific advanced fields (WS/gRPC/XHTTP) when base edit flow is confirmed on stand;
+  - continue flow-native cascade roadmap while keeping legacy deploy fallback.
+
 - Worked on: practical cascade flow continuation after onboarding stabilization (builder-side deploy path).
 - Finished with:
   - `commit + deploy` support in the builder API via `deployAfterCommit`;

@@ -12,7 +12,49 @@
   - fixed durable preflight shell wrapper to preserve multiline script semantics under `/bin/sh`;
   - fixed runtime verify step to correctly parse runtime status and tolerate startup races;
   - added builder-side `commit + deploy` bridge over draft hops;
+  - added builder-side per-hop draft settings editor with backend payload validation and per-hop remove;
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Cascade Builder Per-Hop Draft Settings Stop-Point
+
+### What was delivered
+
+- `src/routes/cascadeBuilder.js`:
+  - added `PATCH /api/cascade-builder/drafts/:hopId`;
+  - added `DELETE /api/cascade-builder/drafts/:hopId`;
+  - introduced strict normalization/allowlists for editable draft-hop fields:
+    - `mode`, `tunnelProtocol`, `tunnelTransport`, `tunnelSecurity`, `tunnelPort`, `muxEnabled`, `name`;
+  - update path now validates tentative flow before draft persistence and returns localized validation payload on reject.
+- `public/js/cascade-builder.js` + `public/css/cascade-builder.css` + `views/cascade-builder.ejs`:
+  - inspector now renders an editable form for draft hops;
+  - added in-inspector actions:
+    - save draft settings;
+    - remove single draft hop;
+  - improved selection restore behavior after reload so inspector focus remains on edited hop.
+- locales:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added draft editor labels, toasts, and validation error keys.
+
+### Current stop-point
+
+- Draft hops can now be edited before commit/deploy from within builder inspector.
+- Draft mutation is now safer because invalid field combinations are rejected server-side before persistence.
+- Advanced transport-specific settings (WS/gRPC/XHTTP extra fields) are still not exposed in builder editor.
+
+### Best next step
+
+1. Run live smoke on stand:
+   - create draft hop,
+   - edit hop settings in inspector,
+   - run `Deploy preview`,
+   - run `Commit and deploy`,
+   - verify resulting `CascadeLink` payload/deploy logs.
+2. Add second-stage advanced hop settings editor:
+   - WS path/host,
+   - gRPC service name,
+   - XHTTP path/host/mode.
+3. Keep onboarding parity track in parallel without dropping legacy fallback prematurely.
 
 ## 2026-04-17 Cascade Builder Commit+Deploy Stop-Point
 

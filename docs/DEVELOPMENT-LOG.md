@@ -1,5 +1,29 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder Draft Hop Settings Editor
+
+- Added draft-hop editing API to the builder backend:
+  - `PATCH /api/cascade-builder/drafts/:hopId`
+  - `DELETE /api/cascade-builder/drafts/:hopId`
+- Backend (`src/routes/cascadeBuilder.js`):
+  - strict normalization for editable hop fields (`mode`, `tunnelProtocol`, `tunnelTransport`, `tunnelSecurity`, `tunnelPort`, `muxEnabled`, `name`);
+  - explicit allowlists and user-facing validation messages for invalid payloads;
+  - pre-save flow validation guard so invalid draft edits are rejected before persistence;
+  - draft deletion endpoint for per-hop cleanup without resetting all drafts.
+- UI (`public/js/cascade-builder.js`, `public/css/cascade-builder.css`, `views/cascade-builder.ejs`):
+  - hop inspector now switches to editable form for draft hops;
+  - added save/remove draft actions directly in inspector;
+  - selection is now restored after state reload so operator focus is not lost after edits;
+  - added responsive form styling for dark/light themes and mobile inspector layout.
+- Locales (`src/locales/ru.json`, `src/locales/en.json`):
+  - added draft-hop editor labels, toasts, and backend validation strings.
+
+Change types:
+
+- `local patch` — per-hop draft settings edit flow in builder inspector
+- `stability fix` — strict server-side normalization/validation for editable hop payload
+- `local patch` — per-hop draft delete endpoint
+
 ## 2026-04-17 Cascade Builder Commit+Deploy Bridge
 
 - Added a practical `commit + deploy` path to the experimental builder so draft hops can be applied and chain deployment can be triggered in one operator action.
