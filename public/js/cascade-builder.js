@@ -32,6 +32,7 @@
     const HOP_PROTOCOL_OPTIONS = ['vless', 'vmess'];
     const HOP_TRANSPORT_OPTIONS = ['tcp', 'ws', 'grpc', 'xhttp', 'splithttp'];
     const HOP_SECURITY_OPTIONS = ['none', 'tls', 'reality'];
+    const REALITY_FINGERPRINT_OPTIONS = ['chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'randomized'];
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -528,8 +529,22 @@
                 });
             };
 
+            const toggleSecurityGroups = () => {
+                const selectedSecurity = String(form.elements.namedItem('tunnelSecurity')?.value || 'none').toLowerCase();
+                const groups = form.querySelectorAll('[data-security-group]');
+                groups.forEach((group) => {
+                    const allowed = String(group.getAttribute('data-security-group') || '')
+                        .split(',')
+                        .map((item) => item.trim().toLowerCase())
+                        .filter(Boolean);
+                    group.hidden = !allowed.includes(selectedSecurity);
+                });
+            };
+
             form.elements.namedItem('tunnelTransport')?.addEventListener('change', toggleTransportGroups);
+            form.elements.namedItem('tunnelSecurity')?.addEventListener('change', toggleSecurityGroups);
             toggleTransportGroups();
+            toggleSecurityGroups();
 
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
@@ -547,6 +562,10 @@
                     xhttpPath: form.elements.namedItem('xhttpPath')?.value || '',
                     xhttpHost: form.elements.namedItem('xhttpHost')?.value || '',
                     xhttpMode: form.elements.namedItem('xhttpMode')?.value || 'auto',
+                    realityDest: form.elements.namedItem('realityDest')?.value || '',
+                    realitySni: form.elements.namedItem('realitySni')?.value || '',
+                    realityFingerprint: form.elements.namedItem('realityFingerprint')?.value || 'chrome',
+                    realityShortId: form.elements.namedItem('realityShortId')?.value || '',
                 };
                 try {
                     await requestJson(`/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`, {
@@ -587,6 +606,10 @@
         const targetNode = getNodeById(hop.targetNodeId);
 
         if (hop.isDraft) {
+            const realitySni = Array.isArray(hop.realitySni)
+                ? hop.realitySni.join(', ')
+                : String(hop.realitySni || 'www.google.com');
+            const realityShortId = String(hop.realityShortId || '');
             root.innerHTML = `
                 <div class="builder-inspector-card">
                     <div class="builder-inspector-head">
@@ -687,6 +710,34 @@
                                     <option value="stream-one"${String(hop.xhttpMode || 'auto').toLowerCase() === 'stream-one' ? ' selected' : ''}>STREAM-ONE</option>
                                 </select>
                             </label>
+                        </div>
+                        <div class="builder-transport-settings" data-security-group="tls,reality">
+                            <div class="builder-transport-title">${escapeHtml(i18n.securitySettings || 'Security')}</div>
+                            <div class="builder-field-grid">
+                                <label class="builder-field">
+                                    <span>${escapeHtml(i18n.realitySni || 'SNI / server names')}</span>
+                                    <input class="builder-form-control" type="text" name="realitySni" maxlength="256" value="${escapeHtml(realitySni)}" placeholder="www.google.com, chat.deepseek.com">
+                                </label>
+                                <label class="builder-field">
+                                    <span>${escapeHtml(i18n.realityFingerprint || 'Fingerprint')}</span>
+                                    <select class="builder-form-control" name="realityFingerprint">
+                                        ${renderSelectOptions(REALITY_FINGERPRINT_OPTIONS, hop.realityFingerprint || 'chrome')}
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="builder-transport-settings" data-security-group="reality">
+                            <div class="builder-transport-title">${escapeHtml(i18n.realitySettings || 'REALITY')}</div>
+                            <div class="builder-field-grid">
+                                <label class="builder-field">
+                                    <span>${escapeHtml(i18n.realityDest || 'Reality dest')}</span>
+                                    <input class="builder-form-control" type="text" name="realityDest" maxlength="160" value="${escapeHtml(hop.realityDest || 'www.google.com:443')}">
+                                </label>
+                                <label class="builder-field">
+                                    <span>${escapeHtml(i18n.realityShortId || 'Reality shortId')}</span>
+                                    <input class="builder-form-control" type="text" name="realityShortId" maxlength="16" value="${escapeHtml(realityShortId)}" placeholder="26387fbfd98556ca">
+                                </label>
+                            </div>
                         </div>
                         <div class="builder-form-actions">
                             <button class="btn btn-primary btn-sm" type="submit">

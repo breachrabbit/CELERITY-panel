@@ -108,6 +108,10 @@ function buildPreviewPayload(hop, sourceNode, targetNode) {
         xhttpPath: hop.xhttpPath || '/cascade',
         xhttpHost: hop.xhttpHost || '',
         xhttpMode: hop.xhttpMode || 'auto',
+        realityDest: hop.realityDest || 'www.google.com:443',
+        realitySni: Array.isArray(hop.realitySni) ? hop.realitySni : ['www.google.com'],
+        realityFingerprint: hop.realityFingerprint || 'chrome',
+        realityShortId: hop.realityShortId || '',
         muxEnabled: !!hop.muxEnabled,
         priority: 100,
         status: 'pending',
@@ -240,13 +244,19 @@ function buildCommitPlan({ nodes = [], hops = [], activeLinks = [] }) {
         assumptions.push('Commit bridge still uses legacy CascadeLink defaults such as priority 100 and pending status.');
         if ((hop.tunnelSecurity || 'none') !== 'reality') {
             assumptions.push('No REALITY-specific key material is required for this draft in its current form.');
+        } else {
+            assumptions.push('REALITY key pair/shortId will be generated automatically on commit if missing in draft settings.');
         }
         const advancedFieldsTouched = (hop.wsPath && hop.wsPath !== '/cascade')
             || (hop.wsHost && hop.wsHost !== '')
             || (hop.grpcServiceName && hop.grpcServiceName !== 'cascade')
             || (hop.xhttpPath && hop.xhttpPath !== '/cascade')
             || (hop.xhttpHost && hop.xhttpHost !== '')
-            || (hop.xhttpMode && hop.xhttpMode !== 'auto');
+            || (hop.xhttpMode && hop.xhttpMode !== 'auto')
+            || (hop.realityDest && hop.realityDest !== 'www.google.com:443')
+            || ((Array.isArray(hop.realitySni) && hop.realitySni.length > 0 && !(hop.realitySni.length === 1 && hop.realitySni[0] === 'www.google.com')))
+            || (hop.realityFingerprint && hop.realityFingerprint !== 'chrome')
+            || !!(hop.realityShortId && String(hop.realityShortId).trim());
         if (!advancedFieldsTouched) {
             assumptions.push('Transport-specific advanced fields (WS/gRPC/XHTTP paths) stay on their current defaults.');
         }

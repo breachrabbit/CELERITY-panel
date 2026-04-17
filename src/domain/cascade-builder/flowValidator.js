@@ -211,6 +211,10 @@ function buildDraftHopSuggestion({ sourceNode, targetNode, mode = 'reverse' }) {
         xhttpPath: '/cascade',
         xhttpHost: '',
         xhttpMode: 'auto',
+        realityDest: 'www.google.com:443',
+        realitySni: ['www.google.com'],
+        realityFingerprint: 'chrome',
+        realityShortId: '',
         requiresHybrid: stack === 'hybrid',
     };
 }

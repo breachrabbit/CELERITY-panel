@@ -58,6 +58,13 @@ function localizeBuilderApiError(res, error) {
         return tFor(res, 'cascades.noDraftsToCommit', 'There are no draft hops to commit right now');
     }
 
+    if (message === 'invalid-reality-fingerprint') {
+        return tFor(res, 'cascades.draftEditInvalidRealityFingerprint', 'Unsupported REALITY/TLS fingerprint for draft hop.');
+    }
+    if (message === 'invalid-reality-short-id') {
+        return tFor(res, 'cascades.draftEditInvalidRealityShortId', 'REALITY shortId must be hex and up to 16 chars.');
+    }
+
     return message;
 }
 
@@ -165,6 +172,7 @@ function localizePlanMessage(res, message) {
     if (text === 'Link name will be generated from source and target nodes.') return tFor(res, 'cascades.planAssumeGeneratedName', text);
     if (text === 'Commit bridge still uses legacy CascadeLink defaults such as priority 100 and pending status.') return tFor(res, 'cascades.planAssumeLegacyDefaults', text);
     if (text === 'No REALITY-specific key material is required for this draft in its current form.') return tFor(res, 'cascades.planAssumeNoRealityKeys', text);
+    if (text === 'REALITY key pair/shortId will be generated automatically on commit if missing in draft settings.') return tFor(res, 'cascades.planAssumeRealityAutoKeys', text);
     if (text === 'Transport-specific advanced fields (WS/gRPC/XHTTP paths) stay on their current defaults.') return tFor(res, 'cascades.planAssumeTransportDefaults', text);
     if (text === 'This connected chain mixes reverse and forward hops. Legacy deployChain cannot apply mixed modes together.') return tFor(res, 'cascades.planChainMixedModes', text);
     if (text === 'One or more affected nodes are not online right now.') return tFor(res, 'cascades.planChainOfflineNodes', text);
@@ -263,6 +271,9 @@ const ALLOWED_TUNNEL_PROTOCOLS = new Set(['vless', 'vmess']);
 const ALLOWED_TUNNEL_TRANSPORTS = new Set(['tcp', 'ws', 'grpc', 'xhttp', 'splithttp']);
 const ALLOWED_TUNNEL_SECURITIES = new Set(['none', 'tls', 'reality']);
 const ALLOWED_XHTTP_MODES = new Set(['auto', 'packet-up', 'stream-up', 'stream-one']);
+const ALLOWED_REALITY_FINGERPRINTS = new Set(['chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'randomized']);
+const REALITY_KEY_RE = /^[A-Za-z0-9_\-+/]{43,44}=?$/;
+const REALITY_SHORT_ID_RE = /^[0-9a-fA-F]{0,16}$/;
 
 function sanitizeDraftHopName(name, fallbackName) {
     const normalized = String(name ?? '').trim().slice(0, 120);
@@ -289,6 +300,129 @@ function sanitizeDraftText(rawValue, fallback = '', { max = 256 } = {}) {
     const value = String(rawValue ?? '').trim().slice(0, max);
     if (value) return value;
     return String(fallback ?? '').trim().slice(0, max);
+}
+
+function normalizeDraftList(rawValue, fallback = [], { maxItems = 6, itemMax = 128 } = {}) {
+    const source = Array.isArray(rawValue)
+        ? rawValue
+        : String(rawValue ?? '')
+            .split(',')
+            .map((value) => value.trim());
+
+    const normalized = source
+        .map((value) => String(value || '').trim().slice(0, itemMax))
+        .filter(Boolean)
+        .slice(0, maxItems);
+
+    if (normalized.length > 0) return normalized;
+    if (Array.isArray(fallback) && fallback.length > 0) {
+        return fallback
+            .map((value) => String(value || '').trim().slice(0, itemMax))
+            .filter(Boolean)
+            .slice(0, maxItems);
+    }
+    return [];
+}
+
+function resolveDraftRealityFields(payload = {}, currentHop = {}) {
+    const fallbackSni = Array.isArray(currentHop.realitySni)
+        ? currentHop.realitySni
+        : (currentHop.realitySni ? [String(currentHop.realitySni)] : ['www.google.com']);
+    const realitySni = normalizeDraftList(
+        payload.realitySni !== undefined ? payload.realitySni : fallbackSni,
+        fallbackSni.length > 0 ? fallbackSni : ['www.google.com'],
+        { maxItems: 6, itemMax: 128 },
+    );
+    const realityDest = sanitizeDraftText(
+        payload.realityDest !== undefined ? payload.realityDest : currentHop.realityDest,
+        currentHop.realityDest || 'www.google.com:443',
+        { max: 160 },
+    );
+    const realityFingerprint = String(
+        payload.realityFingerprint !== undefined ? payload.realityFingerprint : (currentHop.realityFingerprint || 'chrome'),
+    ).trim().toLowerCase();
+    const resolvedFingerprint = realityFingerprint || 'chrome';
+    if (!ALLOWED_REALITY_FINGERPRINTS.has(resolvedFingerprint)) {
+        throw new Error('invalid-reality-fingerprint');
+    }
+
+    const rawShortId = String(
+        payload.realityShortId !== undefined
+            ? payload.realityShortId
+            : (currentHop.realityShortId || (Array.isArray(currentHop.realityShortIds) ? (currentHop.realityShortIds.find((value) => String(value || '').trim()) || '') : '')),
+    ).trim().toLowerCase().slice(0, 16);
+    if (!REALITY_SHORT_ID_RE.test(rawShortId)) {
+        throw new Error('invalid-reality-short-id');
+    }
+
+    return {
+        realityDest: realityDest || 'www.google.com:443',
+        realitySni: realitySni.length > 0 ? realitySni : ['www.google.com'],
+        realityFingerprint: resolvedFingerprint,
+        realityShortId: rawShortId,
+    };
+}
+
+function generateRealityKeyPair() {
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('x25519');
+    const pub = publicKey.export({ format: 'jwk' });
+    const priv = privateKey.export({ format: 'jwk' });
+
+    if (!pub?.x || !priv?.d) {
+        throw new Error('Failed to generate REALITY x25519 key pair');
+    }
+
+    return {
+        realityPrivateKey: priv.d,
+        realityPublicKey: pub.x,
+    };
+}
+
+function resolveLegacyLinkSecurityFields(draftHop = {}) {
+    const baseSni = normalizeDraftList(draftHop.realitySni, ['www.google.com'], { maxItems: 6, itemMax: 128 });
+    const baseFingerprint = ALLOWED_REALITY_FINGERPRINTS.has(String(draftHop.realityFingerprint || '').trim().toLowerCase())
+        ? String(draftHop.realityFingerprint || '').trim().toLowerCase()
+        : 'chrome';
+    const baseShortId = String(draftHop.realityShortId || '').trim().toLowerCase();
+
+    if (String(draftHop.tunnelSecurity || 'none') !== 'reality') {
+        return {
+            realityDest: String(draftHop.realityDest || '').trim() || 'www.google.com:443',
+            realitySni: baseSni,
+            realityPrivateKey: '',
+            realityPublicKey: '',
+            realityShortIds: baseShortId ? [baseShortId] : [''],
+            realityFingerprint: baseFingerprint,
+        };
+    }
+
+    let realityPrivateKey = String(draftHop.realityPrivateKey || '').trim();
+    let realityPublicKey = String(draftHop.realityPublicKey || '').trim();
+    if (!REALITY_KEY_RE.test(realityPrivateKey) || !REALITY_KEY_RE.test(realityPublicKey)) {
+        const generated = generateRealityKeyPair();
+        realityPrivateKey = generated.realityPrivateKey;
+        realityPublicKey = generated.realityPublicKey;
+    }
+
+    const shortIdFromList = Array.isArray(draftHop.realityShortIds)
+        ? String(draftHop.realityShortIds.find((value) => String(value || '').trim()) || '').trim().toLowerCase()
+        : '';
+    let resolvedShortId = baseShortId || shortIdFromList;
+    if (!resolvedShortId) {
+        resolvedShortId = crypto.randomBytes(8).toString('hex');
+    }
+    if (!REALITY_SHORT_ID_RE.test(resolvedShortId)) {
+        throw new Error('invalid-reality-short-id');
+    }
+
+    return {
+        realityDest: String(draftHop.realityDest || '').trim() || 'www.google.com:443',
+        realitySni: baseSni.length > 0 ? baseSni : ['www.google.com'],
+        realityPrivateKey,
+        realityPublicKey,
+        realityShortIds: [resolvedShortId],
+        realityFingerprint: baseFingerprint,
+    };
 }
 
 async function getStoredDraft(req, flowId = 'legacy-topology') {
@@ -340,6 +474,8 @@ async function createLegacyLinkFromDraft(draftHop, res) {
         }));
     }
 
+    const securityFields = resolveLegacyLinkSecurityFields(draftHop);
+
     const link = await CascadeLink.create({
         name: draftHop.name || `${portalNode.name} -> ${bridgeNode.name}`,
         mode: linkMode,
@@ -360,6 +496,12 @@ async function createLegacyLinkFromDraft(draftHop, res) {
         xhttpPath: draftHop.xhttpPath || '/cascade',
         xhttpHost: draftHop.xhttpHost || '',
         xhttpMode: draftHop.xhttpMode || 'auto',
+        realityDest: securityFields.realityDest,
+        realitySni: securityFields.realitySni,
+        realityPrivateKey: securityFields.realityPrivateKey,
+        realityPublicKey: securityFields.realityPublicKey,
+        realityShortIds: securityFields.realityShortIds,
+        realityFingerprint: securityFields.realityFingerprint,
         muxEnabled: !!draftHop.muxEnabled,
         muxConcurrency: 8,
         priority: 100,
@@ -478,6 +620,10 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
             xhttpPath: draftSuggestion.xhttpPath,
             xhttpHost: draftSuggestion.xhttpHost,
             xhttpMode: draftSuggestion.xhttpMode,
+            realityDest: draftSuggestion.realityDest,
+            realitySni: draftSuggestion.realitySni,
+            realityFingerprint: draftSuggestion.realityFingerprint,
+            realityShortId: draftSuggestion.realityShortId || '',
             muxEnabled: false,
             latencyMs: null,
             status: 'draft',
@@ -577,6 +723,18 @@ router.patch('/drafts/:hopId', requireScope('nodes:write'), async (req, res) => 
         if (!ALLOWED_XHTTP_MODES.has(nextXhttpMode)) {
             return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidXhttpMode', 'Unsupported XHTTP mode for draft hop.') });
         }
+        let realityDraftFields;
+        try {
+            realityDraftFields = resolveDraftRealityFields(payload, currentHop);
+        } catch (error) {
+            if (error?.message === 'invalid-reality-fingerprint') {
+                return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidRealityFingerprint', 'Unsupported REALITY/TLS fingerprint for draft hop.') });
+            }
+            if (error?.message === 'invalid-reality-short-id') {
+                return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidRealityShortId', 'REALITY shortId must be hex and up to 16 chars.') });
+            }
+            throw error;
+        }
 
         const nextHop = {
             ...currentHop,
@@ -597,6 +755,10 @@ router.patch('/drafts/:hopId', requireScope('nodes:write'), async (req, res) => 
             xhttpPath: nextXhttpPath || '/cascade',
             xhttpHost: nextXhttpHost,
             xhttpMode: nextXhttpMode,
+            realityDest: realityDraftFields.realityDest,
+            realitySni: realityDraftFields.realitySni,
+            realityFingerprint: realityDraftFields.realityFingerprint,
+            realityShortId: realityDraftFields.realityShortId,
             muxEnabled: normalizeDraftBoolean(payload.muxEnabled, currentHop.muxEnabled),
             status: 'draft',
             isDraft: true,

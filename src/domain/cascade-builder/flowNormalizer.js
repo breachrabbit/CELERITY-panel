@@ -67,6 +67,14 @@ function normalizeTopologyToBuilderState(topology) {
                 xhttpPath: data.xhttpPath || '/cascade',
                 xhttpHost: data.xhttpHost || '',
                 xhttpMode: data.xhttpMode || 'auto',
+                realityDest: data.realityDest || 'www.google.com:443',
+                realitySni: Array.isArray(data.realitySni)
+                    ? data.realitySni.filter(Boolean)
+                    : (data.realitySni ? [String(data.realitySni)] : ['www.google.com']),
+                realityFingerprint: data.realityFingerprint || 'chrome',
+                realityShortId: Array.isArray(data.realityShortIds)
+                    ? (data.realityShortIds.find((value) => String(value || '').trim()) || '')
+                    : (data.realityShortId || ''),
                 muxEnabled: !!data.muxEnabled,
                 latencyMs: data.latencyMs ?? null,
                 status: data.status || 'pending',
@@ -125,6 +133,15 @@ function sanitizeDraftHop(rawHop, nodeIds) {
         xhttpPath: String(rawHop.xhttpPath || '/cascade'),
         xhttpHost: String(rawHop.xhttpHost || ''),
         xhttpMode: String(rawHop.xhttpMode || 'auto'),
+        realityDest: String(rawHop.realityDest || 'www.google.com:443'),
+        realitySni: Array.isArray(rawHop.realitySni)
+            ? rawHop.realitySni.map((value) => String(value || '').trim()).filter(Boolean)
+            : String(rawHop.realitySni || 'www.google.com')
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean),
+        realityFingerprint: String(rawHop.realityFingerprint || 'chrome').trim() || 'chrome',
+        realityShortId: String(rawHop.realityShortId || '').trim().slice(0, 16),
         muxEnabled: !!rawHop.muxEnabled,
         latencyMs: rawHop.latencyMs ?? null,
         status: rawHop.status || 'draft',
