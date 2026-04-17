@@ -7,11 +7,12 @@
   - separate builder page and nav entry;
   - separate builder API and domain normalizer/validator;
   - Redis-backed operator draft state for draft hops and builder-only layout;
+  - transitional `draft -> legacy link` commit path from the builder;
   - explicit canvas fallback if Cytoscape assets do not load;
   - continuity/docs updated with builder boundaries and current limitations.
 - Next step:
-  - deploy and verify `/panel/cascades/builder` on the live stand;
-  - decide whether the next builder increment should be `commit draft -> legacy link`;
+  - deploy and verify `/panel/cascades/builder` plus draft commit on the live stand;
+  - decide whether the next builder increment should be per-hop commit/config UX or deploy preview;
   - then return to Android mobile menu accessibility and responsive cleanup.
 
 - Worked on: dashboard UX, continuity setup, isolated project rule, user stats, upstream audit baseline.

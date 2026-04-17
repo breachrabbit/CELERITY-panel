@@ -19,6 +19,12 @@
 - topology read-source = `cascadeService.getTopology()`
 - draft write-source = Redis-backed builder draft state in `cacheService`
 
+И ещё один уже реализованный transitional bridge:
+
+- builder умеет переводить accepted draft hops в legacy `CascadeLink`;
+- этот bridge сейчас batch-oriented и intentionally без auto-deploy;
+- это сделано, чтобы проверить практический workflow, не связывая сразу builder с агрессивным orchestration UX.
+
 Это позволяет уже сейчас тестировать flow-centric UX, не ломая legacy topology storage.
 
 ## Цель v1

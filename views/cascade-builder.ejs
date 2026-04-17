@@ -24,6 +24,10 @@
                 <i class="ti ti-device-floppy"></i>
                 <span><%= t('cascades.saveLayout') %></span>
             </button>
+            <button class="btn btn-secondary" id="builderCommitDrafts">
+                <i class="ti ti-git-merge"></i>
+                <span><%= t('cascades.commitDrafts') %></span>
+            </button>
             <button class="btn btn-primary" id="builderValidate">
                 <i class="ti ti-checkup-list"></i>
                 <span><%= t('cascades.validateDraft') %></span>
@@ -126,6 +130,10 @@ window._cascadeBuilderI18n = {
     rejectedDraft: <%- JSON.stringify(t('cascades.rejectedDraft')) %>,
     layoutSaved: <%- JSON.stringify(t('cascades.layoutSaved')) %>,
     layoutSaveFailed: <%- JSON.stringify(t('cascades.layoutSaveFailed')) %>,
+    commitDrafts: <%- JSON.stringify(t('cascades.commitDrafts')) %>,
+    commitDraftsDone: <%- JSON.stringify(t('cascades.commitDraftsDone')) %>,
+    commitDraftsFailed: <%- JSON.stringify(t('cascades.commitDraftsFailed')) %>,
+    noDraftsToCommit: <%- JSON.stringify(t('cascades.noDraftsToCommit')) %>,
     validationFailed: <%- JSON.stringify(t('cascades.validationFailed')) %>,
     connectFailed: <%- JSON.stringify(t('cascades.connectFailed')) %>,
     stateFailed: <%- JSON.stringify(t('cascades.stateFailed')) %>,

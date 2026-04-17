@@ -17,8 +17,13 @@
   - live topology remains the read-source through `cascadeService.getTopology()`;
   - builder drafts/layout are now a separate Redis-backed draft-source in `cacheService`;
   - draft state is operator-scoped and intentionally not treated as shared topology truth.
+- Added the first transitional write bridge back into the existing system:
+  - builder can now commit accepted draft hops into legacy `CascadeLink` records;
+  - commit uses safe defaults and intentionally skips auto-deploy in this step;
+  - this makes the builder a real experimental workflow, not only a visual overlay.
 - Explicitly separated what v1 is and is not:
   - yes: experimental flow canvas, inspector, validation, draft drag-connect, draft layout persistence;
+  - yes: transitional `draft -> legacy link` bridge;
   - no: final Hidden Rabbit UX, shared flow storage, versioning, branching, rollback, deploy preview parity.
 - Added an explicit UI fallback when Cytoscape assets are unavailable so the page fails loudly instead of appearing empty.
 

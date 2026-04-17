@@ -9,13 +9,14 @@ Current state:
 - there is now a separate experimental builder page and API;
 - builder reads live topology from `cascadeService.getTopology()`;
 - builder drafts/layout are stored separately in Redis as operator-scoped draft state;
-- accepted drag-connect drafts survive refresh for the same operator, but are not yet committed into legacy cascade links.
+- accepted drag-connect drafts survive refresh for the same operator;
+- builder can now commit drafts into legacy cascade links, but only through a batch transitional bridge.
 
 Still missing:
 
 - shared/persistent flow storage;
-- `commit draft -> legacy link` bridge;
 - deploy-preview parity;
+- richer per-hop commit/configuration UI;
 - local bundled graph assets instead of CDN dependency;
 - true flow-native role storage independent of legacy node `cascadeRole`.
 

@@ -51,6 +51,8 @@
 - drag-to-connect creates a draft hop suggestion and persists accepted drafts into Redis;
 - `Save layout` now saves builder layout to builder draft state, not to legacy topology positions;
 - `Reset drafts` clears only draft hops and preserves builder layout;
+- `Commit draft hops` now creates real legacy `CascadeLink` records from accepted builder drafts;
+- draft commit intentionally does **not** auto-deploy links yet;
 - if Cytoscape assets fail to load, the canvas now shows an explicit fallback state instead of silently dying.
 
 ### Validation contract currently implemented
@@ -73,7 +75,8 @@
 
 - builder is still `legacy-backed`, not flow-native storage;
 - draft state is operator-scoped Redis state, not shared project data;
-- there is still no `commit-hop` / deploy-preview write path from builder into legacy links;
+- builder now has a `draft -> legacy link` bridge, but still has no deploy-preview parity;
+- draft commit currently uses builder defaults and a batch commit action, not a full contextual role/settings wizard;
 - roles are inferred inside the builder flow, but legacy node `cascadeRole` remains the live topology role source;
 - Cytoscape/Dagre/Edgehandles are still CDN-loaded for this experimental step.
 
@@ -81,8 +84,8 @@
 
 - experimental builder scaffold is in active local work and has passed syntax/JSON/EJS checks;
 - next best step:
-  1. verify the page live after deploy;
-  2. decide whether to add `commit draft -> legacy link` as the next builder action;
+  1. verify the builder page and draft-commit path live after deploy;
+  2. decide whether the next builder step is per-hop commit/config UI or deploy preview;
   3. then continue Android mobile menu / responsive cleanup on the rest of the panel.
 
 ## 2026-04-16 Mobile / i18n In-Progress Stop-Point

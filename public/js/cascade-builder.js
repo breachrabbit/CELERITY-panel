@@ -486,6 +486,40 @@
         }
     }
 
+    async function commitDrafts() {
+        const draftCount = state.flow?.draft?.draftHopCount || 0;
+        if (!draftCount) {
+            toast(i18n.noDraftsToCommit || 'No draft hops to commit.', 'error');
+            return;
+        }
+
+        try {
+            const result = await requestJson('/api/cascade-builder/commit-drafts', {
+                method: 'POST',
+                body: JSON.stringify({}),
+            });
+
+            const failures = Array.isArray(result.results)
+                ? result.results.filter((item) => !item.success)
+                : [];
+
+            if (failures.length) {
+                renderValidation({
+                    status: failures.length ? 'warning' : 'ok',
+                    errors: [],
+                    warnings: failures.map((item) => ({ message: `${item.name}: ${item.error}` })),
+                });
+                toast(`${i18n.commitDraftsDone || 'Drafts committed'}: ${result.committed}`, failures.length ? 'info' : 'success');
+            } else {
+                toast(`${i18n.commitDraftsDone || 'Drafts committed'}: ${result.committed}`, 'success');
+            }
+
+            await loadState();
+        } catch (error) {
+            toast(`${i18n.commitDraftsFailed || 'Draft commit failed'}: ${error.message}`, 'error');
+        }
+    }
+
     function resetDrafts() {
         requestJson('/api/cascade-builder/drafts', {
             method: 'DELETE',
@@ -520,6 +554,7 @@
     function bindUi() {
         document.getElementById('builderValidate')?.addEventListener('click', validateCurrentDraft);
         document.getElementById('builderSaveLayout')?.addEventListener('click', saveLayout);
+        document.getElementById('builderCommitDrafts')?.addEventListener('click', commitDrafts);
         document.getElementById('builderResetDrafts')?.addEventListener('click', resetDrafts);
         document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));
         document.getElementById('builderAutoLayout')?.addEventListener('click', () => {

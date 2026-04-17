@@ -1,12 +1,35 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
+const config = require('../../config');
 
 const { requireScope } = require('../middleware/auth');
 const cascadeService = require('../services/cascadeService');
 const cacheService = require('../services/cacheService');
+const CascadeLink = require('../models/cascadeLinkModel');
+const HyNode = require('../models/hyNodeModel');
 const logger = require('../utils/logger');
 const { normalizeTopologyToBuilderState, mergeDraftIntoBuilderState } = require('../domain/cascade-builder/flowNormalizer');
-const { validateBuilderState, buildDraftHopSuggestion } = require('../domain/cascade-builder/flowValidator');
+const { validateBuilderState, buildDraftHopSuggestion, resolveStack } = require('../domain/cascade-builder/flowValidator');
+
+const HYBRID_DISABLED_ERROR = 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System';
+
+function generateUuid() {
+    return crypto.randomUUID();
+}
+
+function getHybridCompatibilityError(portalNode, bridgeNode) {
+    const stack = resolveStack(portalNode?.type, bridgeNode?.type);
+    if (stack !== 'hybrid') return '';
+    if (config.FEATURE_CASCADE_HYBRID) return '';
+    const src = portalNode?.type || 'unknown';
+    const dst = bridgeNode?.type || 'unknown';
+    return `${HYBRID_DISABLED_ERROR}. Unsupported link type: ${src} -> ${dst}`;
+}
+
+async function invalidateCascadeCache() {
+    await cacheService.invalidateAllSubscriptions();
+}
 
 function getBuilderActorKey(req) {
     if (req.session?.authenticated) {
@@ -36,6 +59,71 @@ async function getStoredDraft(req, flowId = 'legacy-topology') {
 
 async function saveStoredDraft(req, flowId = 'legacy-topology', draftState = {}) {
     return cacheService.setCascadeBuilderDraft(getBuilderActorKey(req), flowId, draftState);
+}
+
+async function createLegacyLinkFromDraft(draftHop) {
+    const portalNodeId = draftHop.sourceNodeId;
+    const bridgeNodeId = draftHop.targetNodeId;
+    const linkMode = draftHop.mode || 'reverse';
+    const port = parseInt(draftHop.tunnelPort, 10) || 10086;
+
+    const [portalNode, bridgeNode] = await Promise.all([
+        HyNode.findById(portalNodeId),
+        HyNode.findById(bridgeNodeId),
+    ]);
+
+    if (!portalNode) {
+        throw new Error(`Portal node not found for draft ${draftHop.name}`);
+    }
+    if (!bridgeNode) {
+        throw new Error(`Bridge node not found for draft ${draftHop.name}`);
+    }
+
+    const hybridError = getHybridCompatibilityError(portalNode, bridgeNode);
+    if (hybridError) {
+        throw new Error(hybridError);
+    }
+
+    const portCheckField = linkMode === 'forward' ? 'bridgeNode' : 'portalNode';
+    const portCheckId = linkMode === 'forward' ? bridgeNodeId : portalNodeId;
+    const existingLink = await CascadeLink.findOne({
+        [portCheckField]: portCheckId,
+        tunnelPort: port,
+        active: true,
+    });
+    if (existingLink) {
+        const sideLabel = linkMode === 'forward' ? 'bridge/relay' : 'portal';
+        throw new Error(`Port ${port} is already used by link "${existingLink.name}" on the ${sideLabel} node`);
+    }
+
+    const link = await CascadeLink.create({
+        name: draftHop.name || `${portalNode.name} -> ${bridgeNode.name}`,
+        mode: linkMode,
+        portalNode: portalNodeId,
+        bridgeNode: bridgeNodeId,
+        tunnelUuid: generateUuid(),
+        tunnelPort: port,
+        tunnelDomain: 'reverse.tunnel.internal',
+        tunnelProtocol: draftHop.tunnelProtocol || 'vless',
+        tunnelSecurity: draftHop.tunnelSecurity || 'none',
+        tunnelTransport: draftHop.tunnelTransport || 'tcp',
+        tcpFastOpen: true,
+        tcpKeepAlive: 100,
+        tcpNoDelay: true,
+        wsPath: '/cascade',
+        wsHost: '',
+        grpcServiceName: 'cascade',
+        xhttpPath: '/cascade',
+        xhttpHost: '',
+        xhttpMode: 'auto',
+        muxEnabled: !!draftHop.muxEnabled,
+        muxConcurrency: 8,
+        priority: 100,
+        active: true,
+        status: 'pending',
+    });
+
+    return link;
 }
 
 async function buildState(req) {
@@ -187,6 +275,67 @@ router.delete('/drafts', requireScope('nodes:write'), async (req, res) => {
         });
     } catch (error) {
         logger.error(`[Cascade Builder API] Reset drafts error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
+    try {
+        const state = await buildState(req);
+        const storedDraft = await getStoredDraft(req, state.flowId);
+        const draftHops = Array.isArray(storedDraft?.draftHops) ? storedDraft.draftHops : [];
+
+        if (!draftHops.length) {
+            return res.status(400).json({ error: 'No draft hops to commit.' });
+        }
+
+        const results = [];
+        const committedIds = [];
+
+        for (const draftHop of draftHops) {
+            try {
+                const link = await createLegacyLinkFromDraft(draftHop);
+                committedIds.push(String(draftHop.id));
+                results.push({
+                    hopId: String(draftHop.id),
+                    success: true,
+                    linkId: String(link._id),
+                    name: link.name,
+                });
+            } catch (error) {
+                results.push({
+                    hopId: String(draftHop.id),
+                    success: false,
+                    error: error.message,
+                    name: draftHop.name,
+                });
+            }
+        }
+
+        const remainingDrafts = draftHops.filter((hop) => !committedIds.includes(String(hop.id)));
+        await saveStoredDraft(req, state.flowId, {
+            draftHops: remainingDrafts,
+            nodePositions: storedDraft?.nodePositions && typeof storedDraft.nodePositions === 'object'
+                ? storedDraft.nodePositions
+                : {},
+        });
+
+        if (committedIds.length > 0) {
+            await invalidateCascadeCache();
+        }
+
+        const nextState = await buildState(req);
+        res.json({
+            success: committedIds.length > 0,
+            committed: committedIds.length,
+            failed: results.filter((item) => !item.success).length,
+            results,
+            validation: nextState.validation,
+            summary: nextState.summary,
+            draft: nextState.draft,
+        });
+    } catch (error) {
+        logger.error(`[Cascade Builder API] Commit drafts error: ${error.message}`);
         res.status(500).json({ error: error.message });
     }
 });
