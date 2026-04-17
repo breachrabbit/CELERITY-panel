@@ -218,6 +218,38 @@ Panel/API setup starts now support staged durable onboarding execution.
 2. Add explicit `resume/repair` actions over the durable onboarding job in panel node setup UI.
 3. Begin staged retirement of in-memory `setupJobs` from the critical status path.
 
+## 2026-04-17 Resume/Repair UI Stop-Point
+
+Panel node management now exposes onboarding recovery actions.
+
+### What was added
+
+- `src/routes/panel/nodes.js`:
+  - new endpoints:
+    - `POST /panel/nodes/:id/onboarding/resume`
+    - `POST /panel/nodes/:id/onboarding/repair`
+  - actions are wired to durable `runFull` background execution;
+  - duplicate-run guards prevent spawning parallel onboarding runners.
+- `views/partials/node-form/management.ejs`:
+  - added `Resume onboarding` and `Repair onboarding` action buttons.
+- `views/partials/node-form/scripts.ejs`:
+  - added onboarding action helpers with shared start/poll flow;
+  - setup/resume/repair now follow one consistent progress path.
+- `src/locales/ru.json`, `src/locales/en.json`:
+  - added labels/confirmations/running text for new actions.
+
+### Current stop-point
+
+- Durable onboarding setup start and recovery controls are now available in panel UI.
+- Legacy bridge completion still exists for legacy setup runner paths.
+- In-memory `setupJobs` is still present as fallback state.
+
+### Best next step
+
+1. Remove synthetic bridge completion from onboarding-full routed starts (keep only real step transitions).
+2. Add explicit surface for selecting resume step / viewing recent onboarding jobs from panel.
+3. Start staged retirement of in-memory `setupJobs` once parity is proven.
+
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
 
 The first real onboarding rewrite layer is now in code.
@@ -362,7 +394,7 @@ Context:
 Priority:
 
 1. remove synthetic bridge completion from onboarding-full execution path;
-2. add explicit resume/repair controls for durable onboarding jobs in panel setup UI;
+2. add onboarding jobs list + step-select resume in panel node UI;
 3. keep legacy setup fallback until parity is proven on test nodes;
 4. then retire in-memory `setupJobs` from the critical status path.
 

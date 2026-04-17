@@ -138,6 +138,14 @@
                 <span class="action-icon"><i class="ti ti-settings"></i></span>
                 <span><%= t('nodes.autoSetup') %></span>
             </button>
+            <button class="action-btn" onclick="resumeOnboarding()" id="btnResumeOnboarding" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
+                <span class="action-icon"><i class="ti ti-player-play"></i></span>
+                <span><%= t('nodes.onboardingResume') %></span>
+            </button>
+            <button class="action-btn" onclick="repairOnboarding()" id="btnRepairOnboarding" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
+                <span class="action-icon"><i class="ti ti-bolt"></i></span>
+                <span><%= t('nodes.onboardingRepair') %></span>
+            </button>
             <% if (outboundsAclLocked) { %>
             <span class="action-btn is-disabled" style="text-decoration:none;text-align:center;" title="<%= t('nodes.outboundsAclLockedDisabled') %>" aria-disabled="true">
                 <span class="action-icon"><i class="ti ti-arrow-up-right"></i></span>

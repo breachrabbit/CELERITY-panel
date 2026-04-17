@@ -391,6 +391,12 @@ const i18n = {
     autoSetupConfirm: <%- JSON.stringify(t("nodes.autoSetupConfirm")) %>,
     autoSetupConfirmXray: <%- JSON.stringify(t("nodes.autoSetupConfirmXray")) %>,
     setupRunning: <%- JSON.stringify(t("nodes.setupRunning")) %>,
+    onboardingResume: <%- JSON.stringify(t("nodes.onboardingResume")) %>,
+    onboardingRepair: <%- JSON.stringify(t("nodes.onboardingRepair")) %>,
+    onboardingResumeConfirm: <%- JSON.stringify(t("nodes.onboardingResumeConfirm")) %>,
+    onboardingRepairConfirm: <%- JSON.stringify(t("nodes.onboardingRepairConfirm")) %>,
+    onboardingResumeRunning: <%- JSON.stringify(t("nodes.onboardingResumeRunning")) %>,
+    onboardingRepairRunning: <%- JSON.stringify(t("nodes.onboardingRepairRunning")) %>,
     loadingLogs: <%- JSON.stringify(t("nodes.loadingLogs")) %>,
     checking: <%- JSON.stringify(t("nodes.checking")) %>,
     resettingStatus: <%- JSON.stringify(t("nodes.resettingStatus")) %>,
@@ -831,72 +837,124 @@ function renderOnboardingProgress(statusData) {
     return `<div style="margin-top:8px;opacity:.8;font-size:12px;">${escapeHtml(stepLabel)}</div>`;
 }
 
+function setActionButtonBusy(btn, isBusy, iconClass, label) {
+    if (!btn) return;
+    btn.disabled = !!isBusy;
+    const icon = isBusy ? 'ti ti-loader-2' : iconClass;
+    const text = isBusy ? '...' : label;
+    btn.innerHTML = '<span class="action-icon"><i class="' + icon + '"></i></span><span>' + escapeHtml(text) + '</span>';
+}
+
+async function pollSetupCompletion(runningMessage) {
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    const started = Date.now();
+    const maxWaitMs = 30 * 60 * 1000;
+
+    while (true) {
+        if ((Date.now() - started) > maxWaitMs) {
+            throw new Error('Setup timeout: background task did not finish in expected time');
+        }
+
+        const statusRes = await fetch('/panel/nodes/<%= node._id %>/setup-status', { cache: 'no-store' });
+        const statusData = await statusRes.json();
+        const liveLogs = (statusData.onboarding && Array.isArray(statusData.onboarding.logs) && statusData.onboarding.logs.length)
+            ? statusData.onboarding.logs
+            : statusData.logs;
+        if (liveLogs) showLogs(liveLogs);
+
+        if (statusData.state === 'running') {
+            const progress = renderOnboardingProgress(statusData);
+            document.getElementById('setupResult').innerHTML = '<div class="alert">' + runningMessage + progress + '</div>';
+        }
+
+        if (statusData.state === 'running' || statusData.state === 'idle') {
+            await wait(2000);
+            continue;
+        }
+
+        if (statusData.state === 'success') {
+            document.getElementById('setupResult').innerHTML = '<div class="alert alert-success"><i class="ti ti-check"></i> ' + (statusData.message || i18n.setupDone || 'Setup completed') + '</div>';
+            if (typeof refreshNodeInfo === 'function') {
+                try {
+                    await refreshNodeInfo();
+                } catch (_) {}
+            }
+        } else {
+            const progress = renderOnboardingProgress(statusData);
+            document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + (statusData.error || i18n.error) + progress + '</div>';
+        }
+        break;
+    }
+}
+
+async function startOnboardingAction({ url, payload, runningMessage }) {
+    const startRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {}),
+    });
+    const startData = await startRes.json();
+    if (startData.logs) showLogs(startData.logs);
+    if (!startRes.ok && !startData.running) {
+        throw new Error(startData.error || i18n.error);
+    }
+    await pollSetupCompletion(runningMessage);
+}
+
 async function setupNode() {
     const confirmMsg = nodeType === 'xray' ? i18n.autoSetupConfirmXray : i18n.autoSetupConfirm;
     if (!confirm(confirmMsg)) return;
     const btn = document.getElementById('btnSetup');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="action-icon"><i class="ti ti-loader-2"></i></span><span>...</span>';
+    setActionButtonBusy(btn, true, 'ti ti-settings', i18n.autoSetup);
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.setupRunning + '</div>';
-
-    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     const setupMode = nodeType === 'xray' ? 'onboarding-full' : 'legacy';
 
     try {
-        const startRes = await fetch('/panel/nodes/<%= node._id %>/setup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ setupMode }),
+        await startOnboardingAction({
+            url: '/panel/nodes/<%= node._id %>/setup',
+            payload: { setupMode },
+            runningMessage: i18n.setupRunning,
         });
-        const startData = await startRes.json();
-        if (startData.logs) showLogs(startData.logs);
-        if (!startRes.ok && !startData.running) {
-            throw new Error(startData.error || i18n.error);
-        }
-
-        const started = Date.now();
-        const maxWaitMs = 30 * 60 * 1000;
-
-        while (true) {
-            if ((Date.now() - started) > maxWaitMs) {
-                throw new Error('Setup timeout: background task did not finish in expected time');
-            }
-
-            const statusRes = await fetch('/panel/nodes/<%= node._id %>/setup-status', { cache: 'no-store' });
-            const statusData = await statusRes.json();
-            const liveLogs = (statusData.onboarding && Array.isArray(statusData.onboarding.logs) && statusData.onboarding.logs.length)
-                ? statusData.onboarding.logs
-                : statusData.logs;
-            if (liveLogs) showLogs(liveLogs);
-
-            if (statusData.state === 'running') {
-                const progress = renderOnboardingProgress(statusData);
-                document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.setupRunning + progress + '</div>';
-            }
-
-            if (statusData.state === 'running' || statusData.state === 'idle') {
-                await wait(2000);
-                continue;
-            }
-
-            if (statusData.state === 'success') {
-                document.getElementById('setupResult').innerHTML = '<div class="alert alert-success"><i class="ti ti-check"></i> ' + (statusData.message || i18n.setupDone || 'Setup completed') + '</div>';
-                if (typeof refreshNodeInfo === 'function') {
-                    try {
-                        await refreshNodeInfo();
-                    } catch (_) {}
-                }
-            } else {
-                const progress = renderOnboardingProgress(statusData);
-                document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + (statusData.error || i18n.error) + progress + '</div>';
-            }
-            break;
-        }
     } catch (err) {
         document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span class="action-icon"><i class="ti ti-settings"></i></span><span>' + i18n.autoSetup + '</span>';
+        setActionButtonBusy(btn, false, 'ti ti-settings', i18n.autoSetup);
+    }
+}
+
+async function resumeOnboarding() {
+    if (!confirm(i18n.onboardingResumeConfirm || 'Resume onboarding?')) return;
+    const btn = document.getElementById('btnResumeOnboarding');
+    setActionButtonBusy(btn, true, 'ti ti-player-play', i18n.onboardingResume);
+    document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.onboardingResumeRunning + '</div>';
+    try {
+        await startOnboardingAction({
+            url: '/panel/nodes/<%= node._id %>/onboarding/resume',
+            payload: {},
+            runningMessage: i18n.onboardingResumeRunning,
+        });
+    } catch (err) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
+    } finally {
+        setActionButtonBusy(btn, false, 'ti ti-player-play', i18n.onboardingResume);
+    }
+}
+
+async function repairOnboarding() {
+    if (!confirm(i18n.onboardingRepairConfirm || 'Run onboarding repair?')) return;
+    const btn = document.getElementById('btnRepairOnboarding');
+    setActionButtonBusy(btn, true, 'ti ti-bolt', i18n.onboardingRepair);
+    document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.onboardingRepairRunning + '</div>';
+    try {
+        await startOnboardingAction({
+            url: '/panel/nodes/<%= node._id %>/onboarding/repair',
+            payload: {},
+            runningMessage: i18n.onboardingRepairRunning,
+        });
+    } catch (err) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
+    } finally {
+        setActionButtonBusy(btn, false, 'ti ti-bolt', i18n.onboardingRepair);
     }
 }
 

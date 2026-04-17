@@ -212,6 +212,16 @@ function mapOnboardingStatusToSetupState(status) {
     }
 }
 
+function getOnboardingLogs(jobLike) {
+    return Array.isArray(jobLike?.stepLogs)
+        ? jobLike.stepLogs.map(formatOnboardingStepLog)
+        : [];
+}
+
+function canResumeOnboardingStatus(status) {
+    return ['queued', 'blocked', 'repairable'].includes(String(status || ''));
+}
+
 async function safeOnboardingUpdate(onboardingJobId, action, logs, updater) {
     if (!onboardingJobId || typeof updater !== 'function') return null;
     try {
@@ -565,6 +575,40 @@ async function runNodeOnboardingJob(nodeId, onboardingJobId = '') {
             setupMode: SETUP_MODE_ONBOARDING_FULL,
         });
     }
+}
+
+function schedulePanelOnboardingRunner(nodeId, onboardingJobId) {
+    setImmediate(() => {
+        runNodeOnboardingJob(nodeId, onboardingJobId).catch((err) => {
+            logger.error(`[Panel] onboarding background runner fatal: ${err.message}`);
+        });
+    });
+}
+
+function startPanelOnboardingRun(node, onboardingJob, {
+    message = 'Onboarding запущен в фоне',
+    logs = [],
+} = {}) {
+    const startedAt = Date.now();
+    const fallbackLog = `[${new Date(startedAt).toISOString()}] ${message}`;
+    const initialLogs = Array.isArray(logs) && logs.length ? logs : [fallbackLog];
+    setSetupJob(node._id, {
+        state: 'running',
+        startedAt,
+        finishedAt: null,
+        logs: initialLogs,
+        error: '',
+        message: '',
+        onboardingJobId: onboardingJob.id,
+        setupMode: SETUP_MODE_ONBOARDING_FULL,
+    });
+    schedulePanelOnboardingRunner(node._id, onboardingJob.id);
+    return {
+        startedAt,
+        logs: initialLogs,
+        onboardingJobId: onboardingJob.id,
+        setupMode: SETUP_MODE_ONBOARDING_FULL,
+    };
 }
 
 function getHybridSidecarRuntime(node) {
@@ -1315,14 +1359,15 @@ router.post('/nodes/:id/setup', async (req, res) => {
             setupMode,
         });
 
-        setImmediate(() => {
-            const runner = setupMode === SETUP_MODE_ONBOARDING_FULL
-                ? runNodeOnboardingJob
-                : runNodeSetupJob;
-            runner(req.params.id, onboardingJobId).catch((err) => {
-                logger.error(`[Panel] setup background runner fatal: ${err.message}`);
+        if (setupMode === SETUP_MODE_ONBOARDING_FULL) {
+            schedulePanelOnboardingRunner(req.params.id, onboardingJobId);
+        } else {
+            setImmediate(() => {
+                runNodeSetupJob(req.params.id, onboardingJobId).catch((err) => {
+                    logger.error(`[Panel] setup background runner fatal: ${err.message}`);
+                });
             });
-        });
+        }
 
         res.status(202).json({
             success: true,
@@ -1337,6 +1382,178 @@ router.post('/nodes/:id/setup', async (req, res) => {
     } catch (error) {
         logger.error(`[Panel] Setup error: ${error.message}`);
         res.status(500).json({ success: false, error: error.message, logs: [`Exception: ${error.message}`] });
+    }
+});
+
+// POST /panel/nodes/:id/onboarding/resume - Resume durable onboarding from current/selected step
+router.post('/nodes/:id/onboarding/resume', async (req, res) => {
+    try {
+        const node = await HyNode.findById(req.params.id).select('_id name ip type ssh');
+        if (!node) {
+            return res.status(404).json({ success: false, error: 'Нода не найдена', logs: [] });
+        }
+
+        if (!node.ssh?.password && !node.ssh?.privateKey) {
+            return res.status(400).json({ success: false, error: 'SSH данные не настроены', logs: [] });
+        }
+
+        const activeSetup = getSetupJob(req.params.id);
+        if (activeSetup?.state === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Setup уже выполняется',
+                logs: activeSetup.logs || [],
+                startedAt: activeSetup.startedAt || null,
+                onboardingJobId: activeSetup.onboardingJobId || '',
+                setupMode: activeSetup.setupMode || SETUP_MODE_LEGACY,
+            });
+        }
+
+        let targetJob = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+        if (!targetJob) {
+            const recentJobs = await nodeOnboardingService.listJobsByNode(req.params.id, { limit: 10 });
+            targetJob = recentJobs.find((job) => canResumeOnboardingStatus(job.status)) || null;
+        }
+
+        if (!targetJob) {
+            return res.status(400).json({
+                success: false,
+                error: 'Нет подходящего onboarding job для Resume. Используйте Repair.',
+                logs: [],
+            });
+        }
+
+        if (targetJob.status === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Onboarding уже выполняется',
+                logs: getOnboardingLogs(targetJob),
+                startedAt: targetJob.startedAt || null,
+                onboardingJobId: targetJob.id,
+                setupMode: SETUP_MODE_ONBOARDING_FULL,
+            });
+        }
+
+        const resumeStep = String(req.body?.step || '').trim();
+        const resumed = targetJob.status === 'queued'
+            ? await nodeOnboardingService.startJob(targetJob.id, { actorLabel: `panel:${node.name}` })
+            : await nodeOnboardingService.resumeJob(targetJob.id, {
+                step: resumeStep || undefined,
+            });
+
+        const started = startPanelOnboardingRun(node, resumed, {
+            message: 'Onboarding Resume запущен в фоне',
+            logs: getOnboardingLogs(resumed),
+        });
+
+        return res.status(202).json({
+            success: true,
+            running: true,
+            state: 'running',
+            message: 'Onboarding Resume запущен',
+            logs: started.logs,
+            startedAt: started.startedAt,
+            onboardingJobId: started.onboardingJobId,
+            setupMode: started.setupMode,
+        });
+    } catch (error) {
+        logger.error(`[Panel] onboarding resume error: ${error.message}`);
+        return res.status(500).json({ success: false, error: error.message, logs: [] });
+    }
+});
+
+// POST /panel/nodes/:id/onboarding/repair - Start repair onboarding run
+router.post('/nodes/:id/onboarding/repair', async (req, res) => {
+    try {
+        const node = await HyNode.findById(req.params.id).select('_id name ip type ssh cascadeRole');
+        if (!node) {
+            return res.status(404).json({ success: false, error: 'Нода не найдена', logs: [] });
+        }
+
+        if (!node.ssh?.password && !node.ssh?.privateKey) {
+            return res.status(400).json({ success: false, error: 'SSH данные не настроены', logs: [] });
+        }
+
+        const activeSetup = getSetupJob(req.params.id);
+        if (activeSetup?.state === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Setup уже выполняется',
+                logs: activeSetup.logs || [],
+                startedAt: activeSetup.startedAt || null,
+                onboardingJobId: activeSetup.onboardingJobId || '',
+                setupMode: activeSetup.setupMode || SETUP_MODE_LEGACY,
+            });
+        }
+
+        const activeOnboarding = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+        if (activeOnboarding?.status === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Onboarding уже выполняется',
+                logs: getOnboardingLogs(activeOnboarding),
+                startedAt: activeOnboarding.startedAt || null,
+                onboardingJobId: activeOnboarding.id,
+                setupMode: SETUP_MODE_ONBOARDING_FULL,
+            });
+        }
+
+        let repairJob = null;
+        if (activeOnboarding && canResumeOnboardingStatus(activeOnboarding.status)) {
+            repairJob = activeOnboarding.status === 'queued'
+                ? await nodeOnboardingService.startJob(activeOnboarding.id, { actorLabel: `panel:${node.name}` })
+                : await nodeOnboardingService.resumeJob(activeOnboarding.id);
+        } else {
+            const created = await nodeOnboardingService.createJob({
+                nodeId: node._id,
+                type: 'repair',
+                trigger: {
+                    source: 'panel',
+                    actorLabel: `panel:${node.name}`,
+                },
+                metadata: {
+                    flow: 'durable-onboarding-run-full',
+                    setupMode: SETUP_MODE_ONBOARDING_FULL,
+                    reason: 'manual-repair',
+                    nodeType: node.type || 'hysteria',
+                    cascadeRole: node.cascadeRole || 'standalone',
+                },
+            });
+
+            repairJob = created.job;
+            if (repairJob.status === 'queued') {
+                repairJob = await nodeOnboardingService.startJob(repairJob.id, { actorLabel: `panel:${node.name}` });
+            } else if (canResumeOnboardingStatus(repairJob.status)) {
+                repairJob = await nodeOnboardingService.resumeJob(repairJob.id);
+            }
+        }
+
+        const started = startPanelOnboardingRun(node, repairJob, {
+            message: 'Onboarding Repair запущен в фоне',
+            logs: getOnboardingLogs(repairJob),
+        });
+
+        return res.status(202).json({
+            success: true,
+            running: true,
+            state: 'running',
+            message: 'Onboarding Repair запущен',
+            logs: started.logs,
+            startedAt: started.startedAt,
+            onboardingJobId: started.onboardingJobId,
+            setupMode: started.setupMode,
+        });
+    } catch (error) {
+        logger.error(`[Panel] onboarding repair error: ${error.message}`);
+        return res.status(500).json({ success: false, error: error.message, logs: [] });
     }
 });
 

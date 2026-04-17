@@ -367,7 +367,11 @@
 - Onboarding setup-mode normalization:
   - onboarding job metadata now stores real flow/mode for durable vs legacy starts;
   - panel setup UI now sends explicit setup mode (`onboarding-full` for Xray, `legacy` otherwise).
+- Onboarding recovery controls continuation:
+  - added panel endpoints for onboarding `resume` and `repair`;
+  - added Resume/Repair buttons in node management UI;
+  - setup/resume/repair now share one polling/progress path in node form scripts.
 - Next step:
   - remove synthetic bridge completion from paths already executing onboarding-full;
-  - add operator-facing resume/repair actions for onboarding jobs in node setup UI;
+  - add onboarding jobs list + step-level resume selector in node setup UI;
   - then begin staged retirement of in-memory `setupJobs`.

@@ -355,6 +355,29 @@ Change types:
 - `stability fix` — setup-mode metadata parity for durable onboarding jobs
 - `local patch` — explicit setup-mode request from panel setup UI
 
+## 2026-04-17 Onboarding Resume/Repair UI Bridge (Phase 3.2)
+
+- Added panel-level onboarding operator actions for node form management:
+  - `Resume onboarding`;
+  - `Repair onboarding`.
+- Added new panel endpoints:
+  - `POST /panel/nodes/:id/onboarding/resume`
+  - `POST /panel/nodes/:id/onboarding/repair`
+- Both actions now:
+  - validate node + SSH prerequisites;
+  - guard against duplicate concurrent runs;
+  - start background durable runner via `runFull`;
+  - reuse existing setup-status polling contract.
+- Updated node-form scripts:
+  - setup/resume/repair now use shared onboarding action start + polling helpers;
+  - onboarding progress continues to render step-aware logs/status.
+- Added `ru/en` locale strings for new onboarding actions and confirmations.
+
+Change types:
+
+- `local patch` — onboarding resume/repair controls in panel management UI
+- `stability fix` — reusable panel action/polling path for durable onboarding runs
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.
