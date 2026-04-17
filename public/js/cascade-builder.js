@@ -69,6 +69,17 @@
         return value ? t('yes', 'Yes') : t('no', 'No');
     }
 
+    function getExecutionSuggestedActionLabel(action) {
+        const normalized = String(action || '').trim().toLowerCase();
+        if (normalized === 'rerun-chain') return t('executionSuggestedActionRerunChain', 'Retry chain');
+        if (normalized === 'focus-node') return t('executionSuggestedActionFocusNode', 'Focus node');
+        if (normalized === 'repair-node') return t('executionSuggestedActionRepairNode', 'Repair node');
+        if (normalized === 'review-chain') return t('executionSuggestedActionReviewChain', 'Review chain settings');
+        if (normalized === 'check-ssh') return t('executionSuggestedActionCheckSsh', 'Check SSH access');
+        if (normalized === 'check-network') return t('executionSuggestedActionCheckNetwork', 'Check node reachability');
+        return normalized || t('executionSuggestedActionFallback', 'Review details');
+    }
+
     function getNodeById(nodeId) {
         return state.flow?.nodes?.find((node) => String(node.id) === String(nodeId)) || null;
     }
@@ -685,6 +696,10 @@
                                         : '';
                                     const detailCode = String(detail.code || '').trim();
                                     const detailHint = String(detail.hint || '').trim();
+                                    const detailNodeStatus = String(detail.nodeStatus || '').trim();
+                                    const detailSuggestedActions = Array.isArray(detail.suggestedActions)
+                                        ? detail.suggestedActions.map((action) => String(action || '').trim()).filter(Boolean)
+                                        : [];
                                     const hopHint = Array.isArray(detail.relatedHops) && detail.relatedHops.length
                                         ? ` (${(i18n.executionHopNames || 'Hop set')}: ${detail.relatedHops.join(', ')})`
                                         : '';
@@ -692,7 +707,9 @@
                                         <div class="builder-validation-item ${detail.severity === 'critical' ? 'critical' : 'error'}">
                                             ${detailCode ? `<strong>${escapeHtml(`[${detailCode}]`)}</strong>` : ''}
                                             <span>${escapeHtml(`${detailPrefix}${detail.message || detail.raw || '—'}${hopHint}`)}</span>
+                                            ${detailNodeStatus ? `<small>${escapeHtml(`${i18n.status || 'Status'}: ${detailNodeStatus}`)}</small>` : ''}
                                             ${detailHint ? `<small>${escapeHtml(detailHint)}</small>` : ''}
+                                            ${detailSuggestedActions.length ? `<small>${escapeHtml(i18n.executionSuggestedActions || 'Suggested actions')}: ${escapeHtml(detailSuggestedActions.map((action) => getExecutionSuggestedActionLabel(action)).join(' · '))}</small>` : ''}
                                         </div>
                                     `;
                                 }).join('')}

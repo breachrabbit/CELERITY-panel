@@ -497,6 +497,17 @@ function findRelatedHopNames(nodeName, hopNames = []) {
 function classifyDeployErrorCode(rawText = '', messageText = '') {
     const source = `${String(rawText || '')} ${String(messageText || '')}`.toLowerCase();
     if (source.includes('no ssh credentials')) return 'missing-ssh';
+    if (source.includes('timed out while waiting for handshake') || source.includes('connection timed out') || source.includes('operation timed out')) return 'ssh-timeout';
+    if (source.includes('all configured authentication methods failed') || source.includes('permission denied') || source.includes('unable to authenticate')) return 'ssh-auth-failed';
+    if (
+        source.includes('connect econnrefused')
+        || source.includes('connection refused')
+        || source.includes('no route to host')
+        || source.includes('ehostunreach')
+        || source.includes('enetunreach')
+        || source.includes('host is down')
+    ) return 'ssh-connect-failed';
+    if (source.includes('is not online right now') || source.includes('node is offline')) return 'node-offline';
     if (source.includes('hybrid cascade is disabled')) return 'hybrid-disabled';
     if (source.includes('sidecar is disabled')) return 'sidecar-disabled';
     if (source.includes('custom config is enabled')) return 'custom-config-enabled';
@@ -515,6 +526,34 @@ function localizeDeployRepairHint(res, code, { nodeName = '' } = {}) {
             res,
             'cascades.executionHintMissingSsh',
             'SSH credentials are missing. Add SSH for this node, then run node repair and retry chain.',
+            { nodeName },
+        );
+    case 'ssh-timeout':
+        return tFor(
+            res,
+            'cascades.executionHintSshTimeout',
+            'SSH timeout while connecting to node. Check node reachability/firewall and retry.',
+            { nodeName },
+        );
+    case 'ssh-auth-failed':
+        return tFor(
+            res,
+            'cascades.executionHintSshAuthFailed',
+            'SSH authentication failed. Verify username/key/password and run node repair.',
+            { nodeName },
+        );
+    case 'ssh-connect-failed':
+        return tFor(
+            res,
+            'cascades.executionHintSshConnectFailed',
+            'Panel cannot reach node over SSH. Check IP, port and network route.',
+            { nodeName },
+        );
+    case 'node-offline':
+        return tFor(
+            res,
+            'cascades.executionHintNodeOffline',
+            'Node is offline right now. Bring it online first, then rerun chain deploy.',
             { nodeName },
         );
     case 'hybrid-disabled':
@@ -583,13 +622,19 @@ function localizeDeployRepairHint(res, code, { nodeName = '' } = {}) {
 function buildDeploySuggestedActions(code, { hasNodeId = false } = {}) {
     const actions = ['rerun-chain'];
     if (hasNodeId) actions.push('focus-node');
-    if (hasNodeId && ['missing-ssh', 'sidecar-disabled', 'service-port-not-listening', 'remote-command-failed', 'generated-config-missing-marker', 'deploy-failed'].includes(code)) {
+    if (['ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed'].includes(code)) {
+        actions.push('check-ssh');
+    }
+    if (['ssh-timeout', 'ssh-connect-failed', 'node-offline'].includes(code)) {
+        actions.push('check-network');
+    }
+    if (hasNodeId && ['missing-ssh', 'ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed', 'sidecar-disabled', 'service-port-not-listening', 'remote-command-failed', 'generated-config-missing-marker', 'deploy-failed'].includes(code)) {
         actions.push('repair-node');
     }
-    if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled'].includes(code)) {
+    if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled', 'node-offline'].includes(code)) {
         actions.push('review-chain');
     }
-    return actions;
+    return [...new Set(actions)];
 }
 
 function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeActions = [], hopNames = []) {
@@ -619,9 +664,10 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                 return {
                     scope: 'node',
                     code,
-                    severity: ['missing-ssh', 'hybrid-disabled', 'sidecar-disabled', 'custom-config-enabled', 'mixed-chain-mode'].includes(code) ? 'critical' : 'error',
+                    severity: ['missing-ssh', 'ssh-auth-failed', 'hybrid-disabled', 'sidecar-disabled', 'custom-config-enabled', 'mixed-chain-mode'].includes(code) ? 'critical' : 'error',
                     nodeName,
                     nodeId: String(action?.nodeId || ''),
+                    nodeStatus: String(action?.status || ''),
                     message: message || rawText,
                     hint: localizeDeployRepairHint(res, code, { nodeName }),
                     suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: !!action?.nodeId }),

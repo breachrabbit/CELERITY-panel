@@ -1491,7 +1491,7 @@ router.post('/nodes/:id/setup', async (req, res) => {
             state: 'running',
             message: 'Setup запущен в фоне',
             logs: setupMode === SETUP_MODE_LEGACY
-                ? (getSetupJob(req.params.id)?.logs || [])
+                ? (getLegacySetupJob(req.params.id)?.logs || [])
                 : [`[${new Date(startedAt).toISOString()}] Setup queued...`],
             startedAt,
             onboardingJobId,
