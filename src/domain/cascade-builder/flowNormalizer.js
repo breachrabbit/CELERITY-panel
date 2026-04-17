@@ -200,6 +200,9 @@ function mergeDraftIntoBuilderState(baseState, draftState = {}) {
             flowId: baseState?.flowId || 'legacy-topology',
             draftHopCount: draftHops.length,
             hasDraftLayout: Object.keys(nodePositions).length > 0,
+            lastExecution: draftState?.lastExecution && typeof draftState.lastExecution === 'object'
+                ? draftState.lastExecution
+                : null,
             updatedAt: draftState?.updatedAt || null,
         },
         summary: {

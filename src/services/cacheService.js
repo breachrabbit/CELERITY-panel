@@ -753,6 +753,9 @@ class CacheService {
                 nodePositions: draftState?.nodePositions && typeof draftState.nodePositions === 'object'
                     ? draftState.nodePositions
                     : {},
+                lastExecution: draftState?.lastExecution && typeof draftState.lastExecution === 'object'
+                    ? draftState.lastExecution
+                    : null,
                 updatedAt: new Date().toISOString(),
             };
             await this.redis.setex(key, DEFAULT_TTL.BUILDER_DRAFT, JSON.stringify(payload));

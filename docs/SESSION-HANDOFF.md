@@ -16,8 +16,51 @@
   - added builder-side advanced transport settings for draft hops (WS/gRPC/XHTTP fields);
   - replaced builder runtime CDN graph dependency with local vendor graph assets via postinstall sync.
   - added builder-side draft security settings for TLS/REALITY and commit-time REALITY key fallback.
+  - added builder-side durable execution diagnostics for `commit + deploy`:
+    - richer per-chain deploy diagnostics payload;
+    - persisted `lastExecution` in builder draft cache;
+    - dedicated diagnostics panel on the builder page.
   - fixed Docker/Coolify build flow for cascade local vendor assets (`postinstall` guard + explicit sync after source copy in Dockerfile).
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Cascade Builder Execution Diagnostics Stop-Point
+
+### What was delivered
+
+- Backend (`src/routes/cascadeBuilder.js`):
+  - commit/deploy response now includes richer deployment details per chain:
+    - chain metadata (mode, start node, hop names, node actions, warnings);
+    - localized error normalization for deploy failures;
+  - commit run now produces a normalized execution snapshot (`execution`) with:
+    - commit outcome,
+    - failed draft items,
+    - deployment summary/results;
+  - snapshot is persisted in builder draft storage as `lastExecution`.
+- Draft storage path:
+  - `src/services/cacheService.js` now persists `lastExecution` in builder draft payload.
+  - `src/domain/cascade-builder/flowNormalizer.js` now exposes `draft.lastExecution` in builder state.
+- UI (`views/cascade-builder.ejs`, `public/js/cascade-builder.js`, `public/css/cascade-builder.css`):
+  - added dedicated “last execution result” diagnostics box;
+  - renders commit-only and commit+deploy summaries, per-chain details, warnings/errors, and node actions;
+  - execution block survives page reload via persisted `draft.lastExecution`.
+- Locales:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added builder execution diagnostics labels.
+
+### Current stop-point
+
+- Builder now has a practical operator-visible “what happened” layer after commit/deploy runs.
+- Diagnostics are no longer limited to coarse success/fail counters and no longer disappear on refresh.
+- Flow remains transitional (`draft -> legacy link + legacy deployChain`), but execution observability is materially better.
+
+### Best next step
+
+1. Live smoke on stand with 2-3 mixed draft hops:
+   - run `Commit and deploy`,
+   - verify execution panel content and per-chain diagnostics parity with actual node outcomes.
+2. Add action-level diagnostics copy/export from the new execution panel.
+3. Continue staged retirement of legacy setup status/control-path (`setupJobs`) outside onboarding-primary paths.
 
 ## 2026-04-17 Docker-Safe Cascade Vendor Sync Stop-Point
 

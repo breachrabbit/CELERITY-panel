@@ -1,5 +1,32 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder Commit/Deploy Execution Diagnostics
+
+- Expanded commit/deploy diagnostics depth for the experimental cascade builder.
+- Backend (`src/routes/cascadeBuilder.js`):
+  - enriched deploy results with chain-level metadata:
+    - chain mode,
+    - start node,
+    - hop names,
+    - node actions,
+    - deploy warnings/errors;
+  - added normalized execution snapshot object (`execution`) returned by commit endpoint;
+  - persisted `execution` as builder draft `lastExecution`.
+- Draft storage/state:
+  - `src/services/cacheService.js` now stores `lastExecution` in builder draft payload.
+  - `src/domain/cascade-builder/flowNormalizer.js` now exposes `draft.lastExecution`.
+- UI (`views/cascade-builder.ejs`, `public/js/cascade-builder.js`, `public/css/cascade-builder.css`):
+  - added dedicated execution diagnostics panel under deploy preview;
+  - panel shows run summary + per-chain details + failed draft items;
+  - state survives reload because execution snapshot is persisted.
+- Locales:
+  - added execution-panel strings in `src/locales/ru.json` and `src/locales/en.json`.
+
+Change types:
+
+- `local patch` — richer cascade commit/deploy diagnostics payload and UI
+- `stability fix` — persisted builder execution context across page refresh
+
 ## 2026-04-17 Docker-Safe Cascade Vendor Sync + Deploy Recovery
 
 - Fixed deployment blocker introduced by local graph-vendor bundling:

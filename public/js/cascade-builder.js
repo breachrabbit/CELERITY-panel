@@ -486,6 +486,151 @@
         root.innerHTML = `${summaryBlock}${chainsBlock}${hopsBlock}`;
     }
 
+    function formatExecutionTime(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '—';
+        const timestamp = new Date(raw);
+        if (Number.isNaN(timestamp.getTime())) return raw;
+        return timestamp.toLocaleString();
+    }
+
+    function renderExecutionResult(execution) {
+        const root = document.getElementById('builderExecutionList');
+        const badge = document.getElementById('builderExecutionBadge');
+        if (!root || !badge) return;
+
+        if (!execution || typeof execution !== 'object') {
+            badge.textContent = '—';
+            root.innerHTML = `<p class="builder-validation-empty">${escapeHtml(i18n.executionEmpty || 'No execution runs yet.')}</p>`;
+            return;
+        }
+
+        const deployment = execution.deployment && typeof execution.deployment === 'object'
+            ? execution.deployment
+            : null;
+        const failureItems = Array.isArray(execution.failureItems) ? execution.failureItems : [];
+        const deploymentFailures = deployment && Array.isArray(deployment.results)
+            ? deployment.results.filter((entry) => !entry.success)
+            : [];
+        const hasIssues = failureItems.length > 0 || deploymentFailures.length > 0;
+
+        badge.textContent = hasIssues
+            ? escapeHtml(i18n.previewBlocked || 'Blocked')
+            : escapeHtml(i18n.previewReady || 'Ready');
+
+        const summaryBlock = `
+            <div class="builder-plan-summary">
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.executionTitle || 'Last execution')}</span>
+                    <strong>${escapeHtml(execution.type === 'commit-deploy' ? (i18n.executionCommitDeploy || 'Commit + deploy') : (i18n.executionCommitOnly || 'Commit only'))}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.executionCreatedAt || 'Completed at')}</span>
+                    <strong>${escapeHtml(formatExecutionTime(execution.createdAt))}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.executionCommitted || 'Committed')}</span>
+                    <strong>${Number(execution.committed || 0)}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.executionFailed || 'Failed')}</span>
+                    <strong>${Number(execution.failed || 0)}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.executionChains || 'Chains')}</span>
+                    <strong>${deployment ? Number(deployment.chains || 0) : 0}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.executionDeployedChains || 'Chains deployed')}</span>
+                    <strong>${deployment ? Number(deployment.deployedChains || 0) : 0}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.executionFailedChains || 'Chains failed')}</span>
+                    <strong>${deployment ? Number(deployment.failedChains || 0) : 0}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.status || 'Status')}</span>
+                    <strong>${deployment ? escapeHtml(i18n.executionChainResult || 'Chain run') : escapeHtml(i18n.executionDeploySkipped || 'Deploy skipped')}</strong>
+                </div>
+            </div>
+        `;
+
+        const commitFailuresBlock = failureItems.length
+            ? `
+                <div class="builder-plan-card">
+                    <div class="builder-plan-card-head">
+                        <strong>${escapeHtml(i18n.executionFailed || 'Failed')}</strong>
+                        <span>${failureItems.length}</span>
+                    </div>
+                    <div class="builder-plan-message-list">
+                        ${failureItems.map((item) => `
+                            <div class="builder-validation-item error">
+                                <strong>${escapeHtml(item.name || item.hopId || 'draft')}</strong>
+                                <span>${escapeHtml(item.error || '—')}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `
+            : '';
+
+        const chainResultsBlock = deployment && Array.isArray(deployment.results) && deployment.results.length
+            ? deployment.results.map((item) => {
+                const warnings = Array.isArray(item.deployWarnings) ? item.deployWarnings : [];
+                const errors = Array.isArray(item.errors) ? item.errors : [];
+                const nodeActions = Array.isArray(item.nodeActions) ? item.nodeActions : [];
+                const hopNames = Array.isArray(item.hopNames) ? item.hopNames : [];
+                return `
+                    <div class="builder-plan-card">
+                        <div class="builder-plan-card-head">
+                            <strong>${escapeHtml(item.chainName || item.chainId || item.startNodeName || item.startNodeId || 'chain')}</strong>
+                            <span>${escapeHtml(formatMode(item.chainMode || 'unknown'))}</span>
+                        </div>
+                        <div class="builder-data-list builder-plan-inline-list">
+                            <div class="builder-data-row"><span>${escapeHtml(i18n.executionStartNode || 'Start node')}</span><strong>${escapeHtml(item.startNodeName || item.startNodeId || '—')}</strong></div>
+                            <div class="builder-data-row"><span>${escapeHtml(i18n.summaryNodes || 'Nodes')}</span><strong>${Number(item.nodeCount || 0)}</strong></div>
+                            <div class="builder-data-row"><span>${escapeHtml(i18n.summaryHops || 'Hops')}</span><strong>${Number(item.liveHopCount || 0)}+${Number(item.draftHopCount || 0)}</strong></div>
+                            <div class="builder-data-row"><span>${escapeHtml(i18n.executionChainResult || 'Chain result')}</span><strong>${item.success ? escapeHtml(i18n.previewReady || 'Ready') : escapeHtml(i18n.previewBlocked || 'Blocked')}</strong></div>
+                        </div>
+                        ${hopNames.length ? `
+                            <div class="builder-plan-actions-title">${escapeHtml(i18n.executionHopNames || 'Hop set')}</div>
+                            <div class="builder-plan-message-list">
+                                ${hopNames.map((hopName) => `<div class="builder-validation-item">${escapeHtml(hopName)}</div>`).join('')}
+                            </div>
+                        ` : ''}
+                        ${warnings.length ? `
+                            <div class="builder-plan-actions-title">${escapeHtml(i18n.executionWarnings || 'Warnings')}</div>
+                            <div class="builder-plan-message-list">
+                                ${warnings.map((warning) => `<div class="builder-validation-item warning">${escapeHtml(warning)}</div>`).join('')}
+                            </div>
+                        ` : ''}
+                        ${errors.length ? `
+                            <div class="builder-plan-actions-title">${escapeHtml(i18n.executionErrors || 'Errors')}</div>
+                            <div class="builder-plan-message-list">
+                                ${errors.map((err) => `<div class="builder-validation-item error">${escapeHtml(err)}</div>`).join('')}
+                            </div>
+                        ` : ''}
+                        ${nodeActions.length ? `
+                            <div class="builder-plan-actions-title">${escapeHtml(i18n.executionNodeActions || 'Node actions')}</div>
+                            <div class="builder-plan-actions-list">
+                                ${nodeActions.map((action) => `
+                                    <div class="builder-plan-action">
+                                        <strong>${escapeHtml(action.nodeName || action.nodeId || 'node')}</strong>
+                                        <span>${escapeHtml(i18n.previewCurrentRole || 'Current role')}: ${escapeHtml(formatRole(action.currentRole || 'standalone'))}</span>
+                                        <span>${escapeHtml(i18n.previewNextRole || 'Next role')}: ${escapeHtml(formatRole(action.previewRole || 'standalone'))}</span>
+                                        <p>${escapeHtml(action.action || '—')}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('')
+            : `<p class="builder-validation-empty">${escapeHtml(i18n.executionDeploySkipped || 'Deploy was not requested in this run.')}</p>`;
+
+        root.innerHTML = `${summaryBlock}${commitFailuresBlock}${chainResultsBlock}`;
+    }
+
     function renderNodeInspector(node) {
         const root = document.getElementById('builderInspectorBody');
         if (!root) return;
@@ -1001,6 +1146,7 @@
                 method: 'POST',
                 body: JSON.stringify({ deployAfterCommit }),
             });
+            renderExecutionResult(result.execution || null);
 
             const failures = Array.isArray(result.results)
                 ? result.results.filter((item) => !item.success)
@@ -1080,6 +1226,7 @@
                 state.cy.edges().filter((edge) => edge.data('isDraft') === 1).remove();
                 renderSummary(state.flow, state.flow.validation);
                 renderValidation(state.flow.validation);
+                renderExecutionResult(state.flow?.draft?.lastExecution || null);
                 renderInspectorEmpty();
                 previewCommitPlan({ silent: true });
                 toast(i18n.draftsReset || 'Drafts cleared.');
@@ -1096,6 +1243,7 @@
             renderLibrary(flow);
             renderSummary(flow, flow.validation);
             renderValidation(flow.validation);
+            renderExecutionResult(flow?.draft?.lastExecution || null);
             initCy(flow);
             const targetHopId = selectHopId || (state.selection.type === 'hop' ? state.selection.id : null);
             const targetNodeId = selectNodeId || (state.selection.type === 'node' ? state.selection.id : null);

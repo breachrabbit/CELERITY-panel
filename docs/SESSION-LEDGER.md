@@ -2,6 +2,16 @@
 
 ## 2026-04-17
 
+- Worked on: cascade execution parity diagnostics (builder commit/deploy path).
+- Finished with:
+  - enriched `commit-drafts` deployment diagnostics with per-chain metadata and localized deploy errors;
+  - added persisted `lastExecution` snapshot in builder draft cache;
+  - added dedicated execution diagnostics panel on `/panel/cascades/builder`;
+  - synced `ru/en` locale coverage for the new diagnostics UI.
+- Next step:
+  - run live commit+deploy smoke on stand and validate diagnostics parity with real node outcomes;
+  - continue staged retirement of legacy setup control-path (`setupJobs`) in non-onboarding-primary flows.
+
 - Worked on: short-cycle cascade deployment unblock.
 - Finished with:
   - fixed Docker-safe `postinstall` behavior for cascade vendor sync;

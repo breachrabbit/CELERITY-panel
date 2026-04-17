@@ -120,6 +120,15 @@
                     <p class="builder-validation-empty"><%= t('cascades.deployPreviewEmpty') %></p>
                 </div>
             </div>
+            <div class="builder-validation-box builder-execution-box" id="builderExecutionBox">
+                <div class="builder-validation-head">
+                    <h4><%= t('cascades.executionTitle') %></h4>
+                    <span class="builder-validation-badge" id="builderExecutionBadge">—</span>
+                </div>
+                <div class="builder-plan-list builder-execution-list" id="builderExecutionList">
+                    <p class="builder-validation-empty"><%= t('cascades.executionEmpty') %></p>
+                </div>
+            </div>
         </aside>
     </section>
 </div>
@@ -180,6 +189,23 @@ window._cascadeBuilderI18n = {
     deployPreviewTitle: <%- JSON.stringify(t('cascades.deployPreviewTitle')) %>,
     deployPreviewEmpty: <%- JSON.stringify(t('cascades.deployPreviewEmpty')) %>,
     deployPreviewFailed: <%- JSON.stringify(t('cascades.deployPreviewFailed')) %>,
+    executionTitle: <%- JSON.stringify(t('cascades.executionTitle')) %>,
+    executionEmpty: <%- JSON.stringify(t('cascades.executionEmpty')) %>,
+    executionCommitOnly: <%- JSON.stringify(t('cascades.executionCommitOnly')) %>,
+    executionCommitDeploy: <%- JSON.stringify(t('cascades.executionCommitDeploy')) %>,
+    executionCreatedAt: <%- JSON.stringify(t('cascades.executionCreatedAt')) %>,
+    executionCommitted: <%- JSON.stringify(t('cascades.executionCommitted')) %>,
+    executionFailed: <%- JSON.stringify(t('cascades.executionFailed')) %>,
+    executionChains: <%- JSON.stringify(t('cascades.executionChains')) %>,
+    executionDeployedChains: <%- JSON.stringify(t('cascades.executionDeployedChains')) %>,
+    executionFailedChains: <%- JSON.stringify(t('cascades.executionFailedChains')) %>,
+    executionDeploySkipped: <%- JSON.stringify(t('cascades.executionDeploySkipped')) %>,
+    executionChainResult: <%- JSON.stringify(t('cascades.executionChainResult')) %>,
+    executionStartNode: <%- JSON.stringify(t('cascades.executionStartNode')) %>,
+    executionHopNames: <%- JSON.stringify(t('cascades.executionHopNames')) %>,
+    executionNodeActions: <%- JSON.stringify(t('cascades.executionNodeActions')) %>,
+    executionWarnings: <%- JSON.stringify(t('cascades.executionWarnings')) %>,
+    executionErrors: <%- JSON.stringify(t('cascades.executionErrors')) %>,
     previewReady: <%- JSON.stringify(t('cascades.previewReady')) %>,
     previewBlocked: <%- JSON.stringify(t('cascades.previewBlocked')) %>,
     previewChain: <%- JSON.stringify(t('cascades.previewChain')) %>,
