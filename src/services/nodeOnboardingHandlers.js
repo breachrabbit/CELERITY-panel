@@ -10,7 +10,12 @@ function tailText(value, maxLen = 1200) {
 }
 
 function buildNonLoginShCommand(script) {
-    return `sh -c ${JSON.stringify(String(script || ''))}`;
+    const normalized = String(script || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join('; ');
+    return `sh -c ${JSON.stringify(normalized)}`;
 }
 
 function buildSshStepFailure(step, result, fallbackMessage = '') {
