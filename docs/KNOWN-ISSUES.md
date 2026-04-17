@@ -181,13 +181,18 @@ Latest progress:
   - node management now shows actionable onboarding job cards (status/step/mode/error);
   - per-job diagnostics preview includes step-state chips and recent logs;
   - per-job actions exist for resume/select-step/copy diagnostics.
+- setup-status path improved:
+  - in-memory setup map is now treated as legacy-only for panel setup status responses;
+  - durable onboarding status/logs no longer mix with in-memory durable mirrors.
+- step rerun flow improved:
+  - safe step-level rerun action added for durable onboarding jobs;
+  - terminal jobs can rerun from a selected step via repair-job bootstrap.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
 
-- staged removal of synthetic bridge mirrors from the legacy setup runner once onboarding parity is fully confirmed;
-- staged retirement of in-memory `setupJobs` from the critical path once parity is confirmed.
-- explicit durable step-level rerun action beyond resume/repair semantics.
+- staged removal of synthetic bridge mirrors from the legacy setup runner once onboarding parity is fully confirmed.
+- full retirement of in-memory `setupJobs` from remaining non-status control paths once parity is confirmed.
 
 Status: `pending`
 

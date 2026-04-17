@@ -418,6 +418,28 @@ Change types:
 - `stability fix` — strict legacy/durable onboarding mode isolation
 - `local patch` — richer onboarding diagnostics/actions UI for node operators
 
+## 2026-04-17 setupJobs Status Retirement + Step Rerun (Phase 3.5)
+
+- Continued staged retirement of in-memory `setupJobs` from critical panel status path:
+  - introduced `legacy-only` setup-job filter for in-memory reads;
+  - setup/resume/repair routes now prioritize durable onboarding running-state checks before legacy in-memory checks;
+  - `setup-status` now returns durable onboarding status/logs without mixing in-memory durable mirror fields.
+- Added safe step-level rerun action for durable onboarding jobs:
+  - new panel endpoint: `POST /panel/nodes/:id/onboarding/rerun-step`;
+  - validates allowed step and node/job ownership;
+  - blocks legacy bridge jobs from onboarding-full rerun path;
+  - resumes resumable durable jobs from selected step;
+  - creates repair job and reruns selected step for terminal durable jobs.
+- Extended node-form onboarding UI:
+  - new per-job action button: `Rerun step`;
+  - action reuses step selector or failed-step inference.
+- Added `ru/en` locale strings for rerun-step action flow.
+
+Change types:
+
+- `stability fix` — reduce setup-status reliance on in-memory setup state
+- `local patch` — durable step-level rerun control in panel onboarding UI
+
 ## 2026-04-17 Session Close Summary
 
 - Finalized this session on top of onboarding rewrite phase 3.x with three consecutive commits:

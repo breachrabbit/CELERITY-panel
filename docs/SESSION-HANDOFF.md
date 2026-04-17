@@ -6,10 +6,45 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (legacy bridge isolation + richer per-job diagnostics/actions).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (setupJobs status retirement + step-level rerun controls).
 - Current local patch focus:
   - no uncommitted local changes;
-  - next move is staged `setupJobs` retirement from critical status-path.
+  - next move is deeper setupJobs retirement (execution-path cleanup, not status only).
+
+## 2026-04-17 setupJobs Status Retirement + Step Rerun Stop-Point
+
+Completed the next stage requested after diagnostics rollout.
+
+### What was delivered
+
+- `src/routes/panel/nodes.js`:
+  - added `getLegacySetupJob(...)` filter, so in-memory setup map is treated as legacy-only state;
+  - setup/resume/repair endpoints now check durable onboarding running state first, then legacy in-memory setup fallback;
+  - `/panel/nodes/:id/setup-status` now uses durable onboarding as status/log source-of-truth without mixing onboarding state with in-memory fallback fields;
+  - in-memory map is no longer used to override durable status for onboarding-full mode.
+- Added safe step-level rerun action in panel route:
+  - `POST /panel/nodes/:id/onboarding/rerun-step`
+  - validates node, step, job scope, and mode compatibility;
+  - blocks legacy bridge jobs from onboarding-full rerun;
+  - resumes suitable durable jobs from selected step;
+  - for terminal jobs creates a new durable repair job and resumes from selected step.
+- `views/partials/node-form/scripts.ejs`:
+  - added per-job “Rerun step” action in onboarding diagnostics cards;
+  - rerun uses selected step from step selector (or inferred failed/current step).
+- locales:
+  - added rerun-step strings in `ru/en`.
+
+### Current stop-point
+
+- setup-status critical path is now onboarding-first in practice; legacy in-memory map is legacy fallback only.
+- safe step-level rerun exists in panel UI for durable onboarding jobs.
+- legacy execution fallback remains enabled.
+
+### Best next step
+
+1. Continue retiring in-memory `setupJobs` from non-status control paths (duplicate-run guards + durable runner mirror writes).
+2. Add optional job-details modal in node form using `GET /api/nodes/:id/onboarding/jobs/:jobId` for deeper diagnostics.
+3. Keep legacy execution fallback until onboarding parity is confirmed in live node onboarding tests.
 
 ## 2026-04-17 Onboarding Bridge Isolation + Diagnostics UI Stop-Point
 
@@ -1249,14 +1284,14 @@ After deploy, verify on Android / mobile browser:
 - это изолированный форк панели, не связанный с Rabbit Platform;
 - continuity docs являются source of truth;
 - текущая база уже в main;
-- последний коммит: 22160d2 — feat: isolate durable onboarding mode and expand job diagnostics UI;
+- последний коммит: 0a06ee7 — feat: retire setupJobs status reliance and add step rerun action;
 - onboarding-full/legacy staged mode уже внедрён, legacy fallback сохранён.
 
 Приоритет:
-1. начать staged retirement in-memory setupJobs из критического status-path:
-   - сделать durable onboarding источником истины для setup-status;
-   - оставить legacy setup executor как fallback только на выполнение;
-2. затем добавить безопасный step-level rerun action для durable onboarding jobs (отдельно от resume/repair);
+1. продолжить staged retirement in-memory setupJobs из remaining control-path:
+   - убрать влияние setupJobs на duplicate-run guards для onboarding-full, где это возможно;
+   - оставить setupJobs только для legacy execution fallback;
+2. расширить onboarding diagnostics UI, используя `GET /api/nodes/:id/onboarding/jobs/:jobId` (job details view);
 3. сохранить совместимость legacy path до подтверждения полного паритета;
 4. после этого продолжить UI/UX полировку node onboarding и удалить оставшиеся legacy bridge хвосты.
 

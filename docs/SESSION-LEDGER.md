@@ -401,3 +401,12 @@
   - start staged retirement of in-memory `setupJobs` from `/panel/nodes/:id/setup-status`;
   - keep legacy execution fallback while shifting status/log authority to durable onboarding read model;
   - then add safe step-level rerun action for durable jobs.
+
+- Onboarding phase 3.5 continuation:
+  - moved setup-status behavior further to durable-onboarding authority and limited in-memory setup map reads to legacy mode;
+  - setup/resume/repair now prioritize durable running job checks over in-memory setup state;
+  - added safe step-level rerun action for durable onboarding jobs (route + UI button + locale strings).
+- Next step:
+  - continue retiring in-memory `setupJobs` from remaining control paths;
+  - keep legacy setup execution fallback;
+  - then verify rerun/resume/repair behavior on live onboarding scenarios.
