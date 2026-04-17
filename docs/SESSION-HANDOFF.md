@@ -1821,3 +1821,24 @@ When returning specifically to the visual cascade-builder idea, do this next:
   - separate view;
   - separate JS/CSS bundle;
   - normalized builder state API.
+
+## 2026-04-17 Stop-Point — Cascade Execution Diagnostics Iteration
+
+Done:
+- Added compact failed-only JSON export in cascade builder diagnostics.
+- Added execution item filter switch:
+  - `All / Failed / Success`.
+- Filter now affects only chain result cards (summary remains full-run).
+- Added i18n (`ru`/`en`) and styles for filter chips.
+
+Stable:
+- Builder diagnostics export set now includes:
+  - TXT (full),
+  - Failed TXT (compact),
+  - Failed JSON (compact),
+  - JSON (full).
+
+Pending next:
+1. Validate new filters/exports on a mixed run (some chains success, some failed).
+2. Continue cascade execution parity and diagnostics depth.
+3. In parallel continue staged retirement of legacy onboarding control/status path.

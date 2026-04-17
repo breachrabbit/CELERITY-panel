@@ -562,3 +562,11 @@
 - Next step:
   - run fresh onboarding again and confirm pass through `verify-runtime-local`;
   - if next failure appears, patch step-specific diagnostics/handler and keep durable flow moving.
+
+- Cascade builder diagnostics continuation:
+  - added `Failed JSON` export for execution diagnostics;
+  - added execution list filter (`All / Failed / Success`) with filtered empty state;
+  - kept compact failed TXT export and full JSON export in place.
+- Next step:
+  - validate filter/export behavior on real multi-chain run with both successful and failed chains;
+  - continue cascade execution parity diagnostics and onboarding legacy retirement.

@@ -1210,3 +1210,22 @@ Change type:
 Change type:
 
 - `stability fix` — onboarding runtime verification correctness and race tolerance
+
+## 2026-04-17 Cascade Builder Failed-Only Export + Execution Filter
+
+- Extended cascade execution diagnostics in builder:
+  - added `Failed JSON` export action (compact payload only for failed chains);
+  - kept existing TXT / compact-failed TXT / full JSON exports untouched.
+- Added execution result filter switch in builder diagnostics:
+  - `All / Failed / Success` filter chips;
+  - chain cards now render by selected filter;
+  - summary counters remain global for the whole execution run.
+- Added empty-state handling for filtered list:
+  - explicit message when selected filter has no matching chains.
+- Updated locales (`ru`/`en`) and builder styling:
+  - i18n labels for new export and filters;
+  - compact segmented filter control styles for light/dark themes.
+
+Change type:
+
+- `local patch` — cascade builder diagnostics UX
