@@ -621,3 +621,12 @@
 - Next step:
   - execute one live mixed-run using this checklist and capture first parity report;
   - if mismatch appears, patch diagnostics payload/labels first before deeper builder UX increments.
+
+- Cascade diagnostics quick-actions continuation:
+  - added actionable controls directly in `errorDetails` cards (rerun/focus/repair/open/check);
+  - added toolbar batch action `Rerun failed` for failed chains only;
+  - updated i18n + styles for new execution controls;
+  - deployed commit `008f422`, deployment `zbk88zcm7adt3pkjai6v1oth`, stand back to `running:healthy`.
+- Next step:
+  - run one real mixed execution on stand and validate filter/export parity with checklist;
+  - then continue staged retirement of in-memory onboarding status/control path without breaking legacy fallback.

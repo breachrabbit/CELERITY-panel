@@ -1991,6 +1991,33 @@ Next step:
    - retry-chain action updates rerun status as expected.
 3. Continue staged retirement of residual legacy setup in-memory control paths without removing legacy fallback prematurely.
 
+## 2026-04-17 Stop-Point — Error-Detail Quick Actions + Failed Batch Rerun
+
+Done:
+- Added quick actions directly inside structured `errorDetails` cards in builder execution diagnostics:
+  - `rerun-chain`, `focus-node`, `repair-node`, `open-node`, `check-*`, `review-chain`.
+- Added batch execution action in diagnostics toolbar:
+  - `Rerun failed` — reruns only failed chains from the current execution.
+- Improved rerun UX on frontend:
+  - `rerunExecutionChain(...)` supports `showToast` to avoid noisy batch rerun spam;
+  - batch rerun reports compact final summary.
+- Updated builder UI/i18n for RU and EN.
+- Deployed commit `008f422` to stand:
+  - deployment: `zbk88zcm7adt3pkjai6v1oth`;
+  - status: `finished`, app `running:healthy`.
+
+Current state:
+- Diagnostics interaction is now closer to repair-from-failure workflow.
+- Mixed-run parity is still pending for this cycle (no fresh mixed `lastExecution` captured on stand yet).
+
+Next step:
+1. Run one real mixed execution (`success + failed`) from `/panel/cascades/builder` using the checklist.
+2. Verify parity:
+   - `All / Failed / Success` filter behavior;
+   - failed TXT includes only failed chains;
+   - failed JSON includes only failed chains and full `errorDetails`.
+3. Continue staged retirement of legacy in-memory onboarding status/control path (keeping legacy fallback until parity is confirmed).
+
 ## Prompt For Next Session (Latest, supersedes older prompts)
 
 ```text
@@ -2008,7 +2035,7 @@ Next step:
 Контекст:
 - это изолированный форк панели, не связанный с Rabbit Platform;
 - continuity docs — source of truth;
-- последний код-коммит в main: 951f452;
+- последний код-коммит в main: 008f422;
 - стенд: https://tunnel.hiddenrabbit.net.ru/panel, статус running:healthy;
 - в builder уже есть:
   - Copy TXT / Copy JSON,
@@ -2016,7 +2043,9 @@ Next step:
   - Failed JSON,
   - фильтр All / Failed / Success,
   - enriched errorDetails (code/severity/hint/suggestedActions),
-  - быстрые действия Repair node / Open node.
+  - быстрые действия Repair node / Open node,
+  - quick actions внутри errorDetails,
+  - batch action Rerun failed.
 
 Приоритет:
 1) провести реальную mixed-run проверку каскадов (success + failed в одном запуске) и подтвердить паритет:

@@ -1347,3 +1347,27 @@ Change type:
 Change type:
 
 - `continuity` — practical test template for cascade execution parity
+
+## 2026-04-17 Error-Detail Quick Actions + Failed Batch Rerun
+
+- Extended builder execution diagnostics interactivity:
+  - rendered actionable controls directly from `errorDetails[].suggestedActions`;
+  - supported actions in detail cards:
+    - rerun chain,
+    - focus node,
+    - repair node,
+    - open/check node card.
+- Added batch operator action in execution toolbar:
+  - `Rerun failed` reruns only failed chains from current execution.
+- Updated frontend rerun flow:
+  - `rerunExecutionChain(...)` now supports `showToast` to keep batch runs readable.
+- Updated styles and i18n for new diagnostics controls:
+  - files: `public/js/cascade-builder.js`, `public/css/cascade-builder.css`, `views/cascade-builder.ejs`, `src/locales/ru.json`, `src/locales/en.json`.
+- Deployed to stand:
+  - code commit `008f422`;
+  - Coolify deployment `zbk88zcm7adt3pkjai6v1oth`;
+  - final status: `running:healthy`.
+
+Change type:
+
+- `local patch` — cascade builder diagnostics + repair/rerun UX
