@@ -1,5 +1,21 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder Execution Diagnostics Copy Action
+
+- Added one-click diagnostics copy action in builder execution panel.
+- UI updates:
+  - `views/cascade-builder.ejs`: added copy button in execution box header;
+  - `public/js/cascade-builder.js`: added text snapshot builder + clipboard copy handler;
+  - `public/css/cascade-builder.css`: added compact header-actions layout.
+- Locale coverage:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added copy button/feedback strings.
+
+Change types:
+
+- `local patch` — operator-friendly copy/export path for cascade execution diagnostics
+
 ## 2026-04-17 Onboarding-Full Status Path Decoupled from setupJobs
 
 - Reduced in-memory `setupJobs` dependency for durable onboarding control path.

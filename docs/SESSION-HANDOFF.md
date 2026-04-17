@@ -20,6 +20,7 @@
     - richer per-chain deploy diagnostics payload;
     - persisted `lastExecution` in builder draft cache;
     - dedicated diagnostics panel on the builder page.
+    - one-click copy diagnostics action from execution panel.
   - staged retirement of legacy setup mirror for onboarding-full:
     - setup start for onboarding-full no longer initializes `setupJobs`;
     - onboarding runner no longer writes success/error states into `setupJobs`;
@@ -86,7 +87,7 @@
 1. Live smoke on stand with 2-3 mixed draft hops:
    - run `Commit and deploy`,
    - verify execution panel content and per-chain diagnostics parity with actual node outcomes.
-2. Add action-level diagnostics copy/export from the new execution panel.
+2. Add optional structured export format (json/text modes) for execution diagnostics if needed for external runbooks.
 3. Continue staged retirement of legacy setup status/control-path (`setupJobs`) outside onboarding-primary paths.
 
 ## 2026-04-17 Docker-Safe Cascade Vendor Sync Stop-Point

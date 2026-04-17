@@ -2,6 +2,15 @@
 
 ## 2026-04-17
 
+- Worked on: cascade execution diagnostics operator UX.
+- Finished with:
+  - added copy button to builder execution diagnostics panel;
+  - implemented plain-text diagnostics snapshot builder in frontend;
+  - added RU/EN locale strings for copy action and feedback.
+- Next step:
+  - live smoke copy action from `/panel/cascades/builder` after real commit+deploy run;
+  - add optional structured export format only if operator needs file-based sharing.
+
 - Worked on: staged retirement of in-memory setup mirror for onboarding-full.
 - Finished with:
   - onboarding-full start no longer initializes `setupJobs`;
