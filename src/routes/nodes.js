@@ -27,6 +27,36 @@ const LEGACY_ONBOARDING_BRIDGE_STEPS = [
     'seed-node-state',
     'final-sync',
 ];
+const SETUP_MODE_LEGACY = 'legacy';
+const SETUP_MODE_ONBOARDING_FULL = 'onboarding-full';
+
+function formatOnboardingStepLog(log) {
+    const ts = log?.at ? new Date(log.at).toISOString() : new Date().toISOString();
+    const step = String(log?.step || '').trim();
+    const prefix = step ? `[${step}] ` : '';
+    return `[${ts}] ${prefix}${String(log?.message || '').trim()}`.trim();
+}
+
+function normalizeSetupMode(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === SETUP_MODE_ONBOARDING_FULL || normalized === 'onboarding') {
+        return SETUP_MODE_ONBOARDING_FULL;
+    }
+    if (normalized === SETUP_MODE_LEGACY) {
+        return SETUP_MODE_LEGACY;
+    }
+    return '';
+}
+
+function resolveApiSetupMode(reqBody = {}) {
+    const requested = normalizeSetupMode(reqBody.setupMode || reqBody.onboardingMode);
+    if (requested) {
+        return requested;
+    }
+    return process.env.FEATURE_ONBOARDING_RUN_FULL === 'true'
+        ? SETUP_MODE_ONBOARDING_FULL
+        : SETUP_MODE_LEGACY;
+}
 
 /**
  * Инвалидация кэша при изменении нод
@@ -695,6 +725,7 @@ router.post('/:id/generate-xray-keys', requireScope('nodes:write'), async (req, 
 router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
     let logs = [];
     let onboardingJobId = '';
+    let setupMode = SETUP_MODE_LEGACY;
     try {
         const node = await HyNode.findById(req.params.id);
 
@@ -713,6 +744,26 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
         } = req.body || {};
 
         logger.info(`[Nodes API] Auto-setup started for ${node.name} (${node.ip}) via API`);
+        setupMode = resolveApiSetupMode(req.body || {});
+
+        try {
+            const activeOnboarding = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+            if (setupMode === SETUP_MODE_ONBOARDING_FULL && activeOnboarding?.status === 'running') {
+                return res.status(202).json({
+                    success: true,
+                    running: true,
+                    state: 'running',
+                    message: 'Onboarding already running',
+                    logs: Array.isArray(activeOnboarding.stepLogs)
+                        ? activeOnboarding.stepLogs.map(formatOnboardingStepLog)
+                        : [],
+                    onboardingJobId: activeOnboarding.id,
+                    setupMode: SETUP_MODE_ONBOARDING_FULL,
+                });
+            }
+        } catch (onboardingReadError) {
+            logger.warn(`[Nodes API] setup onboarding read warning: ${onboardingReadError.message}`);
+        }
 
         const nodeSetup = require('../services/nodeSetup');
         const syncService = require('../services/syncService');
@@ -737,6 +788,41 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
             onboardingJobId = started.id;
         } catch (onboardingError) {
             logger.warn(`[Nodes API] Could not initialize onboarding job for ${node.name}: ${onboardingError.message}`);
+        }
+
+        if (setupMode === SETUP_MODE_ONBOARDING_FULL && onboardingJobId) {
+            const finalJob = await nodeOnboardingPipeline.runFull(onboardingJobId, {
+                source: 'api',
+                actor: req.user?.username || 'api',
+                setupMode: SETUP_MODE_ONBOARDING_FULL,
+            });
+            const onboardingLogs = Array.isArray(finalJob?.stepLogs)
+                ? finalJob.stepLogs.map(formatOnboardingStepLog)
+                : [];
+
+            if (finalJob?.status === 'completed') {
+                await invalidateNodesCache();
+                logger.info(`[Nodes API] Durable onboarding completed for ${node.name}`);
+                return res.json({
+                    success: true,
+                    logs: onboardingLogs,
+                    onboardingJobId,
+                    setupMode: SETUP_MODE_ONBOARDING_FULL,
+                });
+            }
+
+            const onboardingError = finalJob?.lastError?.message || `Onboarding stopped with status ${finalJob?.status || 'unknown'}`;
+            await HyNode.findByIdAndUpdate(req.params.id, {
+                $set: { status: 'error', lastError: onboardingError, healthFailures: 0 },
+            });
+            logger.warn(`[Nodes API] Durable onboarding failed for ${node.name}: ${onboardingError}`);
+            return res.status(500).json({
+                success: false,
+                error: onboardingError,
+                logs: onboardingLogs,
+                onboardingJobId,
+                setupMode: SETUP_MODE_ONBOARDING_FULL,
+            });
         }
 
         let result;
@@ -775,7 +861,7 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
                 useTlsFiles: !!result.useTlsFiles,
             });
             logger.info(`[Nodes API] Auto-setup completed for ${node.name} (${node.type})`);
-            res.json({ success: true, logs, onboardingJobId });
+            res.json({ success: true, logs, onboardingJobId, setupMode: SETUP_MODE_LEGACY });
         } else {
             await HyNode.findByIdAndUpdate(req.params.id, {
                 $set: { status: 'error', lastError: result.error, healthFailures: 0 },
@@ -789,7 +875,13 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
                 );
             });
             logger.warn(`[Nodes API] Auto-setup failed for ${node.name}: ${result.error}`);
-            res.status(500).json({ success: false, error: result.error, logs: result.logs, onboardingJobId });
+            res.status(500).json({
+                success: false,
+                error: result.error,
+                logs: result.logs,
+                onboardingJobId,
+                setupMode: SETUP_MODE_LEGACY,
+            });
         }
     } catch (error) {
         logger.error(`[Nodes API] Setup error: ${error.message}`);
@@ -801,7 +893,7 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
                 { repairable: true }
             );
         });
-        res.status(500).json({ error: error.message, logs, onboardingJobId });
+        res.status(500).json({ error: error.message, logs, onboardingJobId, setupMode });
     }
 });
 

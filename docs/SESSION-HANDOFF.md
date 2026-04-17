@@ -6,7 +6,7 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2.4 full handler chain).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 3.1 setup-mode cutover + onboarding-first status).
 - Current local patch focus:
   - staged bridge of durable onboarding status into legacy setup endpoints;
   - next move from mirrored bridge steps to real runner handlers.
@@ -159,6 +159,59 @@ Pipeline now has real handlers from preflight through final-sync.
 2. Route selected setup runs through `runFull` pipeline path.
 3. Then retire synthetic bridge completion and phase out in-memory `setupJobs`.
 
+## 2026-04-17 Panel Setup UI Progress Stop-Point
+
+Panel node setup UI now reads onboarding progress when available.
+
+### What was added
+
+- `views/partials/node-form/scripts.ejs` setup polling now:
+  - prefers durable onboarding logs over legacy logs when present;
+  - shows current onboarding step label while setup is running;
+  - includes step context in error state.
+
+### Current stop-point
+
+- UI consumes onboarding progress hints.
+- Setup execution path is still legacy by default.
+
+### Best next step
+
+1. Route selected setup starts through `runFull` pipeline path.
+2. Make setup-status backend onboarding-primary (legacy fallback).
+3. Then remove synthetic bridge completion flow.
+
+## 2026-04-17 Setup-Mode Cutover Stop-Point
+
+Panel/API setup starts now support staged durable onboarding execution.
+
+### What was added
+
+- `src/routes/panel/nodes.js`:
+  - setup start now resolves execution mode (`onboarding-full` vs `legacy`);
+  - staged default routes Xray setup through durable `runFull` path;
+  - duplicate-run guard prevents second runner when onboarding job is already `running`;
+  - durable runner (`runNodeOnboardingJob`) executes `nodeOnboardingPipeline.runFull(...)`.
+- panel setup-status now uses onboarding-first response mapping:
+  - state/logs/error are read from durable onboarding when present;
+  - in-memory setup job map remains as fallback.
+- `src/routes/nodes.js`:
+  - `/api/nodes/:id/setup` now accepts/setup-selects `setupMode`;
+  - `setupMode=onboarding-full` runs durable `runFull` pipeline;
+  - legacy setup path remains available.
+
+### Current stop-point
+
+- Durable onboarding can now drive selected real setup starts (panel + API).
+- Legacy setup path still exists and is still used as fallback.
+- Synthetic legacy bridge completion is still present in legacy runner path.
+
+### Best next step
+
+1. Remove synthetic bridge completion from setups already running in onboarding-full mode.
+2. Add explicit `resume/repair` actions over the durable onboarding job in panel node setup UI.
+3. Begin staged retirement of in-memory `setupJobs` from the critical status path.
+
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
 
 The first real onboarding rewrite layer is now in code.
@@ -302,11 +355,10 @@ Context:
 
 Priority:
 
-1. switch panel setup-status UI to onboarding-first rendering (legacy fallback only);
-2. route selected setup runs through `runFull` onboarding pipeline path;
-3. replace synthetic bridge completion with real end-to-end transitions;
-4. keep legacy setup fallback until parity is proven on test nodes;
-5. then retire in-memory `setupJobs` from the critical status path.
+1. remove synthetic bridge completion from onboarding-full execution path;
+2. add explicit resume/repair controls for durable onboarding jobs in panel setup UI;
+3. keep legacy setup fallback until parity is proven on test nodes;
+4. then retire in-memory `setupJobs` from the critical status path.
 
 ## 2026-04-16 Cascade Builder v1 Stop-Point
 

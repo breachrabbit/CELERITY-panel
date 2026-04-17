@@ -300,6 +300,45 @@ Change types:
 - `local patch` — seed/final handler layer and full pipeline execution
 - `stability fix` — explicit seed baseline and final-sync checkpoint
 
+## 2026-04-17 Panel Setup UI Onboarding Progress (Phase 3 start)
+
+- Updated setup polling UI on node form:
+  - file: `views/partials/node-form/scripts.ejs`;
+  - setup polling now prefers durable onboarding logs when available;
+  - setup result alert now shows current onboarding step label while running/failing.
+- This is the first UI move toward onboarding-first status rendering while still keeping legacy behavior.
+
+Change types:
+
+- `local patch` — onboarding-aware setup progress rendering in panel UI
+
+## 2026-04-17 Onboarding Setup-Mode Cutover (Phase 3.1)
+
+- Moved panel setup start into staged execution modes:
+  - `onboarding-full` (durable `runFull` pipeline);
+  - `legacy` (existing setup runner).
+- Added panel setup-mode resolver:
+  - explicit override via `setupMode` request value;
+  - env guard `FEATURE_ONBOARDING_RUN_FULL=true`;
+  - staged default: Xray nodes use durable onboarding path first.
+- Added durable setup runner in panel route:
+  - `runNodeOnboardingJob(...)` now executes `nodeOnboardingPipeline.runFull(...)`;
+  - setup job state is still mirrored to existing panel polling contract.
+- Added duplicate-run guard:
+  - setup start now detects active onboarding jobs in `running` state and returns running status instead of launching a second runner.
+- Switched panel setup-status read model to onboarding-primary:
+  - when onboarding job exists, response state/logs/error come from durable onboarding first;
+  - in-memory legacy setup map is now fallback data only.
+- Extended API setup endpoint:
+  - `/api/nodes/:id/setup` now supports `setupMode=onboarding-full`;
+  - onboarding-full mode runs `runFull` and returns durable logs;
+  - legacy mode remains available and unchanged as fallback.
+
+Change types:
+
+- `local patch` — staged runFull cutover for panel/API setup start
+- `stability fix` — onboarding-first setup-status read path with legacy fallback
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.

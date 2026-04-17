@@ -169,13 +169,17 @@ Latest progress:
 - full handler chain started:
   - executable `seed-node-state` and `final-sync` exist;
   - API trigger exists to run full onboarding pipeline.
+- setup execution cutover started:
+  - panel setup start now supports mode selection and routes Xray setups through `runFull` in staged mode;
+  - panel setup-status is now onboarding-primary with legacy fallback;
+  - API setup supports `setupMode=onboarding-full`.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
 
-- integration of durable onboarding jobs into panel setup UI/status polling;
-- full cutover logic from legacy setup flow to onboarding-first execution;
-- staged cutover from in-memory `setupJobs` to durable job status.
+- removal of synthetic bridge completion in the remaining legacy setup runner path;
+- explicit resume/repair operator controls in panel setup UI;
+- staged retirement of in-memory `setupJobs` from the critical path once parity is confirmed.
 
 Status: `pending`
 

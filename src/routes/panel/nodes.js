@@ -10,6 +10,7 @@ const syncService = require('../../services/syncService');
 const configGenerator = require('../../services/configGenerator');
 const nodeSetup = require('../../services/nodeSetup');
 const nodeOnboardingService = require('../../services/nodeOnboardingService');
+const nodeOnboardingPipeline = require('../../services/nodeOnboardingPipeline');
 const NodeSSH = require('../../services/nodeSSH');
 const sshKeyService = require('../../services/sshKeyService');
 const cache = require('../../services/cacheService');
@@ -117,6 +118,8 @@ async function getHysteriaServiceState(ssh) {
 
 const setupJobs = new Map();
 const SETUP_JOB_TTL_MS = 1000 * 60 * 60; // keep finished jobs for 1 hour
+const SETUP_MODE_LEGACY = 'legacy';
+const SETUP_MODE_ONBOARDING_FULL = 'onboarding-full';
 const LEGACY_ONBOARDING_BRIDGE_STEPS = [
     'preflight',
     'prepare-host',
@@ -159,6 +162,37 @@ function formatOnboardingStepLog(log) {
     const step = String(log?.step || '').trim();
     const prefix = step ? `[${step}] ` : '';
     return `[${ts}] ${prefix}${String(log?.message || '').trim()}`.trim();
+}
+
+function normalizeSetupMode(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === SETUP_MODE_ONBOARDING_FULL || normalized === 'onboarding') {
+        return SETUP_MODE_ONBOARDING_FULL;
+    }
+    if (normalized === SETUP_MODE_LEGACY) {
+        return SETUP_MODE_LEGACY;
+    }
+    return '';
+}
+
+function resolvePanelSetupMode(node, req) {
+    const requestedMode = normalizeSetupMode(
+        req?.body?.setupMode
+        || req?.query?.setupMode
+        || req?.headers?.['x-setup-mode']
+    );
+    if (requestedMode) {
+        return requestedMode;
+    }
+
+    if (process.env.FEATURE_ONBOARDING_RUN_FULL === 'true') {
+        return SETUP_MODE_ONBOARDING_FULL;
+    }
+
+    // Staged cutover: default to durable onboarding for xray nodes first.
+    return String(node?.type || '').toLowerCase() === 'xray'
+        ? SETUP_MODE_ONBOARDING_FULL
+        : SETUP_MODE_LEGACY;
 }
 
 function mapOnboardingStatusToSetupState(status) {
@@ -322,6 +356,7 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
             error: 'Нода не найдена',
             finishedAt: Date.now(),
             logs: ['Node not found'],
+            setupMode: SETUP_MODE_LEGACY,
         });
         return;
     }
@@ -391,6 +426,7 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
                 finishedAt: Date.now(),
                 error: '',
                 onboardingJobId: effectiveOnboardingJobId,
+                setupMode: SETUP_MODE_LEGACY,
             });
             logger.info(`[Panel] Background setup completed for node ${node.name}`);
         } else {
@@ -409,6 +445,7 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
                 logs,
                 finishedAt: Date.now(),
                 onboardingJobId: effectiveOnboardingJobId,
+                setupMode: SETUP_MODE_LEGACY,
             });
             logger.warn(`[Panel] Background setup failed for node ${node.name}: ${result.error}`);
         }
@@ -425,6 +462,102 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
             logs: [...existingLogs, ...logs, `Exception: ${error.message}`],
             finishedAt: Date.now(),
             onboardingJobId: effectiveOnboardingJobId,
+            setupMode: SETUP_MODE_LEGACY,
+        });
+    }
+}
+
+async function runNodeOnboardingJob(nodeId, onboardingJobId = '') {
+    const key = String(nodeId);
+    const node = await HyNode.findById(nodeId);
+    if (!node) {
+        const fallbackError = 'Нода не найдена';
+        if (onboardingJobId) {
+            await safeOnboardingUpdate(onboardingJobId, 'fail preflight', [], async () => {
+                await nodeOnboardingService.markStepFailed(
+                    onboardingJobId,
+                    'preflight',
+                    { message: fallbackError },
+                    { repairable: false }
+                );
+            });
+        }
+        setSetupJob(key, {
+            state: 'error',
+            error: fallbackError,
+            finishedAt: Date.now(),
+            logs: ['Node not found'],
+            onboardingJobId: String(onboardingJobId || ''),
+            setupMode: SETUP_MODE_ONBOARDING_FULL,
+        });
+        return;
+    }
+
+    logger.info(`[Panel] Durable onboarding runFull started for ${node.name} (${node.type || 'hysteria'})`);
+    try {
+        const job = await nodeOnboardingPipeline.runFull(onboardingJobId, {
+            source: 'panel',
+            actor: `panel:${node.name}`,
+            setupMode: SETUP_MODE_ONBOARDING_FULL,
+        });
+
+        const onboardingLogs = Array.isArray(job?.stepLogs)
+            ? job.stepLogs.map(formatOnboardingStepLog)
+            : [];
+
+        if (job?.status === 'completed') {
+            setSetupJob(key, {
+                state: 'success',
+                message: 'Нода успешно настроена',
+                logs: onboardingLogs,
+                finishedAt: Date.now(),
+                error: '',
+                onboardingJobId: String(onboardingJobId || ''),
+                setupMode: SETUP_MODE_ONBOARDING_FULL,
+            });
+            logger.info(`[Panel] Durable onboarding completed for ${node.name}`);
+            return;
+        }
+
+        const onboardingError = job?.lastError?.message || `Onboarding stopped with status: ${job?.status || 'unknown'}`;
+        await HyNode.findByIdAndUpdate(node._id, {
+            $set: { status: 'error', lastError: onboardingError, healthFailures: 0 },
+        });
+        setSetupJob(key, {
+            state: 'error',
+            error: onboardingError,
+            logs: onboardingLogs,
+            finishedAt: Date.now(),
+            onboardingJobId: String(onboardingJobId || ''),
+            setupMode: SETUP_MODE_ONBOARDING_FULL,
+        });
+        logger.warn(`[Panel] Durable onboarding failed for ${node.name}: ${onboardingError}`);
+    } catch (error) {
+        logger.error(`[Panel] Durable onboarding exception for ${node.name}: ${error.message}`);
+        const setupLogs = Array.isArray(getSetupJob(key)?.logs) ? getSetupJob(key).logs : [];
+        const mergedLogs = [...setupLogs, `Exception: ${error.message}`];
+
+        await safeOnboardingUpdate(onboardingJobId, 'mark failed on exception', mergedLogs, async () => {
+            const job = await nodeOnboardingService.getJob(onboardingJobId);
+            const failedStep = job?.currentStep || 'preflight';
+            await nodeOnboardingService.markStepFailed(
+                onboardingJobId,
+                failedStep,
+                error,
+                { repairable: true }
+            );
+        });
+
+        await HyNode.findByIdAndUpdate(node._id, {
+            $set: { status: 'error', lastError: error.message, healthFailures: 0 },
+        });
+        setSetupJob(key, {
+            state: 'error',
+            error: error.message,
+            logs: mergedLogs,
+            finishedAt: Date.now(),
+            onboardingJobId: String(onboardingJobId || ''),
+            setupMode: SETUP_MODE_ONBOARDING_FULL,
         });
     }
 }
@@ -1129,15 +1262,41 @@ router.post('/nodes/:id/setup', async (req, res) => {
                 logs: job.logs || [],
                 startedAt: job.startedAt,
                 onboardingJobId: job.onboardingJobId || '',
+                setupMode: job.setupMode || SETUP_MODE_LEGACY,
             });
         }
 
+        try {
+            const activeOnboarding = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+            if (activeOnboarding && activeOnboarding.status === 'running') {
+                return res.status(202).json({
+                    success: true,
+                    running: true,
+                    state: 'running',
+                    message: 'Onboarding уже выполняется',
+                    logs: Array.isArray(activeOnboarding.stepLogs)
+                        ? activeOnboarding.stepLogs.map(formatOnboardingStepLog)
+                        : [],
+                    startedAt: activeOnboarding.startedAt || null,
+                    onboardingJobId: activeOnboarding.id,
+                    setupMode: SETUP_MODE_ONBOARDING_FULL,
+                });
+            }
+        } catch (onboardingReadError) {
+            logger.warn(`[Panel] setup start onboarding read warning: ${onboardingReadError.message}`);
+        }
+
+        const selectedMode = resolvePanelSetupMode(node, req);
         let onboardingJobId = '';
         try {
             onboardingJobId = await ensureOnboardingJobForSetup(node, `panel:${node.name}`);
         } catch (onboardingError) {
             logger.warn(`[Panel] Failed to init durable onboarding job for ${node.name}: ${onboardingError.message}`);
         }
+
+        const setupMode = (selectedMode === SETUP_MODE_ONBOARDING_FULL && onboardingJobId)
+            ? SETUP_MODE_ONBOARDING_FULL
+            : SETUP_MODE_LEGACY;
 
         const startedAt = Date.now();
         setSetupJob(req.params.id, {
@@ -1148,10 +1307,14 @@ router.post('/nodes/:id/setup', async (req, res) => {
             error: '',
             message: '',
             onboardingJobId,
+            setupMode,
         });
 
         setImmediate(() => {
-            runNodeSetupJob(req.params.id, onboardingJobId).catch((err) => {
+            const runner = setupMode === SETUP_MODE_ONBOARDING_FULL
+                ? runNodeOnboardingJob
+                : runNodeSetupJob;
+            runner(req.params.id, onboardingJobId).catch((err) => {
                 logger.error(`[Panel] setup background runner fatal: ${err.message}`);
             });
         });
@@ -1164,6 +1327,7 @@ router.post('/nodes/:id/setup', async (req, res) => {
             logs: getSetupJob(req.params.id)?.logs || [],
             startedAt,
             onboardingJobId,
+            setupMode,
         });
     } catch (error) {
         logger.error(`[Panel] Setup error: ${error.message}`);
@@ -1204,32 +1368,41 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             }
             : null;
 
-        const job = getSetupJob(req.params.id);
-        if (!job) {
-            if (onboardingStatus) {
-                const mappedState = mapOnboardingStatusToSetupState(onboardingStatus.status);
-                return res.json({
-                    success: true,
-                    state: mappedState,
-                    running: mappedState === 'running',
-                    logs: onboardingStatus.logs,
-                    message: '',
-                    error: onboardingStatus.lastError || '',
-                    startedAt: onboardingStatus.startedAt,
-                    finishedAt: onboardingStatus.finishedAt,
-                    onboarding: onboardingStatus,
-                    nodeStatus: node.status || 'unknown',
-                    lastError: node.lastError || '',
-                    lastSync: node.lastSync || null,
-                });
-            }
+        const legacyJob = getSetupJob(req.params.id);
 
+        if (onboardingStatus) {
+            const mappedState = mapOnboardingStatusToSetupState(onboardingStatus.status);
+            const fallbackLogs = Array.isArray(legacyJob?.logs) ? legacyJob.logs : [];
+            const onboardingLogs = Array.isArray(onboardingStatus.logs) ? onboardingStatus.logs : [];
             return res.json({
                 success: true,
-                state: 'idle',
-                running: false,
-                logs: [],
+                state: mappedState,
+                running: mappedState === 'running',
+                logs: onboardingLogs.length ? onboardingLogs : fallbackLogs,
+                message: mappedState === 'success' ? (legacyJob?.message || 'Нода успешно настроена') : (legacyJob?.message || ''),
+                error: onboardingStatus.lastError || legacyJob?.error || '',
+                startedAt: onboardingStatus.startedAt || legacyJob?.startedAt || null,
+                finishedAt: onboardingStatus.finishedAt || legacyJob?.finishedAt || null,
+                onboarding: onboardingStatus,
+                setupMode: legacyJob?.setupMode || SETUP_MODE_ONBOARDING_FULL,
+                nodeStatus: node.status || 'unknown',
+                lastError: node.lastError || '',
+                lastSync: node.lastSync || null,
+            });
+        }
+
+        if (legacyJob) {
+            return res.json({
+                success: true,
+                state: legacyJob.state,
+                running: legacyJob.state === 'running',
+                message: legacyJob.message || '',
+                error: legacyJob.error || '',
+                logs: Array.isArray(legacyJob.logs) ? legacyJob.logs : [],
+                startedAt: legacyJob.startedAt || null,
+                finishedAt: legacyJob.finishedAt || null,
                 onboarding: null,
+                setupMode: legacyJob.setupMode || SETUP_MODE_LEGACY,
                 nodeStatus: node.status || 'unknown',
                 lastError: node.lastError || '',
                 lastSync: node.lastSync || null,
@@ -1238,14 +1411,11 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
 
         return res.json({
             success: true,
-            state: job.state,
-            running: job.state === 'running',
-            message: job.message || '',
-            error: job.error || '',
-            logs: Array.isArray(job.logs) ? job.logs : [],
-            startedAt: job.startedAt || null,
-            finishedAt: job.finishedAt || null,
-            onboarding: onboardingStatus,
+            state: 'idle',
+            running: false,
+            logs: [],
+            onboarding: null,
+            setupMode: SETUP_MODE_LEGACY,
             nodeStatus: node.status || 'unknown',
             lastError: node.lastError || '',
             lastSync: node.lastSync || null,

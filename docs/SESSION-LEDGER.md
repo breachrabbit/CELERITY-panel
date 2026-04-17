@@ -357,3 +357,14 @@
   - switch panel setup-status UI to onboarding-first model;
   - move selected setup executions onto `runFull` path;
   - then remove synthetic bridge completion and in-memory setup-job dependency.
+
+- Onboarding setup-mode cutover continuation:
+  - panel setup start now resolves execution mode and can run durable `runFull` onboarding path;
+  - staged default sends Xray setup through onboarding-full, with legacy fallback preserved;
+  - setup-status now uses onboarding-first state/log/error mapping (legacy setup map is fallback);
+  - API setup now supports `setupMode=onboarding-full` and returns durable onboarding logs;
+  - duplicate-run guard added for active onboarding jobs.
+- Next step:
+  - remove synthetic bridge completion from paths already executing onboarding-full;
+  - add operator-facing resume/repair actions for onboarding jobs in node setup UI;
+  - then begin staged retirement of in-memory `setupJobs`.

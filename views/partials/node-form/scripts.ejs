@@ -817,6 +817,20 @@ function clearLogs() {
     document.getElementById('logsOutput').innerHTML = '';
 }
 
+function humanizeOnboardingStep(step) {
+    return String(step || '')
+        .trim()
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, (m) => m.toUpperCase()) || 'Setup';
+}
+
+function renderOnboardingProgress(statusData) {
+    const onboarding = statusData?.onboarding || null;
+    if (!onboarding || !onboarding.currentStep) return '';
+    const stepLabel = humanizeOnboardingStep(onboarding.currentStep);
+    return `<div style="margin-top:8px;opacity:.8;font-size:12px;">${escapeHtml(stepLabel)}</div>`;
+}
+
 async function setupNode() {
     const confirmMsg = nodeType === 'xray' ? i18n.autoSetupConfirmXray : i18n.autoSetupConfirm;
     if (!confirm(confirmMsg)) return;
@@ -845,7 +859,15 @@ async function setupNode() {
 
             const statusRes = await fetch('/panel/nodes/<%= node._id %>/setup-status', { cache: 'no-store' });
             const statusData = await statusRes.json();
-            if (statusData.logs) showLogs(statusData.logs);
+            const liveLogs = (statusData.onboarding && Array.isArray(statusData.onboarding.logs) && statusData.onboarding.logs.length)
+                ? statusData.onboarding.logs
+                : statusData.logs;
+            if (liveLogs) showLogs(liveLogs);
+
+            if (statusData.state === 'running') {
+                const progress = renderOnboardingProgress(statusData);
+                document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.setupRunning + progress + '</div>';
+            }
 
             if (statusData.state === 'running' || statusData.state === 'idle') {
                 await wait(2000);
@@ -860,7 +882,8 @@ async function setupNode() {
                     } catch (_) {}
                 }
             } else {
-                document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + (statusData.error || i18n.error) + '</div>';
+                const progress = renderOnboardingProgress(statusData);
+                document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + (statusData.error || i18n.error) + progress + '</div>';
             }
             break;
         }
