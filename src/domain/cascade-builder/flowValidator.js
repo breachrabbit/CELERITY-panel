@@ -205,6 +205,12 @@ function buildDraftHopSuggestion({ sourceNode, targetNode, mode = 'reverse' }) {
         tunnelTransport: 'tcp',
         tunnelSecurity: 'none',
         tunnelPort: 10086,
+        wsPath: '/cascade',
+        wsHost: '',
+        grpcServiceName: 'cascade',
+        xhttpPath: '/cascade',
+        xhttpHost: '',
+        xhttpMode: 'auto',
         requiresHybrid: stack === 'hybrid',
     };
 }

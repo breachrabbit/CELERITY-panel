@@ -102,6 +102,12 @@ function buildPreviewPayload(hop, sourceNode, targetNode) {
         tunnelTransport: hop.tunnelTransport || 'tcp',
         tunnelSecurity: hop.tunnelSecurity || 'none',
         tunnelPort: Number(hop.tunnelPort) || 10086,
+        wsPath: hop.wsPath || '/cascade',
+        wsHost: hop.wsHost || '',
+        grpcServiceName: hop.grpcServiceName || 'cascade',
+        xhttpPath: hop.xhttpPath || '/cascade',
+        xhttpHost: hop.xhttpHost || '',
+        xhttpMode: hop.xhttpMode || 'auto',
         muxEnabled: !!hop.muxEnabled,
         priority: 100,
         status: 'pending',
@@ -235,7 +241,13 @@ function buildCommitPlan({ nodes = [], hops = [], activeLinks = [] }) {
         if ((hop.tunnelSecurity || 'none') !== 'reality') {
             assumptions.push('No REALITY-specific key material is required for this draft in its current form.');
         }
-        if ((hop.tunnelTransport || 'tcp') === 'tcp') {
+        const advancedFieldsTouched = (hop.wsPath && hop.wsPath !== '/cascade')
+            || (hop.wsHost && hop.wsHost !== '')
+            || (hop.grpcServiceName && hop.grpcServiceName !== 'cascade')
+            || (hop.xhttpPath && hop.xhttpPath !== '/cascade')
+            || (hop.xhttpHost && hop.xhttpHost !== '')
+            || (hop.xhttpMode && hop.xhttpMode !== 'auto');
+        if (!advancedFieldsTouched) {
             assumptions.push('Transport-specific advanced fields (WS/gRPC/XHTTP paths) stay on their current defaults.');
         }
 

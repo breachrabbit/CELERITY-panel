@@ -262,6 +262,7 @@ const ALLOWED_HOP_MODES = new Set(['reverse', 'forward']);
 const ALLOWED_TUNNEL_PROTOCOLS = new Set(['vless', 'vmess']);
 const ALLOWED_TUNNEL_TRANSPORTS = new Set(['tcp', 'ws', 'grpc', 'xhttp', 'splithttp']);
 const ALLOWED_TUNNEL_SECURITIES = new Set(['none', 'tls', 'reality']);
+const ALLOWED_XHTTP_MODES = new Set(['auto', 'packet-up', 'stream-up', 'stream-one']);
 
 function sanitizeDraftHopName(name, fallbackName) {
     const normalized = String(name ?? '').trim().slice(0, 120);
@@ -282,6 +283,12 @@ function parseDraftPort(rawValue, fallback = 10086) {
     const parsed = Number.parseInt(rawValue, 10);
     if (!Number.isFinite(parsed)) return Number.parseInt(fallback, 10) || 10086;
     return parsed;
+}
+
+function sanitizeDraftText(rawValue, fallback = '', { max = 256 } = {}) {
+    const value = String(rawValue ?? '').trim().slice(0, max);
+    if (value) return value;
+    return String(fallback ?? '').trim().slice(0, max);
 }
 
 async function getStoredDraft(req, flowId = 'legacy-topology') {
@@ -347,12 +354,12 @@ async function createLegacyLinkFromDraft(draftHop, res) {
         tcpFastOpen: true,
         tcpKeepAlive: 100,
         tcpNoDelay: true,
-        wsPath: '/cascade',
-        wsHost: '',
-        grpcServiceName: 'cascade',
-        xhttpPath: '/cascade',
-        xhttpHost: '',
-        xhttpMode: 'auto',
+        wsPath: draftHop.wsPath || '/cascade',
+        wsHost: draftHop.wsHost || '',
+        grpcServiceName: draftHop.grpcServiceName || 'cascade',
+        xhttpPath: draftHop.xhttpPath || '/cascade',
+        xhttpHost: draftHop.xhttpHost || '',
+        xhttpMode: draftHop.xhttpMode || 'auto',
         muxEnabled: !!draftHop.muxEnabled,
         muxConcurrency: 8,
         priority: 100,
@@ -465,6 +472,12 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
             tunnelTransport: draftSuggestion.tunnelTransport,
             tunnelSecurity: draftSuggestion.tunnelSecurity,
             tunnelPort: draftSuggestion.tunnelPort,
+            wsPath: draftSuggestion.wsPath,
+            wsHost: draftSuggestion.wsHost,
+            grpcServiceName: draftSuggestion.grpcServiceName,
+            xhttpPath: draftSuggestion.xhttpPath,
+            xhttpHost: draftSuggestion.xhttpHost,
+            xhttpMode: draftSuggestion.xhttpMode,
             muxEnabled: false,
             latencyMs: null,
             status: 'draft',
@@ -553,6 +566,18 @@ router.patch('/drafts/:hopId', requireScope('nodes:write'), async (req, res) => 
             return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidPort', 'Tunnel port must be within 1-65535.') });
         }
 
+        const nextWsPath = sanitizeDraftText(payload.wsPath, currentHop.wsPath || '/cascade', { max: 256 });
+        const nextWsHost = sanitizeDraftText(payload.wsHost, currentHop.wsHost || '', { max: 128 });
+        const nextGrpcServiceName = sanitizeDraftText(payload.grpcServiceName, currentHop.grpcServiceName || 'cascade', { max: 120 });
+        const nextXhttpPath = sanitizeDraftText(payload.xhttpPath, currentHop.xhttpPath || '/cascade', { max: 256 });
+        const nextXhttpHost = sanitizeDraftText(payload.xhttpHost, currentHop.xhttpHost || '', { max: 128 });
+        const nextXhttpMode = payload.xhttpMode !== undefined
+            ? String(payload.xhttpMode).trim().toLowerCase()
+            : String(currentHop.xhttpMode || 'auto').toLowerCase();
+        if (!ALLOWED_XHTTP_MODES.has(nextXhttpMode)) {
+            return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidXhttpMode', 'Unsupported XHTTP mode for draft hop.') });
+        }
+
         const nextHop = {
             ...currentHop,
             id: hopId,
@@ -566,6 +591,12 @@ router.patch('/drafts/:hopId', requireScope('nodes:write'), async (req, res) => 
             tunnelTransport: nextTransport,
             tunnelSecurity: nextSecurity,
             tunnelPort: nextPort,
+            wsPath: nextWsPath || '/cascade',
+            wsHost: nextWsHost,
+            grpcServiceName: nextGrpcServiceName || 'cascade',
+            xhttpPath: nextXhttpPath || '/cascade',
+            xhttpHost: nextXhttpHost,
+            xhttpMode: nextXhttpMode,
             muxEnabled: normalizeDraftBoolean(payload.muxEnabled, currentHop.muxEnabled),
             status: 'draft',
             isDraft: true,

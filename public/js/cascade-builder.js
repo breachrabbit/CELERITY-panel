@@ -515,6 +515,22 @@
         const deleteButton = document.getElementById('builderDraftDelete');
 
         if (form) {
+            const toggleTransportGroups = () => {
+                const selectedTransport = String(form.elements.namedItem('tunnelTransport')?.value || 'tcp').toLowerCase();
+                const groups = form.querySelectorAll('[data-transport-group]');
+                groups.forEach((group) => {
+                    const groupTransports = String(group.getAttribute('data-transport-group') || '')
+                        .split(',')
+                        .map((item) => item.trim().toLowerCase())
+                        .filter(Boolean);
+                    const isVisible = groupTransports.includes(selectedTransport);
+                    group.hidden = !isVisible;
+                });
+            };
+
+            form.elements.namedItem('tunnelTransport')?.addEventListener('change', toggleTransportGroups);
+            toggleTransportGroups();
+
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const payload = {
@@ -525,6 +541,12 @@
                     tunnelSecurity: form.elements.namedItem('tunnelSecurity')?.value || 'none',
                     tunnelPort: form.elements.namedItem('tunnelPort')?.value || '10086',
                     muxEnabled: !!form.elements.namedItem('muxEnabled')?.checked,
+                    wsPath: form.elements.namedItem('wsPath')?.value || '',
+                    wsHost: form.elements.namedItem('wsHost')?.value || '',
+                    grpcServiceName: form.elements.namedItem('grpcServiceName')?.value || '',
+                    xhttpPath: form.elements.namedItem('xhttpPath')?.value || '',
+                    xhttpHost: form.elements.namedItem('xhttpHost')?.value || '',
+                    xhttpMode: form.elements.namedItem('xhttpMode')?.value || 'auto',
                 };
                 try {
                     await requestJson(`/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`, {
@@ -622,6 +644,48 @@
                             <label class="builder-field builder-checkbox-field">
                                 <span>${escapeHtml(i18n.mux || 'MUX')}</span>
                                 <input type="checkbox" name="muxEnabled" ${hop.muxEnabled ? 'checked' : ''}>
+                            </label>
+                        </div>
+                        <div class="builder-transport-settings" data-transport-group="ws">
+                            <div class="builder-transport-title">${escapeHtml(i18n.wsSettings || 'WebSocket')}</div>
+                            <div class="builder-field-grid">
+                                <label class="builder-field">
+                                    <span>${escapeHtml(i18n.wsPath || 'WS path')}</span>
+                                    <input class="builder-form-control" type="text" name="wsPath" maxlength="256" value="${escapeHtml(hop.wsPath || '/cascade')}">
+                                </label>
+                                <label class="builder-field">
+                                    <span>${escapeHtml(i18n.wsHost || 'WS host')}</span>
+                                    <input class="builder-form-control" type="text" name="wsHost" maxlength="128" value="${escapeHtml(hop.wsHost || '')}">
+                                </label>
+                            </div>
+                        </div>
+                        <div class="builder-transport-settings" data-transport-group="grpc">
+                            <div class="builder-transport-title">${escapeHtml(i18n.grpcSettings || 'gRPC')}</div>
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.grpcServiceName || 'Service name')}</span>
+                                <input class="builder-form-control" type="text" name="grpcServiceName" maxlength="120" value="${escapeHtml(hop.grpcServiceName || 'cascade')}">
+                            </label>
+                        </div>
+                        <div class="builder-transport-settings" data-transport-group="xhttp,splithttp">
+                            <div class="builder-transport-title">${escapeHtml(i18n.xhttpSettings || 'XHTTP')}</div>
+                            <div class="builder-field-grid">
+                                <label class="builder-field">
+                                    <span>${escapeHtml(i18n.xhttpPath || 'XHTTP path')}</span>
+                                    <input class="builder-form-control" type="text" name="xhttpPath" maxlength="256" value="${escapeHtml(hop.xhttpPath || '/cascade')}">
+                                </label>
+                                <label class="builder-field">
+                                    <span>${escapeHtml(i18n.xhttpHost || 'XHTTP host')}</span>
+                                    <input class="builder-form-control" type="text" name="xhttpHost" maxlength="128" value="${escapeHtml(hop.xhttpHost || '')}">
+                                </label>
+                            </div>
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.xhttpMode || 'XHTTP mode')}</span>
+                                <select class="builder-form-control" name="xhttpMode">
+                                    <option value="auto"${String(hop.xhttpMode || 'auto').toLowerCase() === 'auto' ? ' selected' : ''}>AUTO</option>
+                                    <option value="packet-up"${String(hop.xhttpMode || 'auto').toLowerCase() === 'packet-up' ? ' selected' : ''}>PACKET-UP</option>
+                                    <option value="stream-up"${String(hop.xhttpMode || 'auto').toLowerCase() === 'stream-up' ? ' selected' : ''}>STREAM-UP</option>
+                                    <option value="stream-one"${String(hop.xhttpMode || 'auto').toLowerCase() === 'stream-one' ? ' selected' : ''}>STREAM-ONE</option>
+                                </select>
                             </label>
                         </div>
                         <div class="builder-form-actions">
