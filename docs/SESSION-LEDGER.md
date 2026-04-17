@@ -321,3 +321,12 @@
   - switch setup-status UI rendering to onboarding-first state model in panel templates/js;
   - implement first true runner handlers (`preflight`, `prepare-host`) instead of synthetic bridge completion;
   - start replacing in-memory panel `setupJobs` map with onboarding-job persistence.
+
+- Onboarding handlers continuation:
+  - added real `preflight` and `prepare-host` handlers;
+  - added `nodeOnboardingPipeline.runUntilInstallRuntime(...)`;
+  - added API trigger `POST /api/nodes/:id/onboarding/jobs/:jobId/run-preflight`.
+- Next step:
+  - implement real `install-runtime` handler adapter;
+  - add runtime local verification handler;
+  - then reduce synthetic bridge step completion in favor of real step transitions.

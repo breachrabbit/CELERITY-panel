@@ -201,6 +201,35 @@ Change types:
 - `local patch` — staged onboarding integration bridge for panel/API setup flows
 - `stability fix` — durable setup-status read model fallback from onboarding jobs
 
+## 2026-04-17 Onboarding First Real Handlers (Phase 2.1)
+
+- Added first executable onboarding handlers instead of pure synthetic step transitions:
+  - `src/services/nodeOnboardingHandlers.js`
+  - `runPreflight`:
+    - validates SSH availability;
+    - validates required tools (`bash`, `systemctl`, `curl`, `openssl`);
+    - captures basic OS/kernel/uptime snapshot.
+  - `runPrepareHost`:
+    - prepares base runtime directories;
+    - ensures Xray log file paths exist;
+    - returns prepared-path snapshot.
+- Added pipeline entrypoint:
+  - `src/services/nodeOnboardingPipeline.js`
+  - `runUntilInstallRuntime(jobId)` runs real handlers for:
+    - `preflight`
+    - `prepare-host`
+    - then stops before `install-runtime`.
+- Added API trigger for these real steps:
+  - `POST /api/nodes/:id/onboarding/jobs/:jobId/run-preflight`
+- Scope guard:
+  - full runtime/agent install is still handled by legacy setup flow;
+  - onboarding pipeline currently executes only early deterministic checks/preparation.
+
+Change types:
+
+- `local patch` — first executable onboarding handlers
+- `stability fix` — deterministic preflight/prepare-host checkpoint
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.

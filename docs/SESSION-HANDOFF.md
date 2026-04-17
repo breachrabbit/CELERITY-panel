@@ -6,7 +6,7 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2 bridge integration start).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2.1 first real handlers).
 - Current local patch focus:
   - staged bridge of durable onboarding status into legacy setup endpoints;
   - next move from mirrored bridge steps to real runner handlers.
@@ -47,6 +47,33 @@ Durable onboarding jobs are now partially integrated into active setup flows in 
    - `prepare-host`
 3. Replace synthetic bridge step completion with real per-step transitions.
 4. Then start removing dependence on in-memory `setupJobs`.
+
+## 2026-04-17 Onboarding Handlers Stop-Point
+
+First real onboarding handlers are now in place.
+
+### What was added
+
+- `src/services/nodeOnboardingHandlers.js`:
+  - real `preflight` SSH/tooling probe;
+  - real `prepare-host` filesystem/log-path preparation.
+- `src/services/nodeOnboardingPipeline.js`:
+  - pipeline runner that executes real handlers and stops before `install-runtime`.
+- New API endpoint:
+  - `POST /api/nodes/:id/onboarding/jobs/:jobId/run-preflight`
+  - runs real onboarding steps (`preflight`, `prepare-host`) for an existing onboarding job.
+
+### Current stop-point
+
+- Durable onboarding jobs are integrated into setup starts (panel + API).
+- Real handlers exist for early steps only.
+- Runtime/agent install is still legacy path.
+
+### Best next step
+
+1. Add `install-runtime` handler adapter around existing `nodeSetup` routines.
+2. Add `verify-runtime-local` handler with explicit runtime health contract.
+3. Then phase out synthetic full-step completion bridge on success.
 
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
 
@@ -191,11 +218,11 @@ Context:
 
 Priority:
 
-1. switch panel setup-status UI to onboarding-first rendering (with legacy fallback only);
-2. implement first executable onboarding runner handlers (`preflight`, `prepare-host`);
-3. replace synthetic bridge completion with real per-step transitions;
-4. keep legacy setup as fallback until parity is proven on test nodes;
-5. then begin removing in-memory `setupJobs` from critical status path.
+1. add `install-runtime` onboarding handler adapter using existing `nodeSetup` safely;
+2. add `verify-runtime-local` handler and explicit pass/fail contract;
+3. switch panel setup-status UI to onboarding-first rendering (legacy fallback only);
+4. replace synthetic bridge completion with real per-step transitions;
+5. keep legacy setup as fallback until parity is proven on test nodes.
 
 ## 2026-04-16 Cascade Builder v1 Stop-Point
 

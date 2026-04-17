@@ -157,12 +157,15 @@ Latest progress:
 - staged bridge integration started:
   - panel/API setup starts now initialize onboarding jobs;
   - setup success/failure is mirrored to durable onboarding status.
+- first real handlers started:
+  - executable `preflight` and `prepare-host` onboarding steps exist;
+  - API trigger exists to run these early steps.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
 
 - integration of durable onboarding jobs into panel setup UI/status polling;
-- first executable handlers (`preflight`, `prepare-host`, runtime/agent steps);
+- runtime/agent executable handlers (`install-runtime`, `install-agent`, verify steps);
 - staged cutover from in-memory `setupJobs` to durable job status.
 
 Status: `pending`

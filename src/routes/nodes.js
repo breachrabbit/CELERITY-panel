@@ -11,6 +11,7 @@ const cryptoService = require('../services/cryptoService');
 const cache = require('../services/cacheService');
 const nodeSetup = require('../services/nodeSetup');
 const nodeOnboardingService = require('../services/nodeOnboardingService');
+const nodeOnboardingPipeline = require('../services/nodeOnboardingPipeline');
 const logger = require('../utils/logger');
 const { requireScope } = require('../middleware/auth');
 
@@ -981,6 +982,23 @@ router.post('/:id/onboarding/jobs/:jobId/complete', requireScope('nodes:write'),
         res.json({ success: true, job });
     } catch (error) {
         logger.error(`[Nodes API] Onboarding complete error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/run-preflight - Run real preflight+prepare-host handlers
+ */
+router.post('/:id/onboarding/jobs/:jobId/run-preflight', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const job = await nodeOnboardingPipeline.runUntilInstallRuntime(req.params.jobId, {
+            source: 'api',
+            actor: req.user?.username || 'api',
+        });
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding run-preflight error: ${error.message}`);
         res.status(500).json({ error: error.message });
     }
 });
