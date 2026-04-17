@@ -124,9 +124,13 @@
                 <div class="builder-validation-head">
                     <h4><%= t('cascades.executionTitle') %></h4>
                     <div class="builder-validation-head-actions">
-                        <button class="btn btn-secondary btn-sm" id="builderExecutionCopy" type="button">
+                        <button class="btn btn-secondary btn-sm" id="builderExecutionCopyText" type="button">
                             <i class="ti ti-copy"></i>
-                            <span><%= t('cascades.executionCopy') %></span>
+                            <span><%= t('cascades.executionCopyText') %></span>
+                        </button>
+                        <button class="btn btn-secondary btn-sm" id="builderExecutionCopyJson" type="button">
+                            <i class="ti ti-code"></i>
+                            <span><%= t('cascades.executionCopyJson') %></span>
                         </button>
                         <span class="builder-validation-badge" id="builderExecutionBadge">—</span>
                     </div>
@@ -212,8 +216,10 @@ window._cascadeBuilderI18n = {
     executionNodeActions: <%- JSON.stringify(t('cascades.executionNodeActions')) %>,
     executionWarnings: <%- JSON.stringify(t('cascades.executionWarnings')) %>,
     executionErrors: <%- JSON.stringify(t('cascades.executionErrors')) %>,
-    executionCopy: <%- JSON.stringify(t('cascades.executionCopy')) %>,
+    executionCopyText: <%- JSON.stringify(t('cascades.executionCopyText')) %>,
+    executionCopyJson: <%- JSON.stringify(t('cascades.executionCopyJson')) %>,
     executionCopyDone: <%- JSON.stringify(t('cascades.executionCopyDone')) %>,
+    executionCopyJsonDone: <%- JSON.stringify(t('cascades.executionCopyJsonDone')) %>,
     executionCopyFailed: <%- JSON.stringify(t('cascades.executionCopyFailed')) %>,
     previewReady: <%- JSON.stringify(t('cascades.previewReady')) %>,
     previewBlocked: <%- JSON.stringify(t('cascades.previewBlocked')) %>,

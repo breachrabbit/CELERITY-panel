@@ -696,8 +696,43 @@
         return lines.join('\n');
     }
 
-    async function copyExecutionDiagnostics() {
-        const text = buildExecutionDiagnosticsText(state.execution);
+    function buildExecutionDiagnosticsPayload(execution) {
+        if (!execution || typeof execution !== 'object') {
+            return {
+                exportType: 'cascade-execution-diagnostics',
+                exportedAt: new Date().toISOString(),
+                hasExecution: false,
+                message: i18n.executionEmpty || 'No execution runs yet.',
+            };
+        }
+
+        const deployment = execution.deployment && typeof execution.deployment === 'object'
+            ? execution.deployment
+            : null;
+
+        return {
+            exportType: 'cascade-execution-diagnostics',
+            exportedAt: new Date().toISOString(),
+            hasExecution: true,
+            execution: {
+                type: execution.type || 'commit-only',
+                createdAt: execution.createdAt || null,
+                committed: Number(execution.committed || 0),
+                failed: Number(execution.failed || 0),
+                failureItems: Array.isArray(execution.failureItems) ? execution.failureItems : [],
+                deployment: deployment
+                    ? {
+                        chains: Number(deployment.chains || 0),
+                        deployedChains: Number(deployment.deployedChains || 0),
+                        failedChains: Number(deployment.failedChains || 0),
+                        results: Array.isArray(deployment.results) ? deployment.results : [],
+                    }
+                    : null,
+            },
+        };
+    }
+
+    async function copyTextToClipboard(text, successMessage) {
         try {
             if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
                 await navigator.clipboard.writeText(text);
@@ -712,10 +747,21 @@
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
             }
-            toast(i18n.executionCopyDone || 'Execution diagnostics copied.', 'success');
+            toast(successMessage || (i18n.executionCopyDone || 'Execution diagnostics copied.'), 'success');
         } catch (error) {
             toast(i18n.executionCopyFailed || 'Failed to copy diagnostics.', 'error');
         }
+    }
+
+    async function copyExecutionDiagnosticsText() {
+        const text = buildExecutionDiagnosticsText(state.execution);
+        await copyTextToClipboard(text, i18n.executionCopyDone || 'Execution diagnostics copied.');
+    }
+
+    async function copyExecutionDiagnosticsJson() {
+        const payload = buildExecutionDiagnosticsPayload(state.execution);
+        const jsonText = JSON.stringify(payload, null, 2);
+        await copyTextToClipboard(jsonText, i18n.executionCopyJsonDone || 'Execution diagnostics JSON copied.');
     }
 
     function renderNodeInspector(node) {
@@ -1352,7 +1398,8 @@
         document.getElementById('builderCommitDeploy')?.addEventListener('click', () => commitDrafts({ deployAfterCommit: true }));
         document.getElementById('builderDeployPreview')?.addEventListener('click', () => previewCommitPlan());
         document.getElementById('builderResetDrafts')?.addEventListener('click', resetDrafts);
-        document.getElementById('builderExecutionCopy')?.addEventListener('click', () => copyExecutionDiagnostics());
+        document.getElementById('builderExecutionCopyText')?.addEventListener('click', () => copyExecutionDiagnosticsText());
+        document.getElementById('builderExecutionCopyJson')?.addEventListener('click', () => copyExecutionDiagnosticsJson());
         document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));
         document.getElementById('builderAutoLayout')?.addEventListener('click', () => {
             if (!state.cy) return;

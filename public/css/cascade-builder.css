@@ -422,7 +422,9 @@
 .builder-validation-head-actions {
     display: inline-flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
+    justify-content: flex-end;
 }
 
 .builder-validation-badge {
