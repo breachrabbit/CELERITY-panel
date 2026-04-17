@@ -22,6 +22,7 @@
     - dedicated diagnostics panel on the builder page.
     - one-click copy diagnostics action from execution panel.
     - dual export actions from execution panel (`TXT` + `JSON`).
+    - compact failed-only export action for quick incident sharing.
   - staged retirement of legacy setup mirror for onboarding-full:
     - setup start for onboarding-full no longer initializes `setupJobs`;
     - onboarding runner no longer writes success/error states into `setupJobs`;
@@ -82,6 +83,33 @@
 1. Add one-click “copy compact incident summary” for failed chains only.
 2. Add per-chain quick actions in diagnostics (jump to hop / focus chain context on canvas).
 3. Continue onboarding staged retirement (`setupJobs`) in remaining non-critical guard paths after one more stable smoke cycle.
+
+## 2026-04-17 Cascade Diagnostics Failed-Only Export Stop-Point
+
+### What was delivered
+
+- `views/cascade-builder.ejs`:
+  - added execution diagnostics action `Failed only`.
+- `public/js/cascade-builder.js`:
+  - added compact failed-chain export builder:
+    - includes only failed chain entries,
+    - one-line chain summary + first error text.
+- Locales:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+
+### Current stop-point
+
+- Operators now have 3 export paths in execution panel:
+  - full text,
+  - compact failed-only text,
+  - full JSON.
+
+### Best next step
+
+1. Add quick “focus failed chain” action from diagnostics card to canvas selection.
+2. Add compact failed-only JSON option if incident tooling needs structured reduced payload.
+3. Continue staged retirement of non-critical `setupJobs` legacy paths.
 
 ## 2026-04-17 Cascade Builder Execution Diagnostics Stop-Point
 

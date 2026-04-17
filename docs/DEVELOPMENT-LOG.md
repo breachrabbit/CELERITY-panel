@@ -1,5 +1,22 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder Compact Failed-Chains Export
+
+- Added compact diagnostics export focused only on failed chain deploy results.
+- UI updates:
+  - `views/cascade-builder.ejs`: new execution action `Failed only`.
+  - `public/js/cascade-builder.js`: new compact exporter that includes only failed chains with first error per chain.
+- Existing exports preserved:
+  - `Copy TXT` (full human-readable report),
+  - `Copy JSON` (structured payload).
+- Locale coverage:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+
+Change types:
+
+- `local patch` — faster operator incident export for failed cascade chains
+
 ## 2026-04-17 Cascade Builder Diagnostics Export Modes (TXT/JSON)
 
 - Extended execution diagnostics export in builder panel with dual operator-friendly modes:

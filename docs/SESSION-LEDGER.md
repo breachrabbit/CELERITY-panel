@@ -2,6 +2,15 @@
 
 ## 2026-04-17
 
+- Worked on: compact diagnostics export for failed cascade chains.
+- Finished with:
+  - added `Failed only` action in builder execution diagnostics;
+  - export now produces short incident-friendly text for failed chains only;
+  - full text/json exports remain available.
+- Next step:
+  - add diagnostics quick action to focus failed chain context on canvas;
+  - continue flow execution parity for builder actions.
+
 - Worked on: cascade diagnostics export formats for builder execution panel.
 - Finished with:
   - added separate `Copy TXT` / `Copy JSON` actions in execution diagnostics;
