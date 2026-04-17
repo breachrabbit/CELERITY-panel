@@ -534,6 +534,14 @@
     line-height: 1.45;
 }
 
+.builder-execution-list .builder-validation-item small {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
 .builder-library-list,
 .builder-inspector-body,
 .builder-validation-list,
@@ -561,10 +569,22 @@
     background: rgba(239, 68, 68, 0.05);
 }
 
+.builder-validation-item.critical {
+    border-color: rgba(220, 38, 38, 0.42);
+    color: #991b1b;
+    background: rgba(220, 38, 38, 0.08);
+}
+
 .builder-validation-item.warning {
     border-color: rgba(245, 158, 11, 0.24);
     color: #b45309;
     background: rgba(245, 158, 11, 0.06);
+}
+
+.theme-dark .builder-validation-item.critical {
+    border-color: rgba(248, 113, 113, 0.42);
+    color: rgba(254, 202, 202, 0.94);
+    background: rgba(127, 29, 29, 0.28);
 }
 
 .builder-plan-summary {

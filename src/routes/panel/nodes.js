@@ -175,9 +175,10 @@ function trimSetupLogs(logs, limit = SETUP_LOG_LIMIT) {
 function appendSetupJobLiveLog(nodeId, rawLine) {
     const line = String(rawLine || '').trimEnd();
     if (!line) return;
-    const current = getSetupJob(nodeId) || {};
+    const current = getLegacySetupJob(nodeId);
+    if (!current) return;
     const nextLogs = trimSetupLogs([...(Array.isArray(current.logs) ? current.logs : []), line]);
-    setSetupJob(nodeId, { logs: nextLogs });
+    setSetupJob(nodeId, { logs: nextLogs, setupMode: SETUP_MODE_LEGACY });
 }
 
 function mergeSetupStatusLogs(primaryLogs = [], secondaryLogs = []) {
@@ -516,7 +517,7 @@ async function warmXrayAgentAfterSetup(nodeId, logs, onLogLine = null) {
 async function runNodeSetupJob(nodeId, onboardingJobId = '') {
     const key = String(nodeId);
     let node = await HyNode.findById(nodeId);
-    let effectiveOnboardingJobId = String(onboardingJobId || getSetupJob(key)?.onboardingJobId || '');
+    let effectiveOnboardingJobId = String(onboardingJobId || getLegacySetupJob(key)?.onboardingJobId || '');
 
     if (!node) {
         await failLegacyOnboardingBridge(effectiveOnboardingJobId, 'preflight', 'Node not found', []);
@@ -569,7 +570,7 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
             });
         }
 
-        const streamedLogs = Array.isArray(getSetupJob(key)?.logs) ? getSetupJob(key).logs : [];
+        const streamedLogs = Array.isArray(getLegacySetupJob(key)?.logs) ? getLegacySetupJob(key).logs : [];
         logs = streamedLogs.length
             ? streamedLogs
             : (Array.isArray(result.logs) ? result.logs : []);
@@ -629,7 +630,7 @@ async function runNodeSetupJob(nodeId, onboardingJobId = '') {
         await HyNode.findByIdAndUpdate(node._id, {
             $set: { status: 'error', lastError: error.message, healthFailures: 0 },
         });
-        const existingLogs = getSetupJob(key)?.logs || [];
+        const existingLogs = getLegacySetupJob(key)?.logs || [];
         await failLegacyOnboardingBridge(effectiveOnboardingJobId, onboardingFailureStep, error, existingLogs);
         setSetupJob(key, {
             state: 'error',

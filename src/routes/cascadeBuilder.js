@@ -494,34 +494,154 @@ function findRelatedHopNames(nodeName, hopNames = []) {
         .slice(0, 3);
 }
 
-function buildDeployErrorDetails(errors = [], nodeActions = [], hopNames = []) {
+function classifyDeployErrorCode(rawText = '', messageText = '') {
+    const source = `${String(rawText || '')} ${String(messageText || '')}`.toLowerCase();
+    if (source.includes('no ssh credentials')) return 'missing-ssh';
+    if (source.includes('hybrid cascade is disabled')) return 'hybrid-disabled';
+    if (source.includes('sidecar is disabled')) return 'sidecar-disabled';
+    if (source.includes('custom config is enabled')) return 'custom-config-enabled';
+    if (source.includes('mixed reverse/forward links')) return 'mixed-chain-mode';
+    if (source.includes('not listening after service start')) return 'service-port-not-listening';
+    if (source.includes('failed (exit')) return 'remote-command-failed';
+    if (source.includes('is missing from generated') || source.includes('is missing from /')) return 'generated-config-missing-marker';
+    if (source.includes('node not found') || source.includes('link not found') || source.includes('not found')) return 'resource-not-found';
+    return 'deploy-failed';
+}
+
+function localizeDeployRepairHint(res, code, { nodeName = '' } = {}) {
+    switch (code) {
+    case 'missing-ssh':
+        return tFor(
+            res,
+            'cascades.executionHintMissingSsh',
+            'SSH credentials are missing. Add SSH for this node, then run node repair and retry chain.',
+            { nodeName },
+        );
+    case 'hybrid-disabled':
+        return tFor(
+            res,
+            'cascades.executionHintHybridDisabled',
+            'Hybrid cascade is disabled. Enable hybrid in Settings and retry chain.',
+            { nodeName },
+        );
+    case 'sidecar-disabled':
+        return tFor(
+            res,
+            'cascades.executionHintSidecarDisabled',
+            'Cascade sidecar is disabled on this node. Enable sidecar and run node repair.',
+            { nodeName },
+        );
+    case 'custom-config-enabled':
+        return tFor(
+            res,
+            'cascades.executionHintCustomConfig',
+            'Custom runtime config blocks cascade deploy. Disable custom config and rerun chain.',
+            { nodeName },
+        );
+    case 'mixed-chain-mode':
+        return tFor(
+            res,
+            'cascades.executionHintMixedMode',
+            'This chain mixes forward and reverse hops. Split it by mode, then deploy again.',
+        );
+    case 'service-port-not-listening':
+        return tFor(
+            res,
+            'cascades.executionHintPortNotListening',
+            'Runtime service started but the expected port is not listening. Run node repair and check service logs.',
+            { nodeName },
+        );
+    case 'remote-command-failed':
+        return tFor(
+            res,
+            'cascades.executionHintRemoteCommandFailed',
+            'A remote command failed on this node. Open node logs/terminal and rerun chain after fix.',
+            { nodeName },
+        );
+    case 'generated-config-missing-marker':
+        return tFor(
+            res,
+            'cascades.executionHintConfigMarkerMissing',
+            'Generated config is missing an internal cascade marker. Run node repair and retry chain.',
+            { nodeName },
+        );
+    case 'resource-not-found':
+        return tFor(
+            res,
+            'cascades.executionHintResourceMissing',
+            'A node or link resource was not found. Refresh topology and run deployment again.',
+        );
+    default:
+        return tFor(
+            res,
+            'cascades.executionHintGeneric',
+            'Review node logs, fix the issue, then retry chain deployment.',
+        );
+    }
+}
+
+function buildDeploySuggestedActions(code, { hasNodeId = false } = {}) {
+    const actions = ['rerun-chain'];
+    if (hasNodeId) actions.push('focus-node');
+    if (hasNodeId && ['missing-ssh', 'sidecar-disabled', 'service-port-not-listening', 'remote-command-failed', 'generated-config-missing-marker', 'deploy-failed'].includes(code)) {
+        actions.push('repair-node');
+    }
+    if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled'].includes(code)) {
+        actions.push('review-chain');
+    }
+    return actions;
+}
+
+function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeActions = [], hopNames = []) {
     const { byName } = buildNodeActionMatchers(nodeActions);
-    return (Array.isArray(errors) ? errors : [])
-        .map((item) => String(item || '').trim())
-        .filter(Boolean)
-        .map((errorText) => {
-            const nodeMatch = errorText.match(/^([^:]{1,180}):\s+(.+)$/);
+    const rawList = Array.isArray(rawErrors) ? rawErrors : [];
+    const displayList = Array.isArray(displayErrors) ? displayErrors : [];
+    return rawList
+        .map((item, index) => ({
+            raw: String(item || '').trim(),
+            display: String(displayList[index] || item || '').trim(),
+        }))
+        .filter((item) => item.raw || item.display)
+        .map((item) => {
+            const rawText = item.raw || item.display;
+            const displayText = item.display || item.raw;
+            const nodeMatch = rawText.match(/^([^:]{1,180}):\s+(.+)$/) || displayText.match(/^([^:]{1,180}):\s+(.+)$/);
             if (nodeMatch) {
                 const rawNodeName = String(nodeMatch[1] || '').trim();
-                const message = String(nodeMatch[2] || '').trim();
+                const rawMessage = String(nodeMatch[2] || '').trim();
                 const action = byName.get(rawNodeName.toLowerCase()) || null;
+                const displayMessage = displayText.startsWith(`${rawNodeName}:`)
+                    ? String(displayText.slice(rawNodeName.length + 1)).trim()
+                    : displayText;
+                const message = displayMessage || rawMessage;
+                const code = classifyDeployErrorCode(rawText, rawMessage || message);
+                const nodeName = action?.nodeName || rawNodeName;
                 return {
                     scope: 'node',
-                    nodeName: action?.nodeName || rawNodeName,
+                    code,
+                    severity: ['missing-ssh', 'hybrid-disabled', 'sidecar-disabled', 'custom-config-enabled', 'mixed-chain-mode'].includes(code) ? 'critical' : 'error',
+                    nodeName,
                     nodeId: String(action?.nodeId || ''),
-                    message: message || errorText,
+                    message: message || rawText,
+                    hint: localizeDeployRepairHint(res, code, { nodeName }),
+                    suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: !!action?.nodeId }),
                     relatedHops: findRelatedHopNames(rawNodeName, hopNames),
-                    raw: errorText,
+                    raw: rawText,
                 };
             }
 
+            const code = classifyDeployErrorCode(rawText, displayText);
             return {
                 scope: 'chain',
+                code,
+                severity: ['mixed-chain-mode', 'hybrid-disabled'].includes(code) ? 'critical' : 'error',
                 nodeName: '',
                 nodeId: '',
-                message: errorText,
+                message: displayText || rawText,
+                hint: localizeDeployRepairHint(res, code),
+                suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: false }),
                 relatedHops: [],
-                raw: errorText,
+                raw: rawText,
             };
         });
 }
@@ -543,7 +663,7 @@ function buildDeploymentResultEntry({
             : (Array.isArray(deployResult?.errors) ? deployResult.errors : [tFor(res, 'network.chainDeployFailed', 'Chain deploy failed')]));
     const localizedErrors = rawErrors.map((item) => localizeDeployErrorMessage(res, item));
     const nodeActions = Array.isArray(chain?.nodeActions) ? chain.nodeActions : [];
-    const errorDetails = buildDeployErrorDetails(localizedErrors, nodeActions, hopNames);
+    const errorDetails = buildDeployErrorDetails(res, rawErrors, localizedErrors, nodeActions, hopNames);
 
     return {
         chainId: target.chainId,

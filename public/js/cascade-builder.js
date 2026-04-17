@@ -639,6 +639,11 @@
                 const nodeActions = Array.isArray(item.nodeActions) ? item.nodeActions : [];
                 const hopNames = Array.isArray(item.hopNames) ? item.hopNames : [];
                 const chainKey = String(item.chainId || item.startNodeId || item.chainName || `chain-${index + 1}`);
+                const repairNodeId = String(
+                    errorDetails.find((detail) => String(detail?.nodeId || '').trim())?.nodeId
+                    || item.startNodeId
+                    || '',
+                ).trim();
                 const rerunResult = state.executionReruns[chainKey] || item.lastRerun || null;
                 const rerunErrors = Array.isArray(rerunResult?.errors) ? rerunResult.errors : [];
                 return `
@@ -678,10 +683,18 @@
                                     const detailPrefix = detail.scope === 'node'
                                         ? `${detail.nodeName || detail.nodeId || (i18n.executionNodeActions || 'Node')}: `
                                         : '';
+                                    const detailCode = String(detail.code || '').trim();
+                                    const detailHint = String(detail.hint || '').trim();
                                     const hopHint = Array.isArray(detail.relatedHops) && detail.relatedHops.length
                                         ? ` (${(i18n.executionHopNames || 'Hop set')}: ${detail.relatedHops.join(', ')})`
                                         : '';
-                                    return `<div class="builder-validation-item error">${escapeHtml(`${detailPrefix}${detail.message || detail.raw || '—'}${hopHint}`)}</div>`;
+                                    return `
+                                        <div class="builder-validation-item ${detail.severity === 'critical' ? 'critical' : 'error'}">
+                                            ${detailCode ? `<strong>${escapeHtml(`[${detailCode}]`)}</strong>` : ''}
+                                            <span>${escapeHtml(`${detailPrefix}${detail.message || detail.raw || '—'}${hopHint}`)}</span>
+                                            ${detailHint ? `<small>${escapeHtml(detailHint)}</small>` : ''}
+                                        </div>
+                                    `;
                                 }).join('')}
                             </div>
                         ` : ''}
@@ -696,6 +709,16 @@
                                     <i class="ti ti-refresh"></i>
                                     <span>${escapeHtml(i18n.executionRetryChain || 'Retry chain')}</span>
                                 </button>
+                                ${repairNodeId ? `
+                                    <button class="btn btn-secondary btn-sm" type="button" data-execution-action="repair-node" data-node-id="${escapeHtml(repairNodeId)}">
+                                        <i class="ti ti-stethoscope"></i>
+                                        <span>${escapeHtml(i18n.executionRepairNode || 'Repair node')}</span>
+                                    </button>
+                                    <a class="btn btn-secondary btn-sm" href="/panel/nodes/${escapeHtml(repairNodeId)}">
+                                        <i class="ti ti-external-link"></i>
+                                        <span>${escapeHtml(i18n.executionOpenNode || 'Open node')}</span>
+                                    </a>
+                                ` : ''}
                             </div>
                         ` : ''}
                         ${rerunResult ? `
@@ -923,6 +946,7 @@
                 draftHopCount: Number(item.draftHopCount || 0),
                 hopNames: Array.isArray(item.hopNames) ? item.hopNames : [],
                 errors: Array.isArray(item.errors) ? item.errors : [],
+                errorDetails: Array.isArray(item.errorDetails) ? item.errorDetails : [],
                 warnings: Array.isArray(item.deployWarnings) ? item.deployWarnings : [],
                 nodeActions: Array.isArray(item.nodeActions) ? item.nodeActions : [],
             })),
@@ -1012,6 +1036,25 @@
             );
         } catch (error) {
             toast(`${i18n.executionRerunFailed || 'Chain rerun failed.'} ${error.message}`, 'error');
+        }
+    }
+
+    async function repairExecutionNode(nodeId = '') {
+        const normalizedNodeId = String(nodeId || '').trim();
+        if (!normalizedNodeId) {
+            toast(i18n.executionRepairNodeMissing || 'Node ID is required for repair.', 'error');
+            return;
+        }
+        try {
+            const response = await requestJson(`/panel/nodes/${encodeURIComponent(normalizedNodeId)}/onboarding/repair`, {
+                method: 'POST',
+            });
+            const message = response?.message
+                || i18n.executionRepairNodeStarted
+                || 'Node repair started in background.';
+            toast(message, 'success');
+        } catch (error) {
+            toast(`${i18n.executionRepairNodeFailed || 'Failed to start node repair.'} ${error.message}`, 'error');
         }
     }
 
@@ -1670,6 +1713,10 @@
                     startNodeId: String(button.getAttribute('data-start-node-id') || '').trim(),
                     chainKey: String(button.getAttribute('data-chain-key') || '').trim(),
                 });
+                return;
+            }
+            if (action === 'repair-node') {
+                repairExecutionNode(String(button.getAttribute('data-node-id') || '').trim());
             }
         });
         document.getElementById('builderExecutionFilterGroup')?.addEventListener('click', (event) => {
