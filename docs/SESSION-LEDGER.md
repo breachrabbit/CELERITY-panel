@@ -2,6 +2,23 @@
 
 ## 2026-04-17
 
+- Worked on: setup-status source separation for onboarding/legacy and deeper cascade failure diagnostics.
+- Finished with:
+  - added mode-aware setup-status onboarding job selector in `src/routes/panel/nodes.js`;
+  - setup-status now explicitly marks source (`statusSource`: onboarding/legacy/none);
+  - setup-status now avoids legacy-bridge source confusion when legacy setup is the active signal;
+  - expanded cascade deploy failure classifier with:
+    - `tls-handshake-failed`,
+    - `agent-api-timeout`,
+    - `port-bind-failed`,
+    - `resource-limits`;
+  - added RU/EN hint coverage and suggested action mapping for new classes;
+  - pushed code commit `891965a`;
+  - deployed on stand via Coolify deployment `kcmqx0qbbogrwyz3ehms5u1a` (`finished`, app `running:healthy`).
+- Next step:
+  - run one live mixed cascade execution and validate new classification/hints on real failed chains;
+  - continue staged retirement of remaining non-critical `setupJobs` paths without breaking legacy fallback.
+
 - Worked on: real mixed-run cascade validation + diagnostics deepening + staged onboarding retirement increment.
 - Finished with:
   - executed live mixed run with both success and failed chains in one execution cycle;

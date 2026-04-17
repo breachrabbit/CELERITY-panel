@@ -37,6 +37,52 @@
     - onboarding-full setup flow remains onboarding-primary in status/control reporting.
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-17 Stop-Point — Setup Status Source Split + Diagnostics Classification Expansion
+
+### What was delivered
+
+- `src/routes/panel/nodes.js`:
+  - added durable helper `findSetupStatusOnboardingJob(...)` for mode-aware onboarding job selection in setup-status;
+  - setup-status now prefers durable onboarding state for onboarding-full jobs;
+  - setup-status now prefers legacy in-memory setup state when a legacy setup job exists (prevents log/source confusion with legacy bridge jobs);
+  - added explicit `statusSource` marker in setup-status response (`onboarding` / `legacy` / `none`) for easier UI diagnostics and future retirement steps.
+- `src/routes/cascadeBuilder.js`:
+  - expanded deploy failure classification with new precise codes:
+    - `tls-handshake-failed`,
+    - `agent-api-timeout`,
+    - `port-bind-failed`,
+    - `resource-limits`;
+  - mapped new localized hints and suggested actions for these classes;
+  - critical-severity classification updated for port bind/TLS mismatch classes.
+- Locale coverage:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added new hint strings for the new failure classes.
+
+### Live verification done on stand
+
+- Code commit pushed: `891965a` (`feat: harden setup status source and enrich cascade failure diagnostics`).
+- Forced Coolify deployment completed:
+  - deployment UUID: `kcmqx0qbbogrwyz3ehms5u1a`;
+  - status: `finished`;
+  - application status: `running:healthy`.
+
+### Current stop-point
+
+- Code commit is live on stand.
+- Docs commit pending (this update).
+- Next iteration should run one real mixed cascade execution and confirm new failure classes/action hints on actual failed chains.
+
+### Best next step
+
+1. Run mixed cascade execution on stand (at least one failed chain) and verify:
+   - filter parity (`All / Failed / Success`);
+   - failed-only TXT/JSON output scope;
+   - visibility of new error classes/hints/actions in cards.
+2. Continue staged onboarding retirement:
+   - remove next non-critical `setupJobs` reads/writes from control paths;
+   - keep legacy fallback path untouched until parity is confirmed stable.
+
 ## 2026-04-17 Stop-Point — Real Mixed-Run Parity + Diagnostics Depth II
 
 ### What was delivered

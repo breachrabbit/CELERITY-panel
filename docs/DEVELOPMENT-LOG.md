@@ -1,5 +1,36 @@
 # Development Log
 
+## 2026-04-17 Setup-Status Source Split + Cascade Failure Classifier Expansion
+
+- Onboarding staged retirement increment (`src/routes/panel/nodes.js`):
+  - added mode-aware onboarding job selector for setup-status;
+  - setup-status now separates source preference:
+    - onboarding-full -> durable onboarding state/logs,
+    - legacy running setup -> legacy in-memory setup state/logs;
+  - added explicit `statusSource` in setup-status API response (`onboarding` / `legacy` / `none`) to simplify UI diagnostics and future decoupling.
+- Cascade diagnostics depth increment (`src/routes/cascadeBuilder.js`):
+  - added new deploy failure classes:
+    - `tls-handshake-failed`,
+    - `agent-api-timeout`,
+    - `port-bind-failed`,
+    - `resource-limits`;
+  - added localized hint mapping and suggested-action mapping for these classes;
+  - updated critical-severity mapping for high-impact classes.
+- Locale updates:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - new hint strings for the added error classes.
+- Operational validation:
+  - code commit: `891965a`;
+  - forced Coolify deploy: `kcmqx0qbbogrwyz3ehms5u1a`;
+  - deployment status: `finished`;
+  - stand status: `running:healthy`.
+
+Change types:
+
+- `stability fix` — cleaner setup-status source resolution for durable vs legacy setup paths
+- `local patch` — deeper cascade execution diagnostics and recovery hints/actions
+
 ## 2026-04-17 Real Mixed-Run Validation + Execution Diagnostics Deepening II
 
 - Ran a real mixed execution on the live builder with both outcomes in one run:
