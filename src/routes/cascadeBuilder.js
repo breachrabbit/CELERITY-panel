@@ -484,6 +484,29 @@ function buildNodeActionMatchers(nodeActions = []) {
     return { byId, byName };
 }
 
+function findNodeActionByMention(sourceText = '', matchers = {}) {
+    const text = String(sourceText || '').trim().toLowerCase();
+    if (!text) return null;
+
+    const byId = matchers?.byId instanceof Map ? matchers.byId : new Map();
+    for (const [nodeId, action] of byId.entries()) {
+        const normalizedNodeId = String(nodeId || '').trim().toLowerCase();
+        if (normalizedNodeId && text.includes(normalizedNodeId)) {
+            return action || null;
+        }
+    }
+
+    const byName = matchers?.byName instanceof Map ? matchers.byName : new Map();
+    for (const [nodeName, action] of byName.entries()) {
+        const normalizedNodeName = String(nodeName || '').trim().toLowerCase();
+        if (normalizedNodeName && text.includes(normalizedNodeName)) {
+            return action || null;
+        }
+    }
+
+    return null;
+}
+
 function findRelatedHopNames(nodeName, hopNames = []) {
     const normalizedNodeName = String(nodeName || '').trim().toLowerCase();
     if (!normalizedNodeName) return [];
@@ -735,8 +758,30 @@ function buildDeploySuggestedActions(code, { hasNodeId = false } = {}) {
     if (['service-not-active', 'runtime-install-failed', 'runtime-config-invalid', 'service-restart-failed', 'remote-file-missing', 'port-bind-failed', 'resource-limits', 'agent-api-timeout', 'tls-handshake-failed'].includes(code)) {
         actions.push('check-logs');
     }
-    if (hasNodeId && ['missing-ssh', 'ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed', 'sidecar-disabled', 'service-port-not-listening', 'remote-command-failed', 'generated-config-missing-marker', 'deploy-failed', 'service-not-active', 'runtime-install-failed', 'runtime-config-invalid', 'remote-file-missing', 'service-restart-failed', 'port-bind-failed', 'resource-limits', 'agent-api-timeout', 'tls-handshake-failed'].includes(code)) {
+    const repairableCodes = [
+        'missing-ssh',
+        'ssh-timeout',
+        'ssh-auth-failed',
+        'ssh-connect-failed',
+        'sidecar-disabled',
+        'service-port-not-listening',
+        'remote-command-failed',
+        'generated-config-missing-marker',
+        'deploy-failed',
+        'service-not-active',
+        'runtime-install-failed',
+        'runtime-config-invalid',
+        'remote-file-missing',
+        'service-restart-failed',
+        'port-bind-failed',
+        'resource-limits',
+        'agent-api-timeout',
+        'tls-handshake-failed',
+    ];
+
+    if (hasNodeId && repairableCodes.includes(code)) {
         actions.push('repair-node');
+        actions.push('repair-rerun-chain');
     }
     if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled', 'node-offline', 'hybrid-acl-inline-required', 'port-bind-failed', 'tls-handshake-failed'].includes(code)) {
         actions.push('review-chain');
@@ -745,7 +790,8 @@ function buildDeploySuggestedActions(code, { hasNodeId = false } = {}) {
 }
 
 function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeActions = [], hopNames = []) {
-    const { byName } = buildNodeActionMatchers(nodeActions);
+    const actionMatchers = buildNodeActionMatchers(nodeActions);
+    const { byName, byId } = actionMatchers;
     const rawList = Array.isArray(rawErrors) ? rawErrors : [];
     const displayList = Array.isArray(displayErrors) ? displayErrors : [];
     return rawList
@@ -761,7 +807,7 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
             if (nodeMatch) {
                 const rawNodeName = String(nodeMatch[1] || '').trim();
                 const rawMessage = String(nodeMatch[2] || '').trim();
-                const action = byName.get(rawNodeName.toLowerCase()) || null;
+                const action = byName.get(rawNodeName.toLowerCase()) || byId.get(rawNodeName) || null;
                 const displayMessage = displayText.startsWith(`${rawNodeName}:`)
                     ? String(displayText.slice(rawNodeName.length + 1)).trim()
                     : displayText;
@@ -798,6 +844,45 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                     message: message || rawText,
                     hint: localizeDeployRepairHint(res, code, { nodeName }),
                     suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: !!action?.nodeId }),
+                    relatedHops: isSingleHop ? [] : relatedHops,
+                    raw: rawText,
+                };
+            }
+
+            const actionMention = findNodeActionByMention(`${rawText} ${displayText}`, actionMatchers);
+            if (actionMention) {
+                const nodeName = String(actionMention.nodeName || '').trim();
+                const failedStep = extractDeployFailedStep(rawText, displayText);
+                const serviceState = extractDeployServiceState(rawText, displayText);
+                const code = classifyDeployErrorCode(rawText, displayText, failedStep);
+                const relatedHops = findRelatedHopNames(nodeName, hopNames);
+                const isSingleHop = relatedHops.length === 1;
+                const criticalCodes = new Set([
+                    'missing-ssh',
+                    'ssh-auth-failed',
+                    'hybrid-disabled',
+                    'sidecar-disabled',
+                    'custom-config-enabled',
+                    'mixed-chain-mode',
+                    'runtime-install-failed',
+                    'hybrid-acl-inline-required',
+                    'resource-not-found',
+                    'port-bind-failed',
+                    'tls-handshake-failed',
+                ]);
+                return {
+                    scope: isSingleHop ? 'hop' : 'node',
+                    code,
+                    severity: criticalCodes.has(code) ? 'critical' : 'error',
+                    nodeName,
+                    nodeId: String(actionMention.nodeId || ''),
+                    nodeStatus: String(actionMention.status || ''),
+                    hopName: isSingleHop ? relatedHops[0] : '',
+                    failedStep,
+                    serviceState,
+                    message: displayText || rawText,
+                    hint: localizeDeployRepairHint(res, code, { nodeName }),
+                    suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: !!actionMention?.nodeId }),
                     relatedHops: isSingleHop ? [] : relatedHops,
                     raw: rawText,
                 };

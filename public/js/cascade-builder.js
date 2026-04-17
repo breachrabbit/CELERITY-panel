@@ -72,6 +72,7 @@
     function getExecutionSuggestedActionLabel(action) {
         const normalized = String(action || '').trim().toLowerCase();
         if (normalized === 'rerun-chain') return t('executionSuggestedActionRerunChain', 'Retry chain');
+        if (normalized === 'repair-rerun-chain') return t('executionSuggestedActionRepairRerunChain', 'Repair + rerun');
         if (normalized === 'focus-node') return t('executionSuggestedActionFocusNode', 'Focus node');
         if (normalized === 'repair-node') return t('executionSuggestedActionRepairNode', 'Repair node');
         if (normalized === 'review-chain') return t('executionSuggestedActionReviewChain', 'Review chain settings');
@@ -122,6 +123,19 @@
                     <button class="btn btn-secondary btn-sm" type="button"
                         data-execution-action="repair-node"
                         data-node-id="${escapeHtml(candidateNodeId)}">
+                        ${label}
+                    </button>
+                `;
+            }
+            if (action === 'repair-rerun-chain') {
+                if (!candidateNodeId || !startNodeId) return '';
+                return `
+                    <button class="btn btn-secondary btn-sm" type="button"
+                        data-execution-action="repair-rerun-chain"
+                        data-node-id="${escapeHtml(candidateNodeId)}"
+                        data-chain-id="${escapeHtml(chainId)}"
+                        data-start-node-id="${escapeHtml(startNodeId)}"
+                        data-chain-key="${escapeHtml(chainKey)}">
                         ${label}
                     </button>
                 `;

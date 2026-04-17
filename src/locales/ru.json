@@ -1346,6 +1346,7 @@
     "executionErrorDetails": "Детали ошибки",
     "executionSuggestedActions": "Рекомендованные действия",
     "executionSuggestedActionRerunChain": "Повторить цепочку",
+    "executionSuggestedActionRepairRerunChain": "Восстановить и повторить цепочку",
     "executionSuggestedActionFocusNode": "Сфокусироваться на ноде",
     "executionSuggestedActionRepairNode": "Запустить восстановление ноды",
     "executionSuggestedActionReviewChain": "Проверить настройки цепочки",

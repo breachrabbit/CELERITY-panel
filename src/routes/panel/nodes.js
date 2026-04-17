@@ -1842,7 +1842,6 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Нода не найдена' });
         }
         const preferredSetupMode = resolvePanelSetupMode(node, req);
-        const legacyJob = getLegacySetupJob(req.params.id);
 
         let onboardingJob = null;
         try {
@@ -1865,6 +1864,9 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             }
             : null;
         const onboardingMode = resolveOnboardingJobSetupMode(onboardingJob);
+        const legacyJob = (!onboardingStatus || onboardingMode !== SETUP_MODE_ONBOARDING_FULL)
+            ? getLegacySetupJob(req.params.id)
+            : null;
         const shouldUseOnboardingStatus = Boolean(onboardingStatus)
             && (onboardingMode === SETUP_MODE_ONBOARDING_FULL || !legacyJob);
 

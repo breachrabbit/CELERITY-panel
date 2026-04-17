@@ -1340,6 +1340,7 @@
     "executionErrorDetails": "Error details",
     "executionSuggestedActions": "Suggested actions",
     "executionSuggestedActionRerunChain": "Retry chain",
+    "executionSuggestedActionRepairRerunChain": "Repair + rerun",
     "executionSuggestedActionFocusNode": "Focus node",
     "executionSuggestedActionRepairNode": "Run node repair",
     "executionSuggestedActionReviewChain": "Review chain settings",
