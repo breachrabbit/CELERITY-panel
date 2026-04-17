@@ -9,12 +9,21 @@ function tailText(value, maxLen = 1200) {
     return text.slice(text.length - maxLen);
 }
 
+function buildNonLoginShCommand(script) {
+    return `sh -c ${JSON.stringify(String(script || ''))}`;
+}
+
 function buildSshStepFailure(step, result, fallbackMessage = '') {
     const sshCode = Number.isFinite(Number(result?.code)) ? Number(result.code) : -1;
     const sshError = String(result?.error || fallbackMessage || `SSH step failed (${step})`);
     const stdoutTail = tailText(result?.stdout || '');
     const stderrTail = tailText(result?.stderr || '');
-    const message = `${step} failed: ${sshError}${sshCode >= 0 ? ` (code ${sshCode})` : ''}`;
+    const stderrFirstLine = String(stderrTail || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .find(Boolean) || '';
+    const stderrHint = stderrFirstLine ? ` — ${stderrFirstLine}` : '';
+    const message = `${step} failed: ${sshError}${sshCode >= 0 ? ` (code ${sshCode})` : ''}${stderrHint}`;
     const err = new Error(message);
     err.code = 'SSH_STEP_FAILED';
     err.details = {
@@ -75,7 +84,7 @@ async function runPreflight({ job, context = {} }) {
             'echo "__uptime__=$(uptime 2>/dev/null | sed -E \'s/ +/ /g\' || true)"',
         ].join('\n');
 
-        const result = await nodeSetup.execSSH(conn, `sh -lc ${JSON.stringify(probeCmd)}`, {
+        const result = await nodeSetup.execSSH(conn, buildNonLoginShCommand(probeCmd), {
             onStdoutLine: onLogLine ? (line) => onLogLine(`[preflight] ${line}`) : null,
             onStderrLine: onLogLine ? (line) => onLogLine(`[preflight][stderr] ${line}`) : null,
         });
@@ -122,7 +131,7 @@ async function runPrepareHost({ job, context = {} }) {
             'echo "__prepared__=1"',
         ].join('\n');
 
-        const result = await nodeSetup.execSSH(conn, `sh -lc ${JSON.stringify(prepareCmd)}`, {
+        const result = await nodeSetup.execSSH(conn, buildNonLoginShCommand(prepareCmd), {
             onStdoutLine: onLogLine ? (line) => onLogLine(`[prepare-host] ${line}`) : null,
             onStderrLine: onLogLine ? (line) => onLogLine(`[prepare-host][stderr] ${line}`) : null,
         });
@@ -290,7 +299,7 @@ async function runVerifyAgentLocal({ job }) {
             'echo "__port_ok__=${PORT_OK}"',
         ].join('\n');
 
-        const result = await nodeSetup.execSSH(conn, `sh -lc ${JSON.stringify(verifyCmd)}`);
+        const result = await nodeSetup.execSSH(conn, buildNonLoginShCommand(verifyCmd));
         const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
         const serviceState = (output.match(/__service__=(.+)/) || [])[1] || 'unknown';
         const portOk = Number((output.match(/__port_ok__=(\d+)/) || [])[1] || 0) === 1;
