@@ -1435,21 +1435,23 @@ router.post('/nodes/:id/setup', async (req, res) => {
             logger.warn(`[Panel] setup start onboarding read warning: ${onboardingReadError.message}`);
         }
 
-        const legacyJob = getLegacySetupJob(req.params.id);
-        if (legacyJob?.state === 'running') {
-            return res.status(202).json({
-                success: true,
-                running: true,
-                state: 'running',
-                message: 'Setup уже выполняется',
-                logs: legacyJob.logs || [],
-                startedAt: legacyJob.startedAt,
-                onboardingJobId: legacyJob.onboardingJobId || '',
-                setupMode: SETUP_MODE_LEGACY,
-            });
+        const selectedMode = resolvePanelSetupMode(node, req);
+        if (selectedMode === SETUP_MODE_LEGACY) {
+            const legacyJob = getLegacySetupJob(req.params.id);
+            if (legacyJob?.state === 'running') {
+                return res.status(202).json({
+                    success: true,
+                    running: true,
+                    state: 'running',
+                    message: 'Setup уже выполняется',
+                    logs: legacyJob.logs || [],
+                    startedAt: legacyJob.startedAt,
+                    onboardingJobId: legacyJob.onboardingJobId || '',
+                    setupMode: SETUP_MODE_LEGACY,
+                });
+            }
         }
 
-        const selectedMode = resolvePanelSetupMode(node, req);
         let onboardingJobId = '';
         try {
             onboardingJobId = await ensureOnboardingJobForSetup(node, `panel:${node.name}`, selectedMode);
@@ -1523,20 +1525,6 @@ router.post('/nodes/:id/onboarding/resume', async (req, res) => {
                 startedAt: activeOnboardingRunning.startedAt || null,
                 onboardingJobId: activeOnboardingRunning.id,
                 setupMode: SETUP_MODE_ONBOARDING_FULL,
-            });
-        }
-
-        const activeSetup = getLegacySetupJob(req.params.id);
-        if (activeSetup?.state === 'running') {
-            return res.status(202).json({
-                success: true,
-                running: true,
-                state: 'running',
-                message: 'Setup уже выполняется',
-                logs: activeSetup.logs || [],
-                startedAt: activeSetup.startedAt || null,
-                onboardingJobId: activeSetup.onboardingJobId || '',
-                setupMode: SETUP_MODE_LEGACY,
             });
         }
 
@@ -1648,20 +1636,6 @@ router.post('/nodes/:id/onboarding/repair', async (req, res) => {
             });
         }
 
-        const activeSetup = getLegacySetupJob(req.params.id);
-        if (activeSetup?.state === 'running') {
-            return res.status(202).json({
-                success: true,
-                running: true,
-                state: 'running',
-                message: 'Setup уже выполняется',
-                logs: activeSetup.logs || [],
-                startedAt: activeSetup.startedAt || null,
-                onboardingJobId: activeSetup.onboardingJobId || '',
-                setupMode: SETUP_MODE_LEGACY,
-            });
-        }
-
         let repairJob = null;
         if (activeOnboarding && canResumeOnboardingStatus(activeOnboarding.status) && !isLegacyBridgeOnboardingJob(activeOnboarding)) {
             repairJob = activeOnboarding.status === 'queued'
@@ -1745,20 +1719,6 @@ router.post('/nodes/:id/onboarding/rerun-step', async (req, res) => {
                 startedAt: activeOnboarding.startedAt || null,
                 onboardingJobId: activeOnboarding.id,
                 setupMode: SETUP_MODE_ONBOARDING_FULL,
-            });
-        }
-
-        const activeSetup = getLegacySetupJob(req.params.id);
-        if (activeSetup?.state === 'running') {
-            return res.status(202).json({
-                success: true,
-                running: true,
-                state: 'running',
-                message: 'Setup уже выполняется',
-                logs: activeSetup.logs || [],
-                startedAt: activeSetup.startedAt || null,
-                onboardingJobId: activeSetup.onboardingJobId || '',
-                setupMode: SETUP_MODE_LEGACY,
             });
         }
 

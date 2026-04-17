@@ -643,6 +643,17 @@
     margin-top: 10px;
 }
 
+.builder-execution-chain-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.builder-execution-chain-actions .btn {
+    flex: 1 1 auto;
+}
+
 .builder-plan-action {
     padding: 12px;
 }

@@ -472,6 +472,99 @@ function localizeDeployErrorMessage(res, message) {
     return localizePlanMessage(res, text);
 }
 
+function buildNodeActionMatchers(nodeActions = []) {
+    const byId = new Map();
+    const byName = new Map();
+    for (const action of Array.isArray(nodeActions) ? nodeActions : []) {
+        const nodeId = String(action?.nodeId || '').trim();
+        const nodeName = String(action?.nodeName || '').trim();
+        if (nodeId) byId.set(nodeId, action);
+        if (nodeName) byName.set(nodeName.toLowerCase(), action);
+    }
+    return { byId, byName };
+}
+
+function findRelatedHopNames(nodeName, hopNames = []) {
+    const normalizedNodeName = String(nodeName || '').trim().toLowerCase();
+    if (!normalizedNodeName) return [];
+    return (Array.isArray(hopNames) ? hopNames : [])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .filter((item) => item.toLowerCase().includes(normalizedNodeName))
+        .slice(0, 3);
+}
+
+function buildDeployErrorDetails(errors = [], nodeActions = [], hopNames = []) {
+    const { byName } = buildNodeActionMatchers(nodeActions);
+    return (Array.isArray(errors) ? errors : [])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .map((errorText) => {
+            const nodeMatch = errorText.match(/^([^:]{1,180}):\s+(.+)$/);
+            if (nodeMatch) {
+                const rawNodeName = String(nodeMatch[1] || '').trim();
+                const message = String(nodeMatch[2] || '').trim();
+                const action = byName.get(rawNodeName.toLowerCase()) || null;
+                return {
+                    scope: 'node',
+                    nodeName: action?.nodeName || rawNodeName,
+                    nodeId: String(action?.nodeId || ''),
+                    message: message || errorText,
+                    relatedHops: findRelatedHopNames(rawNodeName, hopNames),
+                    raw: errorText,
+                };
+            }
+
+            return {
+                scope: 'chain',
+                nodeName: '',
+                nodeId: '',
+                message: errorText,
+                relatedHops: [],
+                raw: errorText,
+            };
+        });
+}
+
+function buildDeploymentResultEntry({
+    res,
+    target,
+    chain,
+    startNode,
+    hopNames = [],
+    deployResult = null,
+    thrownError = null,
+}) {
+    const success = !thrownError && !!deployResult?.success;
+    const rawErrors = thrownError
+        ? [thrownError?.message || thrownError]
+        : (success
+            ? []
+            : (Array.isArray(deployResult?.errors) ? deployResult.errors : [tFor(res, 'network.chainDeployFailed', 'Chain deploy failed')]));
+    const localizedErrors = rawErrors.map((item) => localizeDeployErrorMessage(res, item));
+    const nodeActions = Array.isArray(chain?.nodeActions) ? chain.nodeActions : [];
+    const errorDetails = buildDeployErrorDetails(localizedErrors, nodeActions, hopNames);
+
+    return {
+        chainId: target.chainId,
+        chainName: target.chainId || String(startNode?.name || target.startNodeId || 'adhoc-chain'),
+        startNodeId: target.startNodeId,
+        startNodeName: startNode?.name || String(target.startNodeId || ''),
+        chainMode: chain?.chainMode || 'unknown',
+        nodeCount: Number(chain?.nodeCount || chain?.nodeIds?.length || 1),
+        draftHopCount: Number(chain?.draftHopCount || 0),
+        liveHopCount: Number(chain?.liveHopCount || 0),
+        nodeActions,
+        deployWarnings: Array.isArray(chain?.deployWarnings) ? chain.deployWarnings : [],
+        hopNames,
+        success,
+        deployed: Number(deployResult?.deployed || 0),
+        errors: localizedErrors,
+        errorDetails,
+        primaryError: errorDetails[0]?.message || localizedErrors[0] || '',
+    };
+}
+
 function sanitizeExecutionFailureItems(items = []) {
     return Array.isArray(items)
         ? items
@@ -1081,43 +1174,23 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
                 const startNode = nodeById.get(String(target.startNodeId || ''));
                 try {
                     const deployResult = await cascadeService.deployChain(target.startNodeId);
-                    const success = !!deployResult?.success;
-                    const errors = success
-                        ? []
-                        : (Array.isArray(deployResult?.errors) ? deployResult.errors : [tFor(res, 'network.chainDeployFailed', 'Chain deploy failed')]);
-                    deployResults.push({
-                        chainId: target.chainId,
-                        chainName: target.chainId || String(startNode?.name || target.startNodeId || 'adhoc-chain'),
-                        startNodeId: target.startNodeId,
-                        startNodeName: startNode?.name || String(target.startNodeId || ''),
-                        chainMode: chain?.chainMode || 'unknown',
-                        nodeCount: Number(chain?.nodeCount || chain?.nodeIds?.length || 1),
-                        draftHopCount: Number(chain?.draftHopCount || 0),
-                        liveHopCount: Number(chain?.liveHopCount || 0),
-                        nodeActions: Array.isArray(chain?.nodeActions) ? chain.nodeActions : [],
-                        deployWarnings: Array.isArray(chain?.deployWarnings) ? chain.deployWarnings : [],
+                    deployResults.push(buildDeploymentResultEntry({
+                        res,
+                        target,
+                        chain,
+                        startNode,
                         hopNames,
-                        success,
-                        deployed: Number(deployResult?.deployed || 0),
-                        errors: errors.map((item) => localizeDeployErrorMessage(res, item)),
-                    });
+                        deployResult,
+                    }));
                 } catch (error) {
-                    deployResults.push({
-                        chainId: target.chainId,
-                        chainName: target.chainId || String(startNode?.name || target.startNodeId || 'adhoc-chain'),
-                        startNodeId: target.startNodeId,
-                        startNodeName: startNode?.name || String(target.startNodeId || ''),
-                        chainMode: chain?.chainMode || 'unknown',
-                        nodeCount: Number(chain?.nodeCount || chain?.nodeIds?.length || 1),
-                        draftHopCount: Number(chain?.draftHopCount || 0),
-                        liveHopCount: Number(chain?.liveHopCount || 0),
-                        nodeActions: Array.isArray(chain?.nodeActions) ? chain.nodeActions : [],
-                        deployWarnings: Array.isArray(chain?.deployWarnings) ? chain.deployWarnings : [],
+                    deployResults.push(buildDeploymentResultEntry({
+                        res,
+                        target,
+                        chain,
+                        startNode,
                         hopNames,
-                        success: false,
-                        deployed: 0,
-                        errors: [localizeDeployErrorMessage(res, error.message || tFor(res, 'network.chainDeployFailed', 'Chain deploy failed'))],
-                    });
+                        thrownError: error,
+                    }));
                 }
             }
 
@@ -1176,6 +1249,124 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
     } catch (error) {
         logger.error(`[Cascade Builder API] Commit drafts error: ${error.message}`);
         res.status(500).json({ error: localizeBuilderApiError(res, error) });
+    }
+});
+
+router.post('/rerun-chain', requireScope('nodes:write'), async (req, res) => {
+    try {
+        const startNodeId = String(req.body?.startNodeId || '').trim();
+        const requestedChainId = String(req.body?.chainId || '').trim();
+        if (!startNodeId) {
+            return res.status(400).json({
+                success: false,
+                error: tFor(res, 'cascades.executionRerunMissingStartNode', 'Start node is required to rerun a chain.'),
+            });
+        }
+
+        const state = await buildState(req);
+        const activeLinks = await CascadeLink.find({ active: true })
+            .select('name mode portalNode bridgeNode tunnelPort status')
+            .lean();
+        const plan = localizePlan(res, buildCommitPlan({
+            nodes: state.nodes,
+            hops: state.hops,
+            activeLinks,
+        }));
+        const chainById = new Map(
+            (Array.isArray(plan?.chains) ? plan.chains : [])
+                .map((chain) => [String(chain?.id || ''), chain]),
+        );
+        const nodeById = new Map(
+            (Array.isArray(state?.nodes) ? state.nodes : [])
+                .map((node) => [String(node.id || ''), node]),
+        );
+        const hopNamesByChain = new Map();
+        for (const hop of Array.isArray(plan?.hops) ? plan.hops : []) {
+            const chainId = String(hop?.componentId || '');
+            if (!chainId) continue;
+            if (!hopNamesByChain.has(chainId)) hopNamesByChain.set(chainId, []);
+            hopNamesByChain.get(chainId).push(hop.name || `${hop.sourceNodeName} -> ${hop.targetNodeName}`);
+        }
+
+        const fallbackStartNode = await HyNode.findById(startNodeId).select('_id name').lean();
+        const startNode = nodeById.get(startNodeId) || (fallbackStartNode
+            ? { id: String(fallbackStartNode._id), name: fallbackStartNode.name }
+            : null);
+        const chain = requestedChainId ? chainById.get(requestedChainId) : null;
+        const target = {
+            chainId: requestedChainId || null,
+            startNodeId,
+        };
+        const hopNames = requestedChainId ? (hopNamesByChain.get(requestedChainId) || []) : [];
+
+        let result;
+        try {
+            const deployResult = await cascadeService.deployChain(startNodeId);
+            result = buildDeploymentResultEntry({
+                res,
+                target,
+                chain,
+                startNode,
+                hopNames,
+                deployResult,
+            });
+        } catch (error) {
+            result = buildDeploymentResultEntry({
+                res,
+                target,
+                chain,
+                startNode,
+                hopNames,
+                thrownError: error,
+            });
+        }
+
+        const storedDraft = await getStoredDraft(req, state.flowId);
+        const previousExecution = (storedDraft?.lastExecution && typeof storedDraft.lastExecution === 'object')
+            ? storedDraft.lastExecution
+            : null;
+        if (previousExecution) {
+            const rerunEntry = {
+                at: new Date().toISOString(),
+                chainId: result.chainId || '',
+                startNodeId: result.startNodeId || '',
+                success: !!result.success,
+                deployed: Number(result.deployed || 0),
+                errors: Array.isArray(result.errors) ? result.errors : [],
+                errorDetails: Array.isArray(result.errorDetails) ? result.errorDetails : [],
+            };
+            const previousReruns = Array.isArray(previousExecution.reruns) ? previousExecution.reruns : [];
+            previousExecution.reruns = [rerunEntry, ...previousReruns].slice(0, 20);
+            if (previousExecution.deployment && Array.isArray(previousExecution.deployment.results)) {
+                previousExecution.deployment.results = previousExecution.deployment.results.map((item) => {
+                    const sameChain = result.chainId && item?.chainId && String(item.chainId) === String(result.chainId);
+                    const sameStart = !result.chainId && String(item?.startNodeId || '') === String(result.startNodeId || '');
+                    if (!sameChain && !sameStart) return item;
+                    return {
+                        ...item,
+                        lastRerun: rerunEntry,
+                    };
+                });
+            }
+            await saveStoredDraft(req, state.flowId, {
+                draftHops: Array.isArray(storedDraft?.draftHops) ? storedDraft.draftHops : [],
+                nodePositions: storedDraft?.nodePositions && typeof storedDraft.nodePositions === 'object'
+                    ? storedDraft.nodePositions
+                    : {},
+                lastExecution: previousExecution,
+            });
+        }
+
+        return res.json({
+            success: !!result.success,
+            result,
+        });
+    } catch (error) {
+        logger.error(`[Cascade Builder API] Rerun chain error: ${error.message}`);
+        return res.status(500).json({
+            success: false,
+            error: localizeBuilderApiError(res, error),
+        });
     }
 });
 

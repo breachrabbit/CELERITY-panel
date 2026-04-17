@@ -27,6 +27,7 @@
         cy: null,
         edgehandles: null,
         execution: null,
+        executionReruns: {},
         executionFilter: 'all',
         selection: { type: null, id: null },
     };
@@ -540,10 +541,17 @@
 
         if (!execution || typeof execution !== 'object') {
             state.execution = null;
+            state.executionReruns = {};
             badge.textContent = '—';
             syncExecutionFilterUi(null);
             root.innerHTML = `<p class="builder-validation-empty">${escapeHtml(i18n.executionEmpty || 'No execution runs yet.')}</p>`;
             return;
+        }
+
+        const previousExecutionCreatedAt = String(state.execution?.createdAt || '');
+        const nextExecutionCreatedAt = String(execution.createdAt || '');
+        if (previousExecutionCreatedAt && nextExecutionCreatedAt && previousExecutionCreatedAt !== nextExecutionCreatedAt) {
+            state.executionReruns = {};
         }
 
         state.execution = execution;
@@ -624,11 +632,15 @@
 
         const chainResultsBlock = deployment && deployResults.length
             ? (filteredResults.length
-                ? filteredResults.map((item) => {
+                ? filteredResults.map((item, index) => {
                 const warnings = Array.isArray(item.deployWarnings) ? item.deployWarnings : [];
                 const errors = Array.isArray(item.errors) ? item.errors : [];
+                const errorDetails = Array.isArray(item.errorDetails) ? item.errorDetails : [];
                 const nodeActions = Array.isArray(item.nodeActions) ? item.nodeActions : [];
                 const hopNames = Array.isArray(item.hopNames) ? item.hopNames : [];
+                const chainKey = String(item.chainId || item.startNodeId || item.chainName || `chain-${index + 1}`);
+                const rerunResult = state.executionReruns[chainKey] || item.lastRerun || null;
+                const rerunErrors = Array.isArray(rerunResult?.errors) ? rerunResult.errors : [];
                 return `
                     <div class="builder-plan-card">
                         <div class="builder-plan-card-head">
@@ -657,6 +669,42 @@
                             <div class="builder-plan-actions-title">${escapeHtml(i18n.executionErrors || 'Errors')}</div>
                             <div class="builder-plan-message-list">
                                 ${errors.map((err) => `<div class="builder-validation-item error">${escapeHtml(err)}</div>`).join('')}
+                            </div>
+                        ` : ''}
+                        ${errorDetails.length ? `
+                            <div class="builder-plan-actions-title">${escapeHtml(i18n.executionErrorDetails || 'Error details')}</div>
+                            <div class="builder-plan-message-list">
+                                ${errorDetails.map((detail) => {
+                                    const detailPrefix = detail.scope === 'node'
+                                        ? `${detail.nodeName || detail.nodeId || (i18n.executionNodeActions || 'Node')}: `
+                                        : '';
+                                    const hopHint = Array.isArray(detail.relatedHops) && detail.relatedHops.length
+                                        ? ` (${(i18n.executionHopNames || 'Hop set')}: ${detail.relatedHops.join(', ')})`
+                                        : '';
+                                    return `<div class="builder-validation-item error">${escapeHtml(`${detailPrefix}${detail.message || detail.raw || '—'}${hopHint}`)}</div>`;
+                                }).join('')}
+                            </div>
+                        ` : ''}
+                        ${!item.success ? `
+                            <div class="builder-plan-actions-title">${escapeHtml(i18n.executionActions || 'Actions')}</div>
+                            <div class="builder-execution-chain-actions">
+                                <button class="btn btn-secondary btn-sm" type="button" data-execution-action="focus-node" data-start-node-id="${escapeHtml(item.startNodeId || '')}">
+                                    <i class="ti ti-focus-2"></i>
+                                    <span>${escapeHtml(i18n.executionFocusNode || 'Focus node')}</span>
+                                </button>
+                                <button class="btn btn-secondary btn-sm" type="button" data-execution-action="rerun-chain" data-chain-id="${escapeHtml(item.chainId || '')}" data-start-node-id="${escapeHtml(item.startNodeId || '')}" data-chain-key="${escapeHtml(chainKey)}">
+                                    <i class="ti ti-refresh"></i>
+                                    <span>${escapeHtml(i18n.executionRetryChain || 'Retry chain')}</span>
+                                </button>
+                            </div>
+                        ` : ''}
+                        ${rerunResult ? `
+                            <div class="builder-plan-actions-title">${escapeHtml(i18n.executionLastRerun || 'Last rerun')}</div>
+                            <div class="builder-plan-message-list">
+                                <div class="builder-validation-item ${rerunResult.success ? '' : 'error'}">
+                                    <strong>${escapeHtml(formatExecutionTime(rerunResult.at || rerunResult.createdAt || ''))}</strong>
+                                    <span>${escapeHtml(rerunResult.success ? (i18n.previewReady || 'Ready') : (i18n.previewBlocked || 'Blocked'))}${rerunErrors.length ? ` · ${escapeHtml(rerunErrors[0])}` : ''}</span>
+                                </div>
                             </div>
                         ` : ''}
                         ${nodeActions.length ? `
@@ -928,6 +976,43 @@
         const payload = buildExecutionDiagnosticsPayload(state.execution);
         const jsonText = JSON.stringify(payload, null, 2);
         await copyTextToClipboard(jsonText, i18n.executionCopyJsonDone || 'Execution diagnostics JSON copied.');
+    }
+
+    async function rerunExecutionChain({ chainId = '', startNodeId = '', chainKey = '' } = {}) {
+        if (!startNodeId) {
+            toast(i18n.executionRerunMissingStartNode || 'Start node is required to rerun this chain.', 'error');
+            return;
+        }
+        try {
+            const response = await requestJson('/api/cascade-builder/rerun-chain', {
+                method: 'POST',
+                body: JSON.stringify({
+                    chainId: chainId || undefined,
+                    startNodeId,
+                }),
+            });
+            const result = response?.result && typeof response.result === 'object'
+                ? response.result
+                : null;
+            if (result) {
+                const resolvedKey = String(chainKey || result.chainId || result.startNodeId || '');
+                if (resolvedKey) {
+                    state.executionReruns[resolvedKey] = {
+                        at: new Date().toISOString(),
+                        ...result,
+                    };
+                }
+            }
+            renderExecutionResult(state.execution);
+            toast(
+                response?.success
+                    ? (i18n.executionRerunDone || 'Chain rerun completed.')
+                    : (i18n.executionRerunFailed || 'Chain rerun failed.'),
+                response?.success ? 'success' : 'error',
+            );
+        } catch (error) {
+            toast(`${i18n.executionRerunFailed || 'Chain rerun failed.'} ${error.message}`, 'error');
+        }
     }
 
     function renderNodeInspector(node) {
@@ -1568,6 +1653,25 @@
         document.getElementById('builderExecutionCopyFailedOnly')?.addEventListener('click', () => copyExecutionDiagnosticsFailedCompact());
         document.getElementById('builderExecutionCopyFailedJson')?.addEventListener('click', () => copyExecutionDiagnosticsFailedJson());
         document.getElementById('builderExecutionCopyJson')?.addEventListener('click', () => copyExecutionDiagnosticsJson());
+        document.getElementById('builderExecutionList')?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-execution-action]');
+            if (!button) return;
+            const action = String(button.getAttribute('data-execution-action') || '').trim();
+            if (action === 'focus-node') {
+                const startNodeId = String(button.getAttribute('data-start-node-id') || '').trim();
+                if (!startNodeId || !focusNodeById(startNodeId)) {
+                    toast(i18n.executionFocusNodeFailed || 'Unable to focus start node.', 'error');
+                }
+                return;
+            }
+            if (action === 'rerun-chain') {
+                rerunExecutionChain({
+                    chainId: String(button.getAttribute('data-chain-id') || '').trim(),
+                    startNodeId: String(button.getAttribute('data-start-node-id') || '').trim(),
+                    chainKey: String(button.getAttribute('data-chain-key') || '').trim(),
+                });
+            }
+        });
         document.getElementById('builderExecutionFilterGroup')?.addEventListener('click', (event) => {
             const button = event.target.closest('[data-execution-filter]');
             if (!button) return;
