@@ -27,6 +27,7 @@
         cy: null,
         edgehandles: null,
         execution: null,
+        executionFilter: 'all',
         selection: { type: null, id: null },
     };
     const HOP_MODE_OPTIONS = ['reverse', 'forward'];
@@ -495,6 +496,43 @@
         return timestamp.toLocaleString();
     }
 
+    function normalizeExecutionFilter(value) {
+        const normalized = String(value || 'all').trim().toLowerCase();
+        if (normalized === 'failed' || normalized === 'success') return normalized;
+        return 'all';
+    }
+
+    function getExecutionDeployResults(execution) {
+        const deployment = execution?.deployment && typeof execution.deployment === 'object'
+            ? execution.deployment
+            : null;
+        const results = deployment && Array.isArray(deployment.results)
+            ? deployment.results
+            : [];
+        return { deployment, results };
+    }
+
+    function applyExecutionFilter(results, filter) {
+        const activeFilter = normalizeExecutionFilter(filter);
+        if (activeFilter === 'failed') return results.filter((item) => !item?.success);
+        if (activeFilter === 'success') return results.filter((item) => !!item?.success);
+        return results;
+    }
+
+    function syncExecutionFilterUi(execution) {
+        const filterGroup = document.getElementById('builderExecutionFilterGroup');
+        if (!filterGroup) return;
+        const { deployment, results } = getExecutionDeployResults(execution);
+        const disabled = !deployment || results.length === 0;
+        filterGroup.querySelectorAll('[data-execution-filter]').forEach((button) => {
+            const filterValue = normalizeExecutionFilter(button.getAttribute('data-execution-filter'));
+            const active = filterValue === normalizeExecutionFilter(state.executionFilter);
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            button.disabled = disabled;
+        });
+    }
+
     function renderExecutionResult(execution) {
         const root = document.getElementById('builderExecutionList');
         const badge = document.getElementById('builderExecutionBadge');
@@ -503,20 +541,26 @@
         if (!execution || typeof execution !== 'object') {
             state.execution = null;
             badge.textContent = '—';
+            syncExecutionFilterUi(null);
             root.innerHTML = `<p class="builder-validation-empty">${escapeHtml(i18n.executionEmpty || 'No execution runs yet.')}</p>`;
             return;
         }
 
         state.execution = execution;
+        state.executionFilter = normalizeExecutionFilter(state.executionFilter);
 
         const deployment = execution.deployment && typeof execution.deployment === 'object'
             ? execution.deployment
             : null;
         const failureItems = Array.isArray(execution.failureItems) ? execution.failureItems : [];
-        const deploymentFailures = deployment && Array.isArray(deployment.results)
-            ? deployment.results.filter((entry) => !entry.success)
+        const deployResults = deployment && Array.isArray(deployment.results)
+            ? deployment.results
             : [];
+        const deploymentFailures = deployResults.filter((entry) => !entry.success);
         const hasIssues = failureItems.length > 0 || deploymentFailures.length > 0;
+        const filteredResults = applyExecutionFilter(deployResults, state.executionFilter);
+
+        syncExecutionFilterUi(execution);
 
         badge.textContent = hasIssues
             ? escapeHtml(i18n.previewBlocked || 'Blocked')
@@ -578,8 +622,9 @@
             `
             : '';
 
-        const chainResultsBlock = deployment && Array.isArray(deployment.results) && deployment.results.length
-            ? deployment.results.map((item) => {
+        const chainResultsBlock = deployment && deployResults.length
+            ? (filteredResults.length
+                ? filteredResults.map((item) => {
                 const warnings = Array.isArray(item.deployWarnings) ? item.deployWarnings : [];
                 const errors = Array.isArray(item.errors) ? item.errors : [];
                 const nodeActions = Array.isArray(item.nodeActions) ? item.nodeActions : [];
@@ -630,6 +675,7 @@
                     </div>
                 `;
             }).join('')
+                : `<p class="builder-validation-empty">${escapeHtml(i18n.executionFilterEmpty || 'No chains match the selected filter.')}</p>`)
             : `<p class="builder-validation-empty">${escapeHtml(i18n.executionDeploySkipped || 'Deploy was not requested in this run.')}</p>`;
 
         root.innerHTML = `${summaryBlock}${commitFailuresBlock}${chainResultsBlock}`;
@@ -737,15 +783,12 @@
             return i18n.executionEmpty || 'No execution runs yet.';
         }
 
-        const deployment = execution.deployment && typeof execution.deployment === 'object'
-            ? execution.deployment
-            : null;
+        const { deployment, results: deployResults } = getExecutionDeployResults(execution);
 
         if (!deployment) {
             return i18n.executionCopyFailedOnlyEmpty || 'No failed chains in the last execution.';
         }
 
-        const deployResults = Array.isArray(deployment.results) ? deployment.results : [];
         const failedItems = deployResults.filter((item) => !item?.success);
 
         if (!failedItems.length) {
@@ -771,6 +814,71 @@
         });
 
         return lines.join('\n');
+    }
+
+    function buildExecutionFailedOnlyPayload(execution) {
+        const emptyPayload = {
+            exportType: 'cascade-execution-failed-only',
+            exportedAt: new Date().toISOString(),
+            hasExecution: false,
+            hasFailedChains: false,
+            message: i18n.executionEmpty || 'No execution runs yet.',
+        };
+
+        if (!execution || typeof execution !== 'object') {
+            return emptyPayload;
+        }
+
+        const { deployment, results } = getExecutionDeployResults(execution);
+        const failedItems = results.filter((item) => !item?.success);
+        const title = execution.type === 'commit-deploy'
+            ? 'commit-deploy'
+            : 'commit-only';
+
+        if (!deployment) {
+            return {
+                ...emptyPayload,
+                hasExecution: true,
+                message: i18n.executionCopyFailedOnlyEmpty || 'No failed chains in the last execution.',
+                execution: {
+                    type: title,
+                    createdAt: execution.createdAt || null,
+                    committed: Number(execution.committed || 0),
+                    failed: Number(execution.failed || 0),
+                    chains: 0,
+                    failedChains: 0,
+                },
+                failedChains: [],
+            };
+        }
+
+        return {
+            exportType: 'cascade-execution-failed-only',
+            exportedAt: new Date().toISOString(),
+            hasExecution: true,
+            hasFailedChains: failedItems.length > 0,
+            execution: {
+                type: title,
+                createdAt: execution.createdAt || null,
+                committed: Number(execution.committed || 0),
+                failed: Number(execution.failed || 0),
+                chains: Number(deployment.chains || 0),
+                failedChains: Number(deployment.failedChains || failedItems.length),
+            },
+            failedChains: failedItems.map((item, index) => ({
+                chainName: item.chainName || item.chainId || item.startNodeName || item.startNodeId || `chain-${index + 1}`,
+                chainId: item.chainId || null,
+                startNodeName: item.startNodeName || null,
+                startNodeId: item.startNodeId || null,
+                mode: item.chainMode || null,
+                liveHopCount: Number(item.liveHopCount || 0),
+                draftHopCount: Number(item.draftHopCount || 0),
+                hopNames: Array.isArray(item.hopNames) ? item.hopNames : [],
+                errors: Array.isArray(item.errors) ? item.errors : [],
+                warnings: Array.isArray(item.deployWarnings) ? item.deployWarnings : [],
+                nodeActions: Array.isArray(item.nodeActions) ? item.nodeActions : [],
+            })),
+        };
     }
 
     async function copyTextToClipboard(text, successMessage) {
@@ -804,6 +912,15 @@
         await copyTextToClipboard(
             text,
             i18n.executionCopyFailedOnlyDone || 'Failed chains diagnostics copied.',
+        );
+    }
+
+    async function copyExecutionDiagnosticsFailedJson() {
+        const payload = buildExecutionFailedOnlyPayload(state.execution);
+        const jsonText = JSON.stringify(payload, null, 2);
+        await copyTextToClipboard(
+            jsonText,
+            i18n.executionCopyFailedJsonDone || 'Failed chains diagnostics JSON copied.',
         );
     }
 
@@ -1449,7 +1566,17 @@
         document.getElementById('builderResetDrafts')?.addEventListener('click', resetDrafts);
         document.getElementById('builderExecutionCopyText')?.addEventListener('click', () => copyExecutionDiagnosticsText());
         document.getElementById('builderExecutionCopyFailedOnly')?.addEventListener('click', () => copyExecutionDiagnosticsFailedCompact());
+        document.getElementById('builderExecutionCopyFailedJson')?.addEventListener('click', () => copyExecutionDiagnosticsFailedJson());
         document.getElementById('builderExecutionCopyJson')?.addEventListener('click', () => copyExecutionDiagnosticsJson());
+        document.getElementById('builderExecutionFilterGroup')?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-execution-filter]');
+            if (!button) return;
+            const nextFilter = normalizeExecutionFilter(button.getAttribute('data-execution-filter'));
+            if (nextFilter === state.executionFilter) return;
+            state.executionFilter = nextFilter;
+            syncExecutionFilterUi(state.execution);
+            renderExecutionResult(state.execution);
+        });
         document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));
         document.getElementById('builderAutoLayout')?.addEventListener('click', () => {
             if (!state.cy) return;

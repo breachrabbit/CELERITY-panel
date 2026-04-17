@@ -124,6 +124,17 @@
                 <div class="builder-validation-head">
                     <h4><%= t('cascades.executionTitle') %></h4>
                     <div class="builder-validation-head-actions">
+                        <div class="builder-execution-filter-group" id="builderExecutionFilterGroup">
+                            <button class="builder-execution-filter is-active" type="button" data-execution-filter="all">
+                                <%= t('cascades.executionFilterAll') %>
+                            </button>
+                            <button class="builder-execution-filter" type="button" data-execution-filter="failed">
+                                <%= t('cascades.executionFilterFailed') %>
+                            </button>
+                            <button class="builder-execution-filter" type="button" data-execution-filter="success">
+                                <%= t('cascades.executionFilterSuccess') %>
+                            </button>
+                        </div>
                         <button class="btn btn-secondary btn-sm" id="builderExecutionCopyText" type="button">
                             <i class="ti ti-copy"></i>
                             <span><%= t('cascades.executionCopyText') %></span>
@@ -131,6 +142,10 @@
                         <button class="btn btn-secondary btn-sm" id="builderExecutionCopyFailedOnly" type="button">
                             <i class="ti ti-alert-triangle"></i>
                             <span><%= t('cascades.executionCopyFailedOnly') %></span>
+                        </button>
+                        <button class="btn btn-secondary btn-sm" id="builderExecutionCopyFailedJson" type="button">
+                            <i class="ti ti-file-code-2"></i>
+                            <span><%= t('cascades.executionCopyFailedJson') %></span>
                         </button>
                         <button class="btn btn-secondary btn-sm" id="builderExecutionCopyJson" type="button">
                             <i class="ti ti-code"></i>
@@ -222,12 +237,18 @@ window._cascadeBuilderI18n = {
     executionErrors: <%- JSON.stringify(t('cascades.executionErrors')) %>,
     executionCopyText: <%- JSON.stringify(t('cascades.executionCopyText')) %>,
     executionCopyFailedOnly: <%- JSON.stringify(t('cascades.executionCopyFailedOnly')) %>,
+    executionCopyFailedJson: <%- JSON.stringify(t('cascades.executionCopyFailedJson')) %>,
     executionCopyJson: <%- JSON.stringify(t('cascades.executionCopyJson')) %>,
     executionCopyDone: <%- JSON.stringify(t('cascades.executionCopyDone')) %>,
     executionCopyFailedOnlyDone: <%- JSON.stringify(t('cascades.executionCopyFailedOnlyDone')) %>,
     executionCopyFailedOnlyEmpty: <%- JSON.stringify(t('cascades.executionCopyFailedOnlyEmpty')) %>,
+    executionCopyFailedJsonDone: <%- JSON.stringify(t('cascades.executionCopyFailedJsonDone')) %>,
     executionCopyJsonDone: <%- JSON.stringify(t('cascades.executionCopyJsonDone')) %>,
     executionCopyFailed: <%- JSON.stringify(t('cascades.executionCopyFailed')) %>,
+    executionFilterAll: <%- JSON.stringify(t('cascades.executionFilterAll')) %>,
+    executionFilterFailed: <%- JSON.stringify(t('cascades.executionFilterFailed')) %>,
+    executionFilterSuccess: <%- JSON.stringify(t('cascades.executionFilterSuccess')) %>,
+    executionFilterEmpty: <%- JSON.stringify(t('cascades.executionFilterEmpty')) %>,
     previewReady: <%- JSON.stringify(t('cascades.previewReady')) %>,
     previewBlocked: <%- JSON.stringify(t('cascades.previewBlocked')) %>,
     previewChain: <%- JSON.stringify(t('cascades.previewChain')) %>,
