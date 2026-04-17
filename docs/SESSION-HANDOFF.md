@@ -2151,3 +2151,94 @@ Next step:
   - docs/DEVELOPMENT-LOG.md
   - docs/SESSION-LEDGER.md
 ```
+
+## 2026-04-17 Stop-Point — Mixed-Run Verified, Stand Cleanup Pending
+
+Done in this session:
+- Completed code step and deployed:
+  - `e32055b` — `feat: deepen hop diagnostics actions and trim legacy status fallback`.
+- Confirmed live mixed-run payload from `/tmp/cascade_test_commit_deploy3.json`:
+  - `deployment.chains=2`,
+  - `deployment.deployedChains=1`,
+  - `deployment.failedChains=1`.
+- Confirmed enriched hop diagnostics are present in failed chain details:
+  - `errorDetails[].hopSourceNodeId / hopTargetNodeId`,
+  - `errorDetails[].hopSourceNodeName / hopTargetNodeName`,
+  - suggested actions include `open-hop-nodes` and `repair-hop-nodes`.
+- Logged into stand and captured current topology snapshots:
+  - `/api/cascade-builder/state`,
+  - `/api/cascade/links`.
+
+Current stop-point:
+- Verification is complete for mixed success+failed execution parity in payload terms.
+- Stand cleanup is **not finished** yet:
+  - temporary mixed-run active links are still present;
+  - temporary test node `QA-FAIL-MIX` still exists.
+- Delete requests for cleanup were started but interrupted due session stop request.
+
+Pending immediate next step:
+1. Cleanup stand topology:
+   - remove temporary active mixed-run links:
+     - `69e267f6a6d4f3277dcf1a31` (`Хельсинки, Финляндия -> QA-FAIL-MIX`)
+     - `69e267f6a6d4f3277dcf1a2c` (`Вена, Австрия -> Санкт-Петербург, Россия`)
+   - verify baseline inactive links remain:
+     - `69e266941238cf4d4b3fc97b`
+     - `69e266941238cf4d4b3fc976`
+     - `69e265d71238cf4d4b3fc924`
+     - `69e234e037186dfdb5f28e99`
+   - remove temporary node `69e265b21238cf4d4b3fc916` (`QA-FAIL-MIX`) if no longer needed.
+2. Re-check:
+   - `GET /api/cascade-builder/state`
+   - `GET /api/cascade/links`
+   to ensure baseline is restored.
+3. Continue next cascade step:
+   - deepen chain/hop/node diagnostics precision and operator repair/re-run convenience.
+4. Keep staged retirement of legacy onboarding path incremental (no fallback breakage).
+
+## Prompt For Next Session (Latest, supersedes older prompts)
+
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+7. docs/node-onboarding-rewrite-blueprint.ru.md
+
+Потом сразу продолжай без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связан с Rabbit Platform;
+- continuity docs — source of truth;
+- последний код-коммит в main: e32055b;
+- стенд: https://tunnel.hiddenrabbit.net.ru/panel, статус running:healthy;
+- mixed-run payload уже подтверждён:
+  - chains=2, deployed=1, failed=1;
+  - в errorDetails есть hopSource/hopTarget поля;
+  - suggestedActions содержит open-hop-nodes/repair-hop-nodes.
+
+Незавершённое с прошлого шага:
+1) закончить cleanup тестовой топологии на стенде:
+   - удалить временные active links:
+     - 69e267f6a6d4f3277dcf1a31
+     - 69e267f6a6d4f3277dcf1a2c
+   - убедиться, что baseline inactive links (69e266..., 69e265..., 69e234...) остаются как baseline;
+   - удалить временную ноду QA-FAIL-MIX (69e265b21238cf4d4b3fc916), если не нужна.
+2) проверить итог cleanup через:
+   - /api/cascade-builder/state
+   - /api/cascade/links
+3) после cleanup продолжить cascade diagnostics depth:
+   - точнее причины на chain/hop/node;
+   - удобные действия для быстрого repair/re-run.
+4) параллельно продолжить staged retirement legacy setupJobs:
+   - без ломки legacy fallback до подтверждения паритета.
+
+Важно:
+- не смешивать код-коммит и docs-коммит;
+- после существенного шага обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```

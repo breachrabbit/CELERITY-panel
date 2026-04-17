@@ -1430,3 +1430,41 @@ Change type:
 Change type:
 
 - `local patch` — cascade builder diagnostics + repair/rerun UX
+
+## 2026-04-17 Hop Diagnostics Deepening + Legacy Status Trim
+
+- Added hop-level endpoint context to enriched chain failure diagnostics:
+  - `hopSourceNodeId`, `hopTargetNodeId`,
+  - `hopSourceNodeName`, `hopTargetNodeName`.
+- Extended suggested actions for hop-focused failures:
+  - `open-hop-nodes`,
+  - `repair-hop-nodes`.
+- Added frontend handling for new hop actions:
+  - open source/target node pages from diagnostics,
+  - repair both hop nodes and rerun chain flow.
+- Continued staged legacy retirement in non-critical status path:
+  - in `/panel/nodes/:id/setup-status` legacy in-memory setup map is now consulted only when:
+    - legacy mode is selected, or
+    - legacy setup is actively running.
+- Deployed code commit:
+  - `e32055b` (`feat: deepen hop diagnostics actions and trim legacy status fallback`).
+
+Change type:
+
+- `local patch` — cascade execution diagnostics depth
+- `stability fix` — onboarding status-path legacy read minimization
+
+## 2026-04-17 Live Mixed-Run Verification (Operational)
+
+- Verified real mixed-run snapshot from stand dump:
+  - `chains=2`, `deployedChains=1`, `failedChains=1`.
+- Confirmed failed chain contains enriched hop fields and new action hints in `errorDetails`.
+- Captured live topology via:
+  - `GET /api/cascade-builder/state`,
+  - `GET /api/cascade/links`.
+- Cleanup of temporary test topology was started but not completed due session stop request:
+  - temporary active links and `QA-FAIL-MIX` node removal deferred to next session.
+
+Change type:
+
+- `continuity` — operational verification + deferred cleanup handoff

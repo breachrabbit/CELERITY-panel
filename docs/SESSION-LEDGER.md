@@ -668,3 +668,19 @@
 - Next step:
   - run one real mixed execution on stand and validate filter/export parity with checklist;
   - then continue staged retirement of in-memory onboarding status/control path without breaking legacy fallback.
+
+- Cascade diagnostics depth increment + mixed-run parity confirmation:
+  - shipped and deployed `e32055b`:
+    - hop endpoint context added to `errorDetails` (`hopSource*` / `hopTarget*`);
+    - new diagnostics actions: `open-hop-nodes`, `repair-hop-nodes`;
+    - setup-status legacy in-memory fallback narrowed to legacy/running cases.
+  - verified mixed-run dump (`/tmp/cascade_test_commit_deploy3.json`):
+    - success+failed run present (`2 chains / 1 failed`);
+    - failed chain includes enriched hop fields + new action set.
+- Session end state:
+  - stand cleanup started but interrupted by stop request;
+  - temporary mixed-run active links + `QA-FAIL-MIX` node still pending removal.
+- Next step:
+  - finish topology cleanup on stand;
+  - verify baseline via `/api/cascade-builder/state` and `/api/cascade/links`;
+  - continue diagnostics depth and staged legacy setup-path retirement.

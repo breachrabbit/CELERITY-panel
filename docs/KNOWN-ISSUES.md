@@ -320,6 +320,28 @@ What is still pending:
 
 Status: `pending verification`
 
+### 12. Stand topology still contains temporary mixed-run artifacts
+
+Issue:
+
+- live mixed-run diagnostics verification created temporary active links and a temporary fail node on the stand;
+- cleanup was started but interrupted by explicit stop request.
+
+Current pending artifacts:
+
+- active links to remove:
+  - `69e267f6a6d4f3277dcf1a31` (`Хельсинки, Финляндия -> QA-FAIL-MIX`)
+  - `69e267f6a6d4f3277dcf1a2c` (`Вена, Австрия -> Санкт-Петербург, Россия`)
+- temporary node candidate for removal:
+  - `69e265b21238cf4d4b3fc916` (`QA-FAIL-MIX`)
+
+Why it matters:
+
+- leaves non-baseline active topology on the stand;
+- can pollute subsequent diagnostics and parity checks.
+
+Status: `pending cleanup`
+
 ### 11. Onboarding verify-runtime-local could report false offline state
 
 Issue history:
