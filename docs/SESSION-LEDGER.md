@@ -2,6 +2,17 @@
 
 ## 2026-04-17
 
+- Worked on: cascade builder advanced transport draft editor.
+- Finished with:
+  - added WS/gRPC/XHTTP transport-specific fields to draft-hop inspector;
+  - added backend validation/normalization for advanced fields including XHTTP mode allowlist;
+  - ensured commit bridge preserves advanced transport values in resulting legacy links;
+  - synced locale coverage for new advanced editor fields.
+- Next step:
+  - run live smoke for WS/gRPC/XHTTP edit -> preview -> commit+deploy flow;
+  - remove external CDN dependency for builder graph libraries;
+  - then continue with deeper security/policy hop settings.
+
 - Worked on: cascade builder per-hop draft editing workflow.
 - Finished with:
   - added draft-hop update/delete API endpoints in builder route;

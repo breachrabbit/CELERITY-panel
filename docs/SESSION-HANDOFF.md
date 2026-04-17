@@ -13,7 +13,49 @@
   - fixed runtime verify step to correctly parse runtime status and tolerate startup races;
   - added builder-side `commit + deploy` bridge over draft hops;
   - added builder-side per-hop draft settings editor with backend payload validation and per-hop remove;
+  - added builder-side advanced transport settings for draft hops (WS/gRPC/XHTTP fields);
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Cascade Builder Advanced Transport Draft Settings Stop-Point
+
+### What was delivered
+
+- `src/routes/cascadeBuilder.js`:
+  - draft-hop update now accepts/validates advanced transport fields:
+    - `wsPath`, `wsHost`, `grpcServiceName`, `xhttpPath`, `xhttpHost`, `xhttpMode`;
+  - added strict XHTTP mode allowlist and localized validation error for invalid mode;
+  - commit bridge now propagates advanced transport fields into created legacy `CascadeLink` records;
+  - draft creation from drag-connect now seeds advanced defaults.
+- `src/domain/cascade-builder/*`:
+  - normalizer now carries advanced transport fields in builder state;
+  - draft suggestion defaults include WS/gRPC/XHTTP fields;
+  - commit planner preview payload now includes advanced fields and assumptions are no longer marked as defaulted when fields were explicitly changed.
+- `public/js/cascade-builder.js` + `public/css/cascade-builder.css` + `views/cascade-builder.ejs`:
+  - draft inspector now has transport-specific sections:
+    - WS: path/host;
+    - gRPC: service name;
+    - XHTTP/splithttp: path/host/mode;
+  - transport sections switch dynamically by selected transport;
+  - advanced values are persisted through existing draft save flow.
+- locales:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added labels/messages for advanced transport settings and XHTTP-mode validation.
+
+### Current stop-point
+
+- Builder draft editing now covers both base hop settings and transport-specific WS/gRPC/XHTTP fields.
+- Commit+deploy bridge now preserves advanced transport payload instead of dropping it to hardcoded defaults.
+- Flow remains transitional (draft -> legacy link bridge), but operator control over hop payload is materially deeper.
+
+### Best next step
+
+1. Run live smoke on stand:
+   - draft hop with each transport variant (WS/gRPC/XHTTP),
+   - save, preview, commit+deploy,
+   - verify persisted `CascadeLink` payload and deployment diagnostics.
+2. Remove CDN dependency for builder graph libs (local bundled assets), keeping current fallback behavior.
+3. Continue toward deeper per-hop security/policy fields (REALITY/TLS knobs) after transport-level parity confirmation.
 
 ## 2026-04-17 Cascade Builder Per-Hop Draft Settings Stop-Point
 

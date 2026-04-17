@@ -1,5 +1,34 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder Advanced Transport Draft Settings
+
+- Extended builder draft-hop settings from base fields to transport-specific fields:
+  - WS: path/host;
+  - gRPC: service name;
+  - XHTTP/splithttp: path/host/mode.
+- Backend (`src/routes/cascadeBuilder.js`):
+  - draft update endpoint now validates/saves advanced fields;
+  - added strict XHTTP mode allowlist and localized invalid-mode error;
+  - draft creation from connect now seeds advanced defaults;
+  - draft commit bridge now writes advanced values into resulting `CascadeLink` payload.
+- Domain (`src/domain/cascade-builder/*`):
+  - normalizer carries advanced fields in draft/live DTO shape;
+  - draft suggestion defaults include advanced transport fields;
+  - commit preview payload includes advanced fields;
+  - commit assumptions no longer claim defaults when advanced values were explicitly changed.
+- UI (`public/js/cascade-builder.js`, `public/css/cascade-builder.css`, `views/cascade-builder.ejs`):
+  - inspector now renders transport-specific configuration sections;
+  - transport blocks dynamically switch by selected transport;
+  - advanced values are sent through existing draft save flow.
+- Locales (`src/locales/ru.json`, `src/locales/en.json`):
+  - added labels/messages for advanced transport editor fields and XHTTP mode validation.
+
+Change types:
+
+- `local patch` — advanced transport controls in cascade builder draft inspector
+- `stability fix` — strict backend validation for XHTTP mode and sanitized advanced fields
+- `local patch` — commit bridge payload parity for WS/gRPC/XHTTP fields
+
 ## 2026-04-17 Cascade Builder Draft Hop Settings Editor
 
 - Added draft-hop editing API to the builder backend:
