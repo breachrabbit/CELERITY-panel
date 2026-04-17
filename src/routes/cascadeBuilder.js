@@ -525,6 +525,8 @@ router.delete('/drafts', requireScope('nodes:write'), async (req, res) => {
 
 router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
     try {
+        const deployAfterCommit = String(req.body?.deployAfterCommit || '').toLowerCase() === 'true'
+            || req.body?.deployAfterCommit === true;
         const state = await buildState(req);
         const storedDraft = await getStoredDraft(req, state.flowId);
         const draftHops = Array.isArray(storedDraft?.draftHops) ? storedDraft.draftHops : [];
@@ -533,22 +535,63 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
             return res.status(400).json({ error: tFor(res, 'cascades.noDraftsToCommit', 'There are no draft hops to commit right now') });
         }
 
+        const activeLinks = await CascadeLink.find({ active: true })
+            .select('name mode portalNode bridgeNode tunnelPort status')
+            .lean();
+        const plan = localizePlan(res, buildCommitPlan({
+            nodes: state.nodes,
+            hops: state.hops,
+            activeLinks,
+        }));
+        const planHopById = new Map(
+            (Array.isArray(plan?.hops) ? plan.hops : [])
+                .map((hop) => [String(hop.hopId || ''), hop]),
+        );
+        const planChainById = new Map(
+            (Array.isArray(plan?.chains) ? plan.chains : [])
+                .map((chain) => [String(chain.id || ''), chain]),
+        );
+
         const results = [];
         const committedIds = [];
+        const committedLinks = [];
 
         for (const draftHop of draftHops) {
+            const hopId = String(draftHop.id || '');
+            const planHop = planHopById.get(hopId);
+            if (planHop && !planHop.canCommit) {
+                const planErrors = Array.isArray(planHop.errors) ? planHop.errors.filter(Boolean) : [];
+                const blockedReason = planErrors.length
+                    ? planErrors.join(' ')
+                    : tFor(res, 'cascades.draftBlockedByPlan', 'Draft hop is blocked by commit plan checks.');
+                results.push({
+                    hopId,
+                    success: false,
+                    error: blockedReason,
+                    name: draftHop.name,
+                    blockedByPlan: true,
+                });
+                continue;
+            }
+
             try {
                 const link = await createLegacyLinkFromDraft(draftHop, res);
-                committedIds.push(String(draftHop.id));
+                committedIds.push(hopId);
+                committedLinks.push({
+                    hopId,
+                    linkId: String(link._id),
+                    portalNodeId: String(link.portalNode || ''),
+                    componentId: String(planHop?.componentId || ''),
+                });
                 results.push({
-                    hopId: String(draftHop.id),
+                    hopId,
                     success: true,
                     linkId: String(link._id),
                     name: link.name,
                 });
             } catch (error) {
                 results.push({
-                    hopId: String(draftHop.id),
+                    hopId,
                     success: false,
                     error: localizeBuilderApiError(res, error),
                     name: draftHop.name,
@@ -568,12 +611,90 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
             await invalidateCascadeCache();
         }
 
+        let deployment = null;
+        if (deployAfterCommit) {
+            const touchedChainIds = new Set(
+                committedLinks
+                    .map((item) => item.componentId)
+                    .filter(Boolean),
+            );
+
+            const fallbackNodeIds = new Set(
+                committedLinks
+                    .map((item) => item.portalNodeId)
+                    .filter(Boolean),
+            );
+
+            const chainDeployTargets = [];
+
+            for (const chainId of touchedChainIds) {
+                const chain = planChainById.get(chainId);
+                if (!chain) continue;
+                const startNodeId = Array.isArray(chain.nodeIds) && chain.nodeIds.length
+                    ? String(chain.nodeIds[0])
+                    : String(chain.nodeActions?.[0]?.nodeId || '');
+                if (!startNodeId) continue;
+                chainDeployTargets.push({ chainId, startNodeId });
+            }
+
+            if (chainDeployTargets.length === 0) {
+                for (const startNodeId of fallbackNodeIds) {
+                    chainDeployTargets.push({ chainId: null, startNodeId });
+                }
+            }
+
+            const deployResults = [];
+            for (const target of chainDeployTargets) {
+                try {
+                    const deployResult = await cascadeService.deployChain(target.startNodeId);
+                    if (deployResult?.success) {
+                        deployResults.push({
+                            chainId: target.chainId,
+                            startNodeId: target.startNodeId,
+                            success: true,
+                            deployed: Number(deployResult.deployed || 0),
+                            errors: [],
+                        });
+                    } else {
+                        deployResults.push({
+                            chainId: target.chainId,
+                            startNodeId: target.startNodeId,
+                            success: false,
+                            deployed: Number(deployResult?.deployed || 0),
+                            errors: Array.isArray(deployResult?.errors) ? deployResult.errors : [tFor(res, 'cascades.chainDeployFailed', 'Chain deploy failed')],
+                        });
+                    }
+                } catch (error) {
+                    deployResults.push({
+                        chainId: target.chainId,
+                        startNodeId: target.startNodeId,
+                        success: false,
+                        deployed: 0,
+                        errors: [error.message || tFor(res, 'cascades.chainDeployFailed', 'Chain deploy failed')],
+                    });
+                }
+            }
+
+            const deployedChains = deployResults.filter((item) => item.success).length;
+            const failedChains = deployResults.filter((item) => !item.success).length;
+
+            deployment = {
+                requested: true,
+                chains: deployResults.length,
+                deployedChains,
+                failedChains,
+                results: deployResults,
+            };
+        }
+
         const nextState = await buildState(req);
+        const deploymentFailed = Number(deployment?.failedChains || 0) > 0;
         res.json({
-            success: committedIds.length > 0,
+            success: committedIds.length > 0 && !deploymentFailed,
             committed: committedIds.length,
             failed: results.filter((item) => !item.success).length,
             results,
+            deployment,
             validation: nextState.validation,
             summary: nextState.validation.summary,
             draft: nextState.draft,

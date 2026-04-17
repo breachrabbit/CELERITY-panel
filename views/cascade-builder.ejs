@@ -28,6 +28,10 @@
                 <i class="ti ti-git-merge"></i>
                 <span><%= t('cascades.commitDrafts') %></span>
             </button>
+            <button class="btn btn-secondary" id="builderCommitDeploy">
+                <i class="ti ti-player-play"></i>
+                <span><%= t('cascades.commitAndDeploy') %></span>
+            </button>
             <button class="btn btn-secondary" id="builderDeployPreview">
                 <i class="ti ti-scan-eye"></i>
                 <span><%= t('cascades.deployPreview') %></span>
@@ -146,6 +150,10 @@ window._cascadeBuilderI18n = {
     commitDrafts: <%- JSON.stringify(t('cascades.commitDrafts')) %>,
     commitDraftsDone: <%- JSON.stringify(t('cascades.commitDraftsDone')) %>,
     commitDraftsFailed: <%- JSON.stringify(t('cascades.commitDraftsFailed')) %>,
+    commitAndDeploy: <%- JSON.stringify(t('cascades.commitAndDeploy')) %>,
+    commitAndDeployDone: <%- JSON.stringify(t('cascades.commitAndDeployDone')) %>,
+    commitAndDeployFailed: <%- JSON.stringify(t('cascades.commitAndDeployFailed')) %>,
+    chainDeployFailed: <%- JSON.stringify(t('network.chainDeployFailed')) %>,
     deployPreview: <%- JSON.stringify(t('cascades.deployPreview')) %>,
     deployPreviewTitle: <%- JSON.stringify(t('cascades.deployPreviewTitle')) %>,
     deployPreviewEmpty: <%- JSON.stringify(t('cascades.deployPreviewEmpty')) %>,

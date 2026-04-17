@@ -666,7 +666,7 @@
         }
     }
 
-    async function commitDrafts() {
+    async function commitDrafts({ deployAfterCommit = false } = {}) {
         const draftCount = state.flow?.draft?.draftHopCount || 0;
         if (!draftCount) {
             toast(i18n.noDraftsToCommit || 'No draft hops to commit.', 'error');
@@ -676,27 +676,54 @@
         try {
             const result = await requestJson('/api/cascade-builder/commit-drafts', {
                 method: 'POST',
-                body: JSON.stringify({}),
+                body: JSON.stringify({ deployAfterCommit }),
             });
 
             const failures = Array.isArray(result.results)
                 ? result.results.filter((item) => !item.success)
                 : [];
+            const deployment = result.deployment || null;
+            const deploymentFailures = Array.isArray(deployment?.results)
+                ? deployment.results.filter((item) => !item.success)
+                : [];
 
-            if (failures.length) {
-                renderValidation({
-                    status: failures.length ? 'warning' : 'ok',
-                    errors: [],
-                    warnings: failures.map((item) => ({ message: `${item.name}: ${item.error}` })),
+            if (failures.length || deploymentFailures.length) {
+                const warningItems = [];
+                failures.forEach((item) => {
+                    warningItems.push({ message: `${item.name}: ${item.error}` });
                 });
-                toast(`${i18n.commitDraftsDone || 'Drafts committed'}: ${result.committed}`, failures.length ? 'info' : 'success');
+                deploymentFailures.forEach((item) => {
+                    const label = item.chainId || item.startNodeId;
+                    const reason = Array.isArray(item.errors) && item.errors.length
+                        ? item.errors.join('; ')
+                        : (i18n.chainDeployFailed || 'Chain deploy failed');
+                    warningItems.push({ message: `${label}: ${reason}` });
+                });
+                renderValidation({
+                    status: 'warning',
+                    errors: [],
+                    warnings: warningItems,
+                });
+                if (deployAfterCommit) {
+                    toast(`${i18n.commitAndDeployFailed || 'Commit + deploy finished with issues'}: ${result.committed}`, 'info');
+                } else {
+                    toast(`${i18n.commitDraftsDone || 'Drafts committed'}: ${result.committed}`, 'info');
+                }
             } else {
-                toast(`${i18n.commitDraftsDone || 'Drafts committed'}: ${result.committed}`, 'success');
+                if (deployAfterCommit) {
+                    const deployedChains = Number(deployment?.deployedChains || 0);
+                    toast(`${i18n.commitAndDeployDone || 'Drafts committed and chain deployed'}: ${deployedChains}`, 'success');
+                } else {
+                    toast(`${i18n.commitDraftsDone || 'Drafts committed'}: ${result.committed}`, 'success');
+                }
             }
 
             await loadState();
         } catch (error) {
-            toast(`${i18n.commitDraftsFailed || 'Draft commit failed'}: ${error.message}`, 'error');
+            const message = deployAfterCommit
+                ? (i18n.commitAndDeployFailed || 'Commit + deploy failed')
+                : (i18n.commitDraftsFailed || 'Draft commit failed');
+            toast(`${message}: ${error.message}`, 'error');
         }
     }
 
@@ -755,7 +782,8 @@
     function bindUi() {
         document.getElementById('builderValidate')?.addEventListener('click', validateCurrentDraft);
         document.getElementById('builderSaveLayout')?.addEventListener('click', saveLayout);
-        document.getElementById('builderCommitDrafts')?.addEventListener('click', commitDrafts);
+        document.getElementById('builderCommitDrafts')?.addEventListener('click', () => commitDrafts());
+        document.getElementById('builderCommitDeploy')?.addEventListener('click', () => commitDrafts({ deployAfterCommit: true }));
         document.getElementById('builderDeployPreview')?.addEventListener('click', () => previewCommitPlan());
         document.getElementById('builderResetDrafts')?.addEventListener('click', resetDrafts);
         document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));

@@ -281,6 +281,7 @@ function buildCommitPlan({ nodes = [], hops = [], activeLinks = [] }) {
         .map((component) => ({
             id: component.id,
             chainMode: component.chainMode,
+            nodeIds: component.nodeIds,
             nodeCount: component.nodeIds.length,
             liveHopCount: component.liveHopCount,
             draftHopCount: component.draftHopCount,
