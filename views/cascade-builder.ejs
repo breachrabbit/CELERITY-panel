@@ -28,6 +28,10 @@
                 <i class="ti ti-git-merge"></i>
                 <span><%= t('cascades.commitDrafts') %></span>
             </button>
+            <button class="btn btn-secondary" id="builderDeployPreview">
+                <i class="ti ti-scan-eye"></i>
+                <span><%= t('cascades.deployPreview') %></span>
+            </button>
             <button class="btn btn-primary" id="builderValidate">
                 <i class="ti ti-checkup-list"></i>
                 <span><%= t('cascades.validateDraft') %></span>
@@ -103,6 +107,15 @@
                     <p class="builder-validation-empty"><%= t('cascades.validationEmpty') %></p>
                 </div>
             </div>
+            <div class="builder-validation-box builder-plan-box" id="builderPlanBox">
+                <div class="builder-validation-head">
+                    <h4><%= t('cascades.deployPreviewTitle') %></h4>
+                    <span class="builder-validation-badge" id="builderPlanBadge">—</span>
+                </div>
+                <div class="builder-plan-list" id="builderPlanList">
+                    <p class="builder-validation-empty"><%= t('cascades.deployPreviewEmpty') %></p>
+                </div>
+            </div>
         </aside>
     </section>
 </div>
@@ -133,6 +146,20 @@ window._cascadeBuilderI18n = {
     commitDrafts: <%- JSON.stringify(t('cascades.commitDrafts')) %>,
     commitDraftsDone: <%- JSON.stringify(t('cascades.commitDraftsDone')) %>,
     commitDraftsFailed: <%- JSON.stringify(t('cascades.commitDraftsFailed')) %>,
+    deployPreview: <%- JSON.stringify(t('cascades.deployPreview')) %>,
+    deployPreviewTitle: <%- JSON.stringify(t('cascades.deployPreviewTitle')) %>,
+    deployPreviewEmpty: <%- JSON.stringify(t('cascades.deployPreviewEmpty')) %>,
+    deployPreviewFailed: <%- JSON.stringify(t('cascades.deployPreviewFailed')) %>,
+    previewReady: <%- JSON.stringify(t('cascades.previewReady')) %>,
+    previewBlocked: <%- JSON.stringify(t('cascades.previewBlocked')) %>,
+    previewChain: <%- JSON.stringify(t('cascades.previewChain')) %>,
+    previewCurrentRole: <%- JSON.stringify(t('cascades.previewCurrentRole')) %>,
+    previewNextRole: <%- JSON.stringify(t('cascades.previewNextRole')) %>,
+    previewActions: <%- JSON.stringify(t('cascades.previewActions')) %>,
+    previewAssumptions: <%- JSON.stringify(t('cascades.previewAssumptions')) %>,
+    previewNoDrafts: <%- JSON.stringify(t('cascades.previewNoDrafts')) %>,
+    previewCanCommit: <%- JSON.stringify(t('cascades.previewCanCommit')) %>,
+    previewCanDeploy: <%- JSON.stringify(t('cascades.previewCanDeploy')) %>,
     noDraftsToCommit: <%- JSON.stringify(t('cascades.noDraftsToCommit')) %>,
     validationFailed: <%- JSON.stringify(t('cascades.validationFailed')) %>,
     connectFailed: <%- JSON.stringify(t('cascades.connectFailed')) %>,

@@ -25,6 +25,21 @@
 - этот bridge сейчас batch-oriented и intentionally без auto-deploy;
 - это сделано, чтобы проверить практический workflow, не связывая сразу builder с агрессивным orchestration UX.
 
+Поверх этого уже добавлен и первый pure planning layer:
+
+- `/api/cascade-builder/deploy-preview`
+- `/api/cascade-builder/plan-commit`
+- `src/domain/cascade-builder/commitPlanner.js`
+
+Этот слой:
+
+- не пишет в Mongo;
+- не трогает SSH/runtime;
+- показывает per-hop readiness;
+- собирает chain grouping и affected-node actions;
+- показывает `current role -> preview role`;
+- явно помечает assumptions текущего legacy-backed commit bridge.
+
 Это позволяет уже сейчас тестировать flow-centric UX, не ломая legacy topology storage.
 
 ## Цель v1

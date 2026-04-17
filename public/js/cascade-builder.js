@@ -28,6 +28,15 @@
         edgehandles: null,
     };
 
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function toast(message, kind = 'info') {
         if (window.showToast) return window.showToast(message, kind);
         console[kind === 'error' ? 'error' : 'log'](message);
@@ -283,6 +292,112 @@
         });
     }
 
+    function renderCommitPlan(plan) {
+        const root = document.getElementById('builderPlanList');
+        const badge = document.getElementById('builderPlanBadge');
+        if (!root || !badge) return;
+
+        const summary = plan?.summary || {};
+        const hops = Array.isArray(plan?.hops) ? plan.hops : [];
+        const chains = Array.isArray(plan?.chains) ? plan.chains : [];
+
+        if (!summary.draftHops) {
+            badge.textContent = '—';
+            root.innerHTML = `<p class="builder-validation-empty">${escapeHtml(i18n.deployPreviewEmpty || 'Add draft hops to see deploy preview.')}</p>`;
+            return;
+        }
+
+        const blocked = Number(summary.blockedHops || 0);
+        badge.textContent = blocked > 0
+            ? escapeHtml(i18n.previewBlocked || 'Blocked')
+            : escapeHtml(i18n.previewReady || 'Ready');
+
+        const summaryBlock = `
+            <div class="builder-plan-summary">
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.summaryHops || 'Hops')}</span>
+                    <strong>${summary.draftHops}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.previewCanCommit || 'Can commit')}</span>
+                    <strong>${summary.creatableHops || 0}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.previewCanDeploy || 'Can deploy')}</span>
+                    <strong>${summary.deployableHops || 0}</strong>
+                </div>
+                <div class="builder-plan-stat">
+                    <span>${escapeHtml(i18n.previewChain || 'Chains')}</span>
+                    <strong>${summary.chainsTouched || 0}</strong>
+                </div>
+            </div>
+        `;
+
+        const chainsBlock = chains.map((chain) => {
+            const warnings = Array.isArray(chain.deployWarnings) ? chain.deployWarnings : [];
+            const actions = Array.isArray(chain.nodeActions) ? chain.nodeActions : [];
+            return `
+                <div class="builder-plan-card">
+                    <div class="builder-plan-card-head">
+                        <strong>${escapeHtml(chain.id)}</strong>
+                        <span>${escapeHtml(chain.chainMode || 'unknown')}</span>
+                    </div>
+                    <div class="builder-plan-card-meta">
+                        ${escapeHtml(i18n.summaryNodes || 'Nodes')}: ${chain.nodeCount} · ${escapeHtml(i18n.summaryHops || 'Hops')}: ${chain.liveHopCount}+${chain.draftHopCount}
+                    </div>
+                    ${warnings.length ? `
+                        <div class="builder-plan-message-list">
+                            ${warnings.map((item) => `<div class="builder-validation-item warning">${escapeHtml(item)}</div>`).join('')}
+                        </div>
+                    ` : ''}
+                    <div class="builder-plan-actions-title">${escapeHtml(i18n.previewActions || 'Actions')}</div>
+                    <div class="builder-plan-actions-list">
+                        ${actions.map((item) => `
+                            <div class="builder-plan-action">
+                                <strong>${escapeHtml(item.nodeName)}</strong>
+                                <span>${escapeHtml(i18n.previewCurrentRole || 'Current role')}: ${escapeHtml(item.currentRole)}</span>
+                                <span>${escapeHtml(i18n.previewNextRole || 'Next role')}: ${escapeHtml(item.previewRole)}</span>
+                                <p>${escapeHtml(item.action)}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const hopsBlock = hops.map((hop) => {
+            const errors = Array.isArray(hop.errors) ? hop.errors : [];
+            const warnings = Array.isArray(hop.warnings) ? hop.warnings : [];
+            const assumptions = Array.isArray(hop.assumptions) ? hop.assumptions : [];
+            return `
+                <div class="builder-plan-card">
+                    <div class="builder-plan-card-head">
+                        <strong>${escapeHtml(hop.name || `${hop.sourceNodeName} -> ${hop.targetNodeName}`)}</strong>
+                        <span>${escapeHtml(hop.mode)} · ${escapeHtml(hop.stack)}</span>
+                    </div>
+                    <div class="builder-data-list builder-plan-inline-list">
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.source || 'Source')}</span><strong>${escapeHtml(hop.sourceNodeName)}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.target || 'Target')}</span><strong>${escapeHtml(hop.targetNodeName)}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.previewCurrentRole || 'Current role')}</span><strong>${escapeHtml(hop.currentSourceRole)} -> ${escapeHtml(hop.currentTargetRole)}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.previewNextRole || 'Next role')}</span><strong>${escapeHtml(hop.previewSourceRole)} -> ${escapeHtml(hop.previewTargetRole)}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.protocol || 'Protocol')}</span><strong>${escapeHtml(hop.tunnelProtocol)} / ${escapeHtml(hop.tunnelTransport)} / ${escapeHtml(hop.tunnelSecurity)}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.status || 'Status')}</span><strong>${hop.canCommit ? escapeHtml(i18n.previewCanCommit || 'Can commit') : escapeHtml(i18n.previewBlocked || 'Blocked')}</strong></div>
+                    </div>
+                    ${errors.length ? `<div class="builder-plan-message-list">${errors.map((item) => `<div class="builder-validation-item error">${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+                    ${warnings.length ? `<div class="builder-plan-message-list">${warnings.map((item) => `<div class="builder-validation-item warning">${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+                    ${assumptions.length ? `
+                        <div class="builder-plan-actions-title">${escapeHtml(i18n.previewAssumptions || 'Assumptions')}</div>
+                        <div class="builder-plan-message-list">
+                            ${assumptions.map((item) => `<div class="builder-validation-item">${escapeHtml(item)}</div>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+
+        root.innerHTML = `${summaryBlock}${chainsBlock}${hopsBlock}`;
+    }
+
     function renderNodeInspector(node) {
         const root = document.getElementById('builderInspectorBody');
         if (!root) return;
@@ -343,6 +458,12 @@
     }
 
     function initCy(flow) {
+        if (state.cy) {
+            state.cy.destroy();
+            state.cy = null;
+            state.edgehandles = null;
+        }
+
         state.cy = cytoscape({
             container: document.getElementById('builderCy'),
             style: getBuilderStyle(),
@@ -437,6 +558,7 @@
             });
             renderSummary(state.flow, state.flow.validation);
             renderValidation(state.flow.validation);
+            previewCommitPlan({ silent: true });
             toast(i18n.acceptedDraft || 'Draft hop added.');
         } catch (error) {
             toast(`${i18n.connectFailed || 'Connect failed'}: ${error.message}`, 'error');
@@ -520,6 +642,25 @@
         }
     }
 
+    async function previewCommitPlan({ silent = false } = {}) {
+        try {
+            const result = await requestJson('/api/cascade-builder/deploy-preview');
+            state.flow.planPreview = result.plan;
+            renderCommitPlan(result.plan);
+            if (!silent) {
+                const blocked = Number(result.plan?.summary?.blockedHops || 0);
+                toast(blocked > 0
+                    ? (i18n.previewBlocked || 'Preview has blockers')
+                    : (i18n.previewReady || 'Preview is ready'), blocked > 0 ? 'info' : 'success');
+            }
+        } catch (error) {
+            renderCommitPlan(null);
+            if (!silent) {
+                toast(`${i18n.deployPreviewFailed || 'Deploy preview failed'}: ${error.message}`, 'error');
+            }
+        }
+    }
+
     function resetDrafts() {
         requestJson('/api/cascade-builder/drafts', {
             method: 'DELETE',
@@ -531,6 +672,7 @@
                 state.cy.edges().filter((edge) => edge.data('isDraft') === 1).remove();
                 renderSummary(state.flow, state.flow.validation);
                 renderValidation(state.flow.validation);
+                previewCommitPlan({ silent: true });
                 toast(i18n.draftsReset || 'Drafts cleared.');
             })
             .catch((error) => {
@@ -546,6 +688,7 @@
             renderSummary(flow, flow.validation);
             renderValidation(flow.validation);
             initCy(flow);
+            await previewCommitPlan({ silent: true });
         } catch (error) {
             toast(`${i18n.stateFailed || 'State load failed'}: ${error.message}`, 'error');
         }
@@ -555,6 +698,7 @@
         document.getElementById('builderValidate')?.addEventListener('click', validateCurrentDraft);
         document.getElementById('builderSaveLayout')?.addEventListener('click', saveLayout);
         document.getElementById('builderCommitDrafts')?.addEventListener('click', commitDrafts);
+        document.getElementById('builderDeployPreview')?.addEventListener('click', () => previewCommitPlan());
         document.getElementById('builderResetDrafts')?.addEventListener('click', resetDrafts);
         document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));
         document.getElementById('builderAutoLayout')?.addEventListener('click', () => {

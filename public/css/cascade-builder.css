@@ -317,6 +317,14 @@
     overflow: auto;
 }
 
+.builder-plan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 520px;
+    overflow: auto;
+}
+
 .builder-validation-item {
     padding: 10px 12px;
     border-radius: 12px;
@@ -335,6 +343,111 @@
     border-color: rgba(245, 158, 11, 0.24);
     color: #b45309;
     background: rgba(245, 158, 11, 0.06);
+}
+
+.builder-plan-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.builder-plan-stat,
+.builder-plan-card,
+.builder-plan-action {
+    border: 1px dashed rgba(5, 10, 60, 0.14);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.52);
+}
+
+.theme-dark .builder-plan-stat,
+.theme-dark .builder-plan-card,
+.theme-dark .builder-plan-action {
+    background: rgba(10, 18, 60, 0.52);
+}
+
+.builder-plan-stat {
+    padding: 12px;
+}
+
+.builder-plan-stat span,
+.builder-plan-card-meta,
+.builder-plan-actions-title {
+    display: block;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.builder-plan-stat strong {
+    display: block;
+    margin-top: 6px;
+    font-family: var(--heading-font, 'Geologica', sans-serif);
+    font-size: 24px;
+}
+
+.builder-plan-card {
+    padding: 14px;
+}
+
+.builder-plan-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.builder-plan-card-head strong {
+    font-size: 14px;
+}
+
+.builder-plan-card-head span {
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.builder-plan-card-meta {
+    margin-top: 8px;
+}
+
+.builder-plan-message-list,
+.builder-plan-actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.builder-plan-action {
+    padding: 12px;
+}
+
+.builder-plan-action strong,
+.builder-plan-action span,
+.builder-plan-action p {
+    display: block;
+}
+
+.builder-plan-action strong {
+    font-size: 13px;
+}
+
+.builder-plan-action span {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.builder-plan-action p {
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.builder-plan-inline-list {
+    margin-top: 10px;
 }
 
 @media (max-width: 1180px) {
@@ -398,5 +511,9 @@
 
     .builder-canvas {
         min-height: 480px;
+    }
+
+    .builder-plan-summary {
+        grid-template-columns: 1fr;
     }
 }

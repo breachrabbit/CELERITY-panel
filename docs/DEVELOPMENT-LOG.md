@@ -21,16 +21,23 @@
   - builder can now commit accepted draft hops into legacy `CascadeLink` records;
   - commit uses safe defaults and intentionally skips auto-deploy in this step;
   - this makes the builder a real experimental workflow, not only a visual overlay.
+- Added the first pure planning layer above that bridge:
+  - `/api/cascade-builder/deploy-preview`
+  - `/api/cascade-builder/plan-commit`
+  - `commitPlanner` now returns per-hop readiness, chain grouping, affected-node runtime actions, role transitions, and legacy-default assumptions;
+  - this intentionally keeps planning separate from mutation and is the first builder layer designed to transfer cleanly into Hidden Rabbit.
 - Explicitly separated what v1 is and is not:
   - yes: experimental flow canvas, inspector, validation, draft drag-connect, draft layout persistence;
   - yes: transitional `draft -> legacy link` bridge;
-  - no: final Hidden Rabbit UX, shared flow storage, versioning, branching, rollback, deploy preview parity.
+  - yes: draft-state deploy preview / commit plan parity;
+  - no: final Hidden Rabbit UX, shared flow storage, versioning, branching, rollback, executable synthetic deploy.
 - Added an explicit UI fallback when Cytoscape assets are unavailable so the page fails loudly instead of appearing empty.
 
 Change types:
 
 - `local patch` — experimental cascade builder scaffold
 - `local patch` — Redis-backed builder draft state
+- `local patch` — builder deploy-preview / commit-plan layer
 - `stability fix` — explicit canvas fallback and clearer state boundaries
 
 - Added isolated continuity documentation layer under `docs/`.

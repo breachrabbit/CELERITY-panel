@@ -52,6 +52,12 @@
 - `Save layout` now saves builder layout to builder draft state, not to legacy topology positions;
 - `Reset drafts` clears only draft hops and preserves builder layout;
 - `Commit draft hops` now creates real legacy `CascadeLink` records from accepted builder drafts;
+- `Deploy preview` now builds a pure planning view over builder state without writing to Mongo or touching SSH/runtime;
+- deploy preview returns:
+  - per-hop commit/deploy readiness;
+  - chain grouping and affected-node actions;
+  - role changes (`current -> preview`);
+  - explicit assumptions from the current legacy-backed commit bridge;
 - draft commit intentionally does **not** auto-deploy links yet;
 - if Cytoscape assets fail to load, the canvas now shows an explicit fallback state instead of silently dying.
 
@@ -75,17 +81,23 @@
 
 - builder is still `legacy-backed`, not flow-native storage;
 - draft state is operator-scoped Redis state, not shared project data;
-- builder now has a `draft -> legacy link` bridge, but still has no deploy-preview parity;
+- builder now has:
+  - a `draft -> legacy link` bridge;
+  - a pure deploy-preview / commit-plan layer;
 - draft commit currently uses builder defaults and a batch commit action, not a full contextual role/settings wizard;
 - roles are inferred inside the builder flow, but legacy node `cascadeRole` remains the live topology role source;
 - Cytoscape/Dagre/Edgehandles are still CDN-loaded for this experimental step.
+- deploy preview is still descriptive, not executable:
+  - no real config diff;
+  - no synthetic `deployChain` against in-memory links;
+  - no per-hop settings editor before commit.
 
 ### Stop-point
 
 - experimental builder scaffold is in active local work and has passed syntax/JSON/EJS checks;
 - next best step:
-  1. verify the builder page and draft-commit path live after deploy;
-  2. decide whether the next builder step is per-hop commit/config UI or deploy preview;
+  1. verify the builder page live with `Deploy preview` + `Commit draft hops` on the stand;
+  2. add per-hop commit/config UI on top of the current planner, instead of jumping straight into raw defaults;
   3. then continue Android mobile menu / responsive cleanup on the rest of the panel.
 
 ## 2026-04-16 Mobile / i18n In-Progress Stop-Point

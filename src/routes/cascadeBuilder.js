@@ -11,6 +11,7 @@ const HyNode = require('../models/hyNodeModel');
 const logger = require('../utils/logger');
 const { normalizeTopologyToBuilderState, mergeDraftIntoBuilderState } = require('../domain/cascade-builder/flowNormalizer');
 const { validateBuilderState, buildDraftHopSuggestion, resolveStack } = require('../domain/cascade-builder/flowValidator');
+const { buildCommitPlan } = require('../domain/cascade-builder/commitPlanner');
 
 const HYBRID_DISABLED_ERROR = 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System';
 
@@ -140,6 +141,26 @@ async function buildState(req) {
     return state;
 }
 
+async function buildCommitPreview(req) {
+    const state = await buildState(req);
+    const activeLinks = await CascadeLink.find({ active: true })
+        .select('name mode portalNode bridgeNode tunnelPort status')
+        .lean();
+
+    const plan = buildCommitPlan({
+        nodes: state.nodes,
+        hops: state.hops,
+        activeLinks,
+    });
+
+    return {
+        flowId: state.flowId,
+        draft: state.draft,
+        validation: state.validation,
+        plan,
+    };
+}
+
 router.get('/state', requireScope('nodes:read'), async (req, res) => {
     try {
         const state = await buildState(req);
@@ -170,6 +191,19 @@ router.post('/validate', requireScope('nodes:read'), async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+async function handleCommitPreview(req, res) {
+    try {
+        const preview = await buildCommitPreview(req);
+        res.json(preview);
+    } catch (error) {
+        logger.error(`[Cascade Builder API] Plan commit error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+router.get('/plan-commit', requireScope('nodes:read'), handleCommitPreview);
+router.get('/deploy-preview', requireScope('nodes:read'), handleCommitPreview);
 
 router.post('/connect', requireScope('nodes:write'), async (req, res) => {
     try {
