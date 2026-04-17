@@ -419,6 +419,12 @@
     margin-bottom: 14px;
 }
 
+.builder-validation-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .builder-validation-badge {
     display: inline-flex;
     align-items: center;

@@ -26,6 +26,7 @@
         flow: null,
         cy: null,
         edgehandles: null,
+        execution: null,
         selection: { type: null, id: null },
     };
     const HOP_MODE_OPTIONS = ['reverse', 'forward'];
@@ -500,10 +501,13 @@
         if (!root || !badge) return;
 
         if (!execution || typeof execution !== 'object') {
+            state.execution = null;
             badge.textContent = '—';
             root.innerHTML = `<p class="builder-validation-empty">${escapeHtml(i18n.executionEmpty || 'No execution runs yet.')}</p>`;
             return;
         }
+
+        state.execution = execution;
 
         const deployment = execution.deployment && typeof execution.deployment === 'object'
             ? execution.deployment
@@ -629,6 +633,89 @@
             : `<p class="builder-validation-empty">${escapeHtml(i18n.executionDeploySkipped || 'Deploy was not requested in this run.')}</p>`;
 
         root.innerHTML = `${summaryBlock}${commitFailuresBlock}${chainResultsBlock}`;
+    }
+
+    function buildExecutionDiagnosticsText(execution) {
+        if (!execution || typeof execution !== 'object') {
+            return i18n.executionEmpty || 'No execution runs yet.';
+        }
+
+        const lines = [];
+        const title = execution.type === 'commit-deploy'
+            ? (i18n.executionCommitDeploy || 'Commit + deploy')
+            : (i18n.executionCommitOnly || 'Commit only');
+        lines.push(`${i18n.executionTitle || 'Last execution result'}: ${title}`);
+        lines.push(`${i18n.executionCreatedAt || 'Completed at'}: ${formatExecutionTime(execution.createdAt)}`);
+        lines.push(`${i18n.executionCommitted || 'Committed'}: ${Number(execution.committed || 0)}`);
+        lines.push(`${i18n.executionFailed || 'Failed'}: ${Number(execution.failed || 0)}`);
+
+        const failureItems = Array.isArray(execution.failureItems) ? execution.failureItems : [];
+        if (failureItems.length) {
+            lines.push('');
+            lines.push(`${i18n.executionErrors || 'Errors'}:`);
+            failureItems.forEach((item) => {
+                const name = item.name || item.hopId || 'draft';
+                lines.push(`- ${name}: ${item.error || '—'}`);
+            });
+        }
+
+        const deployment = execution.deployment && typeof execution.deployment === 'object'
+            ? execution.deployment
+            : null;
+        if (!deployment) {
+            lines.push('');
+            lines.push(i18n.executionDeploySkipped || 'Deploy was not requested in this run');
+            return lines.join('\n');
+        }
+
+        lines.push('');
+        lines.push(`${i18n.executionChains || 'Chains'}: ${Number(deployment.chains || 0)}`);
+        lines.push(`${i18n.executionDeployedChains || 'Chains deployed'}: ${Number(deployment.deployedChains || 0)}`);
+        lines.push(`${i18n.executionFailedChains || 'Chains failed'}: ${Number(deployment.failedChains || 0)}`);
+
+        const deployResults = Array.isArray(deployment.results) ? deployment.results : [];
+        if (deployResults.length) {
+            lines.push('');
+            lines.push(`${i18n.executionChainResult || 'Chain result'}:`);
+            deployResults.forEach((item, index) => {
+                const chainName = item.chainName || item.chainId || item.startNodeName || item.startNodeId || `chain-${index + 1}`;
+                lines.push(`- ${chainName}: ${item.success ? (i18n.previewReady || 'Ready') : (i18n.previewBlocked || 'Blocked')}`);
+                lines.push(`  ${i18n.executionStartNode || 'Start node'}: ${item.startNodeName || item.startNodeId || '—'}`);
+                lines.push(`  ${i18n.summaryHops || 'Hops'}: ${Number(item.liveHopCount || 0)}+${Number(item.draftHopCount || 0)}`);
+                const warnings = Array.isArray(item.deployWarnings) ? item.deployWarnings : [];
+                const errors = Array.isArray(item.errors) ? item.errors : [];
+                if (warnings.length) {
+                    lines.push(`  ${i18n.executionWarnings || 'Warnings'}: ${warnings.join(' | ')}`);
+                }
+                if (errors.length) {
+                    lines.push(`  ${i18n.executionErrors || 'Errors'}: ${errors.join(' | ')}`);
+                }
+            });
+        }
+
+        return lines.join('\n');
+    }
+
+    async function copyExecutionDiagnostics() {
+        const text = buildExecutionDiagnosticsText(state.execution);
+        try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+            toast(i18n.executionCopyDone || 'Execution diagnostics copied.', 'success');
+        } catch (error) {
+            toast(i18n.executionCopyFailed || 'Failed to copy diagnostics.', 'error');
+        }
     }
 
     function renderNodeInspector(node) {
@@ -1265,6 +1352,7 @@
         document.getElementById('builderCommitDeploy')?.addEventListener('click', () => commitDrafts({ deployAfterCommit: true }));
         document.getElementById('builderDeployPreview')?.addEventListener('click', () => previewCommitPlan());
         document.getElementById('builderResetDrafts')?.addEventListener('click', resetDrafts);
+        document.getElementById('builderExecutionCopy')?.addEventListener('click', () => copyExecutionDiagnostics());
         document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));
         document.getElementById('builderAutoLayout')?.addEventListener('click', () => {
             if (!state.cy) return;
