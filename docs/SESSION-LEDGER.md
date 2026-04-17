@@ -570,3 +570,10 @@
 - Next step:
   - validate filter/export behavior on real multi-chain run with both successful and failed chains;
   - continue cascade execution parity diagnostics and onboarding legacy retirement.
+
+- Mixed-run QA runbook continuation:
+  - added `docs/cascade-mixed-run-checklist.ru.md` as operational checklist for real mixed-run verification;
+  - locked expected failed-only JSON schema and export/filter PASS criteria in one place.
+- Next step:
+  - execute one live mixed-run using this checklist and capture first parity report;
+  - if mismatch appears, patch diagnostics payload/labels first before deeper builder UX increments.

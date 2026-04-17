@@ -1842,3 +1842,27 @@ Pending next:
 1. Validate new filters/exports on a mixed run (some chains success, some failed).
 2. Continue cascade execution parity and diagnostics depth.
 3. In parallel continue staged retirement of legacy onboarding control/status path.
+
+## 2026-04-17 Stop-Point — Mixed-Run QA Checklist Added
+
+Done:
+- Added practical runbook:
+  - `docs/cascade-mixed-run-checklist.ru.md`
+- The runbook locks:
+  - mixed-run test flow;
+  - expected behavior of `All / Failed / Success` filter;
+  - expected behavior for four exports:
+    - full TXT,
+    - failed-only TXT,
+    - failed-only JSON,
+    - full JSON;
+  - expected failed-only JSON schema and invariants;
+  - PASS/FAIL gates and compact reporting template.
+
+Stable:
+- Diagnostics feature set is now implemented and documented for repeatable QA.
+
+Pending next:
+1. Execute one real mixed-run with at least one successful and one failed chain.
+2. Compare UI counters vs failed-only JSON counters.
+3. Patch any mismatch before continuing deeper builder UX increments.

@@ -1229,3 +1229,22 @@ Change type:
 Change type:
 
 - `local patch` — cascade builder diagnostics UX
+
+## 2026-04-17 Mixed-Run QA Runbook For Cascade Execution
+
+- Added dedicated QA runbook:
+  - `docs/cascade-mixed-run-checklist.ru.md`
+- Runbook covers:
+  - mixed execution scenario setup (success + failed chains in one run);
+  - execution filter verification (`All / Failed / Success`);
+  - export verification matrix:
+    - full TXT,
+    - compact failed TXT,
+    - compact failed JSON,
+    - full JSON;
+  - expected `Failed JSON` payload shape and invariants;
+  - PASS/FAIL criteria and incident report template.
+
+Change type:
+
+- `continuity` — practical test template for cascade execution parity
