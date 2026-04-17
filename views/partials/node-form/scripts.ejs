@@ -554,6 +554,9 @@ const i18n = {
     onboardingDiagnosticsLabel: <%- JSON.stringify(t("nodes.onboardingDiagnosticsLabel")) %>,
     onboardingResumeJob: <%- JSON.stringify(t("nodes.onboardingResumeJob")) %>,
     onboardingUseFailedStep: <%- JSON.stringify(t("nodes.onboardingUseFailedStep")) %>,
+    onboardingRerunStep: <%- JSON.stringify(t("nodes.onboardingRerunStep")) %>,
+    onboardingRerunStepConfirm: <%- JSON.stringify(t("nodes.onboardingRerunStepConfirm")) %>,
+    onboardingRerunRunning: <%- JSON.stringify(t("nodes.onboardingRerunRunning")) %>,
     onboardingCopyDiagnostics: <%- JSON.stringify(t("nodes.onboardingCopyDiagnostics")) %>,
     onboardingCopyDone: <%- JSON.stringify(t("nodes.onboardingCopyDone")) %>,
     onboardingNoLogs: <%- JSON.stringify(t("nodes.onboardingNoLogs")) %>,
@@ -1270,6 +1273,43 @@ async function resumeOnboardingJob(jobId) {
     }
 }
 
+async function rerunOnboardingStep(jobId) {
+    const target = onboardingJobsCache.find((job) => String(job?.id || '') === String(jobId || ''));
+    if (!target) return;
+    if (isLegacyBridgeJob(target)) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + escapeHtml(i18n.onboardingLegacyBridgeHint || 'Legacy bridge job cannot rerun step via onboarding-full') + '</div>';
+        return;
+    }
+
+    const selectedStep = String(document.getElementById('onboardingResumeStep')?.value || '').trim();
+    const preferred = getPreferredResumeStep(target);
+    const step = selectedStep || preferred;
+    if (!step) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + escapeHtml(i18n.onboardingUseFailedStep || 'Select step first') + '</div>';
+        return;
+    }
+
+    if (!confirm((i18n.onboardingRerunStepConfirm || 'Rerun selected onboarding step?') + '\n\n' + step)) return;
+    const btn = document.getElementById('btnResumeOnboarding');
+    setActionButtonBusy(btn, true, 'ti ti-player-play', i18n.onboardingResume);
+    document.getElementById('setupResult').innerHTML = '<div class="alert">' + escapeHtml((i18n.onboardingRerunRunning || 'Running onboarding step rerun...') + ' ' + step) + '</div>';
+    try {
+        await startOnboardingAction({
+            url: '/panel/nodes/<%= node._id %>/onboarding/rerun-step',
+            payload: {
+                jobId: target.id,
+                step,
+            },
+            runningMessage: i18n.onboardingRerunRunning || i18n.onboardingResumeRunning,
+        });
+    } catch (err) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
+    } finally {
+        setActionButtonBusy(btn, false, 'ti ti-player-play', i18n.onboardingResume);
+        await loadOnboardingJobs();
+    }
+}
+
 function renderOnboardingJobsSummary(jobs) {
     const summary = document.getElementById('onboardingJobsSummary');
     if (!summary) return;
@@ -1314,6 +1354,9 @@ function renderOnboardingJobsSummary(jobs) {
                         </button>
                         <button type="button" class="btn btn-sm" onclick="useOnboardingJobStep('${escapeAttr(job?.id || '')}')">
                             <i class="ti ti-target-arrow"></i> ${escapeHtml(i18n.onboardingUseFailedStep || 'Use failed step')}
+                        </button>
+                        <button type="button" class="btn btn-sm" onclick="rerunOnboardingStep('${escapeAttr(job?.id || '')}')" ${isLegacyBridgeJob(job) ? 'disabled' : ''}>
+                            <i class="ti ti-repeat"></i> ${escapeHtml(i18n.onboardingRerunStep || 'Rerun step')}
                         </button>
                         <button type="button" class="btn btn-sm" onclick="copyOnboardingDiagnostics('${escapeAttr(job?.id || '')}')">
                             <i class="ti ti-copy"></i> ${escapeHtml(i18n.onboardingCopyDiagnostics || 'Copy diagnostics')}

@@ -132,6 +132,7 @@ const LEGACY_ONBOARDING_BRIDGE_STEPS = [
     'seed-node-state',
     'final-sync',
 ];
+const ONBOARDING_RERUN_ALLOWED_STEPS = [...LEGACY_ONBOARDING_BRIDGE_STEPS];
 
 function cleanupSetupJobs() {
     const now = Date.now();
@@ -147,6 +148,13 @@ function cleanupSetupJobs() {
 function getSetupJob(nodeId) {
     cleanupSetupJobs();
     return setupJobs.get(String(nodeId)) || null;
+}
+
+function getLegacySetupJob(nodeId) {
+    const job = getSetupJob(nodeId);
+    if (!job) return null;
+    const mode = normalizeSetupMode(job.setupMode);
+    return (!mode || mode === SETUP_MODE_LEGACY) ? job : null;
 }
 
 function setSetupJob(nodeId, patch) {
@@ -237,6 +245,10 @@ function getOnboardingLogs(jobLike) {
 
 function canResumeOnboardingStatus(status) {
     return ['queued', 'blocked', 'repairable'].includes(String(status || ''));
+}
+
+function canRerunOnboardingStatus(status) {
+    return ['queued', 'blocked', 'repairable', 'failed', 'completed'].includes(String(status || ''));
 }
 
 async function safeOnboardingUpdate(onboardingJobId, action, logs, updater) {
@@ -1363,20 +1375,6 @@ router.post('/nodes/:id/setup', async (req, res) => {
             return res.status(400).json({ success: false, error: 'SSH данные не настроены', logs: [] });
         }
 
-        const job = getSetupJob(req.params.id);
-        if (job?.state === 'running') {
-            return res.status(202).json({
-                success: true,
-                running: true,
-                state: 'running',
-                message: 'Setup уже выполняется',
-                logs: job.logs || [],
-                startedAt: job.startedAt,
-                onboardingJobId: job.onboardingJobId || '',
-                setupMode: job.setupMode || SETUP_MODE_LEGACY,
-            });
-        }
-
         try {
             const activeOnboarding = await nodeOnboardingService.getActiveJobByNode(req.params.id);
             if (activeOnboarding && activeOnboarding.status === 'running') {
@@ -1395,6 +1393,20 @@ router.post('/nodes/:id/setup', async (req, res) => {
             }
         } catch (onboardingReadError) {
             logger.warn(`[Panel] setup start onboarding read warning: ${onboardingReadError.message}`);
+        }
+
+        const legacyJob = getLegacySetupJob(req.params.id);
+        if (legacyJob?.state === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Setup уже выполняется',
+                logs: legacyJob.logs || [],
+                startedAt: legacyJob.startedAt,
+                onboardingJobId: legacyJob.onboardingJobId || '',
+                setupMode: SETUP_MODE_LEGACY,
+            });
         }
 
         const selectedMode = resolvePanelSetupMode(node, req);
@@ -1459,7 +1471,21 @@ router.post('/nodes/:id/onboarding/resume', async (req, res) => {
             return res.status(400).json({ success: false, error: 'SSH данные не настроены', logs: [] });
         }
 
-        const activeSetup = getSetupJob(req.params.id);
+        const activeOnboardingRunning = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+        if (activeOnboardingRunning?.status === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Onboarding уже выполняется',
+                logs: getOnboardingLogs(activeOnboardingRunning),
+                startedAt: activeOnboardingRunning.startedAt || null,
+                onboardingJobId: activeOnboardingRunning.id,
+                setupMode: SETUP_MODE_ONBOARDING_FULL,
+            });
+        }
+
+        const activeSetup = getLegacySetupJob(req.params.id);
         if (activeSetup?.state === 'running') {
             return res.status(202).json({
                 success: true,
@@ -1469,7 +1495,7 @@ router.post('/nodes/:id/onboarding/resume', async (req, res) => {
                 logs: activeSetup.logs || [],
                 startedAt: activeSetup.startedAt || null,
                 onboardingJobId: activeSetup.onboardingJobId || '',
-                setupMode: activeSetup.setupMode || SETUP_MODE_LEGACY,
+                setupMode: SETUP_MODE_LEGACY,
             });
         }
 
@@ -1488,7 +1514,7 @@ router.post('/nodes/:id/onboarding/resume', async (req, res) => {
         }
 
         if (!targetJob) {
-            targetJob = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+            targetJob = activeOnboardingRunning || await nodeOnboardingService.getActiveJobByNode(req.params.id);
         }
         if (!targetJob) {
             const recentJobs = await nodeOnboardingService.listJobsByNode(req.params.id, { limit: 10 });
@@ -1567,20 +1593,6 @@ router.post('/nodes/:id/onboarding/repair', async (req, res) => {
             return res.status(400).json({ success: false, error: 'SSH данные не настроены', logs: [] });
         }
 
-        const activeSetup = getSetupJob(req.params.id);
-        if (activeSetup?.state === 'running') {
-            return res.status(202).json({
-                success: true,
-                running: true,
-                state: 'running',
-                message: 'Setup уже выполняется',
-                logs: activeSetup.logs || [],
-                startedAt: activeSetup.startedAt || null,
-                onboardingJobId: activeSetup.onboardingJobId || '',
-                setupMode: activeSetup.setupMode || SETUP_MODE_LEGACY,
-            });
-        }
-
         const activeOnboarding = await nodeOnboardingService.getActiveJobByNode(req.params.id);
         if (activeOnboarding?.status === 'running') {
             return res.status(202).json({
@@ -1592,6 +1604,20 @@ router.post('/nodes/:id/onboarding/repair', async (req, res) => {
                 startedAt: activeOnboarding.startedAt || null,
                 onboardingJobId: activeOnboarding.id,
                 setupMode: SETUP_MODE_ONBOARDING_FULL,
+            });
+        }
+
+        const activeSetup = getLegacySetupJob(req.params.id);
+        if (activeSetup?.state === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Setup уже выполняется',
+                logs: activeSetup.logs || [],
+                startedAt: activeSetup.startedAt || null,
+                onboardingJobId: activeSetup.onboardingJobId || '',
+                setupMode: SETUP_MODE_LEGACY,
             });
         }
 
@@ -1646,6 +1672,141 @@ router.post('/nodes/:id/onboarding/repair', async (req, res) => {
     }
 });
 
+// POST /panel/nodes/:id/onboarding/rerun-step - Run a specific onboarding step safely
+router.post('/nodes/:id/onboarding/rerun-step', async (req, res) => {
+    try {
+        const node = await HyNode.findById(req.params.id).select('_id name ip type ssh cascadeRole');
+        if (!node) {
+            return res.status(404).json({ success: false, error: 'Нода не найдена', logs: [] });
+        }
+
+        if (!node.ssh?.password && !node.ssh?.privateKey) {
+            return res.status(400).json({ success: false, error: 'SSH данные не настроены', logs: [] });
+        }
+
+        const step = String(req.body?.step || '').trim();
+        if (!ONBOARDING_RERUN_ALLOWED_STEPS.includes(step)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Некорректный шаг onboarding для rerun.',
+                logs: [],
+            });
+        }
+
+        const activeOnboarding = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+        if (activeOnboarding?.status === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Onboarding уже выполняется',
+                logs: getOnboardingLogs(activeOnboarding),
+                startedAt: activeOnboarding.startedAt || null,
+                onboardingJobId: activeOnboarding.id,
+                setupMode: SETUP_MODE_ONBOARDING_FULL,
+            });
+        }
+
+        const activeSetup = getLegacySetupJob(req.params.id);
+        if (activeSetup?.state === 'running') {
+            return res.status(202).json({
+                success: true,
+                running: true,
+                state: 'running',
+                message: 'Setup уже выполняется',
+                logs: activeSetup.logs || [],
+                startedAt: activeSetup.startedAt || null,
+                onboardingJobId: activeSetup.onboardingJobId || '',
+                setupMode: SETUP_MODE_LEGACY,
+            });
+        }
+
+        const requestedJobId = String(req.body?.jobId || '').trim();
+        let targetJob = null;
+        if (requestedJobId) {
+            const scopedJob = await nodeOnboardingService.getJob(requestedJobId);
+            if (!scopedJob || String(scopedJob.nodeId) !== String(req.params.id)) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Onboarding job не найден для этой ноды.',
+                    logs: [],
+                });
+            }
+            targetJob = scopedJob;
+        }
+
+        if (!targetJob) {
+            targetJob = activeOnboarding;
+        }
+        if (!targetJob) {
+            const recentJobs = await nodeOnboardingService.listJobsByNode(req.params.id, { limit: 10 });
+            targetJob = recentJobs.find((job) => (
+                canRerunOnboardingStatus(job.status)
+                && !isLegacyBridgeOnboardingJob(job)
+            )) || null;
+        }
+
+        if (!targetJob) {
+            return res.status(400).json({
+                success: false,
+                error: 'Нет подходящего onboarding job для rerun шага. Используйте Repair.',
+                logs: [],
+            });
+        }
+
+        if (isLegacyBridgeOnboardingJob(targetJob)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Legacy bridge job не поддерживает step rerun в onboarding-full. Используйте Repair.',
+                logs: [],
+            });
+        }
+
+        let rerunJob = null;
+        if (canResumeOnboardingStatus(targetJob.status) || targetJob.status === 'queued') {
+            rerunJob = await nodeOnboardingService.resumeJob(targetJob.id, { step });
+        } else {
+            const created = await nodeOnboardingService.createJob({
+                nodeId: node._id,
+                type: 'repair',
+                trigger: {
+                    source: 'panel',
+                    actorLabel: `panel:${node.name}`,
+                },
+                metadata: {
+                    flow: 'durable-onboarding-run-full',
+                    setupMode: SETUP_MODE_ONBOARDING_FULL,
+                    reason: 'manual-step-rerun',
+                    requestedStep: step,
+                    requestedFromJobId: targetJob.id,
+                    nodeType: node.type || 'hysteria',
+                    cascadeRole: node.cascadeRole || 'standalone',
+                },
+            });
+            rerunJob = await nodeOnboardingService.resumeJob(created.job.id, { step });
+        }
+
+        const started = startPanelOnboardingRun(node, rerunJob, {
+            message: `Onboarding rerun шага ${step} запущен в фоне`,
+            logs: getOnboardingLogs(rerunJob),
+        });
+
+        return res.status(202).json({
+            success: true,
+            running: true,
+            state: 'running',
+            message: `Onboarding rerun шага ${step} запущен`,
+            logs: started.logs,
+            startedAt: started.startedAt,
+            onboardingJobId: started.onboardingJobId,
+            setupMode: started.setupMode,
+        });
+    } catch (error) {
+        logger.error(`[Panel] onboarding step rerun error: ${error.message}`);
+        return res.status(500).json({ success: false, error: error.message, logs: [] });
+    }
+});
+
 // GET /panel/nodes/:id/setup-status - Poll background setup status
 router.get('/nodes/:id/setup-status', async (req, res) => {
     try {
@@ -1679,23 +1840,22 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             }
             : null;
 
-        const legacyJob = getSetupJob(req.params.id);
+        const legacyJob = getLegacySetupJob(req.params.id);
 
         if (onboardingStatus) {
             const mappedState = mapOnboardingStatusToSetupState(onboardingStatus.status);
-            const fallbackLogs = Array.isArray(legacyJob?.logs) ? legacyJob.logs : [];
             const onboardingLogs = Array.isArray(onboardingStatus.logs) ? onboardingStatus.logs : [];
             return res.json({
                 success: true,
                 state: mappedState,
                 running: mappedState === 'running',
-                logs: onboardingLogs.length ? onboardingLogs : fallbackLogs,
-                message: mappedState === 'success' ? (legacyJob?.message || 'Нода успешно настроена') : (legacyJob?.message || ''),
-                error: onboardingStatus.lastError || legacyJob?.error || '',
-                startedAt: onboardingStatus.startedAt || legacyJob?.startedAt || null,
-                finishedAt: onboardingStatus.finishedAt || legacyJob?.finishedAt || null,
+                logs: onboardingLogs,
+                message: mappedState === 'success' ? 'Нода успешно настроена' : '',
+                error: onboardingStatus.lastError || '',
+                startedAt: onboardingStatus.startedAt || null,
+                finishedAt: onboardingStatus.finishedAt || null,
                 onboarding: onboardingStatus,
-                setupMode: resolveOnboardingJobSetupMode(onboardingJob) || legacyJob?.setupMode || SETUP_MODE_ONBOARDING_FULL,
+                setupMode: resolveOnboardingJobSetupMode(onboardingJob) || SETUP_MODE_ONBOARDING_FULL,
                 nodeStatus: node.status || 'unknown',
                 lastError: node.lastError || '',
                 lastSync: node.lastSync || null,
