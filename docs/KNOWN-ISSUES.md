@@ -26,7 +26,7 @@ Still missing:
 - flow-native deploy orchestration independent of legacy chain deploy;
 - deeper per-hop configuration UI (advanced policy-level knobs and explicit key-management controls);
 - true flow-native role storage independent of legacy node `cascadeRole`.
-- optional structured diagnostics export modes (beyond current one-click plain-text copy).
+- optional backend file export endpoint for diagnostics (clipboard `TXT/JSON` export is already available in UI).
 
 Status: `pending`
 

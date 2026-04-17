@@ -2,6 +2,15 @@
 
 ## 2026-04-17
 
+- Worked on: cascade diagnostics export formats for builder execution panel.
+- Finished with:
+  - added separate `Copy TXT` / `Copy JSON` actions in execution diagnostics;
+  - added structured JSON diagnostics envelope for automation/runbooks;
+  - kept plain-text export path as quick human-readable incident summary.
+- Next step:
+  - add failed-chain-only compact export action;
+  - continue cascade execution parity UX (focus/jump actions from diagnostics cards).
+
 - Worked on: cascade execution diagnostics operator UX.
 - Finished with:
   - added copy button to builder execution diagnostics panel;

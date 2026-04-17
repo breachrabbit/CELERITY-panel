@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder Diagnostics Export Modes (TXT/JSON)
+
+- Extended execution diagnostics export in builder panel with dual operator-friendly modes:
+  - `Copy TXT` (human-readable runbook text),
+  - `Copy JSON` (structured payload for issue/automation pipelines).
+- `views/cascade-builder.ejs`:
+  - split export action into two separate buttons in execution panel.
+- `public/js/cascade-builder.js`:
+  - added `buildExecutionDiagnosticsPayload(...)` for stable JSON envelope;
+  - extracted shared clipboard writer helper;
+  - added explicit handlers for text/json export actions.
+- `public/css/cascade-builder.css`:
+  - execution header actions now wrap cleanly on narrow widths.
+- Locale updates:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added labels and success message for JSON export.
+
+Change types:
+
+- `local patch` — cascade diagnostics export usability for operators
+
 ## 2026-04-17 Cascade Builder Execution Diagnostics Copy Action
 
 - Added one-click diagnostics copy action in builder execution panel.
