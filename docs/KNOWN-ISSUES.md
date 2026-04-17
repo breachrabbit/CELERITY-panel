@@ -166,12 +166,15 @@ Latest progress:
 - agent handlers started:
   - executable `install-agent`, `verify-agent-local`, `verify-panel-to-agent` exist;
   - API trigger exists to run pipeline until `seed-node-state`.
+- full handler chain started:
+  - executable `seed-node-state` and `final-sync` exist;
+  - API trigger exists to run full onboarding pipeline.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
 
 - integration of durable onboarding jobs into panel setup UI/status polling;
-- seed/final handlers (`seed-node-state`, `final-sync`, `ready`) and full cutover logic;
+- full cutover logic from legacy setup flow to onboarding-first execution;
 - staged cutover from in-memory `setupJobs` to durable job status.
 
 Status: `pending`

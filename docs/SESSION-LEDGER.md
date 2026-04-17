@@ -348,3 +348,12 @@
   - implement real `seed-node-state` and `final-sync` handlers;
   - switch panel setup-status to onboarding-first rendering;
   - then phase out synthetic bridge completion.
+
+- Onboarding full-chain continuation:
+  - added real `seed-node-state` and `final-sync` handlers;
+  - added full pipeline executor `runFull(jobId)`;
+  - added API trigger `POST /api/nodes/:id/onboarding/jobs/:jobId/run-full`.
+- Next step:
+  - switch panel setup-status UI to onboarding-first model;
+  - move selected setup executions onto `runFull` path;
+  - then remove synthetic bridge completion and in-memory setup-job dependency.

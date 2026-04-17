@@ -290,6 +290,78 @@ async function runVerifyPanelToAgent({ job }) {
     };
 }
 
+function getStepResult(job, stepName) {
+    const state = Array.isArray(job?.stepStates)
+        ? job.stepStates.find((item) => item.step === stepName)
+        : null;
+    return state?.details?.result || {};
+}
+
+async function runSeedNodeState({ job }) {
+    const node = await HyNode.findById(job.nodeId);
+    if (!node) {
+        throw new Error('Onboarding node not found for seed-node-state');
+    }
+
+    const verifyRuntime = getStepResult(job, 'verify-runtime-local');
+    const verifyPanel = getStepResult(job, 'verify-panel-to-agent');
+
+    const patch = {
+        status: 'online',
+        healthFailures: 0,
+        lastError: '',
+        lastSync: new Date(),
+    };
+
+    if (!shouldSkipAgentSteps(node)) {
+        patch.agentStatus = 'online';
+        patch.agentLastSeen = new Date();
+        patch.agentVersion = String(verifyPanel.agentVersion || node.agentVersion || '');
+        patch.xrayVersion = String(verifyPanel.runtimeVersion || node.xrayVersion || '');
+        if (Number.isFinite(Number(verifyPanel.usersCount))) {
+            patch.onlineUsers = Number(verifyPanel.usersCount);
+        }
+    }
+
+    await HyNode.updateOne({ _id: node._id }, { $set: patch });
+
+    return {
+        nodeId: String(node._id),
+        nodeName: node.name,
+        nodeType: node.type || 'hysteria',
+        seeded: true,
+        runtimeState: verifyRuntime.serviceState || 'unknown',
+        agentState: patch.agentStatus || 'n/a',
+    };
+}
+
+async function runFinalSync({ job }) {
+    const node = await HyNode.findById(job.nodeId);
+    if (!node) {
+        throw new Error('Onboarding node not found for final-sync');
+    }
+
+    if (node.type !== 'xray') {
+        return {
+            nodeId: String(node._id),
+            nodeName: node.name,
+            nodeType: node.type || 'hysteria',
+            skipped: true,
+            reason: 'final-sync is only required for xray nodes in current pipeline',
+        };
+    }
+
+    const result = await syncService.finalizeNodeSetup(node);
+    return {
+        nodeId: String(node._id),
+        nodeName: node.name,
+        nodeType: node.type || 'hysteria',
+        skipped: false,
+        mode: result.mode || 'unknown',
+        deployed: Number(result.deployed || 0),
+    };
+}
+
 module.exports = {
     runPreflight,
     runPrepareHost,
@@ -298,4 +370,6 @@ module.exports = {
     runInstallAgent,
     runVerifyAgentLocal,
     runVerifyPanelToAgent,
+    runSeedNodeState,
+    runFinalSync,
 };

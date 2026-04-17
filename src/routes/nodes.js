@@ -1037,4 +1037,21 @@ router.post('/:id/onboarding/jobs/:jobId/run-agent', requireScope('nodes:write')
     }
 });
 
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/run-full - Run full onboarding pipeline
+ */
+router.post('/:id/onboarding/jobs/:jobId/run-full', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const job = await nodeOnboardingPipeline.runFull(req.params.jobId, {
+            source: 'api',
+            actor: req.user?.username || 'api',
+        });
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding run-full error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

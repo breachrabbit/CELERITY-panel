@@ -280,6 +280,26 @@ Change types:
 - `local patch` — install-agent and verification handler layer
 - `stability fix` — explicit panel->agent handshake checkpoint
 
+## 2026-04-17 Onboarding Seed/Final Layer (Phase 2.4)
+
+- Added final onboarding handlers:
+  - `seed-node-state`:
+    - persists post-verify node baseline (`status`, `lastSync`, health fields, agent metadata when applicable).
+  - `final-sync`:
+    - runs existing `syncService.finalizeNodeSetup` for Xray nodes;
+    - skip-safe for non-Xray nodes in this stage.
+- Extended pipeline to full path:
+  - `runFull(jobId)`
+  - executes real handlers from `preflight` through `final-sync`, then closes job via `ready`.
+- Added API trigger:
+  - `POST /api/nodes/:id/onboarding/jobs/:jobId/run-full`
+  - enables full staged onboarding execution against one job.
+
+Change types:
+
+- `local patch` — seed/final handler layer and full pipeline execution
+- `stability fix` — explicit seed baseline and final-sync checkpoint
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.

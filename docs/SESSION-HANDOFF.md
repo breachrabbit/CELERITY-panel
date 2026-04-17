@@ -6,7 +6,7 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2.3 agent handler layer).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2.4 full handler chain).
 - Current local patch focus:
   - staged bridge of durable onboarding status into legacy setup endpoints;
   - next move from mirrored bridge steps to real runner handlers.
@@ -132,6 +132,32 @@ Agent install/verification handlers are now implemented in staged mode.
 1. Implement real `seed-node-state` and `final-sync` handlers.
 2. Switch panel setup-status UI to onboarding-first rendering.
 3. Remove synthetic bridge completion once end-to-end handlers are stable.
+
+## 2026-04-17 Onboarding Full Handler Chain Stop-Point
+
+Pipeline now has real handlers from preflight through final-sync.
+
+### What was added
+
+- Added real handlers:
+  - `seed-node-state`
+  - `final-sync`
+- Added full pipeline execution method:
+  - `runFull(jobId)` in `nodeOnboardingPipeline`.
+- Added API trigger:
+  - `POST /api/nodes/:id/onboarding/jobs/:jobId/run-full`.
+
+### Current stop-point
+
+- End-to-end handler chain exists in code.
+- Panel setup still uses legacy executor and synthetic bridge completion by default.
+- UI status is not yet onboarding-first.
+
+### Best next step
+
+1. Switch panel setup-status rendering to onboarding-first view in frontend flow.
+2. Route selected setup runs through `runFull` pipeline path.
+3. Then retire synthetic bridge completion and phase out in-memory `setupJobs`.
 
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
 
@@ -276,11 +302,11 @@ Context:
 
 Priority:
 
-1. implement real `seed-node-state` and `final-sync` handlers;
-2. switch panel setup-status UI to onboarding-first rendering (legacy fallback only);
+1. switch panel setup-status UI to onboarding-first rendering (legacy fallback only);
+2. route selected setup runs through `runFull` onboarding pipeline path;
 3. replace synthetic bridge completion with real end-to-end transitions;
-4. keep legacy setup as fallback until parity is proven on test nodes;
-5. then start retiring in-memory `setupJobs` from the critical status path.
+4. keep legacy setup fallback until parity is proven on test nodes;
+5. then retire in-memory `setupJobs` from the critical status path.
 
 ## 2026-04-16 Cascade Builder v1 Stop-Point
 

@@ -44,6 +44,24 @@ class NodeOnboardingPipeline {
             defaultRepairableOnError: true,
         });
     }
+
+    async runFull(jobId, context = {}) {
+        return nodeOnboardingRunner.run(jobId, {
+            context,
+            stepHandlers: {
+                preflight: nodeOnboardingHandlers.runPreflight,
+                'prepare-host': nodeOnboardingHandlers.runPrepareHost,
+                'install-runtime': nodeOnboardingHandlers.runInstallRuntime,
+                'verify-runtime-local': nodeOnboardingHandlers.runVerifyRuntimeLocal,
+                'install-agent': nodeOnboardingHandlers.runInstallAgent,
+                'verify-agent-local': nodeOnboardingHandlers.runVerifyAgentLocal,
+                'verify-panel-to-agent': nodeOnboardingHandlers.runVerifyPanelToAgent,
+                'seed-node-state': nodeOnboardingHandlers.runSeedNodeState,
+                'final-sync': nodeOnboardingHandlers.runFinalSync,
+            },
+            defaultRepairableOnError: true,
+        });
+    }
 }
 
 module.exports = new NodeOnboardingPipeline();
