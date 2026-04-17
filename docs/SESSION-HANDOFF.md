@@ -20,8 +20,35 @@
     - richer per-chain deploy diagnostics payload;
     - persisted `lastExecution` in builder draft cache;
     - dedicated diagnostics panel on the builder page.
+  - staged retirement of legacy setup mirror for onboarding-full:
+    - setup start for onboarding-full no longer initializes `setupJobs`;
+    - onboarding runner no longer writes success/error states into `setupJobs`;
+    - setup-status for onboarding now uses durable onboarding logs directly.
   - fixed Docker/Coolify build flow for cascade local vendor assets (`postinstall` guard + explicit sync after source copy in Dockerfile).
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Onboarding-Full SetupJobs Retirement (Stage Increment)
+
+### What was delivered
+
+- `src/routes/panel/nodes.js`:
+  - onboarding-full start path (`POST /panel/nodes/:id/setup`) no longer creates a `setupJobs` running mirror entry;
+  - durable onboarding runner no longer writes success/failure job state into `setupJobs`;
+  - setup-status onboarding branch now reports logs from durable onboarding only (`stepLogs`), without mixing in-memory mirror logs;
+  - added durable live-log append helper that writes onboarding line events directly to job logs (`appendStepLog`), with light noise filtering.
+
+### Current stop-point
+
+- `setupJobs` remains active for legacy setup flow.
+- onboarding-full now behaves as onboarding-primary in status/control reporting, with in-memory setup map no longer required in its main status path.
+- This is a staged increment (not full `setupJobs` removal yet).
+
+### Best next step
+
+1. Live smoke onboarding-full on fresh node:
+   - verify `setup-status` shows step logs and state transitions without relying on in-memory setup mirror.
+2. Remove remaining onboarding-full read paths from `setupJobs` (if any) after one more stable smoke cycle.
+3. Continue cascade builder execution parity work (copy/export diagnostics + deeper chain diagnostics UX actions).
 
 ## 2026-04-17 Cascade Builder Execution Diagnostics Stop-Point
 

@@ -196,6 +196,9 @@ Latest progress:
 - setup log UX improved:
   - setup console no longer marks every `[STDERR]` line as hard error;
   - Xray runtime/agent setup now streams live SSH lines into setup status (poll-based near real-time).
+- staged setup map retirement progressed:
+  - onboarding-full setup status path now reads durable onboarding logs directly without merging in-memory `setupJobs` logs;
+  - onboarding-full start/runner no longer mirrors success/error states into `setupJobs`.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:

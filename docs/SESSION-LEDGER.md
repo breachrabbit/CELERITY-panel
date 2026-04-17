@@ -2,6 +2,16 @@
 
 ## 2026-04-17
 
+- Worked on: staged retirement of in-memory setup mirror for onboarding-full.
+- Finished with:
+  - onboarding-full start no longer initializes `setupJobs`;
+  - onboarding runner no longer writes success/error state to `setupJobs`;
+  - setup-status onboarding response now comes directly from durable onboarding logs/status;
+  - added durable live-log append path into onboarding job logs.
+- Next step:
+  - run fresh onboarding-full smoke on stand and verify status/log behavior end-to-end;
+  - continue removing remaining onboarding-full `setupJobs` dependencies if no regressions.
+
 - Worked on: cascade execution parity diagnostics (builder commit/deploy path).
 - Finished with:
   - enriched `commit-drafts` deployment diagnostics with per-chain metadata and localized deploy errors;

@@ -1,5 +1,21 @@
 # Development Log
 
+## 2026-04-17 Onboarding-Full Status Path Decoupled from setupJobs
+
+- Reduced in-memory `setupJobs` dependency for durable onboarding control path.
+- `src/routes/panel/nodes.js`:
+  - onboarding-full setup start no longer creates a `setupJobs` running state;
+  - onboarding runner no longer writes onboarding success/failure into `setupJobs`;
+  - onboarding branch in `/panel/nodes/:id/setup-status` now uses durable `stepLogs` directly and does not merge `setupJobs` logs;
+  - added durable live-log appender to onboarding jobs (`appendStepLog`) with basic noise filtering for installer output.
+- Legacy behavior preserved:
+  - legacy setup flow still uses `setupJobs` and remains unchanged in this increment.
+
+Change types:
+
+- `stability fix` — onboarding-full status/control-path no longer depends on in-memory setup mirror
+- `local patch` — durable live log append route for onboarding jobs
+
 ## 2026-04-17 Cascade Builder Commit/Deploy Execution Diagnostics
 
 - Expanded commit/deploy diagnostics depth for the experimental cascade builder.
