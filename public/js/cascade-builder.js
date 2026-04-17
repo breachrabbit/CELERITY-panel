@@ -82,6 +82,65 @@
         return normalized || t('executionSuggestedActionFallback', 'Review details');
     }
 
+    function buildExecutionDetailActionButtons(detail, item, chainKey) {
+        const suggested = Array.isArray(detail?.suggestedActions) ? detail.suggestedActions : [];
+        if (!suggested.length) return '';
+
+        const chainId = String(item?.chainId || '').trim();
+        const startNodeId = String(item?.startNodeId || '').trim();
+        const detailNodeId = String(detail?.nodeId || '').trim();
+        const candidateNodeId = detailNodeId || startNodeId;
+        const uniqueActions = [...new Set(suggested.map((action) => String(action || '').trim().toLowerCase()).filter(Boolean))];
+
+        const buttons = uniqueActions.map((action) => {
+            const label = escapeHtml(getExecutionSuggestedActionLabel(action));
+            if (action === 'rerun-chain') {
+                if (!startNodeId) return '';
+                return `
+                    <button class="btn btn-secondary btn-sm" type="button"
+                        data-execution-action="rerun-chain"
+                        data-chain-id="${escapeHtml(chainId)}"
+                        data-start-node-id="${escapeHtml(startNodeId)}"
+                        data-chain-key="${escapeHtml(chainKey)}">
+                        ${label}
+                    </button>
+                `;
+            }
+            if (action === 'focus-node' || action === 'review-chain') {
+                if (!candidateNodeId) return '';
+                return `
+                    <button class="btn btn-secondary btn-sm" type="button"
+                        data-execution-action="focus-node"
+                        data-start-node-id="${escapeHtml(candidateNodeId)}">
+                        ${label}
+                    </button>
+                `;
+            }
+            if (action === 'repair-node') {
+                if (!candidateNodeId) return '';
+                return `
+                    <button class="btn btn-secondary btn-sm" type="button"
+                        data-execution-action="repair-node"
+                        data-node-id="${escapeHtml(candidateNodeId)}">
+                        ${label}
+                    </button>
+                `;
+            }
+            if (['open-node', 'check-logs', 'check-ssh', 'check-network'].includes(action)) {
+                if (!candidateNodeId) return '';
+                return `
+                    <a class="btn btn-secondary btn-sm" href="/panel/nodes/${escapeHtml(candidateNodeId)}">
+                        ${label}
+                    </a>
+                `;
+            }
+            return '';
+        }).filter(Boolean);
+
+        if (!buttons.length) return '';
+        return `<div class="builder-execution-detail-actions">${buttons.join('')}</div>`;
+    }
+
     function getNodeById(nodeId) {
         return state.flow?.nodes?.find((node) => String(node.id) === String(nodeId)) || null;
     }
@@ -710,6 +769,7 @@
                                     const hopHint = Array.isArray(detail.relatedHops) && detail.relatedHops.length
                                         ? ` (${(i18n.executionHopNames || 'Hop set')}: ${detail.relatedHops.join(', ')})`
                                         : '';
+                                    const detailActionButtons = buildExecutionDetailActionButtons(detail, item, chainKey);
                                     return `
                                         <div class="builder-validation-item ${detail.severity === 'critical' ? 'critical' : 'error'}">
                                             ${detailCode ? `<strong>${escapeHtml(`[${detailCode}]`)}</strong>` : ''}
@@ -719,6 +779,7 @@
                                             ${detailFailedStep ? `<small>${escapeHtml(`${i18n.executionFailedStep || 'Failed step'}: ${detailFailedStep}`)}</small>` : ''}
                                             ${detailHint ? `<small>${escapeHtml(detailHint)}</small>` : ''}
                                             ${detailSuggestedActions.length ? `<small>${escapeHtml(i18n.executionSuggestedActions || 'Suggested actions')}: ${escapeHtml(detailSuggestedActions.map((action) => getExecutionSuggestedActionLabel(action)).join(' · '))}</small>` : ''}
+                                            ${detailActionButtons}
                                         </div>
                                     `;
                                 }).join('')}
@@ -1032,9 +1093,11 @@
         await copyTextToClipboard(jsonText, i18n.executionCopyJsonDone || 'Execution diagnostics JSON copied.');
     }
 
-    async function rerunExecutionChain({ chainId = '', startNodeId = '', chainKey = '' } = {}) {
+    async function rerunExecutionChain({ chainId = '', startNodeId = '', chainKey = '', showToast = true } = {}) {
         if (!startNodeId) {
-            toast(i18n.executionRerunMissingStartNode || 'Start node is required to rerun this chain.', 'error');
+            if (showToast) {
+                toast(i18n.executionRerunMissingStartNode || 'Start node is required to rerun this chain.', 'error');
+            }
             return { success: false, error: i18n.executionRerunMissingStartNode || 'Start node is required to rerun this chain.' };
         }
         try {
@@ -1058,20 +1121,66 @@
                 }
             }
             renderExecutionResult(state.execution);
-            toast(
-                response?.success
-                    ? (i18n.executionRerunDone || 'Chain rerun completed.')
-                    : (i18n.executionRerunFailed || 'Chain rerun failed.'),
-                response?.success ? 'success' : 'error',
-            );
+            if (showToast) {
+                toast(
+                    response?.success
+                        ? (i18n.executionRerunDone || 'Chain rerun completed.')
+                        : (i18n.executionRerunFailed || 'Chain rerun failed.'),
+                    response?.success ? 'success' : 'error',
+                );
+            }
             return {
                 success: !!response?.success,
                 result: result || null,
             };
         } catch (error) {
-            toast(`${i18n.executionRerunFailed || 'Chain rerun failed.'} ${error.message}`, 'error');
+            if (showToast) {
+                toast(`${i18n.executionRerunFailed || 'Chain rerun failed.'} ${error.message}`, 'error');
+            }
             return { success: false, error: error.message };
         }
+    }
+
+    async function rerunFailedExecutionChains() {
+        const execution = state.execution && typeof state.execution === 'object' ? state.execution : null;
+        const deployment = execution?.deployment && typeof execution.deployment === 'object'
+            ? execution.deployment
+            : null;
+        const results = Array.isArray(deployment?.results) ? deployment.results : [];
+        const failedItems = results.filter((item) => item && item.success === false);
+
+        if (!failedItems.length) {
+            toast(i18n.executionRerunFailedChainsEmpty || 'No failed chains to rerun.', 'warning');
+            return;
+        }
+
+        let successCount = 0;
+        let failedCount = 0;
+
+        for (const item of failedItems) {
+            const chainKey = String(item.chainId || item.startNodeId || item.chainName || '').trim();
+            const rerunResult = await rerunExecutionChain({
+                chainId: String(item.chainId || '').trim(),
+                startNodeId: String(item.startNodeId || '').trim(),
+                chainKey,
+                showToast: false,
+            });
+            if (rerunResult.success) successCount += 1;
+            else failedCount += 1;
+        }
+
+        if (failedCount > 0) {
+            toast(
+                `${i18n.executionRerunFailedChainsFailed || 'Failed chain rerun finished with errors'} (${successCount}/${failedItems.length})`,
+                'error',
+            );
+            return;
+        }
+
+        toast(
+            `${i18n.executionRerunFailedChainsDone || 'Failed chain rerun completed'} (${successCount}/${failedItems.length})`,
+            'success',
+        );
     }
 
     async function repairExecutionNode(nodeId = '', options = {}) {
@@ -1817,6 +1926,7 @@
         document.getElementById('builderExecutionCopyFailedOnly')?.addEventListener('click', () => copyExecutionDiagnosticsFailedCompact());
         document.getElementById('builderExecutionCopyFailedJson')?.addEventListener('click', () => copyExecutionDiagnosticsFailedJson());
         document.getElementById('builderExecutionCopyJson')?.addEventListener('click', () => copyExecutionDiagnosticsJson());
+        document.getElementById('builderExecutionRerunFailed')?.addEventListener('click', () => rerunFailedExecutionChains());
         document.getElementById('builderExecutionList')?.addEventListener('click', (event) => {
             const button = event.target.closest('[data-execution-action]');
             if (!button) return;

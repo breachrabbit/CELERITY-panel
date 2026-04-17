@@ -151,6 +151,10 @@
                             <i class="ti ti-code"></i>
                             <span><%= t('cascades.executionCopyJson') %></span>
                         </button>
+                        <button class="btn btn-secondary btn-sm" id="builderExecutionRerunFailed" type="button">
+                            <i class="ti ti-rotate-2"></i>
+                            <span><%= t('cascades.executionRerunFailedChains') %></span>
+                        </button>
                         <span class="builder-validation-badge" id="builderExecutionBadge">—</span>
                     </div>
                 </div>
@@ -264,6 +268,10 @@ window._cascadeBuilderI18n = {
     executionRerunDone: <%- JSON.stringify(t('cascades.executionRerunDone')) %>,
     executionRerunFailed: <%- JSON.stringify(t('cascades.executionRerunFailed')) %>,
     executionRerunMissingStartNode: <%- JSON.stringify(t('cascades.executionRerunMissingStartNode')) %>,
+    executionRerunFailedChains: <%- JSON.stringify(t('cascades.executionRerunFailedChains')) %>,
+    executionRerunFailedChainsEmpty: <%- JSON.stringify(t('cascades.executionRerunFailedChainsEmpty')) %>,
+    executionRerunFailedChainsDone: <%- JSON.stringify(t('cascades.executionRerunFailedChainsDone')) %>,
+    executionRerunFailedChainsFailed: <%- JSON.stringify(t('cascades.executionRerunFailedChainsFailed')) %>,
     executionLastRerun: <%- JSON.stringify(t('cascades.executionLastRerun')) %>,
     executionErrorDetails: <%- JSON.stringify(t('cascades.executionErrorDetails')) %>,
     executionSuggestedActions: <%- JSON.stringify(t('cascades.executionSuggestedActions')) %>,
