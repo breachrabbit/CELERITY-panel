@@ -935,3 +935,20 @@ Change type:
 
 - `stability fix` — onboarding step failure transparency
 - `local patch` — prepare-host robustness and live diagnostics stream
+
+## 2026-04-17 Onboarding Preflight Shell Normalization Fix
+
+- Investigated repeated durable onboarding failure on preflight:
+  - `preflight failed: Exit code: 2 ... sh: 1: set: Illegal option -o t`.
+- Found command assembly issue in onboarding shell wrapper:
+  - previous script normalization flattened multiline script into `;`-joined one-liner;
+  - this could produce invalid shell grammar around block keywords (`do/then`) on remote `/bin/sh`.
+- Updated `src/services/nodeOnboardingHandlers.js`:
+  - added safe single-quote shell escaper for command payloads;
+  - `buildNonLoginShCommand(...)` now preserves real multiline script structure (`\n`) instead of semicolon flattening;
+  - still executes via non-login `sh -c` to avoid login-shell profile side effects.
+- Deployed fix to test stand with image commit `49b1867` and verified deployment completed `running:healthy`.
+
+Change type:
+
+- `stability fix` — durable onboarding preflight shell compatibility

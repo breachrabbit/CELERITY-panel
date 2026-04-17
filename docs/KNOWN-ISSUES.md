@@ -290,6 +290,10 @@ Current state after patch:
 - `preflight`/`prepare-host` now report structured SSH diagnostics (code/error/stdout/stderr tails);
 - both steps now emit live stdout/stderr lines to setup log stream;
 - `prepare-host` path creation is more tolerant to file-vs-dir collisions.
+- preflight shell wrapper now preserves multiline script semantics for non-login `sh -c` execution:
+  - removed semicolon-flattening that could break block syntax on some hosts;
+  - targeted recurring failure:
+    - `preflight failed: Exit code: 2 ... sh: 1: set: Illegal option -o t`.
 
 What is still pending:
 

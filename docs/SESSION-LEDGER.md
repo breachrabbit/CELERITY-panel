@@ -430,3 +430,13 @@
   - re-run fresh onboarding on a new node and confirm first-pass success;
   - if fail repeats, use diagnostics payload to patch exact SSH command issue (instead of marker guesswork);
   - then continue Hysteria live-stream parity.
+
+- Onboarding preflight shell compatibility continuation:
+  - reproduced recurring `preflight failed: Exit code: 2 ... sh: 1: set: Illegal option -o t`;
+  - identified shell wrapper regression from semicolon-flattened command assembly in durable preflight path;
+  - switched onboarding shell wrapper to preserve multiline script semantics with safe single-quoted payload;
+  - deployed `49b1867` to Coolify stand (`tunnel.hiddenrabbit.net.ru`), deployment finished healthy.
+- Next step:
+  - re-test on fresh node with `Настроить автоматически` (or `Повторить шаг` for preflight) and confirm first-pass pass-through of `preflight -> prepare-host`;
+  - if any preflight failure remains, capture new diagnostics block and patch exact command/tooling condition;
+  - then continue onboarding pipeline diagnostics/actions improvements.

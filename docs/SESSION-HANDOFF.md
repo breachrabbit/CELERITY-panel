@@ -9,7 +9,39 @@
 - Current working focus: onboarding-first setup reliability on fresh servers (first-pass success + actionable diagnostics).
 - Current local patch focus:
   - hardened early onboarding steps (`preflight`, `prepare-host`) with real SSH failure details and live step output;
+  - fixed durable preflight shell wrapper to preserve multiline script semantics under `/bin/sh`;
   - verify fresh-node run and then continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Preflight Shell Wrapper Fix Stop-Point
+
+### What was delivered
+
+- `src/services/nodeOnboardingHandlers.js`:
+  - replaced semicolon-flattened shell command assembly in `buildNonLoginShCommand(...)`;
+  - added safe single-quote command escaper;
+  - onboarding preflight/prepare-host scripts now run as preserved multiline scripts via non-login `sh -c`.
+- Root issue addressed:
+  - durable preflight could fail with:
+    - `preflight failed: Exit code: 2`
+    - `sh: 1: set: Illegal option -o t`
+  - this was caused by malformed shell grammar in flattened one-line script assembly.
+- Deployed to stand:
+  - commit `49b1867`
+  - application `running:healthy`.
+
+### Current stop-point
+
+- The shell command builder for early onboarding steps is now structurally safe for `/bin/sh` parsing on fresh hosts.
+- Production verification on a fresh node run is pending (user retest needed on `Настроить автоматически` or `Повторить шаг`).
+
+### Best next step
+
+1. Re-run onboarding preflight on fresh server and confirm `preflight -> prepare-host` pass from first attempt.
+2. If any error remains, use the diagnostics block (stderr/stdout tails + step details) as the exact patch input.
+3. Continue next prioritized onboarding work:
+   - diagnostics/actions UI expansion;
+   - legacy fallback preservation until parity;
+   - staged removal of in-memory setup status dependency.
 
 ## 2026-04-17 Prepare-Host Failure Fix Stop-Point
 
