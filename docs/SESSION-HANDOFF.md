@@ -6,10 +6,35 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: setup reliability UX for node onboarding (live logs + correct severity colors) on top of durable onboarding rollout.
+- Current working focus: onboarding-first setup reliability on fresh servers (first-pass success + actionable diagnostics).
 - Current local patch focus:
-  - active patch in progress for setup-log streaming and stderr severity coloring;
-  - after verification, continue deeper setupJobs retirement (execution-path cleanup, not status only).
+  - hardened early onboarding steps (`preflight`, `prepare-host`) with real SSH failure details and live step output;
+  - verify fresh-node run and then continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Prepare-Host Failure Fix Stop-Point
+
+### What was delivered
+
+- `src/services/nodeOnboardingHandlers.js`:
+  - added structured SSH failure helper for onboarding steps;
+  - `runPreflight` and `runPrepareHost` now:
+    - validate `execSSH` success explicitly;
+    - include SSH code/error/stdout/stderr tail in failure details;
+    - stream stdout/stderr lines into onboarding live log channel;
+  - `prepare-host` now tolerates path collisions (file where directory expected) before creating runtime dirs.
+- Continuity docs updated (`DEVELOPMENT-LOG`, `SESSION-LEDGER`, `KNOWN-ISSUES`, this handoff).
+
+### Current stop-point
+
+- Failure message `Prepare-host marker missing in SSH output` is no longer the only signal; onboarding should now expose actionable SSH diagnostics.
+- Early onboarding steps now produce richer live logs while running.
+- Fresh-node validation run is still required after this patch.
+
+### Best next step
+
+1. Re-run `Настроить автоматически` on a fresh node and verify first-pass completion.
+2. If it fails, inspect diagnostics payload (now includes SSH code + stderr tail) and patch exact failing command.
+3. Apply the same detailed diagnostic strategy to later onboarding steps as needed.
 
 ## 2026-04-17 Live Setup Logs + Severity Stop-Point
 

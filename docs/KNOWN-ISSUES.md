@@ -276,3 +276,24 @@ Status: `pending`
 - deployment from `main` to the current Coolify stand;
 - redesigned panel foundation;
 - current docs-based continuity layer.
+
+## 2026-04-17 Onboarding Step Diagnostics Caveat (Updated)
+
+Issue history:
+
+- fresh onboarding runs could fail on `prepare-host` with opaque message:
+  - `Prepare-host marker missing in SSH output`
+- root cause visibility was poor because handler did not surface SSH exit-code/stderr details.
+
+Current state after patch:
+
+- `preflight`/`prepare-host` now report structured SSH diagnostics (code/error/stdout/stderr tails);
+- both steps now emit live stdout/stderr lines to setup log stream;
+- `prepare-host` path creation is more tolerant to file-vs-dir collisions.
+
+What is still pending:
+
+- confirm this fix on multiple fresh servers under real provisioning conditions;
+- if a new concrete command-level failure appears, patch command idempotence accordingly.
+
+Status: `pending verification`

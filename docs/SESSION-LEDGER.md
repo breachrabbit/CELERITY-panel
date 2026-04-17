@@ -420,3 +420,13 @@
   - validate live setup output on a fresh Xray node (no second run);
   - then apply the same line-stream channel to Hysteria setup path;
   - then continue onboarding parity cleanup (legacy bridge retirement).
+
+- Onboarding prepare-host failure hardening:
+  - traced opaque `Prepare-host marker missing in SSH output` to missing SSH command result diagnostics;
+  - hardened onboarding handlers to fail with structured SSH details (exit code + stderr/stdout tail);
+  - enabled live stdout/stderr line forwarding for `preflight` and `prepare-host`;
+  - made `prepare-host` directory prep resilient when directory paths already exist as files.
+- Next step:
+  - re-run fresh onboarding on a new node and confirm first-pass success;
+  - if fail repeats, use diagnostics payload to patch exact SSH command issue (instead of marker guesswork);
+  - then continue Hysteria live-stream parity.

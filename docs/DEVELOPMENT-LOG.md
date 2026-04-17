@@ -913,3 +913,25 @@ Change type:
 - `product blueprint` — future visual cascade builder direction
 - `continuity` — roadmap alignment for builder experiment
 - `technical design` — first implementation boundary for builder v1
+
+## 2026-04-17 Onboarding Prepare-Host Failure Diagnostics Hardening
+
+- Investigated real onboarding failure on fresh server:
+  - durable onboarding stopped at `prepare-host` with generic message `Prepare-host marker missing in SSH output`.
+- Hardened onboarding SSH step handlers in `src/services/nodeOnboardingHandlers.js`:
+  - added explicit `result.success` checks for `preflight` and `prepare-host`;
+  - if SSH command fails, throw structured step error with:
+    - step name;
+    - SSH exit code;
+    - SSH error text;
+    - stdout/stderr tails for diagnostics.
+- Improved `prepare-host` host preparation robustness:
+  - handles path collisions where expected directories may exist as files (moves/removes and recreates dirs).
+- Added live line streaming inside onboarding early steps:
+  - `preflight` and `prepare-host` now forward stdout/stderr lines to panel live setup log stream.
+- Kept marker check as a final sanity guard, but now with structured diagnostics instead of opaque error-only text.
+
+Change type:
+
+- `stability fix` — onboarding step failure transparency
+- `local patch` — prepare-host robustness and live diagnostics stream
