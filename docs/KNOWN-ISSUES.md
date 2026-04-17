@@ -12,12 +12,14 @@ Current state:
 - accepted drag-connect drafts survive refresh for the same operator;
 - builder can now commit drafts into legacy cascade links, but only through a batch transitional bridge.
 - builder now also has a pure deploy-preview / commit-plan layer over the current draft state.
+- builder can now run `commit + deploy` in one action, but deploy execution still relies on legacy `deployChain`.
 
 Still missing:
 
 - shared/persistent flow storage;
 - per-hop settings before commit;
 - executable synthetic chain preview against in-memory links;
+- flow-native deploy orchestration independent of legacy chain deploy;
 - richer per-hop commit/configuration UI;
 - local bundled graph assets instead of CDN dependency;
 - true flow-native role storage independent of legacy node `cascadeRole`.

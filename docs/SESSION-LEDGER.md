@@ -1,5 +1,19 @@
 # Session Ledger
 
+## 2026-04-17
+
+- Worked on: practical cascade flow continuation after onboarding stabilization (builder-side deploy path).
+- Finished with:
+  - `commit + deploy` support in the builder API via `deployAfterCommit`;
+  - chain-target deployment execution from committed drafts with per-chain diagnostics;
+  - plan-aware blocking for drafts that already fail commit checks;
+  - separate builder UI action (`Commit and deploy`) while preserving safe commit-only action;
+  - locale coverage for new builder actions/messages.
+- Next step:
+  - verify this flow live on test nodes from `/panel/cascades/builder` (`draft -> commit+deploy`);
+  - collect real chain deployment outcomes on mixed test topologies;
+  - continue per-hop settings UX so operators can edit commit payload before bridge mutation.
+
 ## 2026-04-16
 
 - Worked on: experimental `Cascade Builder` implementation on top of the current cascade topology.

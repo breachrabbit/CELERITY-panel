@@ -1,5 +1,28 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder Commit+Deploy Bridge
+
+- Added a practical `commit + deploy` path to the experimental builder so draft hops can be applied and chain deployment can be triggered in one operator action.
+- Backend (`src/routes/cascadeBuilder.js`):
+  - `POST /api/cascade-builder/commit-drafts` now accepts `deployAfterCommit`;
+  - commit flow now uses planner checks before mutation and blocks draft hops that are already invalid in commit plan;
+  - when `deployAfterCommit=true`, touched chains are deployed through `cascadeService.deployChain(...)`;
+  - response now includes `deployment` details (`chains`, `deployedChains`, `failedChains`, per-chain errors).
+- Planner (`src/domain/cascade-builder/commitPlanner.js`):
+  - added `nodeIds` into chain preview payload so backend can map draft changes to deterministic deploy targets.
+- UI (`views/cascade-builder.ejs`, `public/js/cascade-builder.js`):
+  - added a separate `Commit and deploy` action next to regular draft commit;
+  - front-end now shows deployment issues in validation panel and surfaces deployment outcome in toasts;
+  - kept regular `commit-only` action for safer staged workflows.
+- Locales (`src/locales/ru.json`, `src/locales/en.json`):
+  - added labels/messages for `commit + deploy` action and blocked-by-plan draft feedback.
+
+Change types:
+
+- `local patch` — builder commit+deploy operator bridge
+- `stability fix` — pre-commit plan blocking for invalid draft hops
+- `local patch` — builder deployment diagnostics in UI
+
 ## 2026-04-16
 
 - Started the first live experimental `Cascade Builder` implementation inside this fork.

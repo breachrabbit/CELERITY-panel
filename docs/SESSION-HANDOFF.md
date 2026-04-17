@@ -6,12 +6,51 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: onboarding-first setup reliability on fresh servers (first-pass success + actionable diagnostics).
+- Current working focus: onboarding-first setup reliability + practical cascade-builder execution path on live test nodes.
 - Current local patch focus:
   - hardened early onboarding steps (`preflight`, `prepare-host`) with real SSH failure details and live step output;
   - fixed durable preflight shell wrapper to preserve multiline script semantics under `/bin/sh`;
   - fixed runtime verify step to correctly parse runtime status and tolerate startup races;
-  - verify fresh-node run and then continue parity work (`setupJobs` retirement + Hysteria live stream).
+  - added builder-side `commit + deploy` bridge over draft hops;
+  - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Cascade Builder Commit+Deploy Stop-Point
+
+### What was delivered
+
+- `src/routes/cascadeBuilder.js`:
+  - `POST /api/cascade-builder/commit-drafts` now supports `deployAfterCommit`;
+  - commit path now checks planner blockers per draft hop before attempting mutation;
+  - committed drafts can now trigger chain deployment via `cascadeService.deployChain(...)`;
+  - response now includes `deployment` diagnostics (`chains`, `deployedChains`, `failedChains`, per-chain errors).
+- `src/domain/cascade-builder/commitPlanner.js`:
+  - chain previews now include `nodeIds` so backend can pick deterministic deploy seeds.
+- `views/cascade-builder.ejs` + `public/js/cascade-builder.js`:
+  - new `Commit and deploy` action;
+  - front-end now handles deployment diagnostics and displays partial-failure details in validation feed.
+- locales:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added new builder strings for commit+deploy and blocked-by-plan messaging.
+
+### Current stop-point
+
+- Experimental builder is no longer commit-only:
+  - operator can now run `draft -> commit -> deploy` in one flow.
+- Safe staged path remains:
+  - regular `commit draft hops` still works without deployment side effects.
+- Deploy execution remains legacy-backed chain deploy:
+  - this is transitional and intentionally not a flow-native deploy engine yet.
+
+### Best next step
+
+1. Run live builder smoke test on fresh test nodes:
+   - create 1-2 draft hops,
+   - run `Deploy preview`,
+   - run `Commit and deploy`,
+   - verify resulting `CascadeLink` state and chain deployment logs.
+2. Add per-hop pre-commit settings editor (port/mode/protocol/security) inside builder inspector.
+3. Keep onboarding parity track in parallel (legacy status-path retirement) after cascade smoke confirmation.
 
 ## 2026-04-17 Verify-Runtime False Offline Fix Stop-Point
 
