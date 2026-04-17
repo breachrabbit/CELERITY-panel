@@ -1,5 +1,50 @@
 # Development Log
 
+## 2026-04-17 Upstream Delta Audit Task Queued (v1.0.0...v1.1.0)
+
+- Added explicit upstream review checkpoint to continuity docs:
+  - compare target: `https://github.com/ClickDevTech/CELERITY-panel/compare/v1.0.0...v1.1.0`.
+- Port policy fixed for this fork:
+  - prioritize stability/security fixes,
+  - allow adaptation-only imports when safe,
+  - skip noisy/non-useful upstream deltas.
+
+Change type:
+
+- `continuity` — upstream audit queue hardening
+
+## 2026-04-17 Hysteria Onboarding Runtime Rewrite + Hybrid Always-On
+
+- Reworked Hysteria runtime installation path in `src/services/nodeSetup.js`:
+  - replaced legacy `INSTALL_SCRIPT` with hardened `HYSTERIA_INSTALL_SCRIPT`;
+  - added installer retries across multiple sources;
+  - added binary fallback downloads with mirror retries and executable sanity checks;
+  - added fallback `hysteria-server.service` generation if no service unit exists.
+- Added dedicated `setupHysteriaNode(...)` with:
+  - live log streaming support (`onLogLine`) parity with Xray setup path;
+  - stronger command error handling and explicit restart checks;
+  - UDP listener verification after restart (`waitForListeningSocket`).
+- Durable onboarding runtime step now explicitly calls `setupHysteriaNode(...)`:
+  - `src/services/nodeOnboardingHandlers.js`.
+- Setup default mode switched to durable onboarding for both entrypoints:
+  - panel route default (`src/routes/panel/nodes.js`);
+  - API route default (`src/routes/nodes.js`).
+- Removed weak first-pass agent tolerance in legacy setup path:
+  - switched Xray setup in panel/API routes from `strictAgent:false` to `strictAgent:true`.
+- Moved hybrid cascade to always-on runtime policy:
+  - `config.js`: `FEATURE_CASCADE_HYBRID` defaults enabled unless env explicitly false;
+  - `index.js`: runtime settings reload now forces hybrid enabled;
+  - `src/models/settingsModel.js`: hybrid flag default set to `true`;
+  - settings save path now persists hybrid flag as enabled;
+  - settings UI now shows hybrid as always enabled (informational state).
+- Locale updates:
+  - added RU/EN `settings.hybridCascadeAlwaysOnHint`.
+
+Change types:
+
+- `stability fix` — durable onboarding/runtime installer hardening for Hysteria
+- `local patch` — setup mode defaults + strict agent checks + hybrid policy/UI cleanup
+
 ## 2026-04-17 Live Mixed-Run Validation + Hop-Focus Diagnostics
 
 - Ran a real mixed cascade execution on stand (`success + failed` in the same run).

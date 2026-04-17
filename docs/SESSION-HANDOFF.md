@@ -7,6 +7,9 @@
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
 - Current working focus: onboarding-first setup reliability + practical cascade-builder execution path on live test nodes.
+- New mandatory audit task:
+  - review upstream delta `v1.0.0...v1.1.0` and selectively port safe high-value fixes into this fork:
+    - compare link: `https://github.com/ClickDevTech/CELERITY-panel/compare/v1.0.0...v1.1.0`.
 - Current local patch focus:
   - hardened early onboarding steps (`preflight`, `prepare-host`) with real SSH failure details and live step output;
   - fixed durable preflight shell wrapper to preserve multiline script semantics under `/bin/sh`;
@@ -35,7 +38,57 @@
   - trimmed durable onboarding bridge touches:
     - legacy setup mirror append is now guarded by legacy-only lookup;
     - onboarding-full setup flow remains onboarding-primary in status/control reporting.
+  - rewired Hysteria runtime setup to a dedicated durable-first path:
+    - new hardened Hysteria installer script with retries + fallback mirrors;
+    - Hysteria setup now supports live line streaming (`onLogLine`) like Xray;
+    - durable onboarding runtime step now calls dedicated `setupHysteriaNode(...)`.
+  - switched setup defaults to onboarding-full for both panel/API setup entrypoints.
+  - switched Xray legacy setup path to strict agent verification (removed `strictAgent:false` success shortcut).
+  - hybrid cascade feature flag moved to always-on runtime policy:
+    - settings UI now shows informational always-enabled state;
+    - runtime config reload forces hybrid enabled.
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Stop-Point — Hysteria Installer Rewrite + Hybrid Always-On Policy
+
+### What was delivered
+
+- `src/services/nodeSetup.js`:
+  - replaced legacy Hysteria install block with hardened installer flow (`HYSTERIA_INSTALL_SCRIPT`):
+    - retry loop for installer download/execute;
+    - multiple installer sources;
+    - fallback binary download path with mirror retries and binary sanity checks;
+    - fallback systemd unit generation if `hysteria-server` service is missing.
+  - added `setupHysteriaNode(...)` as dedicated setup function (legacy `setupNode(...)` now wraps it).
+  - added live log streaming support for Hysteria setup command output.
+  - added UDP listener verification after service restart (`waitForListeningSocket`).
+- `src/services/nodeOnboardingHandlers.js`:
+  - `install-runtime` step for Hysteria now explicitly uses `setupHysteriaNode(...)`.
+- `src/routes/panel/nodes.js`, `src/routes/nodes.js`:
+  - default setup mode switched to `onboarding-full` (unless explicit override);
+  - legacy Xray setup path now uses strict agent verification.
+- Hybrid always-on policy:
+  - `config.js`, `index.js`, `src/models/settingsModel.js`, `src/routes/panel/settings.js`, `views/partials/settings/system.ejs` updated so hybrid mode is runtime-enforced and no longer operator-toggle driven;
+  - RU/EN locale hint added for “always enabled” system message.
+
+### Current state
+
+- Core code path for Hysteria onboarding is now aligned with Xray quality baseline:
+  - durable pipeline default;
+  - streaming logs;
+  - installer resilience.
+- This step is code-complete but still requires live multi-host verification.
+
+### Next step
+
+1. Run fresh onboarding smoke on multiple new Hysteria nodes and verify first-pass success rate.
+2. Validate hybrid chain combinations on stand:
+   - `xray -> xray`,
+   - `xray -> hysteria`,
+   - `hysteria -> hysteria`,
+   - multi-hop mixed chain.
+3. Continue staged retirement of legacy `setupJobs` non-critical paths after onboarding parity confirmation.
+4. Run upstream `v1.0.0...v1.1.0` audit pass and prepare a safe port shortlist (stability/security first).
 
 ## 2026-04-17 Stop-Point — Mixed-Run Parity Confirmed + Hop-Focus Diagnostics
 

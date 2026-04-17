@@ -2,6 +2,15 @@
 
 ## 2026-04-17
 
+- Worked on: continuity prioritization for upstream Celerity delta sync.
+- Finished with:
+  - added mandatory task to audit upstream `v1.0.0...v1.1.0` changes;
+  - fixed source of truth in docs with direct compare reference:
+    - `https://github.com/ClickDevTech/CELERITY-panel/compare/v1.0.0...v1.1.0`;
+  - marked expectation to selectively port only safe/high-signal stability and security fixes.
+- Next step:
+  - execute full upstream delta review and produce actionable port shortlist with risk notes.
+
 - Worked on: live mixed-run cascade parity validation + execution diagnostics depth.
 - Finished with:
   - executed real mixed run on stand (`success + failed` together) and validated:

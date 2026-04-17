@@ -2,6 +2,13 @@
 
 ## Near Term
 
+- run a focused upstream delta audit for `CELERITY-panel v1.0.0...v1.1.0`:
+  - source: `https://github.com/ClickDevTech/CELERITY-panel/compare/v1.0.0...v1.1.0`;
+  - classify each upstream change as:
+    - safe-and-useful-to-port now,
+    - useful-but-needs-adaptation,
+    - skip for this fork;
+  - port only high-signal stability/security fixes with regression checks;
 - stabilize the experimental `Cascade Builder` route:
   - verify the separate page on the live stand;
   - keep the topology read-source and draft write-source boundaries explicit;
