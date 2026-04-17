@@ -6,7 +6,7 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2.2 runtime handler layer).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2.3 agent handler layer).
 - Current local patch focus:
   - staged bridge of durable onboarding status into legacy setup endpoints;
   - next move from mirrored bridge steps to real runner handlers.
@@ -104,6 +104,34 @@ Pipeline now includes runtime installation/verification handlers in staged mode.
 1. Add `install-agent` handler with pinned/predictable installer source.
 2. Add `verify-agent-local` and `verify-panel-to-agent` handlers.
 3. Start routing a controlled subset of setup executions through pipeline handlers.
+
+## 2026-04-17 Onboarding Agent Layer Stop-Point
+
+Agent install/verification handlers are now implemented in staged mode.
+
+### What was added
+
+- New real handlers in `src/services/nodeOnboardingHandlers.js`:
+  - `install-agent`
+  - `verify-agent-local`
+  - `verify-panel-to-agent`
+- Pipeline extension in `src/services/nodeOnboardingPipeline.js`:
+  - `runUntilSeedNodeState(jobId)`
+  - executes real steps through panel->agent verification boundary.
+- New API trigger:
+  - `POST /api/nodes/:id/onboarding/jobs/:jobId/run-agent`.
+
+### Current stop-point
+
+- Pipeline can now execute real steps through panel->agent handshake.
+- `seed-node-state` and `final-sync` handlers are still missing.
+- Legacy setup flow is still live and mirrored into onboarding jobs.
+
+### Best next step
+
+1. Implement real `seed-node-state` and `final-sync` handlers.
+2. Switch panel setup-status UI to onboarding-first rendering.
+3. Remove synthetic bridge completion once end-to-end handlers are stable.
 
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
 
@@ -248,11 +276,11 @@ Context:
 
 Priority:
 
-1. add `install-agent` onboarding handler with deterministic installer source;
-2. add `verify-agent-local` and `verify-panel-to-agent` handlers;
-3. switch panel setup-status UI to onboarding-first rendering (legacy fallback only);
-4. replace synthetic bridge completion with real per-step transitions end-to-end;
-5. keep legacy setup as fallback until parity is proven on test nodes.
+1. implement real `seed-node-state` and `final-sync` handlers;
+2. switch panel setup-status UI to onboarding-first rendering (legacy fallback only);
+3. replace synthetic bridge completion with real end-to-end transitions;
+4. keep legacy setup as fallback until parity is proven on test nodes;
+5. then start retiring in-memory `setupJobs` from the critical status path.
 
 ## 2026-04-16 Cascade Builder v1 Stop-Point
 

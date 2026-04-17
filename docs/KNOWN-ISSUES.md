@@ -163,12 +163,15 @@ Latest progress:
 - runtime handlers started:
   - executable `install-runtime` and `verify-runtime-local` exist;
   - API trigger exists to run pipeline until agent-install boundary.
+- agent handlers started:
+  - executable `install-agent`, `verify-agent-local`, `verify-panel-to-agent` exist;
+  - API trigger exists to run pipeline until `seed-node-state`.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
 
 - integration of durable onboarding jobs into panel setup UI/status polling;
-- agent executable handlers (`install-agent`, local/panel verify steps);
+- seed/final handlers (`seed-node-state`, `final-sync`, `ready`) and full cutover logic;
 - staged cutover from in-memory `setupJobs` to durable job status.
 
 Status: `pending`

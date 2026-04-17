@@ -1,5 +1,6 @@
 const HyNode = require('../models/hyNodeModel');
 const nodeSetup = require('./nodeSetup');
+const syncService = require('./syncService');
 
 function parseMissingTools(output) {
     const lines = String(output || '')
@@ -165,9 +166,136 @@ async function runVerifyRuntimeLocal({ job }) {
     };
 }
 
+function shouldSkipAgentSteps(node) {
+    return node.type !== 'xray' || (node.cascadeRole || 'standalone') === 'bridge';
+}
+
+async function runInstallAgent({ job }) {
+    const node = await HyNode.findById(job.nodeId);
+    if (!node) {
+        throw new Error('Onboarding node not found for agent install');
+    }
+
+    if (shouldSkipAgentSteps(node)) {
+        return {
+            nodeId: String(node._id),
+            nodeName: node.name,
+            nodeType: node.type || 'hysteria',
+            skipped: true,
+            reason: 'agent step not required for this node type/role',
+        };
+    }
+
+    const logBuffer = [];
+    const agentState = await nodeSetup.setupOrRepairXrayAgent(node, {
+        strictAgent: true,
+        includeInstallerOutput: true,
+        log: (line) => {
+            if (line) logBuffer.push(String(line));
+        },
+    });
+
+    if (!agentState?.success) {
+        throw new Error(agentState?.error || 'Agent install failed');
+    }
+
+    return {
+        nodeId: String(node._id),
+        nodeName: node.name,
+        nodeType: node.type || 'hysteria',
+        skipped: false,
+        agentVersion: agentState.agentVersion || '',
+        tokenPresent: !!agentState.token,
+        logTail: logBuffer.slice(-20),
+    };
+}
+
+async function runVerifyAgentLocal({ job }) {
+    return withNodeSsh(job.nodeId, async ({ node, conn }) => {
+        if (shouldSkipAgentSteps(node)) {
+            return {
+                nodeId: String(node._id),
+                nodeName: node.name,
+                nodeType: node.type || 'hysteria',
+                skipped: true,
+                reason: 'local agent verification is not required for this node type/role',
+            };
+        }
+
+        const agentPort = Number(node?.xray?.agentPort) > 0 ? Number(node.xray.agentPort) : 62080;
+        const verifyCmd = [
+            'set -e',
+            'SERVICE="$(systemctl is-active cc-agent 2>/dev/null || true)"',
+            `PORT="${agentPort}"`,
+            'if command -v ss >/dev/null 2>&1; then',
+            '  ss -ltn 2>/dev/null | grep -q ":${PORT} " && PORT_OK=1 || PORT_OK=0',
+            'else',
+            '  PORT_OK=1',
+            'fi',
+            'echo "__service__=${SERVICE}"',
+            'echo "__port_ok__=${PORT_OK}"',
+        ].join('\n');
+
+        const result = await nodeSetup.execSSH(conn, `sh -lc ${JSON.stringify(verifyCmd)}`);
+        const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+        const serviceState = (output.match(/__service__=(.+)/) || [])[1] || 'unknown';
+        const portOk = Number((output.match(/__port_ok__=(\d+)/) || [])[1] || 0) === 1;
+
+        if (serviceState !== 'active') {
+            throw new Error(`cc-agent service is not active (${serviceState})`);
+        }
+        if (!portOk) {
+            throw new Error(`cc-agent port ${agentPort} is not listening`);
+        }
+
+        return {
+            nodeId: String(node._id),
+            nodeName: node.name,
+            nodeType: node.type || 'hysteria',
+            skipped: false,
+            serviceState,
+            agentPort,
+        };
+    });
+}
+
+async function runVerifyPanelToAgent({ job }) {
+    const node = await HyNode.findById(job.nodeId);
+    if (!node) {
+        throw new Error('Onboarding node not found for panel->agent verification');
+    }
+
+    if (shouldSkipAgentSteps(node)) {
+        return {
+            nodeId: String(node._id),
+            nodeName: node.name,
+            nodeType: node.type || 'hysteria',
+            skipped: true,
+            reason: 'panel->agent verification is not required for this node type/role',
+        };
+    }
+
+    const runtimeNode = await syncService._ensureXrayAgentReady(node);
+    const response = await syncService._agentRequest(runtimeNode, 'GET', '/info');
+    const data = response?.data || {};
+
+    return {
+        nodeId: String(node._id),
+        nodeName: node.name,
+        nodeType: node.type || 'hysteria',
+        skipped: false,
+        agentVersion: data.agent_version || '',
+        runtimeVersion: data.xray_version || '',
+        usersCount: Number(data.users_count || 0),
+    };
+}
+
 module.exports = {
     runPreflight,
     runPrepareHost,
     runInstallRuntime,
     runVerifyRuntimeLocal,
+    runInstallAgent,
+    runVerifyAgentLocal,
+    runVerifyPanelToAgent,
 };

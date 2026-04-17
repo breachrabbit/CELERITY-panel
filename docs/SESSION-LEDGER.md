@@ -339,3 +339,12 @@
 - Next step:
   - implement `install-agent` + local/panel verification handlers;
   - then start routing selected setups through full pipeline steps instead of synthetic bridge completion.
+
+- Onboarding agent handler continuation:
+  - added `install-agent`, `verify-agent-local`, and `verify-panel-to-agent` handlers;
+  - extended pipeline to `runUntilSeedNodeState(jobId)`;
+  - added API trigger `POST /api/nodes/:id/onboarding/jobs/:jobId/run-agent`.
+- Next step:
+  - implement real `seed-node-state` and `final-sync` handlers;
+  - switch panel setup-status to onboarding-first rendering;
+  - then phase out synthetic bridge completion.

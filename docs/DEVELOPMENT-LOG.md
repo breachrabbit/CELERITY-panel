@@ -256,6 +256,30 @@ Change types:
 - `local patch` — runtime install/verify onboarding handlers
 - `stability fix` — explicit runtime-online gate before agent step
 
+## 2026-04-17 Onboarding Agent Handler Layer (Phase 2.3)
+
+- Extended pipeline with agent-focused handlers:
+  - `install-agent`:
+    - uses `setupOrRepairXrayAgent` with strict mode for Xray non-bridge nodes;
+    - returns compact install details and log tail;
+    - explicitly skips unsupported node roles/types.
+  - `verify-agent-local`:
+    - validates local `cc-agent` service state;
+    - validates agent port listener state.
+  - `verify-panel-to-agent`:
+    - validates panel-to-agent handshake using existing sync-service agent request path.
+- Extended pipeline stage:
+  - `runUntilSeedNodeState(jobId)`
+  - executes handler chain through panel->agent verification and stops before `seed-node-state`.
+- Added API trigger:
+  - `POST /api/nodes/:id/onboarding/jobs/:jobId/run-agent`
+  - enables staged execution for the new agent verification layer.
+
+Change types:
+
+- `local patch` — install-agent and verification handler layer
+- `stability fix` — explicit panel->agent handshake checkpoint
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.
