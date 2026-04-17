@@ -258,6 +258,32 @@ function sanitizeNodePositions(positions) {
     return result;
 }
 
+const ALLOWED_HOP_MODES = new Set(['reverse', 'forward']);
+const ALLOWED_TUNNEL_PROTOCOLS = new Set(['vless', 'vmess']);
+const ALLOWED_TUNNEL_TRANSPORTS = new Set(['tcp', 'ws', 'grpc', 'xhttp', 'splithttp']);
+const ALLOWED_TUNNEL_SECURITIES = new Set(['none', 'tls', 'reality']);
+
+function sanitizeDraftHopName(name, fallbackName) {
+    const normalized = String(name ?? '').trim().slice(0, 120);
+    return normalized || String(fallbackName || '').trim();
+}
+
+function normalizeDraftBoolean(value, fallback = false) {
+    if (value === undefined || value === null) return !!fallback;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value > 0;
+    const normalized = String(value).trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+    return !!fallback;
+}
+
+function parseDraftPort(rawValue, fallback = 10086) {
+    const parsed = Number.parseInt(rawValue, 10);
+    if (!Number.isFinite(parsed)) return Number.parseInt(fallback, 10) || 10086;
+    return parsed;
+}
+
 async function getStoredDraft(req, flowId = 'legacy-topology') {
     return cacheService.getCascadeBuilderDraft(getBuilderActorKey(req), flowId);
 }
@@ -472,6 +498,147 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
     } catch (error) {
         logger.error(`[Cascade Builder API] Connect error: ${error.message}`);
         res.status(500).json({ error: localizeBuilderApiError(res, error) });
+    }
+});
+
+router.patch('/drafts/:hopId', requireScope('nodes:write'), async (req, res) => {
+    try {
+        const hopId = String(req.params?.hopId || '');
+        if (!hopId) {
+            return res.status(400).json({ error: tFor(res, 'cascades.draftEditInvalidPayload', 'Draft update payload is invalid.') });
+        }
+
+        const state = await buildState(req);
+        const storedDraft = await getStoredDraft(req, state.flowId);
+        const draftHops = Array.isArray(storedDraft?.draftHops) ? storedDraft.draftHops : [];
+        const draftIndex = draftHops.findIndex((hop) => String(hop?.id || '') === hopId);
+
+        if (draftIndex < 0) {
+            return res.status(404).json({ error: tFor(res, 'cascades.draftHopNotFound', 'Draft hop was not found.') });
+        }
+
+        const currentHop = draftHops[draftIndex] || {};
+        const sourceNode = state.nodes.find((node) => String(node.id) === String(currentHop.sourceNodeId));
+        const targetNode = state.nodes.find((node) => String(node.id) === String(currentHop.targetNodeId));
+        if (!sourceNode || !targetNode) {
+            return res.status(422).json({ error: tFor(res, 'cascades.planDraftNodeMissing', 'Draft references a node that no longer exists.') });
+        }
+
+        const payload = req.body && typeof req.body === 'object' ? req.body : {};
+
+        const nextMode = payload.mode !== undefined ? String(payload.mode).trim().toLowerCase() : String(currentHop.mode || 'reverse').toLowerCase();
+        if (!ALLOWED_HOP_MODES.has(nextMode)) {
+            return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidMode', 'Unsupported draft mode.') });
+        }
+
+        const nextProtocol = payload.tunnelProtocol !== undefined ? String(payload.tunnelProtocol).trim().toLowerCase() : String(currentHop.tunnelProtocol || 'vless').toLowerCase();
+        if (!ALLOWED_TUNNEL_PROTOCOLS.has(nextProtocol)) {
+            return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidProtocol', 'Unsupported tunnel protocol for draft hop.') });
+        }
+
+        const nextTransport = payload.tunnelTransport !== undefined ? String(payload.tunnelTransport).trim().toLowerCase() : String(currentHop.tunnelTransport || 'tcp').toLowerCase();
+        if (!ALLOWED_TUNNEL_TRANSPORTS.has(nextTransport)) {
+            return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidTransport', 'Unsupported tunnel transport for draft hop.') });
+        }
+
+        const nextSecurity = payload.tunnelSecurity !== undefined ? String(payload.tunnelSecurity).trim().toLowerCase() : String(currentHop.tunnelSecurity || 'none').toLowerCase();
+        if (!ALLOWED_TUNNEL_SECURITIES.has(nextSecurity)) {
+            return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidSecurity', 'Unsupported tunnel security for draft hop.') });
+        }
+
+        const nextPort = payload.tunnelPort !== undefined
+            ? parseDraftPort(payload.tunnelPort, currentHop.tunnelPort)
+            : parseDraftPort(currentHop.tunnelPort, 10086);
+        if (!Number.isFinite(nextPort) || nextPort < 1 || nextPort > 65535) {
+            return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidPort', 'Tunnel port must be within 1-65535.') });
+        }
+
+        const nextHop = {
+            ...currentHop,
+            id: hopId,
+            edgeId: String(currentHop.edgeId || hopId),
+            sourceNodeId: String(currentHop.sourceNodeId),
+            targetNodeId: String(currentHop.targetNodeId),
+            name: sanitizeDraftHopName(payload.name, currentHop.name || `${sourceNode.name} -> ${targetNode.name}`),
+            mode: nextMode,
+            stack: resolveStack(sourceNode.type, targetNode.type),
+            tunnelProtocol: nextProtocol,
+            tunnelTransport: nextTransport,
+            tunnelSecurity: nextSecurity,
+            tunnelPort: nextPort,
+            muxEnabled: normalizeDraftBoolean(payload.muxEnabled, currentHop.muxEnabled),
+            status: 'draft',
+            isDraft: true,
+        };
+
+        const tentativeHops = state.hops.map((hop) => (String(hop.id) === hopId ? nextHop : hop));
+        const tentativeState = {
+            ...state,
+            hops: tentativeHops,
+        };
+        const validation = localizeValidation(res, tentativeState, validateBuilderState(tentativeState));
+        if ((validation?.errors || []).length > 0) {
+            return res.status(422).json({
+                error: tFor(res, 'cascades.draftEditValidationFailed', 'Draft settings are invalid. Fix the validation issues and try again.'),
+                validation,
+            });
+        }
+
+        const nextDraftHops = [...draftHops];
+        nextDraftHops[draftIndex] = nextHop;
+        const nodePositions = storedDraft?.nodePositions && typeof storedDraft.nodePositions === 'object'
+            ? storedDraft.nodePositions
+            : {};
+
+        await saveStoredDraft(req, state.flowId, {
+            draftHops: nextDraftHops,
+            nodePositions,
+        });
+
+        const nextState = await buildState(req);
+        const persistedHop = (nextState.hops || []).find((hop) => hop.isDraft && String(hop.id) === hopId) || null;
+        return res.json({
+            success: true,
+            hop: persistedHop,
+            validation: nextState.validation,
+            summary: nextState.validation.summary,
+            draft: nextState.draft,
+        });
+    } catch (error) {
+        logger.error(`[Cascade Builder API] Update draft error: ${error.message}`);
+        return res.status(500).json({ error: localizeBuilderApiError(res, error) });
+    }
+});
+
+router.delete('/drafts/:hopId', requireScope('nodes:write'), async (req, res) => {
+    try {
+        const hopId = String(req.params?.hopId || '');
+        const state = await buildState(req);
+        const storedDraft = await getStoredDraft(req, state.flowId);
+        const draftHops = Array.isArray(storedDraft?.draftHops) ? storedDraft.draftHops : [];
+        const nextDraftHops = draftHops.filter((hop) => String(hop?.id || '') !== hopId);
+
+        if (nextDraftHops.length === draftHops.length) {
+            return res.status(404).json({ error: tFor(res, 'cascades.draftHopNotFound', 'Draft hop was not found.') });
+        }
+
+        await saveStoredDraft(req, state.flowId, {
+            draftHops: nextDraftHops,
+            nodePositions: storedDraft?.nodePositions && typeof storedDraft.nodePositions === 'object'
+                ? storedDraft.nodePositions
+                : {},
+        });
+
+        const nextState = await buildState(req);
+        return res.json({
+            success: true,
+            validation: nextState.validation,
+            summary: nextState.validation.summary,
+            draft: nextState.draft,
+        });
+    } catch (error) {
+        logger.error(`[Cascade Builder API] Delete draft error: ${error.message}`);
+        return res.status(500).json({ error: localizeBuilderApiError(res, error) });
     }
 });
 

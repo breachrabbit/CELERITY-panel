@@ -26,7 +26,12 @@
         flow: null,
         cy: null,
         edgehandles: null,
+        selection: { type: null, id: null },
     };
+    const HOP_MODE_OPTIONS = ['reverse', 'forward'];
+    const HOP_PROTOCOL_OPTIONS = ['vless', 'vmess'];
+    const HOP_TRANSPORT_OPTIONS = ['tcp', 'ws', 'grpc', 'xhttp', 'splithttp'];
+    const HOP_SECURITY_OPTIONS = ['none', 'tls', 'reality'];
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -58,6 +63,27 @@
 
     function formatBoolean(value) {
         return value ? t('yes', 'Yes') : t('no', 'No');
+    }
+
+    function getNodeById(nodeId) {
+        return state.flow?.nodes?.find((node) => String(node.id) === String(nodeId)) || null;
+    }
+
+    function getHopById(hopId) {
+        return state.flow?.hops?.find((hop) => String(hop.id) === String(hopId)) || null;
+    }
+
+    function renderSelectOptions(values, selectedValue) {
+        const selected = String(selectedValue || '').toLowerCase();
+        return values.map((value) => {
+            const optionValue = String(value);
+            const isSelected = optionValue.toLowerCase() === selected;
+            return `<option value="${escapeHtml(optionValue)}"${isSelected ? ' selected' : ''}>${escapeHtml(optionValue.toUpperCase())}</option>`;
+        }).join('');
+    }
+
+    function setSelection(type = null, id = null) {
+        state.selection = { type, id: id ? String(id) : null };
     }
 
     function isDarkTheme() {
@@ -108,7 +134,9 @@
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(data.error || `${response.status}`);
+            const error = new Error(data.error || `${response.status}`);
+            error.data = data;
+            throw error;
         }
         return data;
     }
@@ -308,8 +336,9 @@
                         nodeEle.select();
                         state.cy.center(nodeEle);
                     }
-                    renderNodeInspector(node);
                 }
+                setSelection('node', node.id);
+                renderNodeInspector(node);
             });
             root.appendChild(el);
         });
@@ -459,6 +488,7 @@
     function renderNodeInspector(node) {
         const root = document.getElementById('builderInspectorBody');
         if (!root) return;
+        setSelection('node', node.id);
         root.innerHTML = `
             <div class="builder-inspector-card">
                 <div class="builder-data-list">
@@ -473,22 +503,155 @@
         `;
     }
 
+    function renderInspectorEmpty() {
+        const root = document.getElementById('builderInspectorBody');
+        if (!root) return;
+        setSelection(null, null);
+        root.innerHTML = `<div class="builder-empty-state"><i class="ti ti-pointer"></i><p>${i18n.loading || 'Select a node or hop.'}</p></div>`;
+    }
+
+    function bindDraftInspectorActions(hopId) {
+        const form = document.getElementById('builderDraftSettingsForm');
+        const deleteButton = document.getElementById('builderDraftDelete');
+
+        if (form) {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const payload = {
+                    name: form.elements.namedItem('name')?.value || '',
+                    mode: form.elements.namedItem('mode')?.value || 'reverse',
+                    tunnelProtocol: form.elements.namedItem('tunnelProtocol')?.value || 'vless',
+                    tunnelTransport: form.elements.namedItem('tunnelTransport')?.value || 'tcp',
+                    tunnelSecurity: form.elements.namedItem('tunnelSecurity')?.value || 'none',
+                    tunnelPort: form.elements.namedItem('tunnelPort')?.value || '10086',
+                    muxEnabled: !!form.elements.namedItem('muxEnabled')?.checked,
+                };
+                try {
+                    await requestJson(`/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify(payload),
+                    });
+                    toast(i18n.draftUpdated || 'Draft hop updated.', 'success');
+                    await loadState({ selectHopId: hopId });
+                } catch (error) {
+                    if (error?.data?.validation) {
+                        renderValidation(error.data.validation);
+                    }
+                    toast(`${i18n.draftUpdateFailed || 'Failed to update draft hop'}: ${error.message}`, 'error');
+                }
+            });
+        }
+
+        if (deleteButton) {
+            deleteButton.addEventListener('click', async () => {
+                try {
+                    await requestJson(`/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`, {
+                        method: 'DELETE',
+                    });
+                    toast(i18n.draftRemoved || 'Draft hop removed.', 'success');
+                    await loadState();
+                } catch (error) {
+                    toast(`${i18n.draftRemoveFailed || 'Failed to remove draft hop'}: ${error.message}`, 'error');
+                }
+            });
+        }
+    }
+
     function renderHopInspector(hop) {
         const root = document.getElementById('builderInspectorBody');
         if (!root) return;
-        const sourceNode = state.flow.nodes.find((item) => String(item.id) === String(hop.sourceNodeId));
-        const targetNode = state.flow.nodes.find((item) => String(item.id) === String(hop.targetNodeId));
+        setSelection('hop', hop.id);
+        const sourceNode = getNodeById(hop.sourceNodeId);
+        const targetNode = getNodeById(hop.targetNodeId);
+
+        if (hop.isDraft) {
+            root.innerHTML = `
+                <div class="builder-inspector-card">
+                    <div class="builder-inspector-head">
+                        <strong>${escapeHtml(i18n.draftTag || 'Draft')}</strong>
+                        <span class="builder-validation-badge">${escapeHtml(i18n.draftTag || 'Draft')}</span>
+                    </div>
+                    <div class="builder-data-list">
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.source || 'Source')}</span><strong>${escapeHtml(sourceNode?.name || hop.sourceNodeId)}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.target || 'Target')}</span><strong>${escapeHtml(targetNode?.name || hop.targetNodeId)}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.stack || 'Stack')}</span><strong>${escapeHtml(hop.stack || 'unknown')}</strong></div>
+                    </div>
+                </div>
+                <div class="builder-inspector-card">
+                    <div class="builder-inspector-head">
+                        <strong>${escapeHtml(i18n.draftSettingsTitle || 'Hop settings')}</strong>
+                    </div>
+                    <form id="builderDraftSettingsForm" class="builder-form">
+                        <label class="builder-field">
+                            <span>${escapeHtml(i18n.name || 'Name')}</span>
+                            <input class="builder-form-control" type="text" name="name" maxlength="120" value="${escapeHtml(hop.name || '')}">
+                        </label>
+                        <div class="builder-field-grid">
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.mode || 'Mode')}</span>
+                                <select class="builder-form-control" name="mode">
+                                    ${renderSelectOptions(HOP_MODE_OPTIONS, hop.mode || 'reverse')}
+                                </select>
+                            </label>
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.protocol || 'Protocol')}</span>
+                                <select class="builder-form-control" name="tunnelProtocol">
+                                    ${renderSelectOptions(HOP_PROTOCOL_OPTIONS, hop.tunnelProtocol || 'vless')}
+                                </select>
+                            </label>
+                        </div>
+                        <div class="builder-field-grid">
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.transport || 'Transport')}</span>
+                                <select class="builder-form-control" name="tunnelTransport">
+                                    ${renderSelectOptions(HOP_TRANSPORT_OPTIONS, hop.tunnelTransport || 'tcp')}
+                                </select>
+                            </label>
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.security || 'Security')}</span>
+                                <select class="builder-form-control" name="tunnelSecurity">
+                                    ${renderSelectOptions(HOP_SECURITY_OPTIONS, hop.tunnelSecurity || 'none')}
+                                </select>
+                            </label>
+                        </div>
+                        <div class="builder-field-grid">
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.port || 'Port')}</span>
+                                <input class="builder-form-control" type="number" min="1" max="65535" name="tunnelPort" value="${escapeHtml(hop.tunnelPort || 10086)}">
+                            </label>
+                            <label class="builder-field builder-checkbox-field">
+                                <span>${escapeHtml(i18n.mux || 'MUX')}</span>
+                                <input type="checkbox" name="muxEnabled" ${hop.muxEnabled ? 'checked' : ''}>
+                            </label>
+                        </div>
+                        <div class="builder-form-actions">
+                            <button class="btn btn-primary btn-sm" type="submit">
+                                <i class="ti ti-device-floppy"></i>
+                                <span>${escapeHtml(i18n.draftUpdate || 'Save draft settings')}</span>
+                            </button>
+                            <button class="btn btn-secondary btn-sm" type="button" id="builderDraftDelete">
+                                <i class="ti ti-trash"></i>
+                                <span>${escapeHtml(i18n.removeDraft || 'Remove draft')}</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            bindDraftInspectorActions(hop.id);
+            return;
+        }
+
         root.innerHTML = `
             <div class="builder-inspector-card">
                 <div class="builder-data-list">
-                    <div class="builder-data-row"><span>${i18n.source}</span><strong>${sourceNode?.name || hop.sourceNodeId}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.target}</span><strong>${targetNode?.name || hop.targetNodeId}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.mode}</span><strong>${formatMode(hop.mode)}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.stack}</span><strong>${hop.stack}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.protocol}</span><strong>${hop.tunnelProtocol}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.transport}</span><strong>${hop.tunnelTransport}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.security}</span><strong>${hop.tunnelSecurity}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.status}</span><strong>${hop.status}</strong></div>
+                    <div class="builder-data-row"><span>${escapeHtml(i18n.source || 'Source')}</span><strong>${escapeHtml(sourceNode?.name || hop.sourceNodeId)}</strong></div>
+                    <div class="builder-data-row"><span>${escapeHtml(i18n.target || 'Target')}</span><strong>${escapeHtml(targetNode?.name || hop.targetNodeId)}</strong></div>
+                    <div class="builder-data-row"><span>${escapeHtml(i18n.mode || 'Mode')}</span><strong>${escapeHtml(formatMode(hop.mode))}</strong></div>
+                    <div class="builder-data-row"><span>${escapeHtml(i18n.stack || 'Stack')}</span><strong>${escapeHtml(hop.stack || 'unknown')}</strong></div>
+                    <div class="builder-data-row"><span>${escapeHtml(i18n.protocol || 'Protocol')}</span><strong>${escapeHtml(hop.tunnelProtocol || '—')}</strong></div>
+                    <div class="builder-data-row"><span>${escapeHtml(i18n.transport || 'Transport')}</span><strong>${escapeHtml(hop.tunnelTransport || '—')}</strong></div>
+                    <div class="builder-data-row"><span>${escapeHtml(i18n.security || 'Security')}</span><strong>${escapeHtml(hop.tunnelSecurity || '—')}</strong></div>
+                    <div class="builder-data-row"><span>${escapeHtml(i18n.status || 'Status')}</span><strong>${escapeHtml(hop.status || '—')}</strong></div>
                 </div>
             </div>
         `;
@@ -497,6 +660,7 @@
     function renderConnectInspector(payload) {
         const root = document.getElementById('builderInspectorBody');
         if (!root) return;
+        setSelection(null, null);
         const suggestion = payload.suggestion || {};
         const validation = payload.validation || {};
         root.innerHTML = `
@@ -548,22 +712,19 @@
 
         state.cy.on('select', 'node', (event) => {
             const nodeId = event.target.id();
-            const node = state.flow.nodes.find((item) => String(item.id) === String(nodeId));
+            const node = getNodeById(nodeId);
             if (node) renderNodeInspector(node);
         });
 
         state.cy.on('select', 'edge', (event) => {
             const hopId = event.target.data('hopId');
-            const hop = state.flow.hops.find((item) => String(item.id) === String(hopId));
+            const hop = getHopById(hopId);
             if (hop) renderHopInspector(hop);
         });
 
         state.cy.on('tap', (event) => {
             if (event.target === state.cy) {
-                const root = document.getElementById('builderInspectorBody');
-                if (root) {
-                    root.innerHTML = `<div class="builder-empty-state"><i class="ti ti-pointer"></i><p>${i18n.loading || 'Select a node or hop.'}</p></div>`;
-                }
+                renderInspectorEmpty();
             }
         });
 
@@ -580,6 +741,32 @@
                 },
             });
         }
+    }
+
+    function focusNodeById(nodeId) {
+        if (!state.cy) return false;
+        const node = getNodeById(nodeId);
+        if (!node) return false;
+        const nodeEle = state.cy.getElementById(node.id);
+        if (!nodeEle.length) return false;
+        state.cy.elements().unselect();
+        nodeEle.select();
+        state.cy.center(nodeEle);
+        renderNodeInspector(node);
+        return true;
+    }
+
+    function focusHopById(hopId) {
+        if (!state.cy) return false;
+        const hop = getHopById(hopId);
+        if (!hop) return false;
+        const edgeCollection = state.cy.edges().filter((edge) => String(edge.data('hopId')) === String(hop.id));
+        if (!edgeCollection.length) return false;
+        state.cy.elements().unselect();
+        edgeCollection.first().select();
+        state.cy.center(edgeCollection.first());
+        renderHopInspector(hop);
+        return true;
     }
 
     async function handleDraftConnect(sourceNodeId, targetNodeId) {
@@ -616,6 +803,7 @@
             });
             renderSummary(state.flow, state.flow.validation);
             renderValidation(state.flow.validation);
+            focusHopById(draftHop.id);
             previewCommitPlan({ silent: true });
             toast(i18n.acceptedDraft || 'Draft hop added.');
         } catch (error) {
@@ -757,6 +945,7 @@
                 state.cy.edges().filter((edge) => edge.data('isDraft') === 1).remove();
                 renderSummary(state.flow, state.flow.validation);
                 renderValidation(state.flow.validation);
+                renderInspectorEmpty();
                 previewCommitPlan({ silent: true });
                 toast(i18n.draftsReset || 'Drafts cleared.');
             })
@@ -765,7 +954,7 @@
             });
     }
 
-    async function loadState() {
+    async function loadState({ selectHopId = null, selectNodeId = null } = {}) {
         try {
             const flow = await requestJson('/api/cascade-builder/state');
             state.flow = flow;
@@ -773,6 +962,13 @@
             renderSummary(flow, flow.validation);
             renderValidation(flow.validation);
             initCy(flow);
+            const targetHopId = selectHopId || (state.selection.type === 'hop' ? state.selection.id : null);
+            const targetNodeId = selectNodeId || (state.selection.type === 'node' ? state.selection.id : null);
+            const restored = (targetHopId && focusHopById(targetHopId))
+                || (targetNodeId && focusNodeById(targetNodeId));
+            if (!restored) {
+                renderInspectorEmpty();
+            }
             await previewCommitPlan({ silent: true });
         } catch (error) {
             toast(`${i18n.stateFailed || 'State load failed'}: ${error.message}`, 'error');
