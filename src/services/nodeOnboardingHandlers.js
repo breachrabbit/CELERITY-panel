@@ -43,6 +43,37 @@ function buildSshStepFailure(step, result, fallbackMessage = '') {
     return err;
 }
 
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeRuntimeStatus(rawStatus) {
+    if (rawStatus && typeof rawStatus === 'object') {
+        const status = String(rawStatus.status || '').trim().toLowerCase();
+        const online = typeof rawStatus.online === 'boolean'
+            ? rawStatus.online
+            : ['online', 'active', 'running'].includes(status);
+        const error = String(rawStatus.error || '').trim();
+        return {
+            online,
+            status: status || (online ? 'online' : 'unknown'),
+            error,
+        };
+    }
+
+    const status = String(rawStatus || '').trim().toLowerCase();
+    if (!status) {
+        return { online: false, status: 'unknown', error: 'no status' };
+    }
+    if (['online', 'active', 'running'].includes(status)) {
+        return { online: true, status: status === 'online' ? 'active' : status, error: '' };
+    }
+    if (status === 'error') {
+        return { online: false, status, error: 'status check error' };
+    }
+    return { online: false, status, error: '' };
+}
+
 function parseMissingTools(output) {
     const lines = String(output || '')
         .split('\n')
@@ -217,19 +248,28 @@ async function runVerifyRuntimeLocal({ job }) {
         throw new Error('Onboarding node not found for runtime verify');
     }
 
-    const runtimeStatus = node.type === 'xray'
-        ? await nodeSetup.checkXrayNodeStatus(node)
-        : await nodeSetup.checkNodeStatus(node);
+    let resolvedStatus = { online: false, status: 'unknown', error: 'no status' };
+    const attempts = 8;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        const runtimeStatus = node.type === 'xray'
+            ? await nodeSetup.checkXrayNodeStatus(node)
+            : await nodeSetup.checkNodeStatus(node);
+        resolvedStatus = normalizeRuntimeStatus(runtimeStatus);
+        if (resolvedStatus.online) break;
+        if (attempt < attempts) {
+            await delay(1500);
+        }
+    }
 
-    if (!runtimeStatus?.online) {
-        throw new Error(`Runtime is offline (${runtimeStatus?.error || 'no status'})`);
+    if (!resolvedStatus.online) {
+        throw new Error(`Runtime is offline (${resolvedStatus.error || resolvedStatus.status || 'no status'})`);
     }
 
     return {
         nodeId: String(node._id),
         nodeName: node.name,
         nodeType: node.type || 'hysteria',
-        serviceState: runtimeStatus.status || 'unknown',
+        serviceState: resolvedStatus.status || 'unknown',
         online: true,
     };
 }
