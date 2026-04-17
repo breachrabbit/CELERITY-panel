@@ -65,6 +65,8 @@ const settingsSchema = new mongoose.Schema({
         // Hybrid cascade stays enabled in Hidden Rabbit fork.
         cascadeHybrid: { type: Boolean, default: true },
     },
+
+    lastInitScript: { type: String, default: '' },
     
     backup: {
         enabled: { type: Boolean, default: false },

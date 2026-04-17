@@ -141,6 +141,7 @@ const manageNodeSchema = z.object({
         }).optional(),
         aclRules: z.array(z.string()).optional().describe('Inline ACL rules (stored on node root, not inside acl)'),
         useTlsFiles: z.boolean().optional().describe('Whether to use TLS cert/key files instead of ACME'),
+        initScript: z.string().optional().describe('Bash script executed before node auto-setup via SSH'),
     }).optional(),
     setupOptions: z.object({
         installHysteria: z.boolean().default(true),
@@ -244,6 +245,7 @@ async function manageNode(args, emit) {
                 status: 'offline',
                 cascadeRole: data.cascadeRole || 'standalone',
                 country: data.country || '',
+                initScript: String(data.initScript || '').replace(/\r\n?/g, '\n').trim(),
             };
             const hy2Keys = [
                 'hopInterval', 'acme', 'masquerade', 'bandwidth',
@@ -266,11 +268,15 @@ async function manageNode(args, emit) {
                 'name', 'domain', 'sni', 'port', 'portRange', 'groups', 'active', 'country', 'cascadeRole', 'type',
                 'hopInterval', 'acme', 'masquerade', 'bandwidth',
                 'ignoreClientBandwidth', 'speedTest', 'disableUDP',
-                'udpIdleTimeout', 'sniff', 'quic', 'resolver', 'acl', 'aclRules', 'useTlsFiles',
+                'udpIdleTimeout', 'sniff', 'quic', 'resolver', 'acl', 'aclRules', 'useTlsFiles', 'initScript',
             ];
             const updates = {};
             for (const k of allowed) {
-                if (data[k] !== undefined) updates[k] = data[k];
+                if (data[k] !== undefined) {
+                    updates[k] = k === 'initScript'
+                        ? String(data[k] || '').replace(/\r\n?/g, '\n').trim()
+                        : data[k];
+                }
             }
             const node = await HyNode.findByIdAndUpdate(id, { $set: updates }, { new: true })
                 .populate('groups', 'name color');

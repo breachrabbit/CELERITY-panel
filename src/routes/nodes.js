@@ -255,7 +255,7 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
             hopInterval, acme, masquerade, bandwidth,
             ignoreClientBandwidth, speedTest, disableUDP,
             udpIdleTimeout, sniff, quic, resolver, acl,
-            aclRules, useTlsFiles, cascadeSidecar,
+            aclRules, useTlsFiles, cascadeSidecar, initScript,
         } = req.body;
         
         if (!name || !ip) {
@@ -294,6 +294,7 @@ router.post('/', requireScope('nodes:write'), async (req, res) => {
             rankingCoefficient: rankingCoefficient || 1.0,
             cascadeRole: cascadeRole || 'standalone',
             country: country || '',
+            initScript: String(initScript || '').replace(/\r\n?/g, '\n').trim(),
             active: true,
             status: 'offline',
         };
@@ -354,7 +355,7 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
             'hopInterval', 'acme', 'masquerade', 'bandwidth',
             'ignoreClientBandwidth', 'speedTest', 'disableUDP',
             'udpIdleTimeout', 'sniff', 'quic', 'resolver', 'acl',
-            'aclRules', 'useTlsFiles', 'cascadeSidecar',
+            'aclRules', 'useTlsFiles', 'cascadeSidecar', 'initScript',
         ];
         
         const updates = {};
@@ -364,6 +365,8 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
                     ? cryptoService.encryptSshCredentials(req.body[key])
                     : key === 'cascadeSidecar'
                         ? parseCascadeSidecar(req.body[key])
+                    : key === 'initScript'
+                        ? String(req.body[key] || '').replace(/\r\n?/g, '\n').trim()
                     : req.body[key];
             }
         }

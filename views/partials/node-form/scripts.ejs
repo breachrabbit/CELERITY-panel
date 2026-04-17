@@ -516,6 +516,7 @@
 
 <script>
 const nodeType = '<%= node?.type || "hysteria" %>';
+const lastInitScript = <%- JSON.stringify(lastInitScript || '').replace(/</g, '\\u003c') %>;
 const ONBOARDING_STEP_OPTIONS = [
     'preflight',
     'prepare-host',
@@ -716,6 +717,15 @@ function toggleCustomConfig() {
     const checked = document.getElementById('useCustomConfig').checked;
     document.getElementById('customConfigSection').style.display = checked ? 'block' : 'none';
     toggleCascadeSidecarCustomHint();
+}
+
+function useLastInitScript() {
+    const textarea = document.getElementById('initScript');
+    if (!textarea || !lastInitScript) return;
+    textarea.value = lastInitScript;
+    const details = document.getElementById('initScriptDetails');
+    if (details) details.open = true;
+    textarea.focus();
 }
 
 function toggleCascadeSidecarCustomHint() {

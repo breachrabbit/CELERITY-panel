@@ -730,6 +730,62 @@ function uploadFile(conn, content, remotePath) {
     });
 }
 
+async function rememberLastInitScript(node) {
+    const script = String(node?.initScript || '').trim();
+    if (!script) return;
+    try {
+        await Settings.update({ lastInitScript: script });
+    } catch (_) {
+        // non-critical settings persistence
+    }
+}
+
+async function runInitScript({ conn, node, execRemote, log, logs, onLogLine }) {
+    const script = String(node?.initScript || '').replace(/\r\n?/g, '\n').trim();
+    if (!script) return;
+
+    const remotePath = `/tmp/hr-node-init-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.sh`;
+    const wrappedScript = `#!/usr/bin/env bash
+set +e
+${script}
+`;
+
+    log('Running init script before setup...');
+    try {
+        await uploadFile(conn, wrappedScript, remotePath);
+        const execCmd = [
+            `chmod 700 ${shellQuote(remotePath)}`,
+            `export NODE_IP=${shellQuote(node?.ip || '')}`,
+            `export NODE_NAME=${shellQuote(node?.name || '')}`,
+            `export NODE_TYPE=${shellQuote(node?.type || 'hysteria')}`,
+            `export NODE_DOMAIN=${shellQuote(node?.domain || '')}`,
+            `if command -v bash >/dev/null 2>&1; then`,
+            `  bash ${shellQuote(remotePath)}`,
+            `else`,
+            `  sh ${shellQuote(remotePath)}`,
+            `fi`,
+            `code=$?`,
+            `rm -f ${shellQuote(remotePath)} || true`,
+            `exit $code`,
+        ].join('\n');
+
+        const result = await execRemote(execCmd, 10 * 60 * 1000);
+        if (!onLogLine && result?.output) logs.push(result.output);
+
+        if (result?.success) {
+            log('Init script completed');
+        } else {
+            const exitCode = Number.isFinite(Number(result?.code)) ? Number(result.code) : 'unknown';
+            log(`Init script failed (exit ${exitCode}) — setup continues`);
+        }
+    } catch (err) {
+        log(`Init script error (${err?.message || 'unknown error'}) — setup continues`);
+        try {
+            await execSSH(conn, `rm -f ${shellQuote(remotePath)} || true`);
+        } catch (_) {}
+    }
+}
+
 function trimExecOutput(result, max = 700) {
     const output = String(result?.output || '').trim();
     if (!output) return '';
@@ -1064,6 +1120,8 @@ async function setupHysteriaNode(node, options = {}) {
             onStderrLine: (line) => pushLiveLine(line, 'stderr'),
         });
 
+        await runInitScript({ conn, node, execRemote, log, logs, onLogLine });
+
         if (installHysteria) {
             log('Installing Hysteria runtime...');
             const installResult = await execRemote(HYSTERIA_INSTALL_SCRIPT);
@@ -1292,6 +1350,7 @@ journalctl -u hysteria-server -u hysteria -n 20 --no-pager || true
         }
 
         log('Hysteria setup completed successfully!');
+        await rememberLastInitScript(node);
         return { success: true, logs, useTlsFiles };
     } catch (error) {
         const normalizedError = normalizeSetupError(error);
@@ -1717,6 +1776,8 @@ async function setupXrayNode(node, options = {}) {
             onStderrLine: (line) => pushLiveLine(line, 'stderr'),
         });
 
+        await runInitScript({ conn, node, execRemote, log, logs, onLogLine });
+
         // Install Xray
         log('Installing Xray-core...');
         const installResult = await execRemote(XRAY_INSTALL_SCRIPT);
@@ -1791,6 +1852,7 @@ async function setupXrayNode(node, options = {}) {
             }
 
             log('Exit node setup completed (Xray binary only). Deploy a cascade link to configure.');
+            await rememberLastInitScript(node);
             if (conn) conn.end();
             return { success: true, logs, realityKeys: null };
         }
@@ -1896,6 +1958,7 @@ journalctl -u xray -n 15 --no-pager || true
         }
 
         log('Xray setup completed successfully!');
+        await rememberLastInitScript(node);
         return { success: true, logs, realityKeys: generatedKeys };
 
     } catch (error) {
