@@ -16,6 +16,7 @@ Current state:
 - builder now has transport-specific draft editing for WS/gRPC/XHTTP payload fields before commit/deploy.
 - builder graph dependencies are now served from local vendor assets (no runtime CDN dependency).
 - builder now has base TLS/REALITY draft security controls (SNI/fingerprint/dest/shortId) with commit-time REALITY key fallback.
+- local graph-vendor bundling is now Docker-safe (`postinstall` guard + explicit post-copy sync in Dockerfile), deployment blocker closed.
 
 Still missing:
 

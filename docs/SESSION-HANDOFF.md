@@ -16,7 +16,32 @@
   - added builder-side advanced transport settings for draft hops (WS/gRPC/XHTTP fields);
   - replaced builder runtime CDN graph dependency with local vendor graph assets via postinstall sync.
   - added builder-side draft security settings for TLS/REALITY and commit-time REALITY key fallback.
+  - fixed Docker/Coolify build flow for cascade local vendor assets (`postinstall` guard + explicit sync after source copy in Dockerfile).
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Docker-Safe Cascade Vendor Sync Stop-Point
+
+### What was delivered
+
+- `package.json`:
+  - `postinstall` no longer hard-fails in Docker pre-copy stage when `scripts/sync-cascade-vendors.js` is not yet present;
+  - hook now safely skips with informative message in that stage.
+- `Dockerfile`:
+  - added explicit `RUN npm run sync:cascade-vendor` after `COPY . .` so local graph vendor files are guaranteed during container build.
+- Result:
+  - Coolify deployment that previously failed on missing sync script now completes successfully.
+
+### Current stop-point
+
+- Stand is updated and healthy on commit `b43f75a`.
+- Cascade builder local graph asset strategy is now compatible with Coolify Docker build order.
+- Immediate blocker for continuing cascade feature development is removed.
+
+### Best next step
+
+1. Continue cascade development track from builder UX/logic roadmap (without touching this deployment plumbing again unless regression appears).
+2. Start next functional increment for cascade flow execution parity and diagnostics depth.
+3. Keep onboarding parity track in parallel (legacy status/control-path retirement).
 
 ## 2026-04-17 Cascade Builder TLS/REALITY Draft Security Stop-Point
 

@@ -1,5 +1,24 @@
 # Development Log
 
+## 2026-04-17 Docker-Safe Cascade Vendor Sync + Deploy Recovery
+
+- Fixed deployment blocker introduced by local graph-vendor bundling:
+  - Docker build installed dependencies before repo scripts were copied;
+  - `postinstall` previously attempted to run `scripts/sync-cascade-vendors.js` too early and could fail.
+- `package.json`:
+  - made `postinstall` safe when sync script is not yet available in pre-copy Docker stage.
+- `Dockerfile`:
+  - added explicit `RUN npm run sync:cascade-vendor` after `COPY . .` to guarantee local builder graph assets in image.
+- Deployment:
+  - pushed commit `b43f75a`;
+  - forced Coolify deploy completed successfully (`cnl0sdtlje3bzsojvqn6xpeq`);
+  - application returned to `running:healthy`.
+
+Change types:
+
+- `stability fix` — Docker/Coolify build-order compatibility for cascade builder local vendor assets
+- `local patch` — explicit post-copy vendor sync in container build
+
 ## 2026-04-17 Cascade Builder TLS/REALITY Draft Security Settings
 
 - Extended draft-hop inspector with security-level fields:

@@ -2,6 +2,15 @@
 
 ## 2026-04-17
 
+- Worked on: short-cycle cascade deployment unblock.
+- Finished with:
+  - fixed Docker-safe `postinstall` behavior for cascade vendor sync;
+  - added explicit post-copy `sync:cascade-vendor` in Dockerfile;
+  - pushed `b43f75a` to `main`;
+  - forced Coolify deployment and confirmed `running:healthy`.
+- Next step:
+  - continue cascade feature development from current builder stop-point (no need to revisit deployment plumbing unless new regression appears).
+
 - Worked on: cascade builder per-hop security editor expansion.
 - Finished with:
   - added TLS/REALITY security controls in draft inspector (`SNI`, `fingerprint`, `dest`, `shortId`);
