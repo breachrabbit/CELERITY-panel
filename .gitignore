@@ -41,7 +41,8 @@ mongo_data/
 public/downloads/
 cc-agent/cc-agent-linux-amd64
 cc-agent/cc-agent-linux-arm64
+public/vendor/cascade/
 
 Rules.md
 TODO.md
-TEST-CHECKLIST.md 
+TEST-CHECKLIST.md

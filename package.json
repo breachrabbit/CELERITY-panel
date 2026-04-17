@@ -31,7 +31,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "sync:cascade-vendor": "node scripts/sync-cascade-vendors.js",
+    "postinstall": "node scripts/sync-cascade-vendors.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.500.0",
@@ -44,6 +46,10 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
+    "cytoscape": "^3.30.4",
+    "cytoscape-dagre": "^2.5.0",
+    "cytoscape-edgehandles": "^4.0.1",
+    "dagre": "^0.8.5",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
