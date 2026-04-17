@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-04-17 Live Mixed-Run Validation + Hop-Focus Diagnostics
+
+- Ran a real mixed cascade execution on stand (`success + failed` in the same run).
+- Verified parity against persisted execution snapshot:
+  - filters `All / Failed / Success` correctly scope chain cards;
+  - failed-only TXT contains only failed chains;
+  - failed-only JSON contains only failed chains and full `errorDetails`.
+- Restored stand topology after QA run:
+  - removed temporary mixed-run links and test fail node;
+  - restored baseline active link state.
+- Diagnostics depth increment (`4a48a53`):
+  - improved node mention detection in chain errors;
+  - expanded action mapping for faster repair/re-run workflow;
+  - trimmed another safe non-critical legacy setup read in setup-status path.
+- Hop-focus diagnostics increment (`23dd5f8`):
+  - attached hop context (`hopId`/`hopName`) in `errorDetails` when message allows hop-level resolution;
+  - added backend suggested action `focus-hop`;
+  - wired frontend `focus-hop` action to canvas edge selection;
+  - added RU/EN locale keys for hop-focus action and error feedback.
+- Deployments:
+  - `c11uk70kbde8fy6147kh72bh` (commit `4a48a53`) — finished, stand healthy;
+  - `v1k0npe0ff1qk1gr8t7x4c6y` (commit `23dd5f8`) — finished, stand healthy.
+
+Change types:
+
+- `local patch` — cascade execution diagnostics precision and operator actions
+- `stability fix` — safe staged retirement increment for legacy setup status reads
+
 ## 2026-04-17 Setup-Status Source Split + Cascade Failure Classifier Expansion
 
 - Onboarding staged retirement increment (`src/routes/panel/nodes.js`):

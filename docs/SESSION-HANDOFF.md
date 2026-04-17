@@ -37,6 +37,44 @@
     - onboarding-full setup flow remains onboarding-primary in status/control reporting.
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-17 Stop-Point — Mixed-Run Parity Confirmed + Hop-Focus Diagnostics
+
+### What was delivered
+
+- Live mixed-run was executed on stand (`success + failed` in one execution) and validated end-to-end:
+  - execution filters `All / Failed / Success` match real chain counts;
+  - failed-only TXT export includes failed chains only;
+  - failed-only JSON export includes failed chains only with full `errorDetails`.
+- Temporary mixed-run topology was cleaned up after validation (test node/link artifacts removed, base link state restored).
+- Cascade diagnostics deepening increment (`4a48a53`):
+  - better node mention matching in failures;
+  - stronger suggested actions for repair/rerun path;
+  - safe non-critical trim of legacy setup reads in setup-status path.
+- Cascade diagnostics hop-focus increment (`23dd5f8`):
+  - backend now resolves hop mentions and attaches `hopId` when determinable;
+  - detail suggested actions can now include `focus-hop`;
+  - builder UI handles `focus-hop` action and focuses the specific edge/hop on canvas;
+  - RU/EN locale coverage added for hop-focus labels/errors.
+- Deployment status:
+  - `4a48a53` deployed (`c11uk70kbde8fy6147kh72bh`) — finished, stand healthy;
+  - `23dd5f8` deployed (`v1k0npe0ff1qk1gr8t7x4c6y`) — finished, stand healthy.
+
+### Current state
+
+- Cascade execution diagnostics now support practical operator loop:
+  - classify -> inspect -> focus hop/node -> repair node -> rerun chain.
+- Mixed-run parity for filters and failed-only exports is confirmed on a real run.
+- Legacy in-memory setup map remains only as guarded fallback for legacy setup mode; onboarding-full remains durable-source-first.
+
+### Next step
+
+1. Continue execution parity depth:
+   - tighten chain/hop/node attribution for ambiguous messages;
+   - enrich `errorDetails` with cleaner hop-level context when raw message is noisy.
+2. Add one more repair convenience layer:
+   - keep operator actions compact for failed chains (focus hop/node + rerun ergonomics).
+3. Continue staged retirement of legacy `setupJobs` in non-critical paths, without removing legacy fallback before parity confirmation.
+
 ## 2026-04-17 Stop-Point — Setup Status Source Split + Diagnostics Classification Expansion
 
 ### What was delivered
@@ -2079,9 +2117,11 @@ Next step:
 Потом сразу продолжай без лишнего планирования.
 
 Контекст:
-- это изолированный форк панели, не связанный с Rabbit Platform;
+- это изолированный форк панели, не связан с Rabbit Platform;
 - continuity docs — source of truth;
-- последний код-коммит в main: 008f422;
+- последние код-коммиты в main:
+  - 23dd5f8 — feat: add hop-focused cascade diagnostics actions
+  - 4a48a53 — feat: deepen cascade execution diagnostics and trim setup-status legacy reads
 - стенд: https://tunnel.hiddenrabbit.net.ru/panel, статус running:healthy;
 - в builder уже есть:
   - Copy TXT / Copy JSON,
@@ -2089,18 +2129,18 @@ Next step:
   - Failed JSON,
   - фильтр All / Failed / Success,
   - enriched errorDetails (code/severity/hint/suggestedActions),
-  - быстрые действия Repair node / Open node,
+  - быстрые действия Repair node / Open node / Focus hop,
   - quick actions внутри errorDetails,
   - batch action Rerun failed.
 
 Приоритет:
-1) провести реальную mixed-run проверку каскадов (success + failed в одном запуске) и подтвердить паритет:
-   - корректность фильтра All/Failed/Success;
-   - failed-only TXT содержит только failed chains;
-   - failed-only JSON содержит только failed chains и полный errorDetails;
-2) углубить execution parity/diagnostics:
+1) продолжить execution parity/diagnostics depth:
    - ещё точнее причины на уровне chain/hop/node;
-   - удобные действия для быстрого repair/re-run;
+   - улучшить привязку неоднозначных ошибок к конкретному hop/node;
+   - сохранить компактные suggested actions для быстрого repair/re-run.
+2) на реальном mixed-run дополнительно проверить новый hop-focus flow:
+   - `focus-hop` в detail-actions корректно выделяет edge/hop на canvas;
+   - failed-only TXT/JSON по-прежнему содержат только failed chains.
 3) параллельно продолжать staged retirement legacy onboarding status/control-path:
    - не ломая legacy fallback до подтверждения паритета.
 

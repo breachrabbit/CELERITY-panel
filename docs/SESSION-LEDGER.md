@@ -2,6 +2,27 @@
 
 ## 2026-04-17
 
+- Worked on: live mixed-run cascade parity validation + execution diagnostics depth.
+- Finished with:
+  - executed real mixed run on stand (`success + failed` together) and validated:
+    - `All / Failed / Success` filter behavior,
+    - failed-only TXT scope,
+    - failed-only JSON scope + full `errorDetails`;
+  - restored topology after QA run (removed temporary fail node/links, restored baseline active link);
+  - shipped diagnostics depth increment (`4a48a53`);
+  - shipped hop-focused diagnostics/actions increment (`23dd5f8`):
+    - hop attribution in `errorDetails` where possible,
+    - `focus-hop` suggested action in backend,
+    - `focus-hop` button handling in builder UI;
+  - deployed both commits to stand:
+    - `c11uk70kbde8fy6147kh72bh`,
+    - `v1k0npe0ff1qk1gr8t7x4c6y`,
+    final state `running:healthy`.
+- Next step:
+  - continue chain/hop/node attribution precision for ambiguous error messages;
+  - keep extending compact repair/re-run actions in diagnostics;
+  - continue staged retirement of remaining non-critical legacy `setupJobs` reads/writes.
+
 - Worked on: setup-status source separation for onboarding/legacy and deeper cascade failure diagnostics.
 - Finished with:
   - added mode-aware setup-status onboarding job selector in `src/routes/panel/nodes.js`;
