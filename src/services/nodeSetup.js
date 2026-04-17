@@ -58,12 +58,18 @@ async function resolvePanelEndpoint() {
  * @returns {Promise<boolean>} true if node appears to be on the same server as the panel
  */
 async function isSameVpsAsPanel(node) {
-    const panelDomain = config.PANEL_DOMAIN;
+    const panelDomain = String(config.PANEL_DOMAIN || '').toLowerCase().trim();
     const nodeIp = String(node?.ip || '').toLowerCase().trim();
 
     // 1. Domain match - most reliable indicator
     if (node?.domain && node.domain === panelDomain) {
         logger.debug(`[NodeSetup] Same VPS detected: domain match (${node.domain})`);
+        return true;
+    }
+
+    // 1.5 Node host equals panel domain/host
+    if (panelDomain && nodeIp === panelDomain) {
+        logger.debug(`[NodeSetup] Same VPS detected: node host matches panel domain (${nodeIp})`);
         return true;
     }
 
@@ -994,6 +1000,11 @@ async function resolvePanelFirewallIp() {
         .split('/')[0]
         .split(':')[0]
         .trim();
+
+    const panelIpFromEnv = String(process.env.PANEL_IP || '').trim();
+    if (panelIpFromEnv && net.isIP(panelIpFromEnv)) {
+        return { ip: panelIpFromEnv, source: 'env:PANEL_IP' };
+    }
 
     if (!host) {
         return { ip: '0.0.0.0/0', source: 'empty-host' };
@@ -2173,17 +2184,18 @@ function generateAgentToken() {
  *  1. Download binary from GitHub releases (or fallback URL)
  *  2. Write /etc/cc-agent/config.json with token + TLS settings
  *  3. If TLS: generate self-signed cert with openssl
- *  4. Open port in firewall only for the panel's IP
+ *  4. Open firewall for panel source (remote) or Docker/local subnets (same-VPS)
  *  5. Install & start cc-agent.service
  *
  * @param {Object} conn  - Active ssh2 connection
  * @param {Object} node  - Node document
  * @param {string} token - Pre-generated agent token
- * @param {string} panelIp - Panel's outbound IP (for firewall whitelist)
+ * @param {string} panelSource - Panel source IP/host hint for remote firewall mode
+ * @param {boolean} sameVps - True if panel and node run on same VPS
  * @param {Function} log - Logging callback
  * @returns {{ success, agentVersion }}
  */
-async function installCCAgent(conn, node, token, panelIp, log, streamLine = null) {
+async function installCCAgent(conn, node, token, panelSource, sameVps, log, streamLine = null) {
     const agentPort = (node.xray || {}).agentPort || 62080;
     const useTls = (node.xray || {}).agentTls !== false;
     const apiPort = (node.xray || {}).apiPort || 61000;
@@ -2302,22 +2314,43 @@ StandardError=journal
 WantedBy=multi-user.target
 EOFSVC
 
-echo "=== [5/5] Opening firewall for panel IP ${panelIp} ==="
-if command -v iptables &> /dev/null; then
-    if [ "${panelIp}" = "0.0.0.0/0" ]; then
-        iptables -I INPUT -p tcp --dport ${agentPort} -j ACCEPT 2>/dev/null || true
-    else
-        iptables -I INPUT -p tcp -s ${panelIp} --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+echo "=== [5/5] Opening firewall for cc-agent ==="
+if [ "${sameVps ? '1' : '0'}" = "1" ]; then
+    echo "Same-VPS setup: allowing local and container network ranges"
+    if command -v iptables &> /dev/null; then
+        iptables -I INPUT -p tcp -s 127.0.0.1/32 --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+        iptables -I INPUT -p tcp -s 10.0.0.0/8 --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+        iptables -I INPUT -p tcp -s 172.16.0.0/12 --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+        iptables -I INPUT -p tcp -s 192.168.0.0/16 --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+        echo "Done: iptables local rules added"
     fi
-    echo "Done: iptables rule added"
-fi
-if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
-    if [ "${panelIp}" = "0.0.0.0/0" ]; then
-        ufw allow ${agentPort}/tcp 2>/dev/null || true
-    else
-        ufw allow from ${panelIp} to any port ${agentPort} proto tcp 2>/dev/null || true
+    if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+        ufw allow from 127.0.0.1 to any port ${agentPort} proto tcp 2>/dev/null || true
+        ufw allow from 10.0.0.0/8 to any port ${agentPort} proto tcp 2>/dev/null || true
+        ufw allow from 172.16.0.0/12 to any port ${agentPort} proto tcp 2>/dev/null || true
+        ufw allow from 192.168.0.0/16 to any port ${agentPort} proto tcp 2>/dev/null || true
+        echo "Done: ufw local rules added"
     fi
-    echo "Done: ufw rule added"
+elif [ -n "${panelSource}" ]; then
+    echo "Remote setup: allowing panel source ${panelSource}"
+    if command -v iptables &> /dev/null; then
+        if [ "${panelSource}" = "0.0.0.0/0" ]; then
+            iptables -I INPUT -p tcp --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+        else
+            iptables -I INPUT -p tcp -s ${panelSource} --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+        fi
+        echo "Done: iptables panel-source rule added"
+    fi
+    if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+        if [ "${panelSource}" = "0.0.0.0/0" ]; then
+            ufw allow ${agentPort}/tcp 2>/dev/null || true
+        else
+            ufw allow from ${panelSource} to any port ${agentPort} proto tcp 2>/dev/null || true
+        fi
+        echo "Done: ufw panel-source rule added"
+    fi
+else
+    echo "WARNING: panel source unknown; firewall rule not applied for cc-agent"
 fi
 
 echo "=== Starting cc-agent ==="
@@ -2408,10 +2441,14 @@ async function setupOrRepairXrayAgent(node, options = {}) {
         log('Connecting via SSH for agent installation...');
         conn = await connectSSH(node);
 
+        const sameVps = await isSameVpsAsPanel(node);
         const panelIpInfo = await resolvePanelFirewallIp();
-        const panelIp = panelIpInfo.ip;
-        log(`Panel IP for firewall: ${panelIp}`);
-        if (panelIp === '0.0.0.0/0') {
+        const panelSource = panelIpInfo.ip;
+        log(`Agent firewall mode: ${sameVps ? 'same-vps' : 'remote'}`);
+        if (!sameVps) {
+            log(`Panel source for firewall: ${panelSource}`);
+        }
+        if (!sameVps && panelSource === '0.0.0.0/0') {
             log(`Warning: failed to resolve panel host (${panelIpInfo.source}), firewall rule will be opened to all sources`);
         }
 
@@ -2424,7 +2461,7 @@ async function setupOrRepairXrayAgent(node, options = {}) {
         };
 
         log('Installing CC Agent...');
-        agentResult = await installCCAgent(conn, nodeWithToken, token, panelIp, log, streamLine);
+        agentResult = await installCCAgent(conn, nodeWithToken, token, panelSource, sameVps, log, streamLine);
         if (!agentResult.success) {
             const msg = `Agent install failed: ${agentResult.output || 'unknown error'}`;
             if (strictAgent) {

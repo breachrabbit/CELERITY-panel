@@ -509,6 +509,8 @@ function generateXrayConfig(node, users) {
             system: {
                 statsInboundUplink: true,
                 statsInboundDownlink: true,
+                statsOutboundUplink: true,
+                statsOutboundDownlink: true,
             },
         },
         inbounds: [

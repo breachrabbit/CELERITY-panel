@@ -517,7 +517,9 @@ class SyncService {
 
     /**
      * Collect traffic stats from Xray node via Agent GET /stats.
-     * Agent accumulates stats between polls (Xray counters are reset on each agent collection).
+     * Compatible with both agent payload shapes:
+     * - v1: { "<userId>": { tx, rx }, ... }
+     * - v2+: { users: { "<userId>": { tx, rx } }, node: { tx, rx } }
      */
     async collectXrayTrafficStats(node) {
         if (!(node.xray?.agentToken)) {
@@ -535,26 +537,35 @@ class SyncService {
                     return null;
                 }),
             ]);
-            const stats = response.data || {};
+            const payload = response.data || {};
             const sessions = Array.isArray(sessionsResponse?.data?.sessions)
                 ? sessionsResponse.data.sessions
                 : [];
 
-            if (Object.keys(stats).length === 0 && sessions.length === 0) return;
+            const usesV2Shape = payload && typeof payload === 'object'
+                && payload.users && typeof payload.users === 'object'
+                && payload.node && typeof payload.node === 'object';
+            const userStats = usesV2Shape ? (payload.users || {}) : payload;
+            const nodeStats = usesV2Shape ? (payload.node || {}) : null;
 
-            let nodeTx = 0;
-            let nodeRx = 0;
+            const hasUserStats = Object.keys(userStats || {}).length > 0;
+            const hasNodeStats = !!(nodeStats && ((nodeStats.tx || 0) > 0 || (nodeStats.rx || 0) > 0));
+            if (!hasUserStats && !hasNodeStats && sessions.length === 0) return;
+
+            let summedUserTx = 0;
+            let summedUserRx = 0;
             const bulkOps = [];
             const deviceActivityUpdates = [];
             const now = new Date();
 
-            for (const [email, traffic] of Object.entries(stats)) {
+            for (const [email, traffic] of Object.entries(userStats || {})) {
+                if (!email || email === 'node') continue;
                 const tx = traffic.tx || 0;
                 const rx = traffic.rx || 0;
                 if (tx === 0 && rx === 0) continue;
 
-                nodeTx += tx;
-                nodeRx += rx;
+                summedUserTx += tx;
+                summedUserRx += rx;
                 deviceActivityUpdates.push(
                     cache.updateDeviceIP(
                         email,
@@ -588,10 +599,13 @@ class SyncService {
                 await this._updateXraySessionActivity(node, sessions);
             }
 
+            const nodeTx = nodeStats ? (nodeStats.tx || 0) : summedUserTx;
+            const nodeRx = nodeStats ? (nodeStats.rx || 0) : summedUserRx;
+
             if (bulkOps.length > 0) {
                 const result = await HyUser.bulkWrite(bulkOps, { ordered: false });
                 logger.debug(`[Agent Stats] ${node.name}: updated ${result.modifiedCount}/${bulkOps.length} users`);
-                this._checkUserLimits(Object.keys(stats)).catch(() => {});
+                this._checkUserLimits(Object.keys(userStats || {})).catch(() => {});
             }
 
             if (nodeTx > 0 || nodeRx > 0) {

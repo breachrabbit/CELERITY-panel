@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const HyUser = require('../../models/hyUserModel');
 const HyNode = require('../../models/hyNodeModel');
@@ -173,7 +174,9 @@ router.get('/users', async (req, res) => {
         
         const filter = {};
         if (enabled !== undefined) filter.enabled = enabled === 'true';
-        if (group) filter.groups = group;
+        if (group && mongoose.Types.ObjectId.isValid(group)) {
+            filter.groups = new mongoose.Types.ObjectId(group);
+        }
         
         if (search && search.trim()) {
             const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
