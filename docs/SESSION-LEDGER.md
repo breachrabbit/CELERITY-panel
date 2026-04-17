@@ -2,6 +2,21 @@
 
 ## 2026-04-17
 
+- Worked on: real mixed-run cascade validation + diagnostics deepening + staged onboarding retirement increment.
+- Finished with:
+  - executed live mixed run with both success and failed chains in one execution cycle;
+  - confirmed parity for:
+    - `All / Failed / Success` execution filtering,
+    - failed-only TXT export scope,
+    - failed-only JSON export scope and full `errorDetails`;
+  - expanded deploy failure classification/hints and suggested actions for SSH/network/offline classes;
+  - rendered suggested actions + node status directly in builder diagnostics UI;
+  - applied safe onboarding-full guard trim to legacy setup lookup path;
+  - pushed code commit `0f95459` and triggered forced Coolify deploy.
+- Next step:
+  - continue chain/hop/node-level error normalization precision for difficult failure classes;
+  - continue staged retirement of remaining non-critical `setupJobs` reads in onboarding paths, while preserving legacy fallback until parity is confirmed.
+
 - Worked on: cascade builder failed-chain diagnostics/repair UX and onboarding legacy-guard isolation increment.
 - Finished with:
   - added deploy error classification with structured `code/severity/hint/suggestedActions`;

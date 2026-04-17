@@ -1,5 +1,42 @@
 # Development Log
 
+## 2026-04-17 Real Mixed-Run Validation + Execution Diagnostics Deepening II
+
+- Ran a real mixed execution on the live builder with both outcomes in one run:
+  - at least one chain deployed successfully;
+  - at least one chain failed with enriched diagnostics.
+- Validated parity against persisted execution snapshot:
+  - filter semantics (`All / Failed / Success`) align with result counts;
+  - failed-only TXT export includes failed chains only;
+  - failed-only JSON export includes failed chains only with full `errorDetails`.
+- Backend diagnostics enrichment (`src/routes/cascadeBuilder.js`):
+  - expanded failure classification for SSH/network/offline classes:
+    - `ssh-timeout`,
+    - `ssh-auth-failed`,
+    - `ssh-connect-failed`,
+    - `node-offline`;
+  - added localized hint mapping for these classes;
+  - enriched node-scope error payload with `nodeStatus`;
+  - expanded suggested action generation (`check-ssh`, `check-network`) with dedupe.
+- Frontend diagnostics rendering (`public/js/cascade-builder.js`, `views/cascade-builder.ejs`):
+  - renders localized suggested actions in execution error-details;
+  - displays node status in node-level diagnostic blocks.
+- Locale coverage updated:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added suggested action labels and new hint families.
+- Onboarding staged-retirement increment:
+  - `src/routes/panel/nodes.js` now uses legacy-specific setup lookup in onboarding-full setup start log branch.
+- Operational validation:
+  - code commit pushed: `0f95459`;
+  - forced Coolify deployment triggered for stand app;
+  - stand health endpoint check via `/panel/login` returned HTTP 200.
+
+Change types:
+
+- `local patch` — deeper cascade execution diagnostics and operator guidance
+- `stability fix` — safe incremental decoupling of onboarding-full from generic legacy setup mirror reads
+
 ## 2026-04-17 Cascade Failure Diagnostics Enrichment + Repair Action + Onboarding Guard Trim
 
 - Cascade builder diagnostics were deepened for failed chain execution analysis.

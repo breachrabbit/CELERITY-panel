@@ -37,6 +37,49 @@
     - onboarding-full setup flow remains onboarding-primary in status/control reporting.
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-17 Stop-Point — Real Mixed-Run Parity + Diagnostics Depth II
+
+### What was delivered
+
+- Real mixed-run validation is now done on live stand (one success chain + one failed chain in the same execution).
+- Parity checks confirmed on live execution snapshot:
+  - `All / Failed / Success` filter counts are consistent with execution results;
+  - failed-only TXT scope is failed chains only;
+  - failed-only JSON scope is failed chains only and keeps full `errorDetails`.
+- Failure diagnostics deepened in builder execution cards:
+  - new classified failure codes for SSH/network/offline classes;
+  - localized hints for these classes;
+  - `suggestedActions` are now rendered as localized operator actions in the UI;
+  - node-level diagnostic payload now includes node status.
+- Onboarding retirement got one safe incremental trim:
+  - onboarding-full setup start no longer reads generic setup mirror logs and uses legacy-specific lookup only.
+
+### Live verification done on stand
+
+- Stand: `https://tunnel.hiddenrabbit.net.ru/panel`
+- Mixed-run was executed on real topology with temporary QA node/hops and then fully cleaned up:
+  - temporary node removed;
+  - temporary links removed;
+  - pre-existing live link restored active.
+- Deployment status:
+  - code commit pushed: `0f95459`;
+  - forced Coolify deployment started with commit `0f95459` and image tag update observed;
+  - stand responds `HTTP 200` on `/panel/login`.
+
+### Current stop-point
+
+- Code commit: `0f95459` (`feat: enrich cascade execution diagnostics`).
+- Docs commit pending (this update).
+- Next step remains execution parity depth + onboarding staged retirement without breaking legacy fallback.
+
+### Best next step
+
+1. Continue execution parity depth:
+   - add even more exact chain/hop/node failure normalization where logs are ambiguous;
+   - keep operator actions focused on fast repair/re-run loops.
+2. Continue staged retirement:
+   - remove remaining non-critical in-memory `setupJobs` reads from onboarding status/control paths, preserving legacy mode fallback until parity is proven stable.
+
 ## 2026-04-17 Stop-Point — Failure Enrichment + Repair UX + Live Stand Check
 
 ### What was delivered
