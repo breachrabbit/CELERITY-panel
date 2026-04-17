@@ -378,3 +378,15 @@
   - remove synthetic bridge completion from paths already executing onboarding-full;
   - add richer per-job diagnostics surface (last error/details/actions) on top of summary widget;
   - then begin staged retirement of in-memory `setupJobs`.
+
+- Session close update:
+  - committed onboarding phase-3 continuation in `main`:
+    - `d5e9796`
+    - `13debe8`
+    - `204a1c9`;
+  - node management now has resume/repair controls and onboarding jobs visibility;
+  - continuity docs and next-launch prompt were refreshed before close.
+- Next step:
+  - remove synthetic bridge completion from onboarding-full path;
+  - add deeper per-job diagnostics/actions UI;
+  - begin staged retirement of in-memory `setupJobs`.

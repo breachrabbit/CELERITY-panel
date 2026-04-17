@@ -6,10 +6,10 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 3.1 setup-mode cutover + onboarding-first status).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 3.3 recovery UX + onboarding jobs visibility).
 - Current local patch focus:
-  - staged bridge of durable onboarding status into legacy setup endpoints;
-  - next move from mirrored bridge steps to real runner handlers.
+  - no uncommitted local changes;
+  - next move is legacy bridge retirement and deeper onboarding diagnostics.
 
 ## 2026-04-17 Onboarding Bridge Integration Stop-Point
 
@@ -253,6 +253,36 @@ Panel node management now exposes onboarding recovery actions.
 2. Add richer per-job diagnostics surface (last error/details) on top of current jobs summary.
 3. Start staged retirement of in-memory `setupJobs` once parity is proven.
 
+## 2026-04-17 Session Close Stop-Point
+
+### Delivered in this session
+
+- Durable onboarding cutover continued and stabilized:
+  - selected setup starts are routed via `runFull` pipeline;
+  - setup-status is onboarding-primary with legacy fallback.
+- Added operator recovery controls in panel node management:
+  - `Resume onboarding`;
+  - `Repair onboarding`.
+- Added onboarding jobs visibility in node management:
+  - recent jobs summary (job/status/step/updated);
+  - explicit resume step selector;
+  - `lastError` surfaced in jobs summary rows.
+- Setup mode normalization completed:
+  - panel UI sends explicit setup mode per node type;
+  - onboarding job metadata now stores actual flow/mode.
+
+### Repo state at close
+
+- latest commit on `main`: `204a1c9 — feat: add onboarding jobs summary and step-select resume UI`
+- working tree: clean
+- session state: `pending` (feature track not finished)
+
+### Next step (strict)
+
+1. Remove synthetic legacy bridge completion from onboarding-full routed starts.
+2. Expand per-job diagnostics/actions in UI (drill-down details and step-aware controls).
+3. Start staged retirement of in-memory `setupJobs` from critical status path.
+
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
 
 The first real onboarding rewrite layer is now in code.
@@ -389,10 +419,10 @@ Context:
 
 - this is an isolated fork, not part of Rabbit Platform;
 - continuity docs are the source of truth;
-- latest deployed commit before this local work: `567e8f1 — feat: polish cascade builder and audit onboarding`;
 - onboarding audit is done and documented in `docs/node-onboarding-rewrite-blueprint.ru.md`;
-- onboarding rewrite phase 1 scaffold is now implemented locally (model + service + runner + API);
-- legacy setup path is still active.
+- latest committed state in `main`: `204a1c9 — feat: add onboarding jobs summary and step-select resume UI`;
+- setup now supports onboarding-full/legacy staged modes;
+- legacy setup path is still active as fallback.
 
 Priority:
 

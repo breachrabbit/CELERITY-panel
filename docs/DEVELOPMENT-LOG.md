@@ -395,6 +395,21 @@ Change types:
 - `local patch` — onboarding jobs/operator visibility on node management page
 - `stability fix` — controlled step resume input for durable onboarding runs
 
+## 2026-04-17 Session Close Summary
+
+- Finalized this session on top of onboarding rewrite phase 3.x with three consecutive commits:
+  - `d5e9796 — feat: normalize setup modes for onboarding job execution`
+  - `13debe8 — feat: add onboarding resume and repair controls in panel`
+  - `204a1c9 — feat: add onboarding jobs summary and step-select resume UI`
+- Confirmed at session close:
+  - `main` contains the latest onboarding UI/control flow changes;
+  - working tree is clean;
+  - continuity docs updated with a strict next-launch prompt.
+
+Change types:
+
+- `continuity` — session close capture and next-launch handoff hardening
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.
