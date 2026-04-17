@@ -175,6 +175,23 @@ function normalizeSetupMode(value) {
     return '';
 }
 
+function resolveOnboardingJobSetupMode(jobLike) {
+    const metadata = jobLike?.metadata || {};
+    const explicit = normalizeSetupMode(metadata.setupMode);
+    if (explicit) return explicit;
+    const flow = String(metadata.flow || '').trim().toLowerCase();
+    if (flow === 'durable-onboarding-run-full') return SETUP_MODE_ONBOARDING_FULL;
+    if (flow === 'legacy-setup-bridge') return SETUP_MODE_LEGACY;
+    if (String(metadata.bridgeMode || '').trim().toLowerCase() === 'legacy-auto-setup') {
+        return SETUP_MODE_LEGACY;
+    }
+    return '';
+}
+
+function isLegacyBridgeOnboardingJob(jobLike) {
+    return resolveOnboardingJobSetupMode(jobLike) === SETUP_MODE_LEGACY;
+}
+
 function resolvePanelSetupMode(node, req) {
     const requestedMode = normalizeSetupMode(
         req?.body?.setupMode
@@ -255,14 +272,59 @@ async function ensureOnboardingJobForSetup(node, actorLabel = '', setupMode = SE
         },
     });
 
-    const started = await nodeOnboardingService.startJob(created.job.id, {
+    let started = await nodeOnboardingService.startJob(created.job.id, {
         actorLabel: actorLabel || `panel:${node.name}`,
     });
+
+    let startedMode = resolveOnboardingJobSetupMode(started);
+    if (!startedMode) {
+        try {
+            started = await nodeOnboardingService.touchHeartbeat(started.id, {
+                flow,
+                setupMode: normalizedMode,
+            });
+            startedMode = resolveOnboardingJobSetupMode(started);
+        } catch (metadataError) {
+            logger.warn(`[Panel] Failed to normalize onboarding metadata for ${node.name}: ${metadataError.message}`);
+        }
+    }
+
+    if (normalizedMode === SETUP_MODE_ONBOARDING_FULL && startedMode === SETUP_MODE_LEGACY) {
+        logger.warn(`[Panel] Skip onboarding-full run for ${node.name}: active onboarding job ${started.id} is legacy bridge mode`);
+        return '';
+    }
+
+    if (normalizedMode === SETUP_MODE_LEGACY && startedMode === SETUP_MODE_ONBOARDING_FULL) {
+        logger.warn(`[Panel] Skip legacy bridge mirror for ${node.name}: active onboarding job ${started.id} is durable mode`);
+        return '';
+    }
+
     return started.id;
 }
 
+async function shouldApplyLegacyOnboardingBridge(onboardingJobId, logs) {
+    if (!onboardingJobId) return false;
+    try {
+        const onboardingJob = await nodeOnboardingService.getJob(onboardingJobId);
+        if (isLegacyBridgeOnboardingJob(onboardingJob)) {
+            return true;
+        }
+        logger.info(`[Panel] Legacy bridge mirror skipped for onboarding job ${onboardingJobId}: durable mode detected`);
+        if (Array.isArray(logs)) {
+            logs.push('[Onboarding] Synthetic legacy bridge skipped (durable onboarding job)');
+        }
+        return false;
+    } catch (error) {
+        logger.warn(`[Panel] Unable to resolve onboarding job mode for ${onboardingJobId}: ${error.message}`);
+        if (Array.isArray(logs)) {
+            logs.push(`[Onboarding] Legacy bridge mode check failed: ${error.message}`);
+        }
+        return false;
+    }
+}
+
 async function completeLegacyOnboardingBridge(onboardingJobId, node, logs, details = {}) {
-    if (!onboardingJobId) return;
+    if (!await shouldApplyLegacyOnboardingBridge(onboardingJobId, logs)) return;
     const base = {
         bridgeMode: 'legacy-auto-setup',
         nodeType: node.type || 'hysteria',
@@ -282,7 +344,7 @@ async function completeLegacyOnboardingBridge(onboardingJobId, node, logs, detai
 }
 
 async function failLegacyOnboardingBridge(onboardingJobId, step, errorLike, logs) {
-    if (!onboardingJobId) return;
+    if (!await shouldApplyLegacyOnboardingBridge(onboardingJobId, logs)) return;
     const message = errorLike?.message || String(errorLike || 'Onboarding bridge failure');
     await safeOnboardingUpdate(onboardingJobId, `step ${step} fail`, logs, async () => {
         await nodeOnboardingService.markStepFailed(
@@ -1411,16 +1473,43 @@ router.post('/nodes/:id/onboarding/resume', async (req, res) => {
             });
         }
 
-        let targetJob = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+        const requestedJobId = String(req.body?.jobId || '').trim();
+        let targetJob = null;
+        if (requestedJobId) {
+            const scopedJob = await nodeOnboardingService.getJob(requestedJobId);
+            if (!scopedJob || String(scopedJob.nodeId) !== String(req.params.id)) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Onboarding job не найден для этой ноды.',
+                    logs: [],
+                });
+            }
+            targetJob = scopedJob;
+        }
+
+        if (!targetJob) {
+            targetJob = await nodeOnboardingService.getActiveJobByNode(req.params.id);
+        }
         if (!targetJob) {
             const recentJobs = await nodeOnboardingService.listJobsByNode(req.params.id, { limit: 10 });
-            targetJob = recentJobs.find((job) => canResumeOnboardingStatus(job.status)) || null;
+            targetJob = recentJobs.find((job) => (
+                canResumeOnboardingStatus(job.status)
+                && !isLegacyBridgeOnboardingJob(job)
+            )) || null;
         }
 
         if (!targetJob) {
             return res.status(400).json({
                 success: false,
                 error: 'Нет подходящего onboarding job для Resume. Используйте Repair.',
+                logs: [],
+            });
+        }
+
+        if (isLegacyBridgeOnboardingJob(targetJob)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Legacy bridge job не поддерживает Resume onboarding-full. Используйте Repair.',
                 logs: [],
             });
         }
@@ -1507,7 +1596,7 @@ router.post('/nodes/:id/onboarding/repair', async (req, res) => {
         }
 
         let repairJob = null;
-        if (activeOnboarding && canResumeOnboardingStatus(activeOnboarding.status)) {
+        if (activeOnboarding && canResumeOnboardingStatus(activeOnboarding.status) && !isLegacyBridgeOnboardingJob(activeOnboarding)) {
             repairJob = activeOnboarding.status === 'queued'
                 ? await nodeOnboardingService.startJob(activeOnboarding.id, { actorLabel: `panel:${node.name}` })
                 : await nodeOnboardingService.resumeJob(activeOnboarding.id);
@@ -1606,7 +1695,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
                 startedAt: onboardingStatus.startedAt || legacyJob?.startedAt || null,
                 finishedAt: onboardingStatus.finishedAt || legacyJob?.finishedAt || null,
                 onboarding: onboardingStatus,
-                setupMode: legacyJob?.setupMode || SETUP_MODE_ONBOARDING_FULL,
+                setupMode: resolveOnboardingJobSetupMode(onboardingJob) || legacyJob?.setupMode || SETUP_MODE_ONBOARDING_FULL,
                 nodeStatus: node.status || 'unknown',
                 lastError: node.lastError || '',
                 lastSync: node.lastSync || null,

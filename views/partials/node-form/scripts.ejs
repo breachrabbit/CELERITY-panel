@@ -149,6 +149,134 @@
 .logs-output .error { color: #ff6b6b; }
 .logs-output .success { color: #51cf66; }
 .logs-output .warning { color: #ffd43b; }
+
+.onboarding-jobs-summary {
+    display: grid;
+    gap: 10px;
+}
+.onboarding-job-card {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+}
+.onboarding-job-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.onboarding-job-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.onboarding-job-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: grid;
+    gap: 4px;
+}
+.onboarding-job-error {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--danger);
+}
+.onboarding-job-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+.onboarding-job-actions .btn {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+.onboarding-job-details {
+    margin-top: 8px;
+    border-top: 1px dashed var(--border);
+    padding-top: 8px;
+}
+.onboarding-job-details summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    list-style: none;
+}
+.onboarding-job-details summary::-webkit-details-marker {
+    display: none;
+}
+.onboarding-job-details summary::before {
+    content: "▸";
+    display: inline-block;
+    margin-right: 6px;
+    transition: transform 0.15s ease;
+}
+.onboarding-job-details[open] summary::before {
+    transform: rotate(90deg);
+}
+.onboarding-step-states {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.onboarding-step-chip {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+.onboarding-step-chip.is-completed {
+    border-color: rgba(8, 197, 203, 0.4);
+    color: var(--accent);
+}
+.onboarding-step-chip.is-running {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-glow);
+}
+.onboarding-step-chip.is-failed {
+    border-color: rgba(255, 82, 82, 0.35);
+    color: var(--danger);
+}
+.onboarding-step-chip.is-blocked {
+    border-color: rgba(255, 176, 32, 0.4);
+    color: var(--warning);
+}
+.onboarding-step-chip.is-pending {
+    opacity: 0.75;
+}
+.onboarding-job-log-preview {
+    margin-top: 8px;
+    max-height: 180px;
+    overflow: auto;
+    background: var(--bg-primary);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.onboarding-job-hint {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--warning);
+}
+
+@media (max-width: 900px) {
+    .onboarding-job-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
 .form-group.is-inactive {
     opacity: 0.55;
 }
@@ -418,6 +546,18 @@ const i18n = {
     onboardingStepLabel: <%- JSON.stringify(t("nodes.onboardingStepLabel")) %>,
     onboardingUpdatedLabel: <%- JSON.stringify(t("nodes.onboardingUpdatedLabel")) %>,
     onboardingErrorLabel: <%- JSON.stringify(t("nodes.onboardingErrorLabel")) %>,
+    onboardingModeLabel: <%- JSON.stringify(t("nodes.onboardingModeLabel")) %>,
+    onboardingModeDurable: <%- JSON.stringify(t("nodes.onboardingModeDurable")) %>,
+    onboardingModeLegacy: <%- JSON.stringify(t("nodes.onboardingModeLegacy")) %>,
+    onboardingModeUnknown: <%- JSON.stringify(t("nodes.onboardingModeUnknown")) %>,
+    onboardingStepsSummaryLabel: <%- JSON.stringify(t("nodes.onboardingStepsSummaryLabel")) %>,
+    onboardingDiagnosticsLabel: <%- JSON.stringify(t("nodes.onboardingDiagnosticsLabel")) %>,
+    onboardingResumeJob: <%- JSON.stringify(t("nodes.onboardingResumeJob")) %>,
+    onboardingUseFailedStep: <%- JSON.stringify(t("nodes.onboardingUseFailedStep")) %>,
+    onboardingCopyDiagnostics: <%- JSON.stringify(t("nodes.onboardingCopyDiagnostics")) %>,
+    onboardingCopyDone: <%- JSON.stringify(t("nodes.onboardingCopyDone")) %>,
+    onboardingNoLogs: <%- JSON.stringify(t("nodes.onboardingNoLogs")) %>,
+    onboardingLegacyBridgeHint: <%- JSON.stringify(t("nodes.onboardingLegacyBridgeHint")) %>,
     loadingLogs: <%- JSON.stringify(t("nodes.loadingLogs")) %>,
     checking: <%- JSON.stringify(t("nodes.checking")) %>,
     resettingStatus: <%- JSON.stringify(t("nodes.resettingStatus")) %>,
@@ -443,6 +583,7 @@ const i18nConfig = {
     error: <%- JSON.stringify(t("common.error")) %>,
     baseUrl: <%- JSON.stringify(baseUrl) %>
 };
+let onboardingJobsCache = [];
 
 // ==================== Protocol switcher ====================
 
@@ -949,6 +1090,186 @@ function formatOnboardingJobDate(value) {
     return date.toLocaleString();
 }
 
+function resolveOnboardingJobMode(job) {
+    const setupMode = String(job?.metadata?.setupMode || '').trim().toLowerCase();
+    if (setupMode === 'onboarding-full' || setupMode === 'onboarding') return 'onboarding-full';
+    if (setupMode === 'legacy') return 'legacy';
+    const flow = String(job?.metadata?.flow || '').trim().toLowerCase();
+    if (flow === 'durable-onboarding-run-full') return 'onboarding-full';
+    if (flow === 'legacy-setup-bridge') return 'legacy';
+    if (String(job?.metadata?.bridgeMode || '').trim().toLowerCase() === 'legacy-auto-setup') return 'legacy';
+    return '';
+}
+
+function getOnboardingJobModeLabel(job) {
+    const mode = resolveOnboardingJobMode(job);
+    if (mode === 'onboarding-full') return i18n.onboardingModeDurable || 'Durable';
+    if (mode === 'legacy') return i18n.onboardingModeLegacy || 'Legacy bridge';
+    return i18n.onboardingModeUnknown || 'Unknown';
+}
+
+function isLegacyBridgeJob(job) {
+    return resolveOnboardingJobMode(job) === 'legacy';
+}
+
+function canResumeJob(job) {
+    const status = String(job?.status || '').trim().toLowerCase();
+    if (!['queued', 'blocked', 'repairable'].includes(status)) return false;
+    return !isLegacyBridgeJob(job);
+}
+
+function getPreferredResumeStep(job) {
+    const states = Array.isArray(job?.stepStates) ? job.stepStates : [];
+    const failed = states.find((state) => ['failed', 'blocked'].includes(String(state?.status || '').toLowerCase()));
+    return String(failed?.step || job?.currentStep || '').trim();
+}
+
+function escapeAttr(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function summarizeStepStates(job) {
+    const states = Array.isArray(job?.stepStates) ? job.stepStates : [];
+    if (!states.length) return '—';
+    const counts = {
+        completed: 0,
+        running: 0,
+        failed: 0,
+        blocked: 0,
+        pending: 0,
+        skipped: 0,
+    };
+    states.forEach((state) => {
+        const key = String(state?.status || 'pending').toLowerCase();
+        if (!Object.prototype.hasOwnProperty.call(counts, key)) return;
+        counts[key] += 1;
+    });
+    const parts = [];
+    if (counts.completed) parts.push(`ok:${counts.completed}`);
+    if (counts.running) parts.push(`run:${counts.running}`);
+    if (counts.failed) parts.push(`fail:${counts.failed}`);
+    if (counts.blocked) parts.push(`block:${counts.blocked}`);
+    if (counts.pending) parts.push(`todo:${counts.pending}`);
+    return parts.join(' · ') || '—';
+}
+
+function renderStepChips(job) {
+    const states = Array.isArray(job?.stepStates) ? job.stepStates : [];
+    if (!states.length) return '';
+    return states.map((state) => {
+        const status = String(state?.status || 'pending').toLowerCase();
+        const step = humanizeOnboardingStep(state?.step || '');
+        return `<span class="onboarding-step-chip is-${escapeAttr(status)}">${escapeHtml(step)}: ${escapeHtml(status)}</span>`;
+    }).join('');
+}
+
+function buildOnboardingDiagnosticText(job) {
+    const id = String(job?.id || '');
+    const lines = [];
+    lines.push(`Job: ${id}`);
+    lines.push(`Mode: ${getOnboardingJobModeLabel(job)}`);
+    lines.push(`Status: ${String(job?.status || 'unknown')}`);
+    lines.push(`Current step: ${String(job?.currentStep || 'n/a')}`);
+    lines.push(`Updated: ${formatOnboardingJobDate(job?.updatedAt || job?.lastHeartbeatAt || job?.finishedAt || job?.startedAt)}`);
+    if (job?.lastError?.message) {
+        lines.push(`Error: ${String(job.lastError.message)}`);
+    }
+    lines.push('');
+    lines.push('Step states:');
+    (Array.isArray(job?.stepStates) ? job.stepStates : []).forEach((state) => {
+        const step = String(state?.step || '');
+        const status = String(state?.status || 'pending');
+        const attempt = Number(state?.attempt || 0);
+        const stepError = String(state?.lastError?.message || '');
+        lines.push(`- ${step}: ${status} (attempt ${attempt})${stepError ? ` | ${stepError}` : ''}`);
+    });
+    lines.push('');
+    lines.push('Recent logs:');
+    const logs = (Array.isArray(job?.stepLogs) ? job.stepLogs : []).slice(-12);
+    if (!logs.length) {
+        lines.push('- none');
+    } else {
+        logs.forEach((log) => {
+            const ts = formatOnboardingJobDate(log?.at);
+            const step = String(log?.step || '');
+            const level = String(log?.level || 'info');
+            const message = String(log?.message || '').trim();
+            lines.push(`- [${ts}] [${level}] [${step}] ${message}`);
+        });
+    }
+    return lines.join('\n');
+}
+
+async function copyOnboardingDiagnostics(jobId) {
+    const target = onboardingJobsCache.find((job) => String(job?.id || '') === String(jobId || ''));
+    if (!target) return;
+    const text = buildOnboardingDiagnosticText(target);
+    let copied = false;
+    if (navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+        } catch (_) {}
+    }
+    if (!copied) {
+        const fallback = document.createElement('textarea');
+        fallback.value = text;
+        fallback.style.position = 'fixed';
+        fallback.style.opacity = '0';
+        document.body.appendChild(fallback);
+        fallback.select();
+        document.execCommand('copy');
+        document.body.removeChild(fallback);
+    }
+    document.getElementById('setupResult').innerHTML = `<div class="alert alert-success"><i class="ti ti-check"></i> ${escapeHtml(i18n.onboardingCopyDone || 'Diagnostics copied')}</div>`;
+}
+
+function useOnboardingJobStep(jobId) {
+    const select = document.getElementById('onboardingResumeStep');
+    if (!select) return;
+    const target = onboardingJobsCache.find((job) => String(job?.id || '') === String(jobId || ''));
+    if (!target) return;
+    const step = getPreferredResumeStep(target);
+    if (!step) return;
+    select.value = step;
+}
+
+async function resumeOnboardingJob(jobId) {
+    const target = onboardingJobsCache.find((job) => String(job?.id || '') === String(jobId || ''));
+    if (!target) return;
+    if (!confirm(i18n.onboardingResumeConfirm || 'Resume onboarding?')) return;
+    if (isLegacyBridgeJob(target)) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + escapeHtml(i18n.onboardingLegacyBridgeHint || 'Legacy bridge job cannot be resumed via onboarding-full') + '</div>';
+        return;
+    }
+    const btn = document.getElementById('btnResumeOnboarding');
+    setActionButtonBusy(btn, true, 'ti ti-player-play', i18n.onboardingResume);
+    document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.onboardingResumeRunning + '</div>';
+    try {
+        const selectedStep = String(document.getElementById('onboardingResumeStep')?.value || '').trim();
+        const preferred = getPreferredResumeStep(target);
+        const step = selectedStep || preferred;
+        await startOnboardingAction({
+            url: '/panel/nodes/<%= node._id %>/onboarding/resume',
+            payload: {
+                jobId: target.id,
+                ...(step ? { step } : {}),
+            },
+            runningMessage: i18n.onboardingResumeRunning,
+        });
+    } catch (err) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
+    } finally {
+        setActionButtonBusy(btn, false, 'ti ti-player-play', i18n.onboardingResume);
+        await loadOnboardingJobs();
+    }
+}
+
 function renderOnboardingJobsSummary(jobs) {
     const summary = document.getElementById('onboardingJobsSummary');
     if (!summary) return;
@@ -956,16 +1277,60 @@ function renderOnboardingJobsSummary(jobs) {
         summary.textContent = i18n.onboardingJobsEmpty;
         return;
     }
-    const lines = jobs.slice(0, 6).map((job) => {
+    const cards = jobs.slice(0, 6).map((job) => {
         const id = String(job?.id || '').slice(-8) || '—';
-        const status = String(job?.status || 'unknown');
+        const status = String(job?.status || 'unknown').toLowerCase();
+        const modeLabel = getOnboardingJobModeLabel(job);
         const step = humanizeOnboardingStep(job?.currentStep || 'preflight');
         const updated = formatOnboardingJobDate(job?.updatedAt || job?.lastHeartbeatAt || job?.finishedAt || job?.startedAt);
         const errorText = String(job?.lastError?.message || '').trim();
-        const errorPart = errorText ? ` · ${i18n.onboardingErrorLabel}: ${errorText}` : '';
-        return `${i18n.onboardingJobLabel} #${id} · ${i18n.onboardingStatusLabel}: ${status} · ${i18n.onboardingStepLabel}: ${step} · ${i18n.onboardingUpdatedLabel}: ${updated}${errorPart}`;
+        const canResume = canResumeJob(job);
+        const logs = (Array.isArray(job?.stepLogs) ? job.stepLogs : []).slice(-8)
+            .map((entry) => {
+                const ts = formatOnboardingJobDate(entry?.at);
+                const entryStep = humanizeOnboardingStep(entry?.step || '');
+                const entryMessage = String(entry?.message || '').trim();
+                return `[${ts}] [${entryStep}] ${entryMessage}`;
+            });
+        const logPreview = logs.length ? logs.join('\n') : (i18n.onboardingNoLogs || 'No logs yet');
+        const chips = renderStepChips(job);
+
+        return `
+            <div class="onboarding-job-card">
+                <div class="onboarding-job-head">
+                    <div>
+                        <div class="onboarding-job-title">${escapeHtml(i18n.onboardingJobLabel)} #${escapeHtml(id)}</div>
+                        <div class="onboarding-job-meta">
+                            <div>${escapeHtml(i18n.onboardingStatusLabel)}: ${escapeHtml(status)}</div>
+                            <div>${escapeHtml(i18n.onboardingStepLabel)}: ${escapeHtml(step)}</div>
+                            <div>${escapeHtml(i18n.onboardingModeLabel || 'Mode')}: ${escapeHtml(modeLabel)}</div>
+                            <div>${escapeHtml(i18n.onboardingUpdatedLabel)}: ${escapeHtml(updated)}</div>
+                            <div>${escapeHtml(i18n.onboardingStepsSummaryLabel || 'Steps')}: ${escapeHtml(summarizeStepStates(job))}</div>
+                        </div>
+                    </div>
+                    <div class="onboarding-job-actions">
+                        <button type="button" class="btn btn-sm" onclick="resumeOnboardingJob('${escapeAttr(job?.id || '')}')" ${canResume ? '' : 'disabled'}>
+                            <i class="ti ti-player-play"></i> ${escapeHtml(i18n.onboardingResumeJob || i18n.onboardingResume)}
+                        </button>
+                        <button type="button" class="btn btn-sm" onclick="useOnboardingJobStep('${escapeAttr(job?.id || '')}')">
+                            <i class="ti ti-target-arrow"></i> ${escapeHtml(i18n.onboardingUseFailedStep || 'Use failed step')}
+                        </button>
+                        <button type="button" class="btn btn-sm" onclick="copyOnboardingDiagnostics('${escapeAttr(job?.id || '')}')">
+                            <i class="ti ti-copy"></i> ${escapeHtml(i18n.onboardingCopyDiagnostics || 'Copy diagnostics')}
+                        </button>
+                    </div>
+                </div>
+                ${errorText ? `<div class="onboarding-job-error">${escapeHtml(i18n.onboardingErrorLabel)}: ${escapeHtml(errorText)}</div>` : ''}
+                ${isLegacyBridgeJob(job) ? `<div class="onboarding-job-hint">${escapeHtml(i18n.onboardingLegacyBridgeHint || 'Legacy bridge mode; use Repair to start durable onboarding')}</div>` : ''}
+                <details class="onboarding-job-details">
+                    <summary>${escapeHtml(i18n.onboardingDiagnosticsLabel || 'Diagnostics')}</summary>
+                    <div class="onboarding-step-states">${chips}</div>
+                    <pre class="onboarding-job-log-preview">${escapeHtml(logPreview)}</pre>
+                </details>
+            </div>
+        `;
     });
-    summary.innerHTML = lines.map((line) => `<div>${escapeHtml(line)}</div>`).join('');
+    summary.innerHTML = cards.join('');
 }
 
 async function loadOnboardingJobs() {
@@ -979,8 +1344,10 @@ async function loadOnboardingJobs() {
         if (!res.ok) {
             throw new Error(data?.error || i18n.onboardingJobsLoadError);
         }
-        renderOnboardingJobsSummary(Array.isArray(data?.jobs) ? data.jobs : []);
+        onboardingJobsCache = Array.isArray(data?.jobs) ? data.jobs : [];
+        renderOnboardingJobsSummary(onboardingJobsCache);
     } catch (err) {
+        onboardingJobsCache = [];
         if (summary) summary.innerHTML = '<span class="text-danger">' + escapeHtml((i18n.onboardingJobsLoadError || i18n.error) + ': ' + err.message) + '</span>';
     } finally {
         if (btn) btn.disabled = false;

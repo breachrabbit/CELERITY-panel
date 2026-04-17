@@ -58,6 +58,23 @@ function resolveApiSetupMode(reqBody = {}) {
         : SETUP_MODE_LEGACY;
 }
 
+function resolveOnboardingJobSetupMode(jobLike) {
+    const metadata = jobLike?.metadata || {};
+    const explicit = normalizeSetupMode(metadata.setupMode);
+    if (explicit) return explicit;
+    const flow = String(metadata.flow || '').trim().toLowerCase();
+    if (flow === 'durable-onboarding-run-full') return SETUP_MODE_ONBOARDING_FULL;
+    if (flow === 'legacy-setup-bridge') return SETUP_MODE_LEGACY;
+    if (String(metadata.bridgeMode || '').trim().toLowerCase() === 'legacy-auto-setup') {
+        return SETUP_MODE_LEGACY;
+    }
+    return '';
+}
+
+function isLegacyBridgeOnboardingJob(jobLike) {
+    return resolveOnboardingJobSetupMode(jobLike) === SETUP_MODE_LEGACY;
+}
+
 /**
  * Инвалидация кэша при изменении нод
  */
@@ -150,6 +167,17 @@ async function safeOnboardingUpdate(onboardingJobId, updater) {
 
 async function completeLegacyOnboardingBridge(onboardingJobId, node, details = {}) {
     if (!onboardingJobId) return;
+    try {
+        const onboardingJob = await nodeOnboardingService.getJob(onboardingJobId);
+        if (!isLegacyBridgeOnboardingJob(onboardingJob)) {
+            logger.info(`[Nodes API] Skip synthetic legacy bridge completion for durable job ${onboardingJobId}`);
+            return;
+        }
+    } catch (jobModeError) {
+        logger.warn(`[Nodes API] Failed to resolve onboarding mode for bridge completion ${onboardingJobId}: ${jobModeError.message}`);
+        return;
+    }
+
     const payload = {
         bridgeMode: 'legacy-auto-setup',
         nodeType: node.type || 'hysteria',
@@ -788,7 +816,16 @@ router.post('/:id/setup', requireScope('nodes:write'), async (req, res) => {
             const started = await nodeOnboardingService.startJob(created.job.id, {
                 actorLabel: req.user?.username || 'api',
             });
-            onboardingJobId = started.id;
+            const startedMode = resolveOnboardingJobSetupMode(started);
+            if (setupMode === SETUP_MODE_ONBOARDING_FULL && startedMode === SETUP_MODE_LEGACY) {
+                logger.warn(`[Nodes API] Skip onboarding-full setup for ${node.name}: active job ${started.id} is legacy bridge mode`);
+                onboardingJobId = '';
+            } else if (setupMode === SETUP_MODE_LEGACY && startedMode === SETUP_MODE_ONBOARDING_FULL) {
+                logger.warn(`[Nodes API] Skip legacy bridge mirror for ${node.name}: active job ${started.id} is durable mode`);
+                onboardingJobId = '';
+            } else {
+                onboardingJobId = started.id;
+            }
         } catch (onboardingError) {
             logger.warn(`[Nodes API] Could not initialize onboarding job for ${node.name}: ${onboardingError.message}`);
         }
@@ -965,6 +1002,19 @@ router.post('/:id/onboarding/jobs', requireScope('nodes:write'), async (req, res
         res.status(result.created ? 201 : 200).json(result);
     } catch (error) {
         logger.error(`[Nodes API] Onboarding create error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET /nodes/:id/onboarding/jobs/:jobId - Get onboarding job details
+ */
+router.get('/:id/onboarding/jobs/:jobId', requireScope('nodes:read'), async (req, res) => {
+    try {
+        const job = await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        res.json({ job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding job get error: ${error.message}`);
         res.status(500).json({ error: error.message });
     }
 });
