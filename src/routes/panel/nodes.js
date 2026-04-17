@@ -140,6 +140,7 @@ const LEGACY_ONBOARDING_BRIDGE_STEPS = [
     'final-sync',
 ];
 const ONBOARDING_RERUN_ALLOWED_STEPS = [...LEGACY_ONBOARDING_BRIDGE_STEPS];
+const KNOWN_ONBOARDING_STEPS = new Set(ONBOARDING_RERUN_ALLOWED_STEPS);
 
 function cleanupSetupJobs() {
     const now = Date.now();
@@ -214,7 +215,7 @@ function detectOnboardingStepFromLine(line) {
     if (!normalized) return 'preflight';
     const bracketMatch = normalized.match(/^\[([^\]]+)\]/);
     const bracketStep = String(bracketMatch?.[1] || '').trim().toLowerCase();
-    if (isKnownStep(bracketStep)) return bracketStep;
+    if (KNOWN_ONBOARDING_STEPS.has(bracketStep)) return bracketStep;
 
     for (const step of ONBOARDING_RERUN_ALLOWED_STEPS) {
         if (normalized.includes(step)) return step;
