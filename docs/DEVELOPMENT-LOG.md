@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-04-17 Upstream v1.1.0 Audit Execution Started + Safe-Port Batch #1
+
+- Started practical upstream delta execution for:
+  - `https://github.com/ClickDevTech/CELERITY-panel/compare/v1.0.0...v1.1.0`.
+- Implemented first safe backport batch:
+  - users group filter cast to `ObjectId` in panel users route (`src/routes/panel/users.js`);
+  - enabled outbound Xray stats collection in generated runtime config (`src/services/configGenerator.js`);
+  - added panel compatibility with both agent `/stats` shapes in sync layer (`src/services/syncService.js`);
+  - upgraded `cc-agent` stats endpoint to emit:
+    - `users` traffic map;
+    - node-level outbound totals (`node.tx/node.rx`);
+  - hardened same-VPS Xray agent firewall mode (`src/services/nodeSetup.js`) for local/container subnet reachability.
+- Released code commit:
+  - `171b7a7` — `fix: backport v1.1 stats and harden same-vps agent firewall`.
+- Forced stand deployment:
+  - UUID: `bmx12mg6g80olqrzx6jpwd7z`;
+  - status: `finished`;
+  - app state: `running:healthy`;
+  - endpoint check: `https://tunnel.hiddenrabbit.net.ru/panel/login` -> `HTTP 200`.
+- Validation:
+  - `node --check` for modified JS modules;
+  - `go test ./...` for `cc-agent`.
+
+Change types:
+
+- `stability fix` — upstream v1.1.0 reliability/stats/firewall backport batch
+- `deployment` — stand redeploy + health verification
+
 ## 2026-04-17 Upstream Delta Audit Task Queued (v1.0.0...v1.1.0)
 
 - Added explicit upstream review checkpoint to continuity docs:

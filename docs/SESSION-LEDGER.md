@@ -2,6 +2,25 @@
 
 ## 2026-04-17
 
+- Worked on: upstream `v1.0.0...v1.1.0` execution start + first safe port wave.
+- Finished with:
+  - completed forced redeploy for stand health confirmation:
+    - deployment `bmx12mg6g80olqrzx6jpwd7z` -> `finished`,
+    - app status `running:healthy`,
+    - `/panel/login` responded `HTTP 200`;
+  - shipped code commit `171b7a7` with first upstream-safe backports:
+    - ObjectId-safe group filter in users route;
+    - outbound Xray stats in config generator;
+    - panel sync compatibility for legacy/new agent `/stats` payload shapes;
+    - cc-agent stats snapshot model with node outbound totals;
+    - same-VPS agent firewall hardening in node setup.
+- Next step:
+  - finish full upstream triage (`security/stability/UX/infra`) and build final shortlist:
+    - take now,
+    - take with adaptation,
+    - skip;
+  - continue next backport wave as small safe commits + stand regression checks.
+
 - Worked on: continuity prioritization for upstream Celerity delta sync.
 - Finished with:
   - added mandatory task to audit upstream `v1.0.0...v1.1.0` changes;

@@ -121,6 +121,20 @@ Status: `pending`
 
 The fork already has meaningful local divergence. A fresh comparison against `upstream/main` now exists, but safe ports still need triage.
 
+Latest progress:
+
+- upstream `v1.0.0...v1.1.0` execution has started;
+- first safe port batch is already in `main` (commit `171b7a7`):
+  - ObjectId-safe group filter,
+  - Xray stats compatibility + outbound counters,
+  - same-VPS agent firewall hardening.
+
+Still missing:
+
+- full categorized triage (`security/stability/UX/infra`) of the whole upstream delta;
+- explicit shortlist completion (`take now` / `take with adaptation` / `skip`);
+- next safe waves with stand regression checks.
+
 Main upstream areas worth evaluating:
 
 - onboarding and first-run bootstrap;
@@ -136,7 +150,7 @@ Audit result:
 
 - current setup state lives only in process memory;
 - Xray install, agent install, and post-setup sync are still separate phases that trust each other too early;
-- one of the current success paths still tolerates weak agent verification (`strictAgent: false`);
+- weak legacy agent-success tolerance path (`strictAgent: false`) has already been removed in current fork state;
 - first-run health can depend on retrying setup instead of resuming from a durable step state;
 - agent delivery still depends on external release/latest resolution.
 

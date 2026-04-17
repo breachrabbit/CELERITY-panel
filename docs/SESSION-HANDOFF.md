@@ -47,7 +47,57 @@
   - hybrid cascade feature flag moved to always-on runtime policy:
     - settings UI now shows informational always-enabled state;
     - runtime config reload forces hybrid enabled.
+  - started practical upstream v1.1.0 safe-port batch:
+    - backported ObjectId-safe group filter in users aggregation;
+    - backported Xray stats compatibility (`cc-agent` stats v2 shape + panel-side backward compatibility);
+    - backported same-VPS agent firewall hardening (local/container subnet allow rules);
+    - enabled outbound traffic stats in generated Xray config.
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Stop-Point — Redeploy Done + Upstream v1.1.0 Safe-Port Batch #1
+
+### What was delivered
+
+- Forced redeploy performed and verified:
+  - deployment UUID: `bmx12mg6g80olqrzx6jpwd7z`;
+  - app state: `running:healthy`;
+  - public endpoint check: `GET /panel/login` returned `HTTP 200`.
+- Upstream audit (`v1.0.0...v1.1.0`) is now started with first safe backport batch in `main`:
+  - code commit: `171b7a7` (`fix: backport v1.1 stats and harden same-vps agent firewall`);
+  - included in this batch:
+    - `src/routes/panel/users.js`: group filter cast to `ObjectId` (aggregation safety);
+    - `src/services/configGenerator.js`: enabled `statsOutboundUplink/Downlink`;
+    - `src/services/syncService.js`: compatible parsing for both agent `/stats` payload shapes:
+      - legacy: `{ userId: {tx,rx} }`,
+      - new: `{ users: {...}, node: {tx,rx} }`;
+    - `cc-agent` stats API migrated to snapshot model with node-level outbound accounting;
+    - `src/services/nodeSetup.js`: stronger same-VPS agent firewall mode for Docker/local subnets.
+- Validation completed:
+  - `node --check` on modified JS files;
+  - `go test ./...` in `cc-agent` (with temporary local cache path).
+
+### What is not done yet (upstream original verification)
+
+1. Full categorized audit is not complete yet:
+   - we still need full triage list by category:
+     - `security`,
+     - `stability`,
+     - `UX`,
+     - `infra`.
+2. Final shortlist is not closed yet:
+   - `take now`,
+   - `take with adaptation`,
+   - `skip`.
+3. Remaining high-value upstream candidates are not yet ported/retested on stand:
+   - self-host onboarding/agent edge fixes around Xray token/firewall flows;
+   - accurate CPU usage calculation path;
+   - selected setup reliability fixes from late `v1.1.0` train.
+
+### Next step
+
+1. Finish full `v1.0.0...v1.1.0` categorized review with explicit shortlist table.
+2. Port next minimal safe batch (one concern per commit), then redeploy stand and run regression checks.
+3. Continue cascade diagnostics depth and staged `setupJobs` retirement in parallel (without breaking legacy fallback).
 
 ## 2026-04-17 Stop-Point — Hysteria Installer Rewrite + Hybrid Always-On Policy
 
