@@ -128,6 +128,10 @@
                             <i class="ti ti-copy"></i>
                             <span><%= t('cascades.executionCopyText') %></span>
                         </button>
+                        <button class="btn btn-secondary btn-sm" id="builderExecutionCopyFailedOnly" type="button">
+                            <i class="ti ti-alert-triangle"></i>
+                            <span><%= t('cascades.executionCopyFailedOnly') %></span>
+                        </button>
                         <button class="btn btn-secondary btn-sm" id="builderExecutionCopyJson" type="button">
                             <i class="ti ti-code"></i>
                             <span><%= t('cascades.executionCopyJson') %></span>
@@ -217,8 +221,11 @@ window._cascadeBuilderI18n = {
     executionWarnings: <%- JSON.stringify(t('cascades.executionWarnings')) %>,
     executionErrors: <%- JSON.stringify(t('cascades.executionErrors')) %>,
     executionCopyText: <%- JSON.stringify(t('cascades.executionCopyText')) %>,
+    executionCopyFailedOnly: <%- JSON.stringify(t('cascades.executionCopyFailedOnly')) %>,
     executionCopyJson: <%- JSON.stringify(t('cascades.executionCopyJson')) %>,
     executionCopyDone: <%- JSON.stringify(t('cascades.executionCopyDone')) %>,
+    executionCopyFailedOnlyDone: <%- JSON.stringify(t('cascades.executionCopyFailedOnlyDone')) %>,
+    executionCopyFailedOnlyEmpty: <%- JSON.stringify(t('cascades.executionCopyFailedOnlyEmpty')) %>,
     executionCopyJsonDone: <%- JSON.stringify(t('cascades.executionCopyJsonDone')) %>,
     executionCopyFailed: <%- JSON.stringify(t('cascades.executionCopyFailed')) %>,
     previewReady: <%- JSON.stringify(t('cascades.previewReady')) %>,

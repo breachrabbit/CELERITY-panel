@@ -732,6 +732,47 @@
         };
     }
 
+    function buildExecutionFailedCompactText(execution) {
+        if (!execution || typeof execution !== 'object') {
+            return i18n.executionEmpty || 'No execution runs yet.';
+        }
+
+        const deployment = execution.deployment && typeof execution.deployment === 'object'
+            ? execution.deployment
+            : null;
+
+        if (!deployment) {
+            return i18n.executionCopyFailedOnlyEmpty || 'No failed chains in the last execution.';
+        }
+
+        const deployResults = Array.isArray(deployment.results) ? deployment.results : [];
+        const failedItems = deployResults.filter((item) => !item?.success);
+
+        if (!failedItems.length) {
+            return i18n.executionCopyFailedOnlyEmpty || 'No failed chains in the last execution.';
+        }
+
+        const lines = [];
+        const title = execution.type === 'commit-deploy'
+            ? (i18n.executionCommitDeploy || 'Commit + deploy')
+            : (i18n.executionCommitOnly || 'Commit only');
+
+        lines.push(`${i18n.executionTitle || 'Last execution result'}: ${title}`);
+        lines.push(`${i18n.executionCreatedAt || 'Completed at'}: ${formatExecutionTime(execution.createdAt)}`);
+        lines.push(`${i18n.executionFailedChains || 'Chains failed'}: ${failedItems.length}/${Number(deployment.chains || 0)}`);
+        lines.push('');
+        lines.push(`${i18n.executionErrors || 'Errors'}:`);
+
+        failedItems.forEach((item, index) => {
+            const chainName = item.chainName || item.chainId || item.startNodeName || item.startNodeId || `chain-${index + 1}`;
+            const errorList = Array.isArray(item.errors) ? item.errors.filter(Boolean) : [];
+            const firstError = errorList[0] || (i18n.chainDeployFailed || 'Chain deploy failed');
+            lines.push(`- ${chainName}: ${firstError}`);
+        });
+
+        return lines.join('\n');
+    }
+
     async function copyTextToClipboard(text, successMessage) {
         try {
             if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -756,6 +797,14 @@
     async function copyExecutionDiagnosticsText() {
         const text = buildExecutionDiagnosticsText(state.execution);
         await copyTextToClipboard(text, i18n.executionCopyDone || 'Execution diagnostics copied.');
+    }
+
+    async function copyExecutionDiagnosticsFailedCompact() {
+        const text = buildExecutionFailedCompactText(state.execution);
+        await copyTextToClipboard(
+            text,
+            i18n.executionCopyFailedOnlyDone || 'Failed chains diagnostics copied.',
+        );
     }
 
     async function copyExecutionDiagnosticsJson() {
@@ -1399,6 +1448,7 @@
         document.getElementById('builderDeployPreview')?.addEventListener('click', () => previewCommitPlan());
         document.getElementById('builderResetDrafts')?.addEventListener('click', resetDrafts);
         document.getElementById('builderExecutionCopyText')?.addEventListener('click', () => copyExecutionDiagnosticsText());
+        document.getElementById('builderExecutionCopyFailedOnly')?.addEventListener('click', () => copyExecutionDiagnosticsFailedCompact());
         document.getElementById('builderExecutionCopyJson')?.addEventListener('click', () => copyExecutionDiagnosticsJson());
         document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));
         document.getElementById('builderAutoLayout')?.addEventListener('click', () => {
