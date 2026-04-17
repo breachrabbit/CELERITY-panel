@@ -585,7 +585,9 @@ fi
     async getSystemStats() {
         try {
             const result = await this.exec(`
-echo "===CPU==="
+echo "===CPUSAMPLE==="
+head -1 /proc/stat
+echo "===LOADAVG==="
 cat /proc/loadavg
 echo "===CORES==="
 nproc
@@ -600,20 +602,29 @@ cat /proc/uptime | cut -d' ' -f1
             const output = result.stdout || '';
             const lines = output.split('\n');
             
-            let cpu = { load1: 0, load5: 0, load15: 0, cores: 1 };
+            let cpu = { percent: 0, load1: 0, load5: 0, load15: 0, cores: 1 };
             let mem = { total: 0, used: 0, free: 0, percent: 0 };
             let disk = { total: 0, used: 0, free: 0, percent: 0 };
             let uptime = 0;
+            let currentCpuSample = null;
             
             let section = '';
             for (const line of lines) {
-                if (line.includes('===CPU===')) { section = 'cpu'; continue; }
+                if (line.includes('===CPUSAMPLE===')) { section = 'cpusample'; continue; }
+                if (line.includes('===LOADAVG===')) { section = 'loadavg'; continue; }
                 if (line.includes('===CORES===')) { section = 'cores'; continue; }
                 if (line.includes('===MEM===')) { section = 'mem'; continue; }
                 if (line.includes('===DISK===')) { section = 'disk'; continue; }
                 if (line.includes('===UPTIME===')) { section = 'uptime'; continue; }
                 
-                if (section === 'cpu' && line.trim()) {
+                if (section === 'cpusample' && line.startsWith('cpu ')) {
+                    const parts = line.trim().split(/\s+/).slice(1).map(Number);
+                    const idle = (parts[3] || 0) + (parts[4] || 0);
+                    const total = parts.reduce((acc, value) => acc + value, 0);
+                    currentCpuSample = { idle, total };
+                }
+
+                if (section === 'loadavg' && line.trim()) {
                     const parts = line.trim().split(/\s+/);
                     cpu.load1 = parseFloat(parts[0]) || 0;
                     cpu.load5 = parseFloat(parts[1]) || 0;
@@ -656,6 +667,21 @@ cat /proc/uptime | cut -d' ' -f1
                     uptime = Math.floor(parseFloat(line.trim()) || 0);
                 }
             }
+
+            const nodeKey = this.node._id?.toString() || this.node.ip;
+            const previousCpuSample = NodeSSH._cpuSamples.get(nodeKey);
+            if (currentCpuSample && previousCpuSample) {
+                const idleDelta = currentCpuSample.idle - previousCpuSample.idle;
+                const totalDelta = currentCpuSample.total - previousCpuSample.total;
+                cpu.percent = totalDelta > 0
+                    ? Math.min(Math.round((1 - idleDelta / totalDelta) * 100), 100)
+                    : 0;
+            } else {
+                cpu.percent = Math.min(Math.round((cpu.load1 / cpu.cores) * 100), 100);
+            }
+            if (currentCpuSample) {
+                NodeSSH._cpuSamples.set(nodeKey, currentCpuSample);
+            }
             
             return { success: true, cpu, mem, disk, uptime };
         } catch (error) {
@@ -664,5 +690,7 @@ cat /proc/uptime | cut -d' ' -f1
         }
     }
 }
+
+NodeSSH._cpuSamples = new Map();
 
 module.exports = NodeSSH;
