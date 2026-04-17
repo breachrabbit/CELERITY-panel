@@ -371,7 +371,10 @@
   - added panel endpoints for onboarding `resume` and `repair`;
   - added Resume/Repair buttons in node management UI;
   - setup/resume/repair now share one polling/progress path in node form scripts.
+- Onboarding jobs visibility continuation:
+  - added resume-step selector in node management UI;
+  - added recent onboarding jobs summary widget fed from onboarding jobs API.
 - Next step:
   - remove synthetic bridge completion from paths already executing onboarding-full;
-  - add onboarding jobs list + step-level resume selector in node setup UI;
+  - add richer per-job diagnostics surface (last error/details/actions) on top of summary widget;
   - then begin staged retirement of in-memory `setupJobs`.

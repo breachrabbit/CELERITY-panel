@@ -237,6 +237,9 @@ Panel node management now exposes onboarding recovery actions.
   - setup/resume/repair now follow one consistent progress path.
 - `src/locales/ru.json`, `src/locales/en.json`:
   - added labels/confirmations/running text for new actions.
+- node management onboarding widget now includes:
+  - resume-step selector;
+  - recent onboarding jobs summary (status/step/updated).
 
 ### Current stop-point
 
@@ -247,7 +250,7 @@ Panel node management now exposes onboarding recovery actions.
 ### Best next step
 
 1. Remove synthetic bridge completion from onboarding-full routed starts (keep only real step transitions).
-2. Add explicit surface for selecting resume step / viewing recent onboarding jobs from panel.
+2. Add richer per-job diagnostics surface (last error/details) on top of current jobs summary.
 3. Start staged retirement of in-memory `setupJobs` once parity is proven.
 
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
@@ -394,7 +397,7 @@ Context:
 Priority:
 
 1. remove synthetic bridge completion from onboarding-full execution path;
-2. add onboarding jobs list + step-select resume in panel node UI;
+2. add richer per-job diagnostics UI (error/details/actions) on top of current jobs summary;
 3. keep legacy setup fallback until parity is proven on test nodes;
 4. then retire in-memory `setupJobs` from the critical status path.
 

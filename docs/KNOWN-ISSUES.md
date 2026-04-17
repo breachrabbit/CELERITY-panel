@@ -178,7 +178,7 @@ Latest progress:
 Still missing:
 
 - removal of synthetic bridge completion in the remaining legacy setup runner path;
-- onboarding jobs history/step-select resume UI for operators;
+- richer per-job diagnostics/actions UI (error/details) on top of current onboarding jobs summary;
 - staged retirement of in-memory `setupJobs` from the critical path once parity is confirmed.
 
 Status: `pending`

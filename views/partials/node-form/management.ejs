@@ -197,6 +197,23 @@
                 <span><%= t('nodes.resetStatus') %></span>
             </button>
         </div>
+        <div class="onboarding-tools mt-2">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="onboardingResumeStep"><%= t('nodes.onboardingResumeStep') %></label>
+                    <select id="onboardingResumeStep">
+                        <option value=""><%= t('nodes.onboardingResumeStepAuto') %></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn btn-sm" id="btnLoadOnboardingJobs" onclick="loadOnboardingJobs()">
+                        <i class="ti ti-refresh"></i> <%= t('nodes.onboardingRecentJobs') %>
+                    </button>
+                </div>
+            </div>
+            <div id="onboardingJobsSummary" class="hint" style="margin-top:6px;"><%= t('nodes.onboardingJobsLoading') %></div>
+        </div>
         <% if (outboundsAclLocked) { %>
         <div class="alert alert-warning mt-2">
             <i class="ti ti-info-circle"></i>

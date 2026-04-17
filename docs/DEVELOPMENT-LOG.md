@@ -378,6 +378,23 @@ Change types:
 - `local patch` — onboarding resume/repair controls in panel management UI
 - `stability fix` — reusable panel action/polling path for durable onboarding runs
 
+## 2026-04-17 Onboarding Jobs Visibility + Step Resume (Phase 3.3)
+
+- Expanded node management onboarding controls:
+  - added resume-step selector in panel UI;
+  - added quick refresh for recent onboarding jobs.
+- Reused existing onboarding jobs API read-model in node-form scripts:
+  - `/api/nodes/:id/onboarding/jobs?limit=6`;
+  - summary now shows recent job id/status/current step/last update timestamp;
+  - summary now also surfaces `lastError` when present.
+- Resume action now supports explicit step override from the UI selector.
+- Added `ru/en` locale keys for onboarding jobs summary labels and loading/error states.
+
+Change types:
+
+- `local patch` — onboarding jobs/operator visibility on node management page
+- `stability fix` — controlled step resume input for durable onboarding runs
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.

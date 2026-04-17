@@ -387,6 +387,18 @@
 
 <script>
 const nodeType = '<%= node?.type || "hysteria" %>';
+const ONBOARDING_STEP_OPTIONS = [
+    'preflight',
+    'prepare-host',
+    'install-runtime',
+    'write-runtime-config',
+    'verify-runtime-local',
+    'install-agent',
+    'verify-agent-local',
+    'verify-panel-to-agent',
+    'seed-node-state',
+    'final-sync',
+];
 const i18n = {
     autoSetupConfirm: <%- JSON.stringify(t("nodes.autoSetupConfirm")) %>,
     autoSetupConfirmXray: <%- JSON.stringify(t("nodes.autoSetupConfirmXray")) %>,
@@ -397,6 +409,15 @@ const i18n = {
     onboardingRepairConfirm: <%- JSON.stringify(t("nodes.onboardingRepairConfirm")) %>,
     onboardingResumeRunning: <%- JSON.stringify(t("nodes.onboardingResumeRunning")) %>,
     onboardingRepairRunning: <%- JSON.stringify(t("nodes.onboardingRepairRunning")) %>,
+    onboardingResumeStepAuto: <%- JSON.stringify(t("nodes.onboardingResumeStepAuto")) %>,
+    onboardingJobsLoading: <%- JSON.stringify(t("nodes.onboardingJobsLoading")) %>,
+    onboardingJobsEmpty: <%- JSON.stringify(t("nodes.onboardingJobsEmpty")) %>,
+    onboardingJobsLoadError: <%- JSON.stringify(t("nodes.onboardingJobsLoadError")) %>,
+    onboardingJobLabel: <%- JSON.stringify(t("nodes.onboardingJobLabel")) %>,
+    onboardingStatusLabel: <%- JSON.stringify(t("nodes.onboardingStatusLabel")) %>,
+    onboardingStepLabel: <%- JSON.stringify(t("nodes.onboardingStepLabel")) %>,
+    onboardingUpdatedLabel: <%- JSON.stringify(t("nodes.onboardingUpdatedLabel")) %>,
+    onboardingErrorLabel: <%- JSON.stringify(t("nodes.onboardingErrorLabel")) %>,
     loadingLogs: <%- JSON.stringify(t("nodes.loadingLogs")) %>,
     checking: <%- JSON.stringify(t("nodes.checking")) %>,
     resettingStatus: <%- JSON.stringify(t("nodes.resettingStatus")) %>,
@@ -837,6 +858,26 @@ function renderOnboardingProgress(statusData) {
     return `<div style="margin-top:8px;opacity:.8;font-size:12px;">${escapeHtml(stepLabel)}</div>`;
 }
 
+function initOnboardingStepSelect() {
+    const select = document.getElementById('onboardingResumeStep');
+    if (!select || select.dataset.ready === '1') return;
+    if (!select.querySelector('option[value=""]')) {
+        const autoOption = document.createElement('option');
+        autoOption.value = '';
+        autoOption.textContent = i18n.onboardingResumeStepAuto || 'Auto';
+        select.appendChild(autoOption);
+    }
+    ONBOARDING_STEP_OPTIONS.forEach((step) => {
+        const exists = !!select.querySelector(`option[value="${step}"]`);
+        if (exists) return;
+        const option = document.createElement('option');
+        option.value = step;
+        option.textContent = humanizeOnboardingStep(step);
+        select.appendChild(option);
+    });
+    select.dataset.ready = '1';
+}
+
 function setActionButtonBusy(btn, isBusy, iconClass, label) {
     if (!btn) return;
     btn.disabled = !!isBusy;
@@ -901,6 +942,51 @@ async function startOnboardingAction({ url, payload, runningMessage }) {
     await pollSetupCompletion(runningMessage);
 }
 
+function formatOnboardingJobDate(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString();
+}
+
+function renderOnboardingJobsSummary(jobs) {
+    const summary = document.getElementById('onboardingJobsSummary');
+    if (!summary) return;
+    if (!Array.isArray(jobs) || jobs.length === 0) {
+        summary.textContent = i18n.onboardingJobsEmpty;
+        return;
+    }
+    const lines = jobs.slice(0, 6).map((job) => {
+        const id = String(job?.id || '').slice(-8) || '—';
+        const status = String(job?.status || 'unknown');
+        const step = humanizeOnboardingStep(job?.currentStep || 'preflight');
+        const updated = formatOnboardingJobDate(job?.updatedAt || job?.lastHeartbeatAt || job?.finishedAt || job?.startedAt);
+        const errorText = String(job?.lastError?.message || '').trim();
+        const errorPart = errorText ? ` · ${i18n.onboardingErrorLabel}: ${errorText}` : '';
+        return `${i18n.onboardingJobLabel} #${id} · ${i18n.onboardingStatusLabel}: ${status} · ${i18n.onboardingStepLabel}: ${step} · ${i18n.onboardingUpdatedLabel}: ${updated}${errorPart}`;
+    });
+    summary.innerHTML = lines.map((line) => `<div>${escapeHtml(line)}</div>`).join('');
+}
+
+async function loadOnboardingJobs() {
+    const summary = document.getElementById('onboardingJobsSummary');
+    const btn = document.getElementById('btnLoadOnboardingJobs');
+    if (summary) summary.textContent = i18n.onboardingJobsLoading;
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch('/api/nodes/<%= node._id %>/onboarding/jobs?limit=6', { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data?.error || i18n.onboardingJobsLoadError);
+        }
+        renderOnboardingJobsSummary(Array.isArray(data?.jobs) ? data.jobs : []);
+    } catch (err) {
+        if (summary) summary.innerHTML = '<span class="text-danger">' + escapeHtml((i18n.onboardingJobsLoadError || i18n.error) + ': ' + err.message) + '</span>';
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 async function setupNode() {
     const confirmMsg = nodeType === 'xray' ? i18n.autoSetupConfirmXray : i18n.autoSetupConfirm;
     if (!confirm(confirmMsg)) return;
@@ -919,6 +1005,7 @@ async function setupNode() {
         document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
     } finally {
         setActionButtonBusy(btn, false, 'ti ti-settings', i18n.autoSetup);
+        await loadOnboardingJobs();
     }
 }
 
@@ -928,15 +1015,17 @@ async function resumeOnboarding() {
     setActionButtonBusy(btn, true, 'ti ti-player-play', i18n.onboardingResume);
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.onboardingResumeRunning + '</div>';
     try {
+        const step = String(document.getElementById('onboardingResumeStep')?.value || '').trim();
         await startOnboardingAction({
             url: '/panel/nodes/<%= node._id %>/onboarding/resume',
-            payload: {},
+            payload: step ? { step } : {},
             runningMessage: i18n.onboardingResumeRunning,
         });
     } catch (err) {
         document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
     } finally {
         setActionButtonBusy(btn, false, 'ti ti-player-play', i18n.onboardingResume);
+        await loadOnboardingJobs();
     }
 }
 
@@ -955,6 +1044,7 @@ async function repairOnboarding() {
         document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + err.message + '</div>';
     } finally {
         setActionButtonBusy(btn, false, 'ti ti-bolt', i18n.onboardingRepair);
+        await loadOnboardingJobs();
     }
 }
 
@@ -1123,6 +1213,8 @@ async function generateXrayKeys() {
         updateXrayTransportUI();
         updateXraySecurityUI();
     }
+    initOnboardingStepSelect();
+    loadOnboardingJobs().catch(() => {});
 })();
 
 // SSH private key file upload
