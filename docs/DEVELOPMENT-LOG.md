@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-04-17 Cascade Diagnostics Deepening + Chain Rerun + Onboarding Guard Retirement Increment
+
+- Expanded cascade execution diagnostics payload and UI with deeper context:
+  - backend now emits structured `errorDetails` for deploy failures:
+    - scope (`node` / `chain`);
+    - parsed node context;
+    - related hop hints where detectable.
+- Added builder quick actions for failed chains:
+  - `Focus node` (jump to start node in canvas);
+  - `Retry chain` (one-click rerun via new API call).
+- Added API endpoint:
+  - `POST /api/cascade-builder/rerun-chain`
+  - triggers `deployChain(startNodeId)` for selected chain;
+  - returns enriched chain result;
+  - persists rerun snapshot into `lastExecution.reruns` and `deployment.results[].lastRerun` where match exists.
+- Extended execution card rendering:
+  - error-details section;
+  - inline actions block;
+  - last rerun status block.
+- Locales updated (`ru/en`) for new actions/status labels.
+- Onboarding staged retirement increment (`src/routes/panel/nodes.js`):
+  - removed legacy `setupJobs` running-guard influence from onboarding-full endpoints:
+    - resume,
+    - repair,
+    - rerun-step;
+  - in `/nodes/:id/setup`, legacy `setupJobs` duplicate-run guard now applies only when selected mode is `legacy`.
+
+Change types:
+
+- `local patch` — cascade execution diagnostics depth + operator quick actions
+- `stability fix` — onboarding-full control-path less coupled to in-memory legacy guards
+
 ## 2026-04-17 Cascade Builder Compact Failed-Chains Export
 
 - Added compact diagnostics export focused only on failed chain deploy results.

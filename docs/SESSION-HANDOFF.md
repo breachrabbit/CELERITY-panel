@@ -1866,3 +1866,31 @@ Pending next:
 1. Execute one real mixed-run with at least one successful and one failed chain.
 2. Compare UI counters vs failed-only JSON counters.
 3. Patch any mismatch before continuing deeper builder UX increments.
+
+## 2026-04-17 Stop-Point — Diagnostics Deepening + Chain Rerun
+
+Done:
+- Builder diagnostics now include richer chain failure context:
+  - structured `errorDetails` per chain result (`node`/`chain` scope + related hop hints);
+  - explicit failed-chain action row in execution cards:
+    - `Focus node`,
+    - `Retry chain`.
+- Added dedicated rerun API:
+  - `POST /api/cascade-builder/rerun-chain`;
+  - runs `deployChain(startNodeId)` for selected chain context;
+  - stores rerun snapshots into draft `lastExecution` (`reruns` history + `lastRerun` per matching chain result).
+- Staged onboarding retirement increment:
+  - onboarding-full endpoints no longer blocked by legacy in-memory `setupJobs` running state (`resume`, `repair`, `rerun-step`);
+  - `/nodes/:id/setup` now applies legacy duplicate-run guard only when selected mode is legacy.
+
+Current stop-point:
+- Diagnostics UX is materially closer to operator incident workflow.
+- Mixed-run parity still needs one live confirmation pass on stand (UI filter/export consistency + retry-chain behavior on real failed chain).
+
+Next step:
+1. Execute live mixed-run from `/panel/cascades/builder`.
+2. Verify:
+   - `All / Failed / Success` filter card counts;
+   - failed-only TXT/JSON include only failed chains;
+   - retry-chain action updates rerun status as expected.
+3. Continue staged retirement of residual legacy setup in-memory control paths without removing legacy fallback prematurely.

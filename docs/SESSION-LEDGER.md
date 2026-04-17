@@ -2,6 +2,20 @@
 
 ## 2026-04-17
 
+- Worked on: cascade execution parity (diagnostics depth + repair/re-run ergonomics) and onboarding control-path retirement increment.
+- Finished with:
+  - added structured deploy `errorDetails` (chain/node context + related hop hints);
+  - added failed-chain quick actions in builder diagnostics:
+    - focus start node,
+    - retry chain;
+  - added `POST /api/cascade-builder/rerun-chain` and persisted rerun snapshots into `lastExecution`;
+  - reduced legacy `setupJobs` impact on onboarding-full endpoints (`resume/repair/rerun-step`);
+  - scoped legacy duplicate-run guard in `/setup` to legacy mode only.
+- Next step:
+  - run real mixed-run on stand and validate filter/export parity on live data;
+  - verify quick `retry chain` behavior against real failed chains;
+  - continue staged retirement of remaining legacy in-memory setup control paths.
+
 - Worked on: compact diagnostics export for failed cascade chains.
 - Finished with:
   - added `Failed only` action in builder execution diagnostics;
