@@ -566,6 +566,9 @@
                     realitySni: form.elements.namedItem('realitySni')?.value || '',
                     realityFingerprint: form.elements.namedItem('realityFingerprint')?.value || 'chrome',
                     realityShortId: form.elements.namedItem('realityShortId')?.value || '',
+                    geoRoutingEnabled: !!form.elements.namedItem('geoRoutingEnabled')?.checked,
+                    geoDomains: form.elements.namedItem('geoDomains')?.value || '',
+                    geoIp: form.elements.namedItem('geoIp')?.value || '',
                 };
                 try {
                     await requestJson(`/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`, {
@@ -610,6 +613,8 @@
                 ? hop.realitySni.join(', ')
                 : String(hop.realitySni || 'www.google.com');
             const realityShortId = String(hop.realityShortId || '');
+            const geoDomains = Array.isArray(hop.geoDomains) ? hop.geoDomains.join('\n') : String(hop.geoDomains || '');
+            const geoIp = Array.isArray(hop.geoIp) ? hop.geoIp.join('\n') : String(hop.geoIp || '');
             root.innerHTML = `
                 <div class="builder-inspector-card">
                     <div class="builder-inspector-head">
@@ -738,6 +743,21 @@
                                     <input class="builder-form-control" type="text" name="realityShortId" maxlength="16" value="${escapeHtml(realityShortId)}" placeholder="26387fbfd98556ca">
                                 </label>
                             </div>
+                        </div>
+                        <div class="builder-transport-settings">
+                            <div class="builder-transport-title">${escapeHtml(i18n.policySettings || 'Policy')}</div>
+                            <label class="builder-field builder-checkbox-field">
+                                <span>${escapeHtml(i18n.geoRouting || 'Geo routing')}</span>
+                                <input type="checkbox" name="geoRoutingEnabled" ${hop.geoRoutingEnabled ? 'checked' : ''}>
+                            </label>
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.geoDomains || 'Domains')}</span>
+                                <textarea class="builder-form-control" name="geoDomains" rows="3" placeholder="google.com&#10;gemini.google.com">${escapeHtml(geoDomains)}</textarea>
+                            </label>
+                            <label class="builder-field">
+                                <span>${escapeHtml(i18n.geoIp || 'GeoIP')}</span>
+                                <textarea class="builder-form-control" name="geoIp" rows="2" placeholder="geoip:google&#10;geoip:telegram">${escapeHtml(geoIp)}</textarea>
+                            </label>
                         </div>
                         <div class="builder-form-actions">
                             <button class="btn btn-primary btn-sm" type="submit">

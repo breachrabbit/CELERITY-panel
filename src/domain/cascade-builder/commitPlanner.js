@@ -112,6 +112,11 @@ function buildPreviewPayload(hop, sourceNode, targetNode) {
         realitySni: Array.isArray(hop.realitySni) ? hop.realitySni : ['www.google.com'],
         realityFingerprint: hop.realityFingerprint || 'chrome',
         realityShortId: hop.realityShortId || '',
+        geoRouting: {
+            enabled: !!hop.geoRoutingEnabled,
+            domains: Array.isArray(hop.geoDomains) ? hop.geoDomains : [],
+            geoip: Array.isArray(hop.geoIp) ? hop.geoIp : [],
+        },
         muxEnabled: !!hop.muxEnabled,
         priority: 100,
         status: 'pending',
@@ -256,7 +261,10 @@ function buildCommitPlan({ nodes = [], hops = [], activeLinks = [] }) {
             || (hop.realityDest && hop.realityDest !== 'www.google.com:443')
             || ((Array.isArray(hop.realitySni) && hop.realitySni.length > 0 && !(hop.realitySni.length === 1 && hop.realitySni[0] === 'www.google.com')))
             || (hop.realityFingerprint && hop.realityFingerprint !== 'chrome')
-            || !!(hop.realityShortId && String(hop.realityShortId).trim());
+            || !!(hop.realityShortId && String(hop.realityShortId).trim())
+            || !!hop.geoRoutingEnabled
+            || (Array.isArray(hop.geoDomains) && hop.geoDomains.length > 0)
+            || (Array.isArray(hop.geoIp) && hop.geoIp.length > 0);
         if (!advancedFieldsTouched) {
             assumptions.push('Transport-specific advanced fields (WS/gRPC/XHTTP paths) stay on their current defaults.');
         }

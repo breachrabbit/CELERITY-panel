@@ -215,6 +215,9 @@ function buildDraftHopSuggestion({ sourceNode, targetNode, mode = 'reverse' }) {
         realitySni: ['www.google.com'],
         realityFingerprint: 'chrome',
         realityShortId: '',
+        geoRoutingEnabled: false,
+        geoDomains: [],
+        geoIp: [],
         requiresHybrid: stack === 'hybrid',
     };
 }

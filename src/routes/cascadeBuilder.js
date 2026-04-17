@@ -306,7 +306,7 @@ function normalizeDraftList(rawValue, fallback = [], { maxItems = 6, itemMax = 1
     const source = Array.isArray(rawValue)
         ? rawValue
         : String(rawValue ?? '')
-            .split(',')
+            .split(/[\n,]+/)
             .map((value) => value.trim());
 
     const normalized = source
@@ -425,6 +425,29 @@ function resolveLegacyLinkSecurityFields(draftHop = {}) {
     };
 }
 
+function resolveDraftGeoRoutingFields(payload = {}, currentHop = {}) {
+    const geoRoutingEnabled = normalizeDraftBoolean(
+        payload.geoRoutingEnabled,
+        currentHop.geoRoutingEnabled || currentHop.geoRouting?.enabled,
+    );
+    const geoDomains = normalizeDraftList(
+        payload.geoDomains !== undefined ? payload.geoDomains : (currentHop.geoDomains || currentHop.geoRouting?.domains || []),
+        [],
+        { maxItems: 96, itemMax: 256 },
+    );
+    const geoIp = normalizeDraftList(
+        payload.geoIp !== undefined ? payload.geoIp : (currentHop.geoIp || currentHop.geoRouting?.geoip || []),
+        [],
+        { maxItems: 96, itemMax: 64 },
+    );
+
+    return {
+        geoRoutingEnabled,
+        geoDomains,
+        geoIp,
+    };
+}
+
 async function getStoredDraft(req, flowId = 'legacy-topology') {
     return cacheService.getCascadeBuilderDraft(getBuilderActorKey(req), flowId);
 }
@@ -502,6 +525,11 @@ async function createLegacyLinkFromDraft(draftHop, res) {
         realityPublicKey: securityFields.realityPublicKey,
         realityShortIds: securityFields.realityShortIds,
         realityFingerprint: securityFields.realityFingerprint,
+        geoRouting: {
+            enabled: !!draftHop.geoRoutingEnabled,
+            domains: Array.isArray(draftHop.geoDomains) ? draftHop.geoDomains : [],
+            geoip: Array.isArray(draftHop.geoIp) ? draftHop.geoIp : [],
+        },
         muxEnabled: !!draftHop.muxEnabled,
         muxConcurrency: 8,
         priority: 100,
@@ -624,6 +652,9 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
             realitySni: draftSuggestion.realitySni,
             realityFingerprint: draftSuggestion.realityFingerprint,
             realityShortId: draftSuggestion.realityShortId || '',
+            geoRoutingEnabled: !!draftSuggestion.geoRoutingEnabled,
+            geoDomains: Array.isArray(draftSuggestion.geoDomains) ? draftSuggestion.geoDomains : [],
+            geoIp: Array.isArray(draftSuggestion.geoIp) ? draftSuggestion.geoIp : [],
             muxEnabled: false,
             latencyMs: null,
             status: 'draft',
@@ -724,6 +755,7 @@ router.patch('/drafts/:hopId', requireScope('nodes:write'), async (req, res) => 
             return res.status(422).json({ error: tFor(res, 'cascades.draftEditInvalidXhttpMode', 'Unsupported XHTTP mode for draft hop.') });
         }
         let realityDraftFields;
+        const geoRoutingFields = resolveDraftGeoRoutingFields(payload, currentHop);
         try {
             realityDraftFields = resolveDraftRealityFields(payload, currentHop);
         } catch (error) {
@@ -759,6 +791,9 @@ router.patch('/drafts/:hopId', requireScope('nodes:write'), async (req, res) => 
             realitySni: realityDraftFields.realitySni,
             realityFingerprint: realityDraftFields.realityFingerprint,
             realityShortId: realityDraftFields.realityShortId,
+            geoRoutingEnabled: geoRoutingFields.geoRoutingEnabled,
+            geoDomains: geoRoutingFields.geoDomains,
+            geoIp: geoRoutingFields.geoIp,
             muxEnabled: normalizeDraftBoolean(payload.muxEnabled, currentHop.muxEnabled),
             status: 'draft',
             isDraft: true,

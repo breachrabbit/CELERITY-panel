@@ -75,6 +75,13 @@ function normalizeTopologyToBuilderState(topology) {
                 realityShortId: Array.isArray(data.realityShortIds)
                     ? (data.realityShortIds.find((value) => String(value || '').trim()) || '')
                     : (data.realityShortId || ''),
+                geoRoutingEnabled: !!(data.geoRouting?.enabled || data.geoRoutingEnabled),
+                geoDomains: Array.isArray(data.geoRouting?.domains)
+                    ? data.geoRouting.domains.filter(Boolean)
+                    : (Array.isArray(data.geoDomains) ? data.geoDomains.filter(Boolean) : []),
+                geoIp: Array.isArray(data.geoRouting?.geoip)
+                    ? data.geoRouting.geoip.filter(Boolean)
+                    : (Array.isArray(data.geoIp) ? data.geoIp.filter(Boolean) : []),
                 muxEnabled: !!data.muxEnabled,
                 latencyMs: data.latencyMs ?? null,
                 status: data.status || 'pending',
@@ -137,11 +144,24 @@ function sanitizeDraftHop(rawHop, nodeIds) {
         realitySni: Array.isArray(rawHop.realitySni)
             ? rawHop.realitySni.map((value) => String(value || '').trim()).filter(Boolean)
             : String(rawHop.realitySni || 'www.google.com')
-                .split(',')
+                .split(/[\n,]+/)
                 .map((value) => value.trim())
                 .filter(Boolean),
         realityFingerprint: String(rawHop.realityFingerprint || 'chrome').trim() || 'chrome',
         realityShortId: String(rawHop.realityShortId || '').trim().slice(0, 16),
+        geoRoutingEnabled: !!rawHop.geoRoutingEnabled,
+        geoDomains: Array.isArray(rawHop.geoDomains)
+            ? rawHop.geoDomains.map((value) => String(value || '').trim()).filter(Boolean)
+            : String(rawHop.geoDomains || '')
+                .split(/[\n,]+/)
+                .map((value) => value.trim())
+                .filter(Boolean),
+        geoIp: Array.isArray(rawHop.geoIp)
+            ? rawHop.geoIp.map((value) => String(value || '').trim()).filter(Boolean)
+            : String(rawHop.geoIp || '')
+                .split(/[\n,]+/)
+                .map((value) => value.trim())
+                .filter(Boolean),
         muxEnabled: !!rawHop.muxEnabled,
         latencyMs: rawHop.latencyMs ?? null,
         status: rawHop.status || 'draft',
