@@ -566,6 +566,31 @@ function hopHasEndpoints(hopEntry = null) {
     return !!(String(hopEntry.sourceNodeId || '').trim() && String(hopEntry.targetNodeId || '').trim());
 }
 
+function resolveHopEndpointStatus(hopEntry = null, actionMatchers = null) {
+    if (!hopEntry || typeof hopEntry !== 'object') {
+        return {
+            sourceStatus: '',
+            targetStatus: '',
+        };
+    }
+    const sourceNodeId = String(hopEntry.sourceNodeId || '').trim();
+    const targetNodeId = String(hopEntry.targetNodeId || '').trim();
+    const sourceNodeName = String(hopEntry.sourceNodeName || '').trim().toLowerCase();
+    const targetNodeName = String(hopEntry.targetNodeName || '').trim().toLowerCase();
+    const byId = actionMatchers?.byId;
+    const byName = actionMatchers?.byName;
+    const sourceAction = (byId && sourceNodeId ? byId.get(sourceNodeId) : null)
+        || (byName && sourceNodeName ? byName.get(sourceNodeName) : null)
+        || null;
+    const targetAction = (byId && targetNodeId ? byId.get(targetNodeId) : null)
+        || (byName && targetNodeName ? byName.get(targetNodeName) : null)
+        || null;
+    return {
+        sourceStatus: String(sourceAction?.status || '').trim(),
+        targetStatus: String(targetAction?.status || '').trim(),
+    };
+}
+
 function extractDeployFailedStep(rawText = '', messageText = '') {
     const source = `${String(rawText || '')} ${String(messageText || '')}`;
     const match = source.match(/([A-Za-z0-9_.\-/ ]{3,220}) failed \(exit [^)]+\)/i);
@@ -874,6 +899,7 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                 const relatedHops = findRelatedHopEntries(rawNodeName, hopEntries);
                 const isSingleHop = relatedHops.length === 1;
                 const primaryHop = isSingleHop ? relatedHops[0] : null;
+                const { sourceStatus: hopSourceNodeStatus, targetStatus: hopTargetNodeStatus } = resolveHopEndpointStatus(primaryHop, actionMatchers);
                 const criticalCodes = new Set([
                     'missing-ssh',
                     'ssh-auth-failed',
@@ -900,6 +926,8 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                     hopTargetNodeId: String(primaryHop?.targetNodeId || ''),
                     hopSourceNodeName: String(primaryHop?.sourceNodeName || ''),
                     hopTargetNodeName: String(primaryHop?.targetNodeName || ''),
+                    hopSourceNodeStatus,
+                    hopTargetNodeStatus,
                     failedStep,
                     serviceState,
                     message: message || rawText,
@@ -923,6 +951,7 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                 const relatedHops = findRelatedHopEntries(nodeName, hopEntries);
                 const isSingleHop = relatedHops.length === 1;
                 const primaryHop = isSingleHop ? relatedHops[0] : null;
+                const { sourceStatus: hopSourceNodeStatus, targetStatus: hopTargetNodeStatus } = resolveHopEndpointStatus(primaryHop, actionMatchers);
                 const criticalCodes = new Set([
                     'missing-ssh',
                     'ssh-auth-failed',
@@ -949,6 +978,8 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                     hopTargetNodeId: String(primaryHop?.targetNodeId || ''),
                     hopSourceNodeName: String(primaryHop?.sourceNodeName || ''),
                     hopTargetNodeName: String(primaryHop?.targetNodeName || ''),
+                    hopSourceNodeStatus,
+                    hopTargetNodeStatus,
                     failedStep,
                     serviceState,
                     message: displayText || rawText,
@@ -968,6 +999,7 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
             const code = classifyDeployErrorCode(rawText, displayText, failedStep);
             const relatedHopMentions = findMentionedHopEntries(rawText, displayText, hopEntries);
             const singleHopMention = relatedHopMentions.length === 1 ? relatedHopMentions[0] : null;
+            const { sourceStatus: hopSourceNodeStatus, targetStatus: hopTargetNodeStatus } = resolveHopEndpointStatus(singleHopMention, actionMatchers);
             return {
                 scope: singleHopMention ? 'hop' : 'chain',
                 code,
@@ -981,6 +1013,8 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                 hopTargetNodeId: String(singleHopMention?.targetNodeId || ''),
                 hopSourceNodeName: String(singleHopMention?.sourceNodeName || ''),
                 hopTargetNodeName: String(singleHopMention?.targetNodeName || ''),
+                hopSourceNodeStatus,
+                hopTargetNodeStatus,
                 failedStep,
                 serviceState,
                 message: displayText || rawText,

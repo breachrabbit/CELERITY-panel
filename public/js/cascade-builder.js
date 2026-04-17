@@ -820,6 +820,10 @@
                                     const detailCode = String(detail.code || '').trim();
                                     const detailHint = String(detail.hint || '').trim();
                                     const detailNodeStatus = String(detail.nodeStatus || '').trim();
+                                    const detailHopSourceNodeName = String(detail.hopSourceNodeName || '').trim();
+                                    const detailHopTargetNodeName = String(detail.hopTargetNodeName || '').trim();
+                                    const detailHopSourceNodeStatus = String(detail.hopSourceNodeStatus || '').trim();
+                                    const detailHopTargetNodeStatus = String(detail.hopTargetNodeStatus || '').trim();
                                     const detailFailedStep = String(detail.failedStep || '').trim();
                                     const detailServiceState = String(detail.serviceState || '').trim();
                                     const detailSuggestedActions = Array.isArray(detail.suggestedActions)
@@ -829,11 +833,17 @@
                                         ? ` (${(i18n.executionHopNames || 'Hop set')}: ${detail.relatedHops.join(', ')})`
                                         : '';
                                     const detailActionButtons = buildExecutionDetailActionButtons(detail, item, chainKey);
+                                    const hopSourceStatusLabel = detailHopSourceNodeStatus || (i18n.statusUnknown || 'unknown');
+                                    const hopTargetStatusLabel = detailHopTargetNodeStatus || (i18n.statusUnknown || 'unknown');
+                                    const hopEndpointsLabel = (detailHopSourceNodeName || detailHopTargetNodeName)
+                                        ? `${detailHopSourceNodeName || (i18n.executionOpenSourceNode || 'Source node')} (${hopSourceStatusLabel}) -> ${detailHopTargetNodeName || (i18n.executionOpenTargetNode || 'Target node')} (${hopTargetStatusLabel})`
+                                        : '';
                                     return `
                                         <div class="builder-validation-item ${detail.severity === 'critical' ? 'critical' : 'error'}">
                                             ${detailCode ? `<strong>${escapeHtml(`[${detailCode}]`)}</strong>` : ''}
                                             <span>${escapeHtml(`${detailPrefix}${detail.message || detail.raw || '—'}${hopHint}`)}</span>
                                             ${detailNodeStatus ? `<small>${escapeHtml(`${i18n.status || 'Status'}: ${detailNodeStatus}`)}</small>` : ''}
+                                            ${hopEndpointsLabel ? `<small>${escapeHtml(`${i18n.executionHopEndpoints || 'Hop endpoints'}: ${hopEndpointsLabel}`)}</small>` : ''}
                                             ${detailServiceState ? `<small>${escapeHtml(`${i18n.executionServiceState || 'Service state'}: ${detailServiceState}`)}</small>` : ''}
                                             ${detailFailedStep ? `<small>${escapeHtml(`${i18n.executionFailedStep || 'Failed step'}: ${detailFailedStep}`)}</small>` : ''}
                                             ${detailHint ? `<small>${escapeHtml(detailHint)}</small>` : ''}

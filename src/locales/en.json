@@ -1355,6 +1355,8 @@
     "executionSuggestedActionFallback": "Review diagnostics",
     "executionOpenSourceNode": "Source node",
     "executionOpenTargetNode": "Target node",
+    "executionHopEndpoints": "Hop endpoints",
+    "statusUnknown": "unknown",
     "executionRepairHopNodesStarted": "Hop node repair started. Waiting for completion before chain rerun...",
     "executionRepairHopNodesMissing": "Hop node IDs are required for hop repair.",
     "executionHintMissingSsh": "SSH credentials are missing. Configure SSH, run node repair, then retry chain.",

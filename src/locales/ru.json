@@ -1361,6 +1361,8 @@
     "executionSuggestedActionFallback": "Проверить диагностику",
     "executionOpenSourceNode": "Нода-источник",
     "executionOpenTargetNode": "Нода-цель",
+    "executionHopEndpoints": "Точки хопа",
+    "statusUnknown": "неизвестно",
     "executionRepairHopNodesStarted": "Восстановление нод хопа запущено, ждём завершения перед повтором цепочки...",
     "executionRepairHopNodesMissing": "Для восстановления хопа нужны ID его нод.",
     "executionHintMissingSsh": "Для ноды не настроен SSH. Добавьте SSH-доступ, запустите восстановление ноды и повторите цепочку.",
