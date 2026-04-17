@@ -2,6 +2,16 @@
 
 ## 2026-04-17
 
+- Worked on: cascade builder graph dependency hardening (CDN removal).
+- Finished with:
+  - moved builder graph scripts to local `/vendor/cascade/*` paths;
+  - added `scripts/sync-cascade-vendors.js` and wired it into `postinstall`;
+  - pinned graph libraries in `package.json` and updated lockfile;
+  - kept generated vendor assets out of git via `.gitignore`.
+- Next step:
+  - push/deploy and run live builder smoke (`/panel/cascades/builder`) to confirm graph still initializes;
+  - proceed with deeper per-hop security/policy editor fields (REALITY/TLS knobs).
+
 - Worked on: cascade builder advanced transport draft editor.
 - Finished with:
   - added WS/gRPC/XHTTP transport-specific fields to draft-hop inspector;

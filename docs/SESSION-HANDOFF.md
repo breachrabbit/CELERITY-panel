@@ -14,7 +14,38 @@
   - added builder-side `commit + deploy` bridge over draft hops;
   - added builder-side per-hop draft settings editor with backend payload validation and per-hop remove;
   - added builder-side advanced transport settings for draft hops (WS/gRPC/XHTTP fields);
+  - replaced builder runtime CDN graph dependency with local vendor graph assets via postinstall sync.
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Cascade Builder Local Graph Assets Stop-Point
+
+### What was delivered
+
+- `views/cascade-builder.ejs` now loads builder graph libs from local static paths under `/vendor/cascade/*` instead of external CDN links.
+- Added graph-vendor sync script:
+  - `scripts/sync-cascade-vendors.js`
+  - copies pinned package assets from `node_modules` into `public/vendor/cascade`.
+- `package.json` updates:
+  - added dependencies: `cytoscape`, `dagre`, `cytoscape-dagre`, `cytoscape-edgehandles`;
+  - added scripts:
+    - `sync:cascade-vendor`
+    - `postinstall` (auto vendor sync).
+- `.gitignore` updated:
+  - `public/vendor/cascade/` ignored because assets are generated deterministically during install/build.
+
+### Current stop-point
+
+- Builder page no longer depends on external CDN availability to render the graph tooling.
+- Graph assets are now reproducible from lockfile-pinned npm dependencies.
+- Existing builder fallback behavior remains intact if graph init still fails at runtime.
+
+### Best next step
+
+1. Live smoke on stand:
+   - open `/panel/cascades/builder` in light/dark and mobile viewport;
+   - verify graph initialization and drag-connect behavior.
+2. Continue per-hop editor deepening into security/policy knobs (REALITY/TLS-level fields).
+3. Keep onboarding parity track moving in parallel without removing legacy fallback early.
 
 ## 2026-04-17 Cascade Builder Advanced Transport Draft Settings Stop-Point
 

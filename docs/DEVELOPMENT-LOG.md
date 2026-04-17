@@ -1,5 +1,29 @@
 # Development Log
 
+## 2026-04-17 Cascade Builder Local Graph Assets (No CDN Runtime)
+
+- Replaced external graph-library CDN usage on builder page with local vendor assets.
+- `views/cascade-builder.ejs` now loads:
+  - `/vendor/cascade/cytoscape.min.js`
+  - `/vendor/cascade/dagre.min.js`
+  - `/vendor/cascade/cytoscape-dagre.js`
+  - `/vendor/cascade/cytoscape-edgehandles.js`
+- Added deterministic vendor sync pipeline:
+  - `scripts/sync-cascade-vendors.js`
+  - `npm run sync:cascade-vendor`
+  - `postinstall` hook now runs vendor sync automatically.
+- Added runtime dependencies for bundled graph stack:
+  - `cytoscape`
+  - `dagre`
+  - `cytoscape-dagre`
+  - `cytoscape-edgehandles`
+- Added `public/vendor/cascade/` to `.gitignore` because assets are generated deterministically from pinned npm packages during install/build.
+
+Change types:
+
+- `stability fix` — removed runtime CDN dependency from cascade builder graph layer
+- `local patch` — local vendor asset sync script and npm lifecycle integration
+
 ## 2026-04-17 Cascade Builder Advanced Transport Draft Settings
 
 - Extended builder draft-hop settings from base fields to transport-specific fields:

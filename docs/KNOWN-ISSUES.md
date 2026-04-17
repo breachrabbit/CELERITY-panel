@@ -14,6 +14,7 @@ Current state:
 - builder now also has a pure deploy-preview / commit-plan layer over the current draft state.
 - builder can now run `commit + deploy` in one action, but deploy execution still relies on legacy `deployChain`.
 - builder now has transport-specific draft editing for WS/gRPC/XHTTP payload fields before commit/deploy.
+- builder graph dependencies are now served from local vendor assets (no runtime CDN dependency).
 
 Still missing:
 
@@ -21,7 +22,6 @@ Still missing:
 - executable synthetic chain preview against in-memory links;
 - flow-native deploy orchestration independent of legacy chain deploy;
 - deeper per-hop configuration UI (advanced TLS/REALITY key material and policy-level knobs);
-- local bundled graph assets instead of CDN dependency;
 - true flow-native role storage independent of legacy node `cascadeRole`.
 
 Status: `pending`
