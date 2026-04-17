@@ -37,6 +37,11 @@
   - clear settings behavior;
   - align default color profile with panel themes where supported on iOS/macOS;
 - continue fixing install and node-add flows so the panel works out of the box.
+- replace the current node auto-setup with a stricter Hidden Rabbit onboarding pipeline:
+  - persistent onboarding jobs instead of in-memory setup state;
+  - pinned installer channel instead of external `latest`;
+  - local runtime verification plus panel-to-agent handshake before a node is marked ready;
+  - resume/repair semantics instead of “run setup again”.
 
 ## Mid Term
 

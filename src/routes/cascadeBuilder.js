@@ -13,19 +13,223 @@ const { normalizeTopologyToBuilderState, mergeDraftIntoBuilderState } = require(
 const { validateBuilderState, buildDraftHopSuggestion, resolveStack } = require('../domain/cascade-builder/flowValidator');
 const { buildCommitPlan } = require('../domain/cascade-builder/commitPlanner');
 
-const HYBRID_DISABLED_ERROR = 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System';
+function tFor(res, key, fallback, params = {}) {
+    return typeof res?.locals?.t === 'function' ? res.locals.t(key, params) : fallback;
+}
+
+function localizeBuilderApiError(res, error) {
+    const message = String(error?.message || error || '');
+
+    if (message.startsWith('Hybrid cascade is disabled.')) {
+        const linkTypeMatch = message.match(/Unsupported link type:\s+(.+?)\s+->\s+(.+)$/);
+        if (linkTypeMatch) {
+            return `${tFor(res, 'cascades.hybridDisabledError', 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System.')} ${tFor(res, 'cascades.unsupportedLinkType', 'Unsupported link type: {src} -> {dst}', { src: linkTypeMatch[1], dst: linkTypeMatch[2] })}`;
+        }
+        return tFor(res, 'cascades.hybridDisabledError', 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System.');
+    }
+
+    if (message.startsWith('Portal node not found for draft ')) {
+        const name = message.replace('Portal node not found for draft ', '');
+        return tFor(res, 'cascades.draftPortalMissing', 'Portal node was not found for draft {name}', { name });
+    }
+
+    if (message.startsWith('Bridge node not found for draft ')) {
+        const name = message.replace('Bridge node not found for draft ', '');
+        return tFor(res, 'cascades.draftBridgeMissing', 'Bridge node was not found for draft {name}', { name });
+    }
+
+    const portMatch = message.match(/^Port\s+(\d+)\s+is already used by link "(.+)" on the (.+) node$/);
+    if (portMatch) {
+        const sideLabel = portMatch[3] === 'portal'
+            ? tFor(res, 'cascades.portSidePortal', 'portal')
+            : tFor(res, 'cascades.portSideBridge', 'bridge/relay');
+        return tFor(res, 'cascades.portAlreadyUsed', 'Port {port} is already used by link "{linkName}" on the {sideLabel} side', {
+            port: portMatch[1],
+            linkName: portMatch[2],
+            sideLabel,
+        });
+    }
+
+    if (message === 'Source or target node not found in builder state.') {
+        return tFor(res, 'cascades.sourceOrTargetMissing', 'Source or target node was not found in the current builder state.');
+    }
+
+    if (message === 'No draft hops to commit.') {
+        return tFor(res, 'cascades.noDraftsToCommit', 'There are no draft hops to commit right now');
+    }
+
+    return message;
+}
+
+function localizeValidationMessage(res, issue, nodeById, hopById) {
+    const hop = hopById.get(String(issue?.hopId || ''));
+    const sourceNode = hop ? nodeById.get(String(hop.sourceNodeId)) : null;
+    const targetNode = hop ? nodeById.get(String(hop.targetNodeId)) : null;
+    const node = nodeById.get(String(issue?.nodeId || ''));
+
+    switch (issue?.code) {
+    case 'missing-node':
+        return tFor(res, 'cascades.validationMissingNode', 'Hop {hop} references a node that no longer exists.', {
+            hop: hop?.name || issue?.hopId || issue?.message || '—',
+        });
+    case 'self-link':
+        return tFor(res, 'cascades.validationSelfLink', 'Node {node} cannot connect to itself.', {
+            node: sourceNode?.name || targetNode?.name || issue?.message || '—',
+        });
+    case 'duplicate-hop':
+        return tFor(res, 'cascades.validationDuplicateHop', 'Duplicate hop detected between {source} and {target}.', {
+            source: sourceNode?.name || '—',
+            target: targetNode?.name || '—',
+        });
+    case 'hybrid-disabled':
+        return tFor(res, 'cascades.validationHybridDisabledHop', 'Hybrid cascade is disabled, but hop {source} -> {target} requires it.', {
+            source: sourceNode?.name || '—',
+            target: targetNode?.name || '—',
+        });
+    case 'invalid-security-transport':
+        return tFor(res, 'cascades.validationInvalidSecurityTransport', 'REALITY is not compatible with WebSocket for hop {source} -> {target}.', {
+            source: sourceNode?.name || '—',
+            target: targetNode?.name || '—',
+        });
+    case 'missing-ssh':
+        return tFor(res, 'cascades.validationMissingSsh', 'SSH is not configured on one of the nodes in {source} -> {target}.', {
+            source: sourceNode?.name || '—',
+            target: targetNode?.name || '—',
+        });
+    case 'offline-hop-node':
+        return tFor(res, 'cascades.validationOfflineHopNode', 'One of the nodes in {source} -> {target} is not online right now.', {
+            source: sourceNode?.name || '—',
+            target: targetNode?.name || '—',
+        });
+    case 'cycle': {
+        const rawPath = String(issue?.message || '').replace(/^Cycle detected in flow:\s*/, '');
+        return tFor(res, 'cascades.validationCycle', 'Cycle detected in flow: {path}', {
+            path: rawPath,
+        });
+    }
+    case 'multiple-upstreams':
+        return tFor(res, 'cascades.validationMultipleUpstreams', '{node} has multiple upstream hops. This already requires an explicit routing policy.', {
+            node: node?.name || '—',
+        });
+    case 'multiple-downstreams':
+        return tFor(res, 'cascades.validationMultipleDownstreams', '{node} has multiple downstream hops. Treat this as an advanced routing scenario.', {
+            node: node?.name || '—',
+        });
+    default:
+        return issue?.message || '';
+    }
+}
+
+function localizeValidation(res, flowState, validation) {
+    if (!validation || typeof validation !== 'object') return validation;
+
+    const nodes = Array.isArray(flowState?.nodes) ? flowState.nodes : [];
+    const hops = Array.isArray(flowState?.hops) ? flowState.hops : [];
+    const nodeById = new Map(nodes.map((node) => [String(node.id), node]));
+    const hopById = new Map(hops.map((hop) => [String(hop.id), hop]));
+
+    return {
+        ...validation,
+        errors: Array.isArray(validation.errors)
+            ? validation.errors.map((issue) => ({ ...issue, message: localizeValidationMessage(res, issue, nodeById, hopById) }))
+            : [],
+        warnings: Array.isArray(validation.warnings)
+            ? validation.warnings.map((issue) => ({ ...issue, message: localizeValidationMessage(res, issue, nodeById, hopById) }))
+            : [],
+    };
+}
+
+function localizePlanMessage(res, message) {
+    const text = String(message || '');
+    let match = text.match(/^Port\s+(\d+)\s+is already used by legacy link "(.+)"\.$/);
+    if (match) {
+        return tFor(res, 'cascades.planPortUsedByLegacyLink', 'Port {port} is already used by legacy link "{linkName}".', {
+            port: match[1],
+            linkName: match[2],
+        });
+    }
+
+    match = text.match(/^Port\s+(\d+)\s+is reused by multiple draft hops in the same batch\.$/);
+    if (match) {
+        return tFor(res, 'cascades.planPortReusedInBatch', 'Port {port} is reused by multiple draft hops in the same batch.', {
+            port: match[1],
+        });
+    }
+
+    if (text === 'Draft references a node that no longer exists.') return tFor(res, 'cascades.planDraftNodeMissing', text);
+    if (text === 'Hybrid cascade is disabled for this panel instance.') return tFor(res, 'cascades.planHybridDisabledInstance', text);
+    if (text === 'REALITY is not compatible with WebSocket.') return tFor(res, 'cascades.planRealityWsIncompatible', text);
+    if (text === 'One of the affected nodes has no SSH credentials configured.') return tFor(res, 'cascades.planAffectedNodeMissingSsh', text);
+    if (text === 'One of the affected nodes is offline.') return tFor(res, 'cascades.planAffectedNodeOffline', text);
+    if (text === 'This draft belongs to a mixed-mode chain. Split reverse and forward hops before commit/deploy.') return tFor(res, 'cascades.planMixedModeDraft', text);
+    if (text === 'Link name will be generated from source and target nodes.') return tFor(res, 'cascades.planAssumeGeneratedName', text);
+    if (text === 'Commit bridge still uses legacy CascadeLink defaults such as priority 100 and pending status.') return tFor(res, 'cascades.planAssumeLegacyDefaults', text);
+    if (text === 'No REALITY-specific key material is required for this draft in its current form.') return tFor(res, 'cascades.planAssumeNoRealityKeys', text);
+    if (text === 'Transport-specific advanced fields (WS/gRPC/XHTTP paths) stay on their current defaults.') return tFor(res, 'cascades.planAssumeTransportDefaults', text);
+    if (text === 'This connected chain mixes reverse and forward hops. Legacy deployChain cannot apply mixed modes together.') return tFor(res, 'cascades.planChainMixedModes', text);
+    if (text === 'One or more affected nodes are not online right now.') return tFor(res, 'cascades.planChainOfflineNodes', text);
+    if (text === 'One or more affected nodes have no SSH credentials configured.') return tFor(res, 'cascades.planChainMissingSsh', text);
+
+    return text;
+}
+
+function localizePlanAction(res, action, nodeName = '') {
+    const text = String(action || '');
+    let match = text.match(/^.+: deploy forward-hop inbound config and open (\d+) port(?:s)?$/);
+    if (match) return tFor(res, 'cascades.planActionForwardBridgeRelay', '{node}: deploy forward-hop inbound config and open ports: {count}', { node: nodeName, count: match[1] });
+
+    match = text.match(/^.+: deploy portal config and open (\d+) port(?:s)?$/);
+    if (match) return tFor(res, 'cascades.planActionReversePortal', '{node}: deploy portal config and open ports: {count}', { node: nodeName, count: match[1] });
+
+    match = text.match(/^.+: deploy relay config and open (\d+) downstream port(?:s)?$/);
+    if (match) return tFor(res, 'cascades.planActionReverseRelay', '{node}: deploy relay config and open downstream ports: {count}', { node: nodeName, count: match[1] });
+
+    if (text.endsWith(': deploy portal outbound config')) return tFor(res, 'cascades.planActionForwardPortal', '{node}: deploy portal outbound config', { node: nodeName });
+    if (text.endsWith(': deploy bridge runtime / sidecar')) return tFor(res, 'cascades.planActionBridgeRuntime', '{node}: deploy bridge runtime / sidecar', { node: nodeName });
+    if (text.endsWith(': no runtime change')) return tFor(res, 'cascades.planActionNoRuntimeChange', '{node}: no runtime change', { node: nodeName });
+
+    return text;
+}
+
+function localizePlan(res, plan) {
+    if (!plan || typeof plan !== 'object') return plan;
+
+    return {
+        ...plan,
+        hops: Array.isArray(plan.hops)
+            ? plan.hops.map((hop) => ({
+                ...hop,
+                errors: Array.isArray(hop.errors) ? hop.errors.map((item) => localizePlanMessage(res, item)) : [],
+                warnings: Array.isArray(hop.warnings) ? hop.warnings.map((item) => localizePlanMessage(res, item)) : [],
+                assumptions: Array.isArray(hop.assumptions) ? hop.assumptions.map((item) => localizePlanMessage(res, item)) : [],
+            }))
+            : [],
+        chains: Array.isArray(plan.chains)
+            ? plan.chains.map((chain) => ({
+                ...chain,
+                deployWarnings: Array.isArray(chain.deployWarnings) ? chain.deployWarnings.map((item) => localizePlanMessage(res, item)) : [],
+                nodeActions: Array.isArray(chain.nodeActions)
+                    ? chain.nodeActions.map((item) => ({
+                        ...item,
+                        action: localizePlanAction(res, item.action, item.nodeName),
+                    }))
+                    : [],
+            }))
+            : [],
+    };
+}
 
 function generateUuid() {
     return crypto.randomUUID();
 }
 
-function getHybridCompatibilityError(portalNode, bridgeNode) {
+function getHybridCompatibilityError(portalNode, bridgeNode, res) {
     const stack = resolveStack(portalNode?.type, bridgeNode?.type);
     if (stack !== 'hybrid') return '';
     if (config.FEATURE_CASCADE_HYBRID) return '';
     const src = portalNode?.type || 'unknown';
     const dst = bridgeNode?.type || 'unknown';
-    return `${HYBRID_DISABLED_ERROR}. Unsupported link type: ${src} -> ${dst}`;
+    return `${tFor(res, 'cascades.hybridDisabledError', 'Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System.')} ${tFor(res, 'cascades.unsupportedLinkType', 'Unsupported link type: {src} -> {dst}', { src, dst })}`;
 }
 
 async function invalidateCascadeCache() {
@@ -62,7 +266,7 @@ async function saveStoredDraft(req, flowId = 'legacy-topology', draftState = {})
     return cacheService.setCascadeBuilderDraft(getBuilderActorKey(req), flowId, draftState);
 }
 
-async function createLegacyLinkFromDraft(draftHop) {
+async function createLegacyLinkFromDraft(draftHop, res) {
     const portalNodeId = draftHop.sourceNodeId;
     const bridgeNodeId = draftHop.targetNodeId;
     const linkMode = draftHop.mode || 'reverse';
@@ -74,13 +278,13 @@ async function createLegacyLinkFromDraft(draftHop) {
     ]);
 
     if (!portalNode) {
-        throw new Error(`Portal node not found for draft ${draftHop.name}`);
+        throw new Error(tFor(res, 'cascades.draftPortalMissing', 'Portal node was not found for draft {name}', { name: draftHop.name }));
     }
     if (!bridgeNode) {
-        throw new Error(`Bridge node not found for draft ${draftHop.name}`);
+        throw new Error(tFor(res, 'cascades.draftBridgeMissing', 'Bridge node was not found for draft {name}', { name: draftHop.name }));
     }
 
-    const hybridError = getHybridCompatibilityError(portalNode, bridgeNode);
+    const hybridError = getHybridCompatibilityError(portalNode, bridgeNode, res);
     if (hybridError) {
         throw new Error(hybridError);
     }
@@ -93,8 +297,14 @@ async function createLegacyLinkFromDraft(draftHop) {
         active: true,
     });
     if (existingLink) {
-        const sideLabel = linkMode === 'forward' ? 'bridge/relay' : 'portal';
-        throw new Error(`Port ${port} is already used by link "${existingLink.name}" on the ${sideLabel} node`);
+        const sideLabel = linkMode === 'forward'
+            ? tFor(res, 'cascades.portSideBridge', 'bridge/relay')
+            : tFor(res, 'cascades.portSidePortal', 'portal');
+        throw new Error(tFor(res, 'cascades.portAlreadyUsed', 'Port {port} is already used by link "{linkName}" on the {sideLabel} side', {
+            port,
+            linkName: existingLink.name,
+            sideLabel,
+        }));
     }
 
     const link = await CascadeLink.create({
@@ -137,7 +347,7 @@ async function buildState(req) {
         draft: 'cacheService.getCascadeBuilderDraft()',
         mode: 'legacy-backed',
     };
-    state.validation = validateBuilderState(state);
+    state.validation = localizeValidation(req.res, state, validateBuilderState(state));
     return state;
 }
 
@@ -147,11 +357,11 @@ async function buildCommitPreview(req) {
         .select('name mode portalNode bridgeNode tunnelPort status')
         .lean();
 
-    const plan = buildCommitPlan({
+    const plan = localizePlan(req.res, buildCommitPlan({
         nodes: state.nodes,
         hops: state.hops,
         activeLinks,
-    });
+    }));
 
     return {
         flowId: state.flowId,
@@ -167,7 +377,7 @@ router.get('/state', requireScope('nodes:read'), async (req, res) => {
         res.json(state);
     } catch (error) {
         logger.error(`[Cascade Builder API] State error: ${error.message}`);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: localizeBuilderApiError(res, error) });
     }
 });
 
@@ -181,14 +391,14 @@ router.post('/validate', requireScope('nodes:read'), async (req, res) => {
             nodes: payloadNodes,
             hops: payloadHops,
         };
-        const validation = validateBuilderState(state);
+        const validation = localizeValidation(res, state, validateBuilderState(state));
         res.json({
             validation,
             summary: validation.summary,
         });
     } catch (error) {
         logger.error(`[Cascade Builder API] Validate error: ${error.message}`);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: localizeBuilderApiError(res, error) });
     }
 });
 
@@ -198,7 +408,7 @@ async function handleCommitPreview(req, res) {
         res.json(preview);
     } catch (error) {
         logger.error(`[Cascade Builder API] Plan commit error: ${error.message}`);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: localizeBuilderApiError(res, error) });
     }
 }
 
@@ -213,7 +423,7 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
         const targetNode = state.nodes.find((node) => String(node.id) === String(targetNodeId));
 
         if (!sourceNode || !targetNode) {
-            return res.status(404).json({ error: 'Source or target node not found in builder state.' });
+            return res.status(404).json({ error: tFor(res, 'cascades.sourceOrTargetMissing', 'Source or target node was not found in the current builder state.') });
         }
 
         const draftSuggestion = buildDraftHopSuggestion({ sourceNode, targetNode, mode });
@@ -261,7 +471,7 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
         });
     } catch (error) {
         logger.error(`[Cascade Builder API] Connect error: ${error.message}`);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: localizeBuilderApiError(res, error) });
     }
 });
 
@@ -284,7 +494,7 @@ router.post('/layout', requireScope('nodes:write'), async (req, res) => {
         });
     } catch (error) {
         logger.error(`[Cascade Builder API] Layout error: ${error.message}`);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: localizeBuilderApiError(res, error) });
     }
 });
 
@@ -309,7 +519,7 @@ router.delete('/drafts', requireScope('nodes:write'), async (req, res) => {
         });
     } catch (error) {
         logger.error(`[Cascade Builder API] Reset drafts error: ${error.message}`);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: localizeBuilderApiError(res, error) });
     }
 });
 
@@ -320,7 +530,7 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
         const draftHops = Array.isArray(storedDraft?.draftHops) ? storedDraft.draftHops : [];
 
         if (!draftHops.length) {
-            return res.status(400).json({ error: 'No draft hops to commit.' });
+            return res.status(400).json({ error: tFor(res, 'cascades.noDraftsToCommit', 'There are no draft hops to commit right now') });
         }
 
         const results = [];
@@ -328,7 +538,7 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
 
         for (const draftHop of draftHops) {
             try {
-                const link = await createLegacyLinkFromDraft(draftHop);
+                const link = await createLegacyLinkFromDraft(draftHop, res);
                 committedIds.push(String(draftHop.id));
                 results.push({
                     hopId: String(draftHop.id),
@@ -340,7 +550,7 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
                 results.push({
                     hopId: String(draftHop.id),
                     success: false,
-                    error: error.message,
+                    error: localizeBuilderApiError(res, error),
                     name: draftHop.name,
                 });
             }
@@ -365,12 +575,12 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
             failed: results.filter((item) => !item.success).length,
             results,
             validation: nextState.validation,
-            summary: nextState.summary,
+            summary: nextState.validation.summary,
             draft: nextState.draft,
         });
     } catch (error) {
         logger.error(`[Cascade Builder API] Commit drafts error: ${error.message}`);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: localizeBuilderApiError(res, error) });
     }
 });
 

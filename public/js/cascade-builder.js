@@ -42,6 +42,58 @@
         console[kind === 'error' ? 'error' : 'log'](message);
     }
 
+    function t(key, fallback) {
+        return i18n[key] || fallback;
+    }
+
+    function formatRole(role) {
+        const value = String(role || 'standalone').toLowerCase();
+        return t(`role_${value}`, value);
+    }
+
+    function formatMode(mode) {
+        const value = String(mode || 'reverse').toLowerCase();
+        return t(`mode_${value}`, value);
+    }
+
+    function formatBoolean(value) {
+        return value ? t('yes', 'Yes') : t('no', 'No');
+    }
+
+    function isDarkTheme() {
+        return document.documentElement?.dataset?.theme === 'dark';
+    }
+
+    function getBuilderPalette() {
+        if (isDarkTheme()) {
+            return {
+                nodeBackground: '#162463',
+                nodeBorder: '#2a8aad',
+                nodeLabel: '#f8fafc',
+                nodeXrayBackground: '#0f2946',
+                nodeXrayBorder: '#08C5CB',
+                nodeHysteriaBackground: '#17214f',
+                nodeHysteriaBorder: '#44EFF4',
+                edgeColor: '#44EFF4',
+                edgeTextBackground: '#101948',
+                edgeTextColor: '#dbeafe',
+            };
+        }
+
+        return {
+            nodeBackground: '#ffffff',
+            nodeBorder: '#d7deec',
+            nodeLabel: '#050A3C',
+            nodeXrayBackground: '#eefbfd',
+            nodeXrayBorder: '#08C5CB',
+            nodeHysteriaBackground: '#f4f6fb',
+            nodeHysteriaBorder: '#182463',
+            edgeColor: '#182463',
+            edgeTextBackground: '#ffffff',
+            edgeTextColor: '#64748b',
+        };
+    }
+
     function getStatusLabel(status) {
         if (status === 'ok') return i18n.validateOk || 'OK';
         if (status === 'warning') return i18n.validateWarning || 'Warning';
@@ -62,6 +114,7 @@
     }
 
     function getBuilderStyle() {
+        const palette = getBuilderPalette();
         return [
             {
                 selector: 'node',
@@ -69,17 +122,17 @@
                     'shape': 'round-rectangle',
                     'width': 156,
                     'height': 58,
-                    'background-color': '#ffffff',
+                    'background-color': palette.nodeBackground,
                     'border-width': 1.5,
                     'border-style': 'dashed',
-                    'border-color': '#d7deec',
+                    'border-color': palette.nodeBorder,
                     'label': 'data(label)',
                     'text-wrap': 'wrap',
                     'text-max-width': '136px',
                     'font-size': 11,
                     'font-family': 'Lilex, Inter, sans-serif',
                     'font-weight': 600,
-                    'color': '#050A3C',
+                    'color': palette.nodeLabel,
                     'text-valign': 'center',
                     'text-halign': 'center',
                     'padding': '12px',
@@ -89,15 +142,15 @@
             {
                 selector: 'node[nodeType = "xray"]',
                 style: {
-                    'background-color': '#eefbfd',
-                    'border-color': '#08C5CB',
+                    'background-color': palette.nodeXrayBackground,
+                    'border-color': palette.nodeXrayBorder,
                 },
             },
             {
                 selector: 'node[nodeType = "hysteria"]',
                 style: {
-                    'background-color': '#f4f6fb',
-                    'border-color': '#182463',
+                    'background-color': palette.nodeHysteriaBackground,
+                    'border-color': palette.nodeHysteriaBorder,
                 },
             },
             {
@@ -124,8 +177,8 @@
                 style: {
                     'curve-style': 'bezier',
                     'width': 3,
-                    'line-color': '#182463',
-                    'target-arrow-color': '#182463',
+                    'line-color': palette.edgeColor,
+                    'target-arrow-color': palette.edgeColor,
                     'target-arrow-shape': 'triangle',
                     'arrow-scale': 0.9,
                     'line-style': 'solid',
@@ -133,12 +186,12 @@
                     'label': 'data(label)',
                     'font-size': 9,
                     'font-family': 'Lilex, Inter, sans-serif',
-                    'text-background-color': '#ffffff',
+                    'text-background-color': palette.edgeTextBackground,
                     'text-background-opacity': 0.9,
                     'text-background-padding': '3px',
                     'text-background-shape': 'round-rectangle',
                     'text-rotation': 'autorotate',
-                    'color': '#64748b',
+                    'color': palette.edgeTextColor,
                 },
             },
             {
@@ -185,6 +238,12 @@
                 },
             },
         ];
+    }
+
+    function syncCyTheme() {
+        if (!state.cy) return;
+        state.cy.style(getBuilderStyle());
+        state.cy.resize();
     }
 
     function buildNodeLabel(node) {
@@ -239,7 +298,7 @@
                     <strong>${node.flag ? `${node.flag} ` : ''}${node.name}</strong>
                     <span>${node.ip || node.country || node.type || '—'}</span>
                 </div>
-                <div class="builder-node-chip-meta">${inferredRole}</div>
+                <div class="builder-node-chip-meta">${escapeHtml(formatRole(inferredRole))}</div>
             `;
             el.addEventListener('click', () => {
                 if (state.cy) {
@@ -264,9 +323,8 @@
         document.getElementById('builderValidationBadge').textContent = getStatusLabel(validation.status);
         const sourceMeta = document.getElementById('builderSourceMeta');
         if (sourceMeta) {
-            const mode = flow.sourceOfTruth?.mode || 'legacy-backed';
             const drafts = flow.draft?.draftHopCount || 0;
-            sourceMeta.textContent = `${mode} · ${drafts} ${i18n.draftTag || 'draft'}`;
+            sourceMeta.textContent = `${t('builderSourceMeta', 'legacy-backed draft over live topology')} · ${drafts} ${t('draftTag', 'draft')}`;
         }
     }
 
@@ -340,7 +398,7 @@
                 <div class="builder-plan-card">
                     <div class="builder-plan-card-head">
                         <strong>${escapeHtml(chain.id)}</strong>
-                        <span>${escapeHtml(chain.chainMode || 'unknown')}</span>
+                        <span>${escapeHtml(formatMode(chain.chainMode || 'unknown'))}</span>
                     </div>
                     <div class="builder-plan-card-meta">
                         ${escapeHtml(i18n.summaryNodes || 'Nodes')}: ${chain.nodeCount} · ${escapeHtml(i18n.summaryHops || 'Hops')}: ${chain.liveHopCount}+${chain.draftHopCount}
@@ -355,8 +413,8 @@
                         ${actions.map((item) => `
                             <div class="builder-plan-action">
                                 <strong>${escapeHtml(item.nodeName)}</strong>
-                                <span>${escapeHtml(i18n.previewCurrentRole || 'Current role')}: ${escapeHtml(item.currentRole)}</span>
-                                <span>${escapeHtml(i18n.previewNextRole || 'Next role')}: ${escapeHtml(item.previewRole)}</span>
+                                <span>${escapeHtml(i18n.previewCurrentRole || 'Current role')}: ${escapeHtml(formatRole(item.currentRole))}</span>
+                                <span>${escapeHtml(i18n.previewNextRole || 'Next role')}: ${escapeHtml(formatRole(item.previewRole))}</span>
                                 <p>${escapeHtml(item.action)}</p>
                             </div>
                         `).join('')}
@@ -373,13 +431,13 @@
                 <div class="builder-plan-card">
                     <div class="builder-plan-card-head">
                         <strong>${escapeHtml(hop.name || `${hop.sourceNodeName} -> ${hop.targetNodeName}`)}</strong>
-                        <span>${escapeHtml(hop.mode)} · ${escapeHtml(hop.stack)}</span>
+                        <span>${escapeHtml(formatMode(hop.mode))} · ${escapeHtml(hop.stack)}</span>
                     </div>
                     <div class="builder-data-list builder-plan-inline-list">
                         <div class="builder-data-row"><span>${escapeHtml(i18n.source || 'Source')}</span><strong>${escapeHtml(hop.sourceNodeName)}</strong></div>
                         <div class="builder-data-row"><span>${escapeHtml(i18n.target || 'Target')}</span><strong>${escapeHtml(hop.targetNodeName)}</strong></div>
-                        <div class="builder-data-row"><span>${escapeHtml(i18n.previewCurrentRole || 'Current role')}</span><strong>${escapeHtml(hop.currentSourceRole)} -> ${escapeHtml(hop.currentTargetRole)}</strong></div>
-                        <div class="builder-data-row"><span>${escapeHtml(i18n.previewNextRole || 'Next role')}</span><strong>${escapeHtml(hop.previewSourceRole)} -> ${escapeHtml(hop.previewTargetRole)}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.previewCurrentRole || 'Current role')}</span><strong>${escapeHtml(formatRole(hop.currentSourceRole))} -> ${escapeHtml(formatRole(hop.currentTargetRole))}</strong></div>
+                        <div class="builder-data-row"><span>${escapeHtml(i18n.previewNextRole || 'Next role')}</span><strong>${escapeHtml(formatRole(hop.previewSourceRole))} -> ${escapeHtml(formatRole(hop.previewTargetRole))}</strong></div>
                         <div class="builder-data-row"><span>${escapeHtml(i18n.protocol || 'Protocol')}</span><strong>${escapeHtml(hop.tunnelProtocol)} / ${escapeHtml(hop.tunnelTransport)} / ${escapeHtml(hop.tunnelSecurity)}</strong></div>
                         <div class="builder-data-row"><span>${escapeHtml(i18n.status || 'Status')}</span><strong>${hop.canCommit ? escapeHtml(i18n.previewCanCommit || 'Can commit') : escapeHtml(i18n.previewBlocked || 'Blocked')}</strong></div>
                     </div>
@@ -406,7 +464,7 @@
                 <div class="builder-data-list">
                     <div class="builder-data-row"><span>${i18n.nodeType}</span><strong>${node.type || '—'}</strong></div>
                     <div class="builder-data-row"><span>${i18n.status}</span><strong>${node.status || '—'}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.role}</span><strong>${node.inferredRole || node.currentRole || 'standalone'}</strong></div>
+                    <div class="builder-data-row"><span>${i18n.role}</span><strong>${formatRole(node.inferredRole || node.currentRole || 'standalone')}</strong></div>
                     <div class="builder-data-row"><span>${i18n.country}</span><strong>${node.country || '—'}</strong></div>
                     <div class="builder-data-row"><span>${i18n.onlineUsers}</span><strong>${node.onlineUsers ?? 0}</strong></div>
                     <div class="builder-data-row"><span>${i18n.ssh}</span><strong>${node.capabilities?.sshConfigured ? (i18n.configured || 'configured') : (i18n.missing || 'missing')}</strong></div>
@@ -425,7 +483,7 @@
                 <div class="builder-data-list">
                     <div class="builder-data-row"><span>${i18n.source}</span><strong>${sourceNode?.name || hop.sourceNodeId}</strong></div>
                     <div class="builder-data-row"><span>${i18n.target}</span><strong>${targetNode?.name || hop.targetNodeId}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.mode}</span><strong>${hop.mode}</strong></div>
+                    <div class="builder-data-row"><span>${i18n.mode}</span><strong>${formatMode(hop.mode)}</strong></div>
                     <div class="builder-data-row"><span>${i18n.stack}</span><strong>${hop.stack}</strong></div>
                     <div class="builder-data-row"><span>${i18n.protocol}</span><strong>${hop.tunnelProtocol}</strong></div>
                     <div class="builder-data-row"><span>${i18n.transport}</span><strong>${hop.tunnelTransport}</strong></div>
@@ -444,13 +502,13 @@
         root.innerHTML = `
             <div class="builder-inspector-card">
                 <div class="builder-data-list">
-                    <div class="builder-data-row"><span>${i18n.mode}</span><strong>${suggestion.mode || '—'}</strong></div>
+                    <div class="builder-data-row"><span>${i18n.mode}</span><strong>${formatMode(suggestion.mode || '—')}</strong></div>
                     <div class="builder-data-row"><span>${i18n.stack}</span><strong>${suggestion.stack || '—'}</strong></div>
                     <div class="builder-data-row"><span>${i18n.protocol}</span><strong>${suggestion.tunnelProtocol || '—'}</strong></div>
                     <div class="builder-data-row"><span>${i18n.transport}</span><strong>${suggestion.tunnelTransport || '—'}</strong></div>
                     <div class="builder-data-row"><span>${i18n.security}</span><strong>${suggestion.tunnelSecurity || '—'}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.role}</span><strong>${suggestion.sourceRole || '—'} -> ${suggestion.targetRole || '—'}</strong></div>
-                    <div class="builder-data-row"><span>${i18n.requiresHybrid}</span><strong>${suggestion.requiresHybrid ? 'yes' : 'no'}</strong></div>
+                    <div class="builder-data-row"><span>${i18n.role}</span><strong>${formatRole(suggestion.sourceRole || '—')} -> ${formatRole(suggestion.targetRole || '—')}</strong></div>
+                    <div class="builder-data-row"><span>${i18n.requiresHybrid}</span><strong>${formatBoolean(suggestion.requiresHybrid)}</strong></div>
                 </div>
             </div>
         `;
@@ -712,6 +770,15 @@
                 animationDuration: 320,
             }).run();
         });
+
+        if (typeof MutationObserver !== 'undefined') {
+            const observer = new MutationObserver((mutations) => {
+                if (mutations.some((mutation) => mutation.attributeName === 'data-theme')) {
+                    syncCyTheme();
+                }
+            });
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {

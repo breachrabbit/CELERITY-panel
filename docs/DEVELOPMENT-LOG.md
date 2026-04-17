@@ -107,6 +107,32 @@ Change types:
 - `local override` — visible branding shift toward Hidden Rabbit
 - `stability fix` — extra shell overflow containment and dashboard/topbar localization cleanup
 
+## 2026-04-17
+
+- Polished the experimental `Cascade Builder` page instead of leaving it half-localized:
+  - added fuller `ru/en` locale coverage for builder labels and route-level API errors;
+  - localized validation/planning surfaces coming from the builder API;
+  - fixed a route response bug where `summary` after draft commit pointed to a missing field;
+  - added true dark-theme Cytoscape styling so the canvas itself matches the panel theme, not only the surrounding CSS;
+  - tightened responsive behavior for hero controls, summary cards, library/inspector spacing, and mobile canvas heights.
+- Captured a practical audit of the current node auto-setup / agent onboarding flow.
+- Documented the direction for replacing the legacy onboarding path with a Hidden Rabbit-specific pipeline:
+  - durable onboarding jobs;
+  - explicit step state;
+  - pinned installer channel;
+  - local runtime verification;
+  - real panel-to-agent handshake;
+  - resume/repair semantics.
+- Added a dedicated design note:
+  - `docs/node-onboarding-rewrite-blueprint.ru.md`
+
+Change types:
+
+- `local patch` — cascade builder theme/i18n/responsive polish
+- `stability fix` — builder API localization and commit-summary correction
+- `investigation` — node onboarding / installer fragility audit
+- `design note` — Hidden Rabbit onboarding rewrite blueprint
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.

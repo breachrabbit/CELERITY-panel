@@ -118,6 +118,38 @@ Main upstream areas worth evaluating:
 
 Status: `pending`
 
+### 11. Node auto-setup / agent onboarding is still architecturally fragile
+
+Audit result:
+
+- current setup state lives only in process memory;
+- Xray install, agent install, and post-setup sync are still separate phases that trust each other too early;
+- one of the current success paths still tolerates weak agent verification (`strictAgent: false`);
+- first-run health can depend on retrying setup instead of resuming from a durable step state;
+- agent delivery still depends on external release/latest resolution.
+
+Practical effect:
+
+- a fresh node can appear “almost installed” but still need a second setup pass;
+- process restarts can erase the current install state;
+- panel/operator UX still hides too much of the real onboarding contract.
+
+Decision:
+
+- do not keep patching this forever as a legacy flow;
+- move toward a dedicated Hidden Rabbit onboarding pipeline with:
+  - durable job state;
+  - explicit steps;
+  - real runtime verification;
+  - real panel-to-agent handshake;
+  - resume/repair behavior.
+
+Reference:
+
+- `docs/node-onboarding-rewrite-blueprint.ru.md`
+
+Status: `pending`
+
 ### 7. Several visual follow-ups are captured but not yet implemented
 
 Open user requests include:

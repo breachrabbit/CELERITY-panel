@@ -6,8 +6,62 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Xray true per-device/session telemetry and experimental Cascade Builder v1.
-- Current local patch adds `cc-agent` `/sessions` support and panel-side consumption of real Xray session records.
+- Current working focus: Cascade Builder v1 polish + Hidden Rabbit node onboarding rewrite planning.
+- Current local patch focus has moved away from dashboard rings and onto:
+  - builder theme/i18n/responsive cleanup;
+  - onboarding / installer audit and replacement blueprint.
+
+## 2026-04-17 Builder + Onboarding Stop-Point
+
+- The experimental `Cascade Builder` has now received a second operator-facing polish pass.
+
+### What was just added locally
+
+- Better `ru/en` translation coverage on the builder page and builder API responses:
+  - route-level commit/connect/state errors no longer stay hardcoded English only;
+  - validation and deploy-preview text is now localized before it reaches the page.
+- Dark theme is now real on the canvas layer too:
+  - Cytoscape node/edge labels, backgrounds, borders, and edge text backgrounds now react to the active panel theme;
+  - theme switches should no longer leave a bright white graph floating inside a dark shell.
+- Responsive cleanup on the builder page:
+  - hero actions now collapse more cleanly;
+  - summary cards stack more predictably;
+  - library/inspector spacing is tighter on small screens;
+  - mobile canvas heights were reduced to less awkward defaults.
+- Builder route bugfix:
+  - draft commit response `summary` now points to `validation.summary` instead of a missing field.
+
+### Onboarding audit outcome
+
+- Current node auto-setup is now explicitly treated as an architectural risk, not just a flaky implementation detail.
+- Key findings:
+  - setup-state currently lives only in process memory;
+  - runtime install, agent install, and final sync are separate phases that trust each other too early;
+  - one current path still allows weak agent verification (`strictAgent: false`);
+  - agent delivery depends on external `latest` resolution;
+  - first-run success can depend on rerunning setup instead of resuming a durable pipeline.
+
+### New source-of-truth doc for the replacement direction
+
+- `docs/node-onboarding-rewrite-blueprint.ru.md`
+
+This document now captures:
+
+- why the current installer is fragile;
+- what should be replaced vs reused;
+- the target onboarding state machine;
+- required verification steps;
+- the difference between `fresh install`, `resume`, and `repair`;
+- the intended Hidden Rabbit direction for a reliable node bootstrap flow.
+
+### Best next step
+
+1. Commit and deploy the builder theme/i18n/responsive batch.
+2. Start implementing the first real onboarding rewrite layer:
+   - durable `NodeOnboardingJob`;
+   - explicit step model;
+   - remove process-only setup state from the critical path.
+3. Only after that, continue deeper cascade-builder UX work or test-server rollout.
 
 ## 2026-04-16 Cascade Builder v1 Stop-Point
 

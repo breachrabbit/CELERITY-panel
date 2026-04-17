@@ -218,6 +218,24 @@
 
 - Xray attribution continuation:
   - wired Xray agent `/stats` traffic deltas into Redis device activity;
+
+## 2026-04-17
+
+- Worked on: experimental `Cascade Builder` polish pass before returning to deeper cascade work.
+- Finished with:
+  - fuller `ru/en` translation coverage for builder UI and API-facing error surfaces;
+  - localized validation and deploy-preview messages instead of mixed English output;
+  - dark-theme-aware Cytoscape styling so the canvas itself now follows the active panel theme;
+  - responsive cleanup for builder hero actions, summary cards, library/inspector spacing, and mobile canvas sizing;
+  - fixed the builder draft-commit response so `summary` returns a real validation summary again.
+- Worked on: node auto-setup / agent onboarding audit.
+- Finished with:
+  - traced the current install flow across `panel/nodes`, `nodeSetup`, `syncService`, and node form UI;
+  - documented why first-run setup can succeed only on the second pass;
+  - wrote a dedicated rewrite blueprint for a Hidden Rabbit onboarding pipeline in `docs/node-onboarding-rewrite-blueprint.ru.md`.
+- Next step:
+  - commit and deploy the builder polish pass;
+  - then begin turning the onboarding rewrite blueprint into a concrete state-machine/model implementation before test servers arrive.
   - active Xray users now create synthetic device entries tied to node id/name/source;
   - this gives profile/node attribution without requiring immediate cc-agent binary changes.
 - Next step:
