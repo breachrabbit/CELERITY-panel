@@ -273,6 +273,31 @@ function isLegacyBridgeOnboardingJob(jobLike) {
     return resolveOnboardingJobSetupMode(jobLike) === SETUP_MODE_LEGACY;
 }
 
+function isOnboardingFullJob(jobLike) {
+    return resolveOnboardingJobSetupMode(jobLike) === SETUP_MODE_ONBOARDING_FULL;
+}
+
+async function findSetupStatusOnboardingJob(nodeId, preferredSetupMode = '') {
+    const preferredMode = normalizeSetupMode(preferredSetupMode);
+    const active = await nodeOnboardingService.getActiveJobByNode(nodeId);
+    if (active && String(active.status || '').trim().toLowerCase() === 'running') {
+        return active;
+    }
+
+    const recent = await nodeOnboardingService.listJobsByNode(nodeId, { limit: 10 });
+    if (!Array.isArray(recent) || !recent.length) return active || null;
+
+    if (preferredMode === SETUP_MODE_ONBOARDING_FULL) {
+        return recent.find(isOnboardingFullJob) || active || recent[0] || null;
+    }
+
+    if (preferredMode === SETUP_MODE_LEGACY) {
+        return recent.find(isLegacyBridgeOnboardingJob) || active || recent[0] || null;
+    }
+
+    return active || recent[0] || null;
+}
+
 function resolvePanelSetupMode(node, req) {
     const requestedMode = normalizeSetupMode(
         req?.body?.setupMode
@@ -1817,14 +1842,11 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Нода не найдена' });
         }
         const preferredSetupMode = resolvePanelSetupMode(node, req);
+        const legacyJob = getLegacySetupJob(req.params.id);
 
         let onboardingJob = null;
         try {
-            onboardingJob = await nodeOnboardingService.getActiveJobByNode(req.params.id);
-            if (!onboardingJob) {
-                const recent = await nodeOnboardingService.listJobsByNode(req.params.id, { limit: 1 });
-                onboardingJob = recent[0] || null;
-            }
+            onboardingJob = await findSetupStatusOnboardingJob(req.params.id, preferredSetupMode);
         } catch (onboardingError) {
             logger.warn(`[Panel] setup-status onboarding read warning: ${onboardingError.message}`);
         }
@@ -1842,10 +1864,11 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
                     : [],
             }
             : null;
+        const onboardingMode = resolveOnboardingJobSetupMode(onboardingJob);
+        const shouldUseOnboardingStatus = Boolean(onboardingStatus)
+            && (onboardingMode === SETUP_MODE_ONBOARDING_FULL || !legacyJob);
 
-        const legacyJob = getLegacySetupJob(req.params.id);
-
-        if (onboardingStatus) {
+        if (shouldUseOnboardingStatus) {
             const mappedState = mapOnboardingStatusToSetupState(onboardingStatus.status);
             const onboardingLogs = Array.isArray(onboardingStatus.logs) ? onboardingStatus.logs : [];
             const mergedLogs = trimSetupLogs(onboardingLogs);
@@ -1853,6 +1876,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
                 success: true,
                 state: mappedState,
                 running: mappedState === 'running',
+                statusSource: 'onboarding',
                 logs: mergedLogs,
                 message: mappedState === 'success' ? 'Нода успешно настроена' : '',
                 error: onboardingStatus.lastError || '',
@@ -1862,7 +1886,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
                     ...onboardingStatus,
                     logs: mergedLogs,
                 },
-                setupMode: resolveOnboardingJobSetupMode(onboardingJob) || SETUP_MODE_ONBOARDING_FULL,
+                setupMode: onboardingMode || SETUP_MODE_ONBOARDING_FULL,
                 nodeStatus: node.status || 'unknown',
                 lastError: node.lastError || '',
                 lastSync: node.lastSync || null,
@@ -1874,6 +1898,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
                 success: true,
                 state: legacyJob.state,
                 running: legacyJob.state === 'running',
+                statusSource: 'legacy',
                 message: legacyJob.message || '',
                 error: legacyJob.error || '',
                 logs: Array.isArray(legacyJob.logs) ? legacyJob.logs : [],
@@ -1891,6 +1916,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             success: true,
             state: 'idle',
             running: false,
+            statusSource: 'none',
             logs: [],
             onboarding: null,
             setupMode: preferredSetupMode,

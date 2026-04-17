@@ -513,6 +513,17 @@ function classifyDeployErrorCode(rawText = '', messageText = '', failedStepText 
     const failedStep = String(failedStepText || '').trim().toLowerCase();
     if (source.includes('no ssh credentials')) return 'missing-ssh';
     if (source.includes('timed out while waiting for handshake') || source.includes('connection timed out') || source.includes('operation timed out')) return 'ssh-timeout';
+    if (
+        source.includes('tls handshake timeout')
+        || source.includes('x509:')
+        || source.includes('certificate verify failed')
+        || source.includes('bad certificate')
+    ) return 'tls-handshake-failed';
+    if (
+        source.includes('context deadline exceeded')
+        || source.includes('agent api timeout')
+        || source.includes('gateway timeout')
+    ) return 'agent-api-timeout';
     if (source.includes('all configured authentication methods failed') || source.includes('permission denied') || source.includes('unable to authenticate')) return 'ssh-auth-failed';
     if (
         source.includes('connect econnrefused')
@@ -524,8 +535,10 @@ function classifyDeployErrorCode(rawText = '', messageText = '', failedStepText 
     ) return 'ssh-connect-failed';
     if (source.includes('is not online right now') || source.includes('node is offline')) return 'node-offline';
     if (source.includes('is not active (state:')) return 'service-not-active';
+    if (source.includes('address already in use') || source.includes('bind: cannot assign requested address')) return 'port-bind-failed';
     if (source.includes('failed to start: main: failed to load config files') || source.includes('failed to read config')) return 'runtime-config-invalid';
     if (source.includes('is missing on remote host') || source.includes('no such file or directory')) return 'remote-file-missing';
+    if (source.includes('too many open files') || source.includes('resource temporarily unavailable')) return 'resource-limits';
     if (source.includes('requires acl type "inline"')) return 'hybrid-acl-inline-required';
     if (failedStep.includes('xray install')) return 'runtime-install-failed';
     if (failedStep.includes('restart') && source.includes('failed (exit')) return 'service-restart-failed';
@@ -582,6 +595,13 @@ function localizeDeployRepairHint(res, code, { nodeName = '' } = {}) {
             res,
             'cascades.executionHintServiceNotActive',
             'Runtime service is not active after restart. Check node logs/systemd and run repair.',
+            { nodeName },
+        );
+    case 'port-bind-failed':
+        return tFor(
+            res,
+            'cascades.executionHintPortBindFailed',
+            'Runtime could not bind the required port. Check collisions/listeners and rerun node repair.',
             { nodeName },
         );
     case 'runtime-install-failed':
@@ -653,6 +673,27 @@ function localizeDeployRepairHint(res, code, { nodeName = '' } = {}) {
             'Runtime service started but the expected port is not listening. Run node repair and check service logs.',
             { nodeName },
         );
+    case 'tls-handshake-failed':
+        return tFor(
+            res,
+            'cascades.executionHintTlsHandshakeFailed',
+            'TLS handshake failed for this hop/node. Check cert/SNI/fingerprint settings and network path, then rerun.',
+            { nodeName },
+        );
+    case 'agent-api-timeout':
+        return tFor(
+            res,
+            'cascades.executionHintAgentApiTimeout',
+            'Node agent API timed out. Check node load/network and rerun node repair before redeploy.',
+            { nodeName },
+        );
+    case 'resource-limits':
+        return tFor(
+            res,
+            'cascades.executionHintResourceLimits',
+            'Node hit system resource limits (files/processes). Check ulimits/systemd limits and rerun repair.',
+            { nodeName },
+        );
     case 'remote-command-failed':
         return tFor(
             res,
@@ -688,16 +729,16 @@ function buildDeploySuggestedActions(code, { hasNodeId = false } = {}) {
     if (['ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed'].includes(code)) {
         actions.push('check-ssh');
     }
-    if (['ssh-timeout', 'ssh-connect-failed', 'node-offline'].includes(code)) {
+    if (['ssh-timeout', 'ssh-connect-failed', 'node-offline', 'tls-handshake-failed', 'agent-api-timeout'].includes(code)) {
         actions.push('check-network');
     }
-    if (['service-not-active', 'runtime-install-failed', 'runtime-config-invalid', 'service-restart-failed', 'remote-file-missing'].includes(code)) {
+    if (['service-not-active', 'runtime-install-failed', 'runtime-config-invalid', 'service-restart-failed', 'remote-file-missing', 'port-bind-failed', 'resource-limits', 'agent-api-timeout', 'tls-handshake-failed'].includes(code)) {
         actions.push('check-logs');
     }
-    if (hasNodeId && ['missing-ssh', 'ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed', 'sidecar-disabled', 'service-port-not-listening', 'remote-command-failed', 'generated-config-missing-marker', 'deploy-failed', 'service-not-active', 'runtime-install-failed', 'runtime-config-invalid', 'remote-file-missing', 'service-restart-failed'].includes(code)) {
+    if (hasNodeId && ['missing-ssh', 'ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed', 'sidecar-disabled', 'service-port-not-listening', 'remote-command-failed', 'generated-config-missing-marker', 'deploy-failed', 'service-not-active', 'runtime-install-failed', 'runtime-config-invalid', 'remote-file-missing', 'service-restart-failed', 'port-bind-failed', 'resource-limits', 'agent-api-timeout', 'tls-handshake-failed'].includes(code)) {
         actions.push('repair-node');
     }
-    if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled', 'node-offline', 'hybrid-acl-inline-required'].includes(code)) {
+    if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled', 'node-offline', 'hybrid-acl-inline-required', 'port-bind-failed', 'tls-handshake-failed'].includes(code)) {
         actions.push('review-chain');
     }
     return [...new Set(actions)];
@@ -731,10 +772,23 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                 const nodeName = action?.nodeName || rawNodeName;
                 const relatedHops = findRelatedHopNames(rawNodeName, hopNames);
                 const isSingleHop = relatedHops.length === 1;
+                const criticalCodes = new Set([
+                    'missing-ssh',
+                    'ssh-auth-failed',
+                    'hybrid-disabled',
+                    'sidecar-disabled',
+                    'custom-config-enabled',
+                    'mixed-chain-mode',
+                    'runtime-install-failed',
+                    'hybrid-acl-inline-required',
+                    'resource-not-found',
+                    'port-bind-failed',
+                    'tls-handshake-failed',
+                ]);
                 return {
                     scope: isSingleHop ? 'hop' : 'node',
                     code,
-                    severity: ['missing-ssh', 'ssh-auth-failed', 'hybrid-disabled', 'sidecar-disabled', 'custom-config-enabled', 'mixed-chain-mode', 'runtime-install-failed', 'hybrid-acl-inline-required', 'resource-not-found'].includes(code) ? 'critical' : 'error',
+                    severity: criticalCodes.has(code) ? 'critical' : 'error',
                     nodeName,
                     nodeId: String(action?.nodeId || ''),
                     nodeStatus: String(action?.status || ''),
