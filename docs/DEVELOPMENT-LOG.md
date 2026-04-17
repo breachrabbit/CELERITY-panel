@@ -1,5 +1,35 @@
 # Development Log
 
+## 2026-04-17 Cascade Failure Diagnostics Enrichment + Repair Action + Onboarding Guard Trim
+
+- Cascade builder diagnostics were deepened for failed chain execution analysis.
+- Backend (`src/routes/cascadeBuilder.js`):
+  - added deploy failure classification (`code`, `severity`) with localized hints;
+  - added suggested action generation for operator recovery;
+  - enriched `errorDetails` structure for failed chains;
+  - failed-only JSON export now includes `errorDetails` per failed chain.
+- Frontend (`public/js/cascade-builder.js`, `views/cascade-builder.ejs`, `public/css/cascade-builder.css`):
+  - execution cards now render failure code + hint + critical severity state;
+  - added quick actions for failed chains:
+    - `Repair node` (calls onboarding repair endpoint),
+    - `Open node`.
+- Locale updates:
+  - `src/locales/ru.json`
+  - `src/locales/en.json`
+  - added labels/messages for repair/open actions and hint families.
+- Onboarding staged retirement increment (`src/routes/panel/nodes.js`):
+  - durable/onboarding path now avoids accidental `setupJobs` bridge writes on live log append;
+  - onboarding setup runner resolves legacy setup mirror only through legacy-specific lookup in setup-status/control path touches.
+- Live stand verification:
+  - commit `951f452` deployed via Coolify;
+  - deployment finished successfully;
+  - app state confirmed `running:healthy`.
+
+Change types:
+
+- `local patch` — cascade diagnostics depth + failed-chain repair UX
+- `stability fix` — onboarding durable path further isolated from legacy in-memory setup mirror
+
 ## 2026-04-17 Cascade Diagnostics Deepening + Chain Rerun + Onboarding Guard Retirement Increment
 
 - Expanded cascade execution diagnostics payload and UI with deeper context:

@@ -23,12 +23,65 @@
     - one-click copy diagnostics action from execution panel.
     - dual export actions from execution panel (`TXT` + `JSON`).
     - compact failed-only export action for quick incident sharing.
+    - compact failed-only JSON export.
+    - execution list filter (`All / Failed / Success`).
+    - failure enrichment (`code`, `severity`, `hint`, `suggestedActions`).
+    - failed-chain quick actions (`Repair node`, `Open node`).
   - staged retirement of legacy setup mirror for onboarding-full:
     - setup start for onboarding-full no longer initializes `setupJobs`;
     - onboarding runner no longer writes success/error states into `setupJobs`;
     - setup-status for onboarding now uses durable onboarding logs directly.
   - fixed Docker/Coolify build flow for cascade local vendor assets (`postinstall` guard + explicit sync after source copy in Dockerfile).
+  - trimmed durable onboarding bridge touches:
+    - legacy setup mirror append is now guarded by legacy-only lookup;
+    - onboarding-full setup flow remains onboarding-primary in status/control reporting.
   - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-17 Stop-Point — Failure Enrichment + Repair UX + Live Stand Check
+
+### What was delivered
+
+- Cascade builder execution diagnostics were upgraded for failed-chain incident handling:
+  - backend now classifies deploy failures into structured diagnostics:
+    - `code`,
+    - `severity`,
+    - localized `hint`,
+    - `suggestedActions`;
+  - failed-chain cards now surface these fields directly in the execution panel;
+  - failed-only JSON export now carries full `errorDetails` (not summary-only).
+- Builder quick operator actions expanded:
+  - `Repair node` (direct onboarding repair trigger),
+  - `Open node` (jump to node page).
+- Onboarding staged retirement received another safe increment:
+  - durable onboarding log append path no longer writes into legacy setup mirror unless a legacy setup job actually exists;
+  - onboarding durable setup path remains separated from non-legacy setup-map assumptions.
+
+### Live verification done on stand
+
+- Stand: `https://tunnel.hiddenrabbit.net.ru/panel`
+- Auth + builder state check passed.
+- Live builder flow check passed:
+  - created draft hop,
+  - executed `commit + deploy`,
+  - got successful deployment result.
+- Current practical limitation:
+  - on current topology, one-run mixed result (`success + failed` together) was not reproducible yet, so filter/export parity still needs a dedicated mixed-run case.
+
+### Current stop-point
+
+- Code commit: `951f452` (`feat: enrich cascade failure diagnostics and add repair actions`).
+- Deploy status: finished; app is `running:healthy`.
+- Repo now waits for docs finalization and next mixed-run validation cycle.
+
+### Best next step
+
+1. Run one true mixed-run scenario:
+   - at least one success chain and one failed chain in one execution.
+2. Validate parity on that run:
+   - filter (`All / Failed / Success`) card counts;
+   - failed-only TXT;
+   - failed-only JSON.
+3. Continue staged retirement of remaining non-legacy `setupJobs` control/status paths.
 
 ## 2026-04-17 Onboarding-Full SetupJobs Retirement (Stage Increment)
 
@@ -1894,3 +1947,49 @@ Next step:
    - failed-only TXT/JSON include only failed chains;
    - retry-chain action updates rerun status as expected.
 3. Continue staged retirement of residual legacy setup in-memory control paths without removing legacy fallback prematurely.
+
+## Prompt For Next Session (Latest, supersedes older prompts)
+
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+7. docs/node-onboarding-rewrite-blueprint.ru.md
+
+Потом сразу продолжай без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связанный с Rabbit Platform;
+- continuity docs — source of truth;
+- последний код-коммит в main: 951f452;
+- стенд: https://tunnel.hiddenrabbit.net.ru/panel, статус running:healthy;
+- в builder уже есть:
+  - Copy TXT / Copy JSON,
+  - Failed only (compact TXT),
+  - Failed JSON,
+  - фильтр All / Failed / Success,
+  - enriched errorDetails (code/severity/hint/suggestedActions),
+  - быстрые действия Repair node / Open node.
+
+Приоритет:
+1) провести реальную mixed-run проверку каскадов (success + failed в одном запуске) и подтвердить паритет:
+   - корректность фильтра All/Failed/Success;
+   - failed-only TXT содержит только failed chains;
+   - failed-only JSON содержит только failed chains и полный errorDetails;
+2) углубить execution parity/diagnostics:
+   - ещё точнее причины на уровне chain/hop/node;
+   - удобные действия для быстрого repair/re-run;
+3) параллельно продолжать staged retirement legacy onboarding status/control-path:
+   - не ломая legacy fallback до подтверждения паритета.
+
+Важно:
+- не смешивать код-коммит и docs-коммит;
+- после существенного шага обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```

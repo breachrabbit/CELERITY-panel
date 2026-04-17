@@ -2,6 +2,21 @@
 
 ## 2026-04-17
 
+- Worked on: cascade builder failed-chain diagnostics/repair UX and onboarding legacy-guard isolation increment.
+- Finished with:
+  - added deploy error classification with structured `code/severity/hint/suggestedActions`;
+  - extended failed chain cards with richer diagnostics and critical-state display;
+  - added failed-chain quick actions:
+    - repair node (onboarding repair trigger),
+    - open node;
+  - included `errorDetails` in failed-only JSON diagnostics export;
+  - trimmed onboarding durable path coupling to in-memory `setupJobs` in legacy-bridge touchpoints;
+  - verified deployment of `951f452` and confirmed stand `running:healthy`.
+- Next step:
+  - execute a true mixed-run on stand (at least one success + one failed chain);
+  - verify `All / Failed / Success` filter and failed-only TXT/JSON parity on that mixed-run dataset;
+  - continue staged retirement of remaining non-legacy `setupJobs` control/status paths.
+
 - Worked on: cascade execution parity (diagnostics depth + repair/re-run ergonomics) and onboarding control-path retirement increment.
 - Finished with:
   - added structured deploy `errorDetails` (chain/node context + related hop hints);

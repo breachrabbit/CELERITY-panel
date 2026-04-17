@@ -18,6 +18,11 @@ Current state:
 - builder now has base TLS/REALITY draft security controls (SNI/fingerprint/dest/shortId) with commit-time REALITY key fallback.
 - local graph-vendor bundling is now Docker-safe (`postinstall` guard + explicit post-copy sync in Dockerfile), deployment blocker closed.
 - builder now stores/displays `lastExecution` diagnostics after `commit + deploy` (summary + per-chain details), including persistence across refresh.
+- builder execution diagnostics now support:
+  - filters (`All / Failed / Success`);
+  - full/failed-only exports (`TXT` and `JSON`);
+  - enriched failed-chain details (`code`, `severity`, `hint`, `suggestedActions`);
+  - quick failed-chain actions (`Repair node`, `Open node`, `Retry chain`).
 
 Still missing:
 
@@ -27,6 +32,7 @@ Still missing:
 - deeper per-hop configuration UI (advanced policy-level knobs and explicit key-management controls);
 - true flow-native role storage independent of legacy node `cascadeRole`.
 - optional backend file export endpoint for diagnostics (clipboard `TXT/JSON` export is already available in UI).
+- one confirmed live mixed-run parity check on real topology (simultaneous `success + failed` chains in one execution snapshot).
 
 Status: `pending`
 
@@ -199,6 +205,9 @@ Latest progress:
 - staged setup map retirement progressed:
   - onboarding-full setup status path now reads durable onboarding logs directly without merging in-memory `setupJobs` logs;
   - onboarding-full start/runner no longer mirrors success/error states into `setupJobs`.
+- staged setup map retirement continued:
+  - durable onboarding live-log append path now writes to legacy setup mirror only when a legacy setup job actually exists;
+  - setup runner legacy bridge lookups were narrowed to legacy-specific setup job resolution points.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
