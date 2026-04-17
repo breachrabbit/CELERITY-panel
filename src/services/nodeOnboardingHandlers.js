@@ -2,6 +2,31 @@ const HyNode = require('../models/hyNodeModel');
 const nodeSetup = require('./nodeSetup');
 const syncService = require('./syncService');
 
+function tailText(value, maxLen = 1200) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    if (text.length <= maxLen) return text;
+    return text.slice(text.length - maxLen);
+}
+
+function buildSshStepFailure(step, result, fallbackMessage = '') {
+    const sshCode = Number.isFinite(Number(result?.code)) ? Number(result.code) : -1;
+    const sshError = String(result?.error || fallbackMessage || `SSH step failed (${step})`);
+    const stdoutTail = tailText(result?.stdout || '');
+    const stderrTail = tailText(result?.stderr || '');
+    const message = `${step} failed: ${sshError}${sshCode >= 0 ? ` (code ${sshCode})` : ''}`;
+    const err = new Error(message);
+    err.code = 'SSH_STEP_FAILED';
+    err.details = {
+        step,
+        sshCode,
+        sshError,
+        stdoutTail,
+        stderrTail,
+    };
+    return err;
+}
+
 function parseMissingTools(output) {
     const lines = String(output || '')
         .split('\n')
@@ -34,8 +59,9 @@ async function withNodeSsh(nodeId, executor) {
     }
 }
 
-async function runPreflight({ job }) {
+async function runPreflight({ job, context = {} }) {
     return withNodeSsh(job.nodeId, async ({ node, conn }) => {
+        const onLogLine = typeof context?.onLogLine === 'function' ? context.onLogLine : null;
         const probeCmd = [
             'set -e',
             'for t in bash systemctl curl openssl; do',
@@ -49,7 +75,13 @@ async function runPreflight({ job }) {
             'echo "__uptime__=$(uptime 2>/dev/null | sed -E \'s/ +/ /g\' || true)"',
         ].join('\n');
 
-        const result = await nodeSetup.execSSH(conn, `sh -lc ${JSON.stringify(probeCmd)}`);
+        const result = await nodeSetup.execSSH(conn, `sh -lc ${JSON.stringify(probeCmd)}`, {
+            onStdoutLine: onLogLine ? (line) => onLogLine(`[preflight] ${line}`) : null,
+            onStderrLine: onLogLine ? (line) => onLogLine(`[preflight][stderr] ${line}`) : null,
+        });
+        if (!result?.success) {
+            throw buildSshStepFailure('preflight', result);
+        }
         const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
         const missingTools = parseMissingTools(output);
 
@@ -74,22 +106,40 @@ async function runPreflight({ job }) {
     });
 }
 
-async function runPrepareHost({ job }) {
+async function runPrepareHost({ job, context = {} }) {
     return withNodeSsh(job.nodeId, async ({ node, conn }) => {
+        const onLogLine = typeof context?.onLogLine === 'function' ? context.onLogLine : null;
         const prepareCmd = [
             'set -e',
-            'mkdir -p /var/log/xray',
-            'mkdir -p /usr/local/etc/xray',
-            'mkdir -p /etc/hysteria',
+            'for p in /var/log/xray /usr/local/etc/xray /etc/hysteria; do',
+            '  if [ -e "$p" ] && [ ! -d "$p" ]; then',
+            '    mv "$p" "${p}.bak.$(date +%s)" 2>/dev/null || rm -f "$p"',
+            '  fi',
+            '  mkdir -p "$p"',
+            'done',
             'touch /var/log/xray/access.log /var/log/xray/error.log',
             'chmod 640 /var/log/xray/access.log /var/log/xray/error.log || true',
             'echo "__prepared__=1"',
         ].join('\n');
 
-        const result = await nodeSetup.execSSH(conn, `sh -lc ${JSON.stringify(prepareCmd)}`);
+        const result = await nodeSetup.execSSH(conn, `sh -lc ${JSON.stringify(prepareCmd)}`, {
+            onStdoutLine: onLogLine ? (line) => onLogLine(`[prepare-host] ${line}`) : null,
+            onStderrLine: onLogLine ? (line) => onLogLine(`[prepare-host][stderr] ${line}`) : null,
+        });
+        if (!result?.success) {
+            throw buildSshStepFailure('prepare-host', result);
+        }
+
         const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
-        if (!output.includes('__prepared__=1')) {
-            throw new Error('Prepare-host marker missing in SSH output');
+        if (!/(^|\n)__prepared__=1(\n|$)/.test(output)) {
+            const err = new Error('Prepare-host marker missing in SSH output');
+            err.code = 'PREPARE_HOST_MARKER_MISSING';
+            err.details = {
+                step: 'prepare-host',
+                stdoutTail: tailText(result.stdout || ''),
+                stderrTail: tailText(result.stderr || ''),
+            };
+            throw err;
         }
 
         return {
