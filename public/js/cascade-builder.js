@@ -77,6 +77,8 @@
         if (normalized === 'review-chain') return t('executionSuggestedActionReviewChain', 'Review chain settings');
         if (normalized === 'check-ssh') return t('executionSuggestedActionCheckSsh', 'Check SSH access');
         if (normalized === 'check-network') return t('executionSuggestedActionCheckNetwork', 'Check node reachability');
+        if (normalized === 'check-logs') return t('executionSuggestedActionCheckLogs', 'Check node logs');
+        if (normalized === 'open-node') return t('executionSuggestedActionOpenNode', 'Open node card');
         return normalized || t('executionSuggestedActionFallback', 'Review details');
     }
 
@@ -691,12 +693,17 @@
                             <div class="builder-plan-actions-title">${escapeHtml(i18n.executionErrorDetails || 'Error details')}</div>
                             <div class="builder-plan-message-list">
                                 ${errorDetails.map((detail) => {
-                                    const detailPrefix = detail.scope === 'node'
-                                        ? `${detail.nodeName || detail.nodeId || (i18n.executionNodeActions || 'Node')}: `
-                                        : '';
+                                    const scope = String(detail.scope || '').toLowerCase();
+                                    const detailPrefix = scope === 'hop'
+                                        ? `${i18n.executionHop || 'Hop'} ${detail.hopName || '—'}: `
+                                        : (scope === 'node'
+                                            ? `${detail.nodeName || detail.nodeId || (i18n.executionNodeActions || 'Node')}: `
+                                            : '');
                                     const detailCode = String(detail.code || '').trim();
                                     const detailHint = String(detail.hint || '').trim();
                                     const detailNodeStatus = String(detail.nodeStatus || '').trim();
+                                    const detailFailedStep = String(detail.failedStep || '').trim();
+                                    const detailServiceState = String(detail.serviceState || '').trim();
                                     const detailSuggestedActions = Array.isArray(detail.suggestedActions)
                                         ? detail.suggestedActions.map((action) => String(action || '').trim()).filter(Boolean)
                                         : [];
@@ -708,6 +715,8 @@
                                             ${detailCode ? `<strong>${escapeHtml(`[${detailCode}]`)}</strong>` : ''}
                                             <span>${escapeHtml(`${detailPrefix}${detail.message || detail.raw || '—'}${hopHint}`)}</span>
                                             ${detailNodeStatus ? `<small>${escapeHtml(`${i18n.status || 'Status'}: ${detailNodeStatus}`)}</small>` : ''}
+                                            ${detailServiceState ? `<small>${escapeHtml(`${i18n.executionServiceState || 'Service state'}: ${detailServiceState}`)}</small>` : ''}
+                                            ${detailFailedStep ? `<small>${escapeHtml(`${i18n.executionFailedStep || 'Failed step'}: ${detailFailedStep}`)}</small>` : ''}
                                             ${detailHint ? `<small>${escapeHtml(detailHint)}</small>` : ''}
                                             ${detailSuggestedActions.length ? `<small>${escapeHtml(i18n.executionSuggestedActions || 'Suggested actions')}: ${escapeHtml(detailSuggestedActions.map((action) => getExecutionSuggestedActionLabel(action)).join(' · '))}</small>` : ''}
                                         </div>
@@ -730,6 +739,10 @@
                                     <button class="btn btn-secondary btn-sm" type="button" data-execution-action="repair-node" data-node-id="${escapeHtml(repairNodeId)}">
                                         <i class="ti ti-stethoscope"></i>
                                         <span>${escapeHtml(i18n.executionRepairNode || 'Repair node')}</span>
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm" type="button" data-execution-action="repair-rerun-chain" data-node-id="${escapeHtml(repairNodeId)}" data-chain-id="${escapeHtml(item.chainId || '')}" data-start-node-id="${escapeHtml(item.startNodeId || '')}" data-chain-key="${escapeHtml(chainKey)}">
+                                        <i class="ti ti-refresh"></i>
+                                        <span>${escapeHtml(i18n.executionRepairRerunChain || 'Repair + rerun')}</span>
                                     </button>
                                     <a class="btn btn-secondary btn-sm" href="/panel/nodes/${escapeHtml(repairNodeId)}">
                                         <i class="ti ti-external-link"></i>
@@ -1022,7 +1035,7 @@
     async function rerunExecutionChain({ chainId = '', startNodeId = '', chainKey = '' } = {}) {
         if (!startNodeId) {
             toast(i18n.executionRerunMissingStartNode || 'Start node is required to rerun this chain.', 'error');
-            return;
+            return { success: false, error: i18n.executionRerunMissingStartNode || 'Start node is required to rerun this chain.' };
         }
         try {
             const response = await requestJson('/api/cascade-builder/rerun-chain', {
@@ -1051,16 +1064,23 @@
                     : (i18n.executionRerunFailed || 'Chain rerun failed.'),
                 response?.success ? 'success' : 'error',
             );
+            return {
+                success: !!response?.success,
+                result: result || null,
+            };
         } catch (error) {
             toast(`${i18n.executionRerunFailed || 'Chain rerun failed.'} ${error.message}`, 'error');
+            return { success: false, error: error.message };
         }
     }
 
-    async function repairExecutionNode(nodeId = '') {
+    async function repairExecutionNode(nodeId = '', options = {}) {
+        const { showToast = true } = options;
         const normalizedNodeId = String(nodeId || '').trim();
         if (!normalizedNodeId) {
-            toast(i18n.executionRepairNodeMissing || 'Node ID is required for repair.', 'error');
-            return;
+            const errorMessage = i18n.executionRepairNodeMissing || 'Node ID is required for repair.';
+            if (showToast) toast(errorMessage, 'error');
+            return { success: false, error: errorMessage };
         }
         try {
             const response = await requestJson(`/panel/nodes/${encodeURIComponent(normalizedNodeId)}/onboarding/repair`, {
@@ -1069,10 +1089,94 @@
             const message = response?.message
                 || i18n.executionRepairNodeStarted
                 || 'Node repair started in background.';
-            toast(message, 'success');
+            if (showToast) toast(message, 'success');
+            return { success: true, response };
         } catch (error) {
-            toast(`${i18n.executionRepairNodeFailed || 'Failed to start node repair.'} ${error.message}`, 'error');
+            const errorMessage = `${i18n.executionRepairNodeFailed || 'Failed to start node repair.'} ${error.message}`;
+            if (showToast) toast(errorMessage, 'error');
+            return { success: false, error: error.message };
         }
+    }
+
+    async function waitForRepairCompletion(nodeId = '', options = {}) {
+        const normalizedNodeId = String(nodeId || '').trim();
+        if (!normalizedNodeId) {
+            return { success: false, error: i18n.executionRepairNodeMissing || 'Node ID is required for repair.' };
+        }
+        const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 180000;
+        const intervalMs = Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 5000;
+        const deadline = Date.now() + timeoutMs;
+        let lastState = '';
+        let lastError = '';
+
+        while (Date.now() <= deadline) {
+            let status;
+            try {
+                status = await requestJson(`/panel/nodes/${encodeURIComponent(normalizedNodeId)}/setup-status`);
+            } catch (error) {
+                return { success: false, error: error.message || 'setup-status request failed' };
+            }
+            lastState = String(status?.state || '').trim().toLowerCase();
+            lastError = String(status?.error || status?.lastError || '').trim();
+            if (lastState === 'success') {
+                return { success: true, status };
+            }
+            if (lastState === 'error') {
+                return { success: false, error: lastError || (i18n.executionRepairRerunWaitFailed || 'Repair finished with error.'), status };
+            }
+            await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        }
+
+        return {
+            success: false,
+            timeout: true,
+            state: lastState || 'timeout',
+            error: i18n.executionRepairRerunWaitTimeout || 'Repair did not finish in time.',
+        };
+    }
+
+    async function repairAndRerunExecutionChain({ nodeId = '', chainId = '', startNodeId = '', chainKey = '' } = {}) {
+        const normalizedNodeId = String(nodeId || '').trim();
+        const normalizedStartNodeId = String(startNodeId || '').trim();
+        if (!normalizedNodeId) {
+            toast(i18n.executionRepairNodeMissing || 'Node ID is required for repair.', 'error');
+            return;
+        }
+        if (!normalizedStartNodeId) {
+            toast(i18n.executionRerunMissingStartNode || 'Start node is required to rerun this chain.', 'error');
+            return;
+        }
+
+        const repairStart = await repairExecutionNode(normalizedNodeId, { showToast: false });
+        if (!repairStart.success) {
+            toast(`${i18n.executionRepairNodeFailed || 'Failed to start node repair.'} ${repairStart.error || ''}`.trim(), 'error');
+            return;
+        }
+        toast(
+            repairStart?.response?.message
+                || i18n.executionRepairRerunStarted
+                || 'Node repair started. Waiting for completion before rerun...',
+            'success',
+        );
+
+        const waitResult = await waitForRepairCompletion(normalizedNodeId, {
+            timeoutMs: 180000,
+            intervalMs: 5000,
+        });
+        if (!waitResult.success) {
+            if (waitResult.timeout) {
+                toast(i18n.executionRepairRerunWaitTimeout || 'Repair did not finish in time.', 'error');
+            } else {
+                toast(`${i18n.executionRepairRerunWaitFailed || 'Repair finished with error.'} ${waitResult.error || ''}`.trim(), 'error');
+            }
+            return;
+        }
+
+        await rerunExecutionChain({
+            chainId,
+            startNodeId: normalizedStartNodeId,
+            chainKey,
+        });
     }
 
     function renderNodeInspector(node) {
@@ -1734,6 +1838,15 @@
             }
             if (action === 'repair-node') {
                 repairExecutionNode(String(button.getAttribute('data-node-id') || '').trim());
+                return;
+            }
+            if (action === 'repair-rerun-chain') {
+                repairAndRerunExecutionChain({
+                    nodeId: String(button.getAttribute('data-node-id') || '').trim(),
+                    chainId: String(button.getAttribute('data-chain-id') || '').trim(),
+                    startNodeId: String(button.getAttribute('data-start-node-id') || '').trim(),
+                    chainKey: String(button.getAttribute('data-chain-key') || '').trim(),
+                });
             }
         });
         document.getElementById('builderExecutionFilterGroup')?.addEventListener('click', (event) => {

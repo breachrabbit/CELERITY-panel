@@ -1816,6 +1816,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
         if (!node) {
             return res.status(404).json({ success: false, error: 'Нода не найдена' });
         }
+        const preferredSetupMode = resolvePanelSetupMode(node, req);
 
         let onboardingJob = null;
         try {
@@ -1892,7 +1893,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             running: false,
             logs: [],
             onboarding: null,
-            setupMode: SETUP_MODE_LEGACY,
+            setupMode: preferredSetupMode,
             nodeStatus: node.status || 'unknown',
             lastError: node.lastError || '',
             lastSync: node.lastSync || null,

@@ -494,8 +494,23 @@ function findRelatedHopNames(nodeName, hopNames = []) {
         .slice(0, 3);
 }
 
-function classifyDeployErrorCode(rawText = '', messageText = '') {
+function extractDeployFailedStep(rawText = '', messageText = '') {
+    const source = `${String(rawText || '')} ${String(messageText || '')}`;
+    const match = source.match(/([A-Za-z0-9_.\-/ ]{3,220}) failed \(exit [^)]+\)/i);
+    return match ? String(match[1] || '').trim() : '';
+}
+
+function extractDeployServiceState(rawText = '', messageText = '') {
+    const source = `${String(rawText || '')} ${String(messageText || '')}`;
+    const match = source.match(/state:\s*([a-zA-Z-]+)/i);
+    if (match && match[1]) return String(match[1]).trim().toLowerCase();
+    if (/is not active/i.test(source)) return 'inactive';
+    return '';
+}
+
+function classifyDeployErrorCode(rawText = '', messageText = '', failedStepText = '') {
     const source = `${String(rawText || '')} ${String(messageText || '')}`.toLowerCase();
+    const failedStep = String(failedStepText || '').trim().toLowerCase();
     if (source.includes('no ssh credentials')) return 'missing-ssh';
     if (source.includes('timed out while waiting for handshake') || source.includes('connection timed out') || source.includes('operation timed out')) return 'ssh-timeout';
     if (source.includes('all configured authentication methods failed') || source.includes('permission denied') || source.includes('unable to authenticate')) return 'ssh-auth-failed';
@@ -508,6 +523,12 @@ function classifyDeployErrorCode(rawText = '', messageText = '') {
         || source.includes('host is down')
     ) return 'ssh-connect-failed';
     if (source.includes('is not online right now') || source.includes('node is offline')) return 'node-offline';
+    if (source.includes('is not active (state:')) return 'service-not-active';
+    if (source.includes('failed to start: main: failed to load config files') || source.includes('failed to read config')) return 'runtime-config-invalid';
+    if (source.includes('is missing on remote host') || source.includes('no such file or directory')) return 'remote-file-missing';
+    if (source.includes('requires acl type "inline"')) return 'hybrid-acl-inline-required';
+    if (failedStep.includes('xray install')) return 'runtime-install-failed';
+    if (failedStep.includes('restart') && source.includes('failed (exit')) return 'service-restart-failed';
     if (source.includes('hybrid cascade is disabled')) return 'hybrid-disabled';
     if (source.includes('sidecar is disabled')) return 'sidecar-disabled';
     if (source.includes('custom config is enabled')) return 'custom-config-enabled';
@@ -554,6 +575,48 @@ function localizeDeployRepairHint(res, code, { nodeName = '' } = {}) {
             res,
             'cascades.executionHintNodeOffline',
             'Node is offline right now. Bring it online first, then rerun chain deploy.',
+            { nodeName },
+        );
+    case 'service-not-active':
+        return tFor(
+            res,
+            'cascades.executionHintServiceNotActive',
+            'Runtime service is not active after restart. Check node logs/systemd and run repair.',
+            { nodeName },
+        );
+    case 'runtime-install-failed':
+        return tFor(
+            res,
+            'cascades.executionHintRuntimeInstallFailed',
+            'Runtime installation failed on this node. Check package manager/network access and rerun repair.',
+            { nodeName },
+        );
+    case 'runtime-config-invalid':
+        return tFor(
+            res,
+            'cascades.executionHintRuntimeConfigInvalid',
+            'Runtime failed to load config on node. Check generated config and service logs, then rerun chain.',
+            { nodeName },
+        );
+    case 'remote-file-missing':
+        return tFor(
+            res,
+            'cascades.executionHintRemoteFileMissing',
+            'Expected runtime file is missing on node. Run repair and verify disk permissions/paths.',
+            { nodeName },
+        );
+    case 'hybrid-acl-inline-required':
+        return tFor(
+            res,
+            'cascades.executionHintHybridAclInline',
+            'Hybrid cascade requires inline ACL mode on this node. Switch ACL mode and retry.',
+            { nodeName },
+        );
+    case 'service-restart-failed':
+        return tFor(
+            res,
+            'cascades.executionHintServiceRestartFailed',
+            'Service restart command failed on node. Check systemd status/journal and rerun after repair.',
             { nodeName },
         );
     case 'hybrid-disabled':
@@ -621,17 +684,20 @@ function localizeDeployRepairHint(res, code, { nodeName = '' } = {}) {
 
 function buildDeploySuggestedActions(code, { hasNodeId = false } = {}) {
     const actions = ['rerun-chain'];
-    if (hasNodeId) actions.push('focus-node');
+    if (hasNodeId) actions.push('focus-node', 'open-node');
     if (['ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed'].includes(code)) {
         actions.push('check-ssh');
     }
     if (['ssh-timeout', 'ssh-connect-failed', 'node-offline'].includes(code)) {
         actions.push('check-network');
     }
-    if (hasNodeId && ['missing-ssh', 'ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed', 'sidecar-disabled', 'service-port-not-listening', 'remote-command-failed', 'generated-config-missing-marker', 'deploy-failed'].includes(code)) {
+    if (['service-not-active', 'runtime-install-failed', 'runtime-config-invalid', 'service-restart-failed', 'remote-file-missing'].includes(code)) {
+        actions.push('check-logs');
+    }
+    if (hasNodeId && ['missing-ssh', 'ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed', 'sidecar-disabled', 'service-port-not-listening', 'remote-command-failed', 'generated-config-missing-marker', 'deploy-failed', 'service-not-active', 'runtime-install-failed', 'runtime-config-invalid', 'remote-file-missing', 'service-restart-failed'].includes(code)) {
         actions.push('repair-node');
     }
-    if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled', 'node-offline'].includes(code)) {
+    if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled', 'node-offline', 'hybrid-acl-inline-required'].includes(code)) {
         actions.push('review-chain');
     }
     return [...new Set(actions)];
@@ -659,30 +725,43 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                     ? String(displayText.slice(rawNodeName.length + 1)).trim()
                     : displayText;
                 const message = displayMessage || rawMessage;
-                const code = classifyDeployErrorCode(rawText, rawMessage || message);
+                const failedStep = extractDeployFailedStep(rawMessage, message);
+                const serviceState = extractDeployServiceState(rawMessage, message);
+                const code = classifyDeployErrorCode(rawText, rawMessage || message, failedStep);
                 const nodeName = action?.nodeName || rawNodeName;
+                const relatedHops = findRelatedHopNames(rawNodeName, hopNames);
+                const isSingleHop = relatedHops.length === 1;
                 return {
-                    scope: 'node',
+                    scope: isSingleHop ? 'hop' : 'node',
                     code,
-                    severity: ['missing-ssh', 'ssh-auth-failed', 'hybrid-disabled', 'sidecar-disabled', 'custom-config-enabled', 'mixed-chain-mode'].includes(code) ? 'critical' : 'error',
+                    severity: ['missing-ssh', 'ssh-auth-failed', 'hybrid-disabled', 'sidecar-disabled', 'custom-config-enabled', 'mixed-chain-mode', 'runtime-install-failed', 'hybrid-acl-inline-required', 'resource-not-found'].includes(code) ? 'critical' : 'error',
                     nodeName,
                     nodeId: String(action?.nodeId || ''),
                     nodeStatus: String(action?.status || ''),
+                    hopName: isSingleHop ? relatedHops[0] : '',
+                    failedStep,
+                    serviceState,
                     message: message || rawText,
                     hint: localizeDeployRepairHint(res, code, { nodeName }),
                     suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: !!action?.nodeId }),
-                    relatedHops: findRelatedHopNames(rawNodeName, hopNames),
+                    relatedHops: isSingleHop ? [] : relatedHops,
                     raw: rawText,
                 };
             }
 
-            const code = classifyDeployErrorCode(rawText, displayText);
+            const failedStep = extractDeployFailedStep(rawText, displayText);
+            const serviceState = extractDeployServiceState(rawText, displayText);
+            const code = classifyDeployErrorCode(rawText, displayText, failedStep);
             return {
                 scope: 'chain',
                 code,
-                severity: ['mixed-chain-mode', 'hybrid-disabled'].includes(code) ? 'critical' : 'error',
+                severity: ['mixed-chain-mode', 'hybrid-disabled', 'hybrid-acl-inline-required'].includes(code) ? 'critical' : 'error',
                 nodeName: '',
                 nodeId: '',
+                nodeStatus: '',
+                hopName: '',
+                failedStep,
+                serviceState,
                 message: displayText || rawText,
                 hint: localizeDeployRepairHint(res, code),
                 suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: false }),
