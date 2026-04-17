@@ -73,6 +73,7 @@
         const normalized = String(action || '').trim().toLowerCase();
         if (normalized === 'rerun-chain') return t('executionSuggestedActionRerunChain', 'Retry chain');
         if (normalized === 'repair-rerun-chain') return t('executionSuggestedActionRepairRerunChain', 'Repair + rerun');
+        if (normalized === 'focus-hop') return t('executionSuggestedActionFocusHop', 'Focus hop');
         if (normalized === 'focus-node') return t('executionSuggestedActionFocusNode', 'Focus node');
         if (normalized === 'repair-node') return t('executionSuggestedActionRepairNode', 'Repair node');
         if (normalized === 'review-chain') return t('executionSuggestedActionReviewChain', 'Review chain settings');
@@ -90,6 +91,7 @@
         const chainId = String(item?.chainId || '').trim();
         const startNodeId = String(item?.startNodeId || '').trim();
         const detailNodeId = String(detail?.nodeId || '').trim();
+        const detailHopId = String(detail?.hopId || '').trim();
         const candidateNodeId = detailNodeId || startNodeId;
         const uniqueActions = [...new Set(suggested.map((action) => String(action || '').trim().toLowerCase()).filter(Boolean))];
 
@@ -103,6 +105,16 @@
                         data-chain-id="${escapeHtml(chainId)}"
                         data-start-node-id="${escapeHtml(startNodeId)}"
                         data-chain-key="${escapeHtml(chainKey)}">
+                        ${label}
+                    </button>
+                `;
+            }
+            if (action === 'focus-hop') {
+                if (!detailHopId) return '';
+                return `
+                    <button class="btn btn-secondary btn-sm" type="button"
+                        data-execution-action="focus-hop"
+                        data-hop-id="${escapeHtml(detailHopId)}">
                         ${label}
                     </button>
                 `;
@@ -1949,6 +1961,13 @@
                 const startNodeId = String(button.getAttribute('data-start-node-id') || '').trim();
                 if (!startNodeId || !focusNodeById(startNodeId)) {
                     toast(i18n.executionFocusNodeFailed || 'Unable to focus start node.', 'error');
+                }
+                return;
+            }
+            if (action === 'focus-hop') {
+                const hopId = String(button.getAttribute('data-hop-id') || '').trim();
+                if (!hopId || !focusHopById(hopId)) {
+                    toast(i18n.executionFocusHopFailed || 'Unable to focus hop.', 'error');
                 }
                 return;
             }
