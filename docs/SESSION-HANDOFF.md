@@ -6,7 +6,7 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2.1 first real handlers).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 2.2 runtime handler layer).
 - Current local patch focus:
   - staged bridge of durable onboarding status into legacy setup endpoints;
   - next move from mirrored bridge steps to real runner handlers.
@@ -74,6 +74,36 @@ First real onboarding handlers are now in place.
 1. Add `install-runtime` handler adapter around existing `nodeSetup` routines.
 2. Add `verify-runtime-local` handler with explicit runtime health contract.
 3. Then phase out synthetic full-step completion bridge on success.
+
+## 2026-04-17 Onboarding Runtime Layer Stop-Point
+
+Pipeline now includes runtime installation/verification handlers in staged mode.
+
+### What was added
+
+- `install-runtime` onboarding handler adapter:
+  - drives existing `nodeSetup` routines by node type/role;
+  - stores runtime install snapshot/log tail into step result.
+- `verify-runtime-local` handler:
+  - checks runtime status via existing status checks;
+  - enforces runtime-online gate before moving toward agent step.
+- New pipeline stage method:
+  - `runUntilAgentInstall(jobId)`
+  - runs `preflight -> prepare-host -> install-runtime -> verify-runtime-local`.
+- New API endpoint:
+  - `POST /api/nodes/:id/onboarding/jobs/:jobId/run-runtime`.
+
+### Current stop-point
+
+- Early and runtime onboarding steps can now execute as real handlers.
+- Agent install/verify and panel->agent handshake handlers are still pending.
+- Legacy setup flow is still live and still mirrored into onboarding status.
+
+### Best next step
+
+1. Add `install-agent` handler with pinned/predictable installer source.
+2. Add `verify-agent-local` and `verify-panel-to-agent` handlers.
+3. Start routing a controlled subset of setup executions through pipeline handlers.
 
 ## 2026-04-17 Onboarding Scaffold Implementation Stop-Point
 
@@ -218,10 +248,10 @@ Context:
 
 Priority:
 
-1. add `install-runtime` onboarding handler adapter using existing `nodeSetup` safely;
-2. add `verify-runtime-local` handler and explicit pass/fail contract;
+1. add `install-agent` onboarding handler with deterministic installer source;
+2. add `verify-agent-local` and `verify-panel-to-agent` handlers;
 3. switch panel setup-status UI to onboarding-first rendering (legacy fallback only);
-4. replace synthetic bridge completion with real per-step transitions;
+4. replace synthetic bridge completion with real per-step transitions end-to-end;
 5. keep legacy setup as fallback until parity is proven on test nodes.
 
 ## 2026-04-16 Cascade Builder v1 Stop-Point

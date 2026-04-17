@@ -230,6 +230,32 @@ Change types:
 - `local patch` — first executable onboarding handlers
 - `stability fix` — deterministic preflight/prepare-host checkpoint
 
+## 2026-04-17 Onboarding Runtime Handler Layer (Phase 2.2)
+
+- Extended onboarding handlers beyond preflight/prepare-host:
+  - `install-runtime` handler adapter:
+    - uses existing `nodeSetup` routines by node type/role;
+    - keeps current runtime-install logic centralized;
+    - returns compact install result snapshot + log tail.
+  - `verify-runtime-local` handler:
+    - validates runtime is actually online using existing runtime status checks;
+    - fails onboarding step if runtime is still offline.
+- Extended pipeline service:
+  - `runUntilAgentInstall(jobId)` executes:
+    - `preflight`
+    - `prepare-host`
+    - `install-runtime`
+    - `verify-runtime-local`
+    - then stops before `install-agent`.
+- Added API trigger:
+  - `POST /api/nodes/:id/onboarding/jobs/:jobId/run-runtime`
+  - allows staged runtime-phase execution under the durable onboarding state machine.
+
+Change types:
+
+- `local patch` — runtime install/verify onboarding handlers
+- `stability fix` — explicit runtime-online gate before agent step
+
 ## 2026-04-16 Session Continuity Update
 
 - Captured a new stop-point instead of pushing more UI changes blindly.

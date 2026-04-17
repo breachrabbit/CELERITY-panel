@@ -1003,4 +1003,21 @@ router.post('/:id/onboarding/jobs/:jobId/run-preflight', requireScope('nodes:wri
     }
 });
 
+/**
+ * POST /nodes/:id/onboarding/jobs/:jobId/run-runtime - Run onboarding until install-agent
+ */
+router.post('/:id/onboarding/jobs/:jobId/run-runtime', requireScope('nodes:write'), async (req, res) => {
+    try {
+        await getScopedOnboardingJob(req.params.id, req.params.jobId);
+        const job = await nodeOnboardingPipeline.runUntilAgentInstall(req.params.jobId, {
+            source: 'api',
+            actor: req.user?.username || 'api',
+        });
+        res.json({ success: true, job });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding run-runtime error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

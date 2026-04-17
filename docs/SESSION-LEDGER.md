@@ -330,3 +330,12 @@
   - implement real `install-runtime` handler adapter;
   - add runtime local verification handler;
   - then reduce synthetic bridge step completion in favor of real step transitions.
+
+- Onboarding runtime handler continuation:
+  - added real `install-runtime` handler adapter over existing `nodeSetup` routines;
+  - added real `verify-runtime-local` handler as runtime-online gate;
+  - extended pipeline with `runUntilAgentInstall(jobId)`;
+  - added API trigger `POST /api/nodes/:id/onboarding/jobs/:jobId/run-runtime`.
+- Next step:
+  - implement `install-agent` + local/panel verification handlers;
+  - then start routing selected setups through full pipeline steps instead of synthetic bridge completion.

@@ -160,12 +160,15 @@ Latest progress:
 - first real handlers started:
   - executable `preflight` and `prepare-host` onboarding steps exist;
   - API trigger exists to run these early steps.
+- runtime handlers started:
+  - executable `install-runtime` and `verify-runtime-local` exist;
+  - API trigger exists to run pipeline until agent-install boundary.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
 
 - integration of durable onboarding jobs into panel setup UI/status polling;
-- runtime/agent executable handlers (`install-runtime`, `install-agent`, verify steps);
+- agent executable handlers (`install-agent`, local/panel verify steps);
 - staged cutover from in-memory `setupJobs` to durable job status.
 
 Status: `pending`

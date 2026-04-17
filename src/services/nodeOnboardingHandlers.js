@@ -108,7 +108,66 @@ async function runPrepareHost({ job }) {
     });
 }
 
+async function runInstallRuntime({ job }) {
+    const node = await HyNode.findById(job.nodeId);
+    if (!node) {
+        throw new Error('Onboarding node not found for runtime install');
+    }
+
+    let result;
+    if (node.type === 'xray' && node.cascadeRole === 'bridge') {
+        result = await nodeSetup.setupXrayNode(node, { restartService: false, exitOnly: true });
+    } else if (node.type === 'xray') {
+        result = await nodeSetup.setupXrayNode(node, { restartService: true });
+    } else {
+        result = await nodeSetup.setupNode(node, {
+            installHysteria: true,
+            setupPortHopping: true,
+            restartService: true,
+        });
+    }
+
+    if (!result?.success) {
+        throw new Error(result?.error || 'Runtime install failed');
+    }
+
+    const logTail = Array.isArray(result.logs) ? result.logs.slice(-20) : [];
+    return {
+        nodeId: String(node._id),
+        nodeName: node.name,
+        nodeType: node.type || 'hysteria',
+        cascadeRole: node.cascadeRole || 'standalone',
+        useTlsFiles: !!result.useTlsFiles,
+        logTail,
+    };
+}
+
+async function runVerifyRuntimeLocal({ job }) {
+    const node = await HyNode.findById(job.nodeId);
+    if (!node) {
+        throw new Error('Onboarding node not found for runtime verify');
+    }
+
+    const runtimeStatus = node.type === 'xray'
+        ? await nodeSetup.checkXrayNodeStatus(node)
+        : await nodeSetup.checkNodeStatus(node);
+
+    if (!runtimeStatus?.online) {
+        throw new Error(`Runtime is offline (${runtimeStatus?.error || 'no status'})`);
+    }
+
+    return {
+        nodeId: String(node._id),
+        nodeName: node.name,
+        nodeType: node.type || 'hysteria',
+        serviceState: runtimeStatus.status || 'unknown',
+        online: true,
+    };
+}
+
 module.exports = {
     runPreflight,
     runPrepareHost,
+    runInstallRuntime,
+    runVerifyRuntimeLocal,
 };
