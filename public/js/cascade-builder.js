@@ -73,6 +73,8 @@
         const normalized = String(action || '').trim().toLowerCase();
         if (normalized === 'rerun-chain') return t('executionSuggestedActionRerunChain', 'Retry chain');
         if (normalized === 'repair-rerun-chain') return t('executionSuggestedActionRepairRerunChain', 'Repair + rerun');
+        if (normalized === 'repair-hop-nodes') return t('executionSuggestedActionRepairHopNodes', 'Repair hop nodes + rerun');
+        if (normalized === 'open-hop-nodes') return t('executionSuggestedActionOpenHopNodes', 'Open hop nodes');
         if (normalized === 'focus-hop') return t('executionSuggestedActionFocusHop', 'Focus hop');
         if (normalized === 'focus-node') return t('executionSuggestedActionFocusNode', 'Focus node');
         if (normalized === 'repair-node') return t('executionSuggestedActionRepairNode', 'Repair node');
@@ -92,6 +94,10 @@
         const startNodeId = String(item?.startNodeId || '').trim();
         const detailNodeId = String(detail?.nodeId || '').trim();
         const detailHopId = String(detail?.hopId || '').trim();
+        const detailHopSourceNodeId = String(detail?.hopSourceNodeId || '').trim();
+        const detailHopTargetNodeId = String(detail?.hopTargetNodeId || '').trim();
+        const detailHopSourceNodeName = String(detail?.hopSourceNodeName || '').trim();
+        const detailHopTargetNodeName = String(detail?.hopTargetNodeName || '').trim();
         const candidateNodeId = detailNodeId || startNodeId;
         const uniqueActions = [...new Set(suggested.map((action) => String(action || '').trim().toLowerCase()).filter(Boolean))];
 
@@ -150,6 +156,33 @@
                         data-chain-key="${escapeHtml(chainKey)}">
                         ${label}
                     </button>
+                `;
+            }
+            if (action === 'repair-hop-nodes') {
+                if (!startNodeId || !detailHopSourceNodeId || !detailHopTargetNodeId) return '';
+                return `
+                    <button class="btn btn-secondary btn-sm" type="button"
+                        data-execution-action="repair-hop-nodes"
+                        data-hop-source-node-id="${escapeHtml(detailHopSourceNodeId)}"
+                        data-hop-target-node-id="${escapeHtml(detailHopTargetNodeId)}"
+                        data-chain-id="${escapeHtml(chainId)}"
+                        data-start-node-id="${escapeHtml(startNodeId)}"
+                        data-chain-key="${escapeHtml(chainKey)}">
+                        ${label}
+                    </button>
+                `;
+            }
+            if (action === 'open-hop-nodes') {
+                if (!detailHopSourceNodeId || !detailHopTargetNodeId) return '';
+                const sourceLabel = escapeHtml(detailHopSourceNodeName || t('executionOpenSourceNode', 'Source node'));
+                const targetLabel = escapeHtml(detailHopTargetNodeName || t('executionOpenTargetNode', 'Target node'));
+                return `
+                    <a class="btn btn-secondary btn-sm" href="/panel/nodes/${escapeHtml(detailHopSourceNodeId)}">
+                        ${sourceLabel}
+                    </a>
+                    <a class="btn btn-secondary btn-sm" href="/panel/nodes/${escapeHtml(detailHopTargetNodeId)}">
+                        ${targetLabel}
+                    </a>
                 `;
             }
             if (['open-node', 'check-logs', 'check-ssh', 'check-network'].includes(action)) {
@@ -1314,6 +1347,61 @@
         });
     }
 
+    async function repairHopNodesAndRerun({
+        sourceNodeId = '',
+        targetNodeId = '',
+        chainId = '',
+        startNodeId = '',
+        chainKey = '',
+    } = {}) {
+        const normalizedStartNodeId = String(startNodeId || '').trim();
+        const candidates = [String(sourceNodeId || '').trim(), String(targetNodeId || '').trim()]
+            .filter(Boolean);
+        const uniqueNodeIds = [...new Set(candidates)];
+
+        if (!normalizedStartNodeId) {
+            toast(i18n.executionRerunMissingStartNode || 'Start node is required to rerun this chain.', 'error');
+            return;
+        }
+        if (!uniqueNodeIds.length) {
+            toast(i18n.executionRepairHopNodesMissing || 'Hop node IDs are required for hop repair.', 'error');
+            return;
+        }
+
+        toast(
+            i18n.executionRepairHopNodesStarted
+                || 'Hop node repair started. Waiting for completion before rerun...',
+            'success',
+        );
+
+        for (const nodeId of uniqueNodeIds) {
+            const repairStart = await repairExecutionNode(nodeId, { showToast: false });
+            if (!repairStart.success) {
+                toast(`${i18n.executionRepairNodeFailed || 'Failed to start node repair.'} ${repairStart.error || ''}`.trim(), 'error');
+                return;
+            }
+
+            const waitResult = await waitForRepairCompletion(nodeId, {
+                timeoutMs: 180000,
+                intervalMs: 5000,
+            });
+            if (!waitResult.success) {
+                if (waitResult.timeout) {
+                    toast(i18n.executionRepairRerunWaitTimeout || 'Repair did not finish in time.', 'error');
+                } else {
+                    toast(`${i18n.executionRepairRerunWaitFailed || 'Repair finished with error.'} ${waitResult.error || ''}`.trim(), 'error');
+                }
+                return;
+            }
+        }
+
+        await rerunExecutionChain({
+            chainId,
+            startNodeId: normalizedStartNodeId,
+            chainKey,
+        });
+    }
+
     function renderNodeInspector(node) {
         const root = document.getElementById('builderInspectorBody');
         if (!root) return;
@@ -1986,6 +2074,16 @@
             if (action === 'repair-rerun-chain') {
                 repairAndRerunExecutionChain({
                     nodeId: String(button.getAttribute('data-node-id') || '').trim(),
+                    chainId: String(button.getAttribute('data-chain-id') || '').trim(),
+                    startNodeId: String(button.getAttribute('data-start-node-id') || '').trim(),
+                    chainKey: String(button.getAttribute('data-chain-key') || '').trim(),
+                });
+                return;
+            }
+            if (action === 'repair-hop-nodes') {
+                repairHopNodesAndRerun({
+                    sourceNodeId: String(button.getAttribute('data-hop-source-node-id') || '').trim(),
+                    targetNodeId: String(button.getAttribute('data-hop-target-node-id') || '').trim(),
                     chainId: String(button.getAttribute('data-chain-id') || '').trim(),
                     startNodeId: String(button.getAttribute('data-start-node-id') || '').trim(),
                     chainKey: String(button.getAttribute('data-chain-key') || '').trim(),

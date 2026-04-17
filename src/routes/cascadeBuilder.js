@@ -510,6 +510,8 @@ function findNodeActionByMention(sourceText = '', matchers = {}) {
 function normalizeHopEntry(rawHop = null) {
     if (!rawHop || typeof rawHop !== 'object') return null;
     const id = String(rawHop.id || rawHop.hopId || '').trim();
+    const sourceNodeId = String(rawHop.sourceNodeId || '').trim();
+    const targetNodeId = String(rawHop.targetNodeId || '').trim();
     const sourceNodeName = String(rawHop.sourceNodeName || '').trim();
     const targetNodeName = String(rawHop.targetNodeName || '').trim();
     const fallbackName = (sourceNodeName && targetNodeName)
@@ -520,6 +522,8 @@ function normalizeHopEntry(rawHop = null) {
     return {
         id,
         name: name || id,
+        sourceNodeId,
+        targetNodeId,
         sourceNodeName,
         targetNodeName,
     };
@@ -555,6 +559,11 @@ function findMentionedHopEntries(rawText = '', messageText = '', hopEntries = []
             return !!(src && dst && source.includes(src) && source.includes(dst));
         })
         .slice(0, 3);
+}
+
+function hopHasEndpoints(hopEntry = null) {
+    if (!hopEntry || typeof hopEntry !== 'object') return false;
+    return !!(String(hopEntry.sourceNodeId || '').trim() && String(hopEntry.targetNodeId || '').trim());
 }
 
 function extractDeployFailedStep(rawText = '', messageText = '') {
@@ -786,9 +795,10 @@ function localizeDeployRepairHint(res, code, { nodeName = '' } = {}) {
     }
 }
 
-function buildDeploySuggestedActions(code, { hasNodeId = false, hasHopId = false } = {}) {
+function buildDeploySuggestedActions(code, { hasNodeId = false, hasHopId = false, hasHopEndpoints = false } = {}) {
     const actions = ['rerun-chain'];
     if (hasHopId) actions.push('focus-hop');
+    if (hasHopEndpoints) actions.push('open-hop-nodes');
     if (hasNodeId) actions.push('focus-node', 'open-node');
     if (['ssh-timeout', 'ssh-auth-failed', 'ssh-connect-failed'].includes(code)) {
         actions.push('check-ssh');
@@ -823,6 +833,9 @@ function buildDeploySuggestedActions(code, { hasNodeId = false, hasHopId = false
     if (hasNodeId && repairableCodes.includes(code)) {
         actions.push('repair-node');
         actions.push('repair-rerun-chain');
+    }
+    if (hasHopEndpoints && repairableCodes.includes(code)) {
+        actions.push('repair-hop-nodes');
     }
     if (['hybrid-disabled', 'mixed-chain-mode', 'custom-config-enabled', 'node-offline', 'hybrid-acl-inline-required', 'port-bind-failed', 'tls-handshake-failed'].includes(code)) {
         actions.push('review-chain');
@@ -883,11 +896,19 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                     nodeStatus: String(action?.status || ''),
                     hopName: primaryHop?.name || '',
                     hopId: String(primaryHop?.id || ''),
+                    hopSourceNodeId: String(primaryHop?.sourceNodeId || ''),
+                    hopTargetNodeId: String(primaryHop?.targetNodeId || ''),
+                    hopSourceNodeName: String(primaryHop?.sourceNodeName || ''),
+                    hopTargetNodeName: String(primaryHop?.targetNodeName || ''),
                     failedStep,
                     serviceState,
                     message: message || rawText,
                     hint: localizeDeployRepairHint(res, code, { nodeName }),
-                    suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: !!action?.nodeId, hasHopId: !!primaryHop?.id }),
+                    suggestedActions: buildDeploySuggestedActions(code, {
+                        hasNodeId: !!action?.nodeId,
+                        hasHopId: !!primaryHop?.id,
+                        hasHopEndpoints: hopHasEndpoints(primaryHop),
+                    }),
                     relatedHops: isSingleHop ? [] : relatedHops.map((hop) => hop.name),
                     raw: rawText,
                 };
@@ -924,11 +945,19 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                     nodeStatus: String(actionMention.status || ''),
                     hopName: primaryHop?.name || '',
                     hopId: String(primaryHop?.id || ''),
+                    hopSourceNodeId: String(primaryHop?.sourceNodeId || ''),
+                    hopTargetNodeId: String(primaryHop?.targetNodeId || ''),
+                    hopSourceNodeName: String(primaryHop?.sourceNodeName || ''),
+                    hopTargetNodeName: String(primaryHop?.targetNodeName || ''),
                     failedStep,
                     serviceState,
                     message: displayText || rawText,
                     hint: localizeDeployRepairHint(res, code, { nodeName }),
-                    suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: !!actionMention?.nodeId, hasHopId: !!primaryHop?.id }),
+                    suggestedActions: buildDeploySuggestedActions(code, {
+                        hasNodeId: !!actionMention?.nodeId,
+                        hasHopId: !!primaryHop?.id,
+                        hasHopEndpoints: hopHasEndpoints(primaryHop),
+                    }),
                     relatedHops: isSingleHop ? [] : relatedHops.map((hop) => hop.name),
                     raw: rawText,
                 };
@@ -948,11 +977,19 @@ function buildDeployErrorDetails(res, rawErrors = [], displayErrors = [], nodeAc
                 nodeStatus: '',
                 hopName: singleHopMention?.name || '',
                 hopId: String(singleHopMention?.id || ''),
+                hopSourceNodeId: String(singleHopMention?.sourceNodeId || ''),
+                hopTargetNodeId: String(singleHopMention?.targetNodeId || ''),
+                hopSourceNodeName: String(singleHopMention?.sourceNodeName || ''),
+                hopTargetNodeName: String(singleHopMention?.targetNodeName || ''),
                 failedStep,
                 serviceState,
                 message: displayText || rawText,
                 hint: localizeDeployRepairHint(res, code),
-                suggestedActions: buildDeploySuggestedActions(code, { hasNodeId: false, hasHopId: !!singleHopMention?.id }),
+                suggestedActions: buildDeploySuggestedActions(code, {
+                    hasNodeId: false,
+                    hasHopId: !!singleHopMention?.id,
+                    hasHopEndpoints: hopHasEndpoints(singleHopMention),
+                }),
                 relatedHops: singleHopMention ? [] : relatedHopMentions.map((hop) => hop.name),
                 raw: rawText,
             };
@@ -1506,6 +1543,11 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
             (Array.isArray(state?.nodes) ? state.nodes : [])
                 .map((node) => [String(node.id || ''), node]),
         );
+        const nodeIdByName = new Map(
+            (Array.isArray(state?.nodes) ? state.nodes : [])
+                .map((node) => [String(node.name || '').trim().toLowerCase(), String(node.id || '')])
+                .filter(([name, id]) => name && id),
+        );
         const hopNamesByChain = new Map();
         const hopItemsByChain = new Map();
         for (const hop of Array.isArray(plan?.hops) ? plan.hops : []) {
@@ -1514,9 +1556,17 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
             if (!hopNamesByChain.has(chainId)) hopNamesByChain.set(chainId, []);
             hopNamesByChain.get(chainId).push(hop.name || `${hop.sourceNodeName} -> ${hop.targetNodeName}`);
             if (!hopItemsByChain.has(chainId)) hopItemsByChain.set(chainId, []);
+            const sourceNodeId = String(hop?.sourceNodeId || '').trim()
+                || nodeIdByName.get(String(hop?.sourceNodeName || '').trim().toLowerCase())
+                || '';
+            const targetNodeId = String(hop?.targetNodeId || '').trim()
+                || nodeIdByName.get(String(hop?.targetNodeName || '').trim().toLowerCase())
+                || '';
             hopItemsByChain.get(chainId).push({
                 id: String(hop?.hopId || ''),
                 name: hop.name || `${hop.sourceNodeName} -> ${hop.targetNodeName}`,
+                sourceNodeId,
+                targetNodeId,
                 sourceNodeName: String(hop?.sourceNodeName || ''),
                 targetNodeName: String(hop?.targetNodeName || ''),
             });
@@ -1725,6 +1775,11 @@ router.post('/rerun-chain', requireScope('nodes:write'), async (req, res) => {
             (Array.isArray(state?.nodes) ? state.nodes : [])
                 .map((node) => [String(node.id || ''), node]),
         );
+        const nodeIdByName = new Map(
+            (Array.isArray(state?.nodes) ? state.nodes : [])
+                .map((node) => [String(node.name || '').trim().toLowerCase(), String(node.id || '')])
+                .filter(([name, id]) => name && id),
+        );
         const hopNamesByChain = new Map();
         const hopItemsByChain = new Map();
         for (const hop of Array.isArray(plan?.hops) ? plan.hops : []) {
@@ -1733,9 +1788,17 @@ router.post('/rerun-chain', requireScope('nodes:write'), async (req, res) => {
             if (!hopNamesByChain.has(chainId)) hopNamesByChain.set(chainId, []);
             hopNamesByChain.get(chainId).push(hop.name || `${hop.sourceNodeName} -> ${hop.targetNodeName}`);
             if (!hopItemsByChain.has(chainId)) hopItemsByChain.set(chainId, []);
+            const sourceNodeId = String(hop?.sourceNodeId || '').trim()
+                || nodeIdByName.get(String(hop?.sourceNodeName || '').trim().toLowerCase())
+                || '';
+            const targetNodeId = String(hop?.targetNodeId || '').trim()
+                || nodeIdByName.get(String(hop?.targetNodeName || '').trim().toLowerCase())
+                || '';
             hopItemsByChain.get(chainId).push({
                 id: String(hop?.hopId || ''),
                 name: hop.name || `${hop.sourceNodeName} -> ${hop.targetNodeName}`,
+                sourceNodeId,
+                targetNodeId,
                 sourceNodeName: String(hop?.sourceNodeName || ''),
                 targetNodeName: String(hop?.targetNodeName || ''),
             });

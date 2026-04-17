@@ -1864,9 +1864,13 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             }
             : null;
         const onboardingMode = resolveOnboardingJobSetupMode(onboardingJob);
-        const legacyJob = (!onboardingStatus || onboardingMode !== SETUP_MODE_ONBOARDING_FULL)
+        const rawLegacyJob = (!onboardingStatus || onboardingMode !== SETUP_MODE_ONBOARDING_FULL)
             ? getLegacySetupJob(req.params.id)
             : null;
+        const legacyJob = rawLegacyJob && (
+            rawLegacyJob.state === 'running'
+            || preferredSetupMode === SETUP_MODE_LEGACY
+        ) ? rawLegacyJob : null;
         const shouldUseOnboardingStatus = Boolean(onboardingStatus)
             && (onboardingMode === SETUP_MODE_ONBOARDING_FULL || !legacyJob);
 
