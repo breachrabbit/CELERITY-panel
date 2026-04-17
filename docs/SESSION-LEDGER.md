@@ -390,3 +390,14 @@
   - remove synthetic bridge completion from onboarding-full path;
   - add deeper per-job diagnostics/actions UI;
   - begin staged retirement of in-memory `setupJobs`.
+
+- Onboarding phase 3.4 continuation:
+  - isolated legacy bridge and durable onboarding modes to avoid cross-mode synthetic step mutation;
+  - added setup-mode compatibility guards in panel/API setup paths;
+  - blocked legacy bridge jobs from onboarding-full resume path;
+  - expanded node management onboarding jobs surface with diagnostics cards and per-job actions;
+  - added explicit onboarding job details API (`GET /api/nodes/:id/onboarding/jobs/:jobId`).
+- Next step:
+  - start staged retirement of in-memory `setupJobs` from `/panel/nodes/:id/setup-status`;
+  - keep legacy execution fallback while shifting status/log authority to durable onboarding read model;
+  - then add safe step-level rerun action for durable jobs.

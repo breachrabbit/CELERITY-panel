@@ -173,13 +173,21 @@ Latest progress:
   - panel setup start now supports mode selection and routes Xray setups through `runFull` in staged mode;
   - panel setup-status is now onboarding-primary with legacy fallback;
   - API setup supports `setupMode=onboarding-full`.
+- legacy/durable mode isolation improved:
+  - setup starts now reject incompatible active onboarding job modes;
+  - synthetic legacy bridge completion now skips durable-mode jobs;
+  - resume path blocks legacy bridge snapshots from onboarding-full execution.
+- onboarding diagnostics surface improved:
+  - node management now shows actionable onboarding job cards (status/step/mode/error);
+  - per-job diagnostics preview includes step-state chips and recent logs;
+  - per-job actions exist for resume/select-step/copy diagnostics.
 - this new layer is intentionally still separate from legacy setup flow.
 
 Still missing:
 
-- removal of synthetic bridge completion in the remaining legacy setup runner path;
-- richer per-job diagnostics/actions UI (error/details) on top of current onboarding jobs summary;
+- staged removal of synthetic bridge mirrors from the legacy setup runner once onboarding parity is fully confirmed;
 - staged retirement of in-memory `setupJobs` from the critical path once parity is confirmed.
+- explicit durable step-level rerun action beyond resume/repair semantics.
 
 Status: `pending`
 

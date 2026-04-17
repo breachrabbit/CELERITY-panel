@@ -6,10 +6,50 @@
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: Hidden Rabbit onboarding rewrite implementation (phase 3.3 recovery UX + onboarding jobs visibility).
+- Current working focus: Hidden Rabbit onboarding rewrite implementation (legacy bridge isolation + richer per-job diagnostics/actions).
 - Current local patch focus:
   - no uncommitted local changes;
-  - next move is legacy bridge retirement and deeper onboarding diagnostics.
+  - next move is staged `setupJobs` retirement from critical status-path.
+
+## 2026-04-17 Onboarding Bridge Isolation + Diagnostics UI Stop-Point
+
+Removed remaining synthetic legacy bridge contamination risk for durable onboarding runs and expanded operator diagnostics in node management UI.
+
+### What was delivered
+
+- `src/routes/panel/nodes.js`:
+  - added onboarding job mode resolver (`legacy` vs `onboarding-full`) based on metadata/flow;
+  - `ensureOnboardingJobForSetup(...)` now rejects incompatible active jobs instead of mixing modes;
+  - synthetic legacy bridge completion/fail now runs only for jobs explicitly marked legacy bridge mode;
+  - onboarding resume endpoint now supports explicit `jobId` targeting and blocks legacy bridge jobs from onboarding-full resume;
+  - onboarding repair path no longer resumes legacy bridge jobs; it creates/uses durable repair jobs;
+  - setup-status now reports setup mode from durable onboarding metadata when available.
+- `src/routes/nodes.js`:
+  - added the same mode compatibility guard on setup job initialization;
+  - synthetic legacy bridge completion now skips durable-mode jobs;
+  - added `GET /api/nodes/:id/onboarding/jobs/:jobId` for detailed job diagnostics fetch.
+- `views/partials/node-form/management.ejs` + `views/partials/node-form/scripts.ejs`:
+  - replaced plain onboarding summary text with richer job cards;
+  - added per-job diagnostics section with step-state chips and recent logs preview;
+  - added per-job actions:
+    - resume selected job;
+    - use failed/current step in resume selector;
+    - copy diagnostics snapshot to clipboard;
+  - added legacy-bridge warning hint directly in job card UI.
+- locales:
+  - added onboarding diagnostics/mode/action labels in `ru/en`.
+
+### Current stop-point
+
+- Durable onboarding and legacy setup are now stricter-separated in mixed-mode scenarios.
+- Onboarding jobs UI now has actionable diagnostics for day-to-day operator recovery.
+- Legacy fallback remains enabled by design.
+
+### Best next step
+
+1. Start staged retirement of in-memory `setupJobs` from `/panel/nodes/:id/setup-status` critical path.
+2. Keep legacy fallback execution path but move status/log authority to durable onboarding read model.
+3. Then add explicit “re-run single step” action for durable jobs (separate from resume/repair).
 
 ## 2026-04-17 Onboarding Bridge Integration Stop-Point
 
@@ -1208,30 +1248,20 @@ After deploy, verify on Android / mobile browser:
 Контекст:
 - это изолированный форк панели, не связанный с Rabbit Platform;
 - continuity docs являются source of truth;
-- main чистый и уже выкатан на https://tunnel.hiddenrabbit.net.ru/panel;
-- последний выкатанный коммит: 9e2bed1 — fix: normalize dashboard ratio labels;
-- важный предыдущий коммит: f519a93 — feat: add xray session telemetry foundation.
-
-Что уже сделано:
-- панель умеет опрашивать новый cc-agent endpoint /sessions;
-- cc-agent умеет парсить /var/log/xray/access.log;
-- Xray setup теперь готовит access/error logs;
-- старые агенты продолжают работать через /stats fallback;
-- dashboard labels теперь используют "/" вместо "из" в числовых отношениях.
+- текущая база уже в main;
+- последний коммит: 22160d2 — feat: isolate durable onboarding mode and expand job diagnostics UI;
+- onboarding-full/legacy staged mode уже внедрён, legacy fallback сохранён.
 
 Приоритет:
-1. сначала доведи true Xray per-device/session telemetry на живой тестовой ноде:
-   - собрать/установить обновленный cc-agent;
-   - включить/проверить /var/log/xray/access.log;
-   - перезапустить Xray и cc-agent;
-   - проверить GET /sessions на ноде;
-   - проверить user detail в панели: реальная Xray-сессия, IP клиента, node attribution;
-2. затем вернись к Android mobile menu accessibility;
-3. потом продолжай responsive cleanup для Statistics / Users / Settings / subscription page;
-4. потом продолжай визуальную унификацию графиков, русских подписей и удаление оставшихся Celerity references.
+1. начать staged retirement in-memory setupJobs из критического status-path:
+   - сделать durable onboarding источником истины для setup-status;
+   - оставить legacy setup executor как fallback только на выполнение;
+2. затем добавить безопасный step-level rerun action для durable onboarding jobs (отдельно от resume/repair);
+3. сохранить совместимость legacy path до подтверждения полного паритета;
+4. после этого продолжить UI/UX полировку node onboarding и удалить оставшиеся legacy bridge хвосты.
 
 Важно:
-- не смешивай agent rollout/debug commit с UI cleanup;
+- не смешивай continuity docs commit с кодовыми изменениями;
 - если меняешь continuity docs, делай это отдельным docs-коммитом;
 - после существенного шага снова обнови SESSION-HANDOFF, DEVELOPMENT-LOG и SESSION-LEDGER.
 ```

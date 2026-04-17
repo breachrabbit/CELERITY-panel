@@ -318,6 +318,7 @@ Change types:
   - `onboarding-full` (durable `runFull` pipeline);
   - `legacy` (existing setup runner).
 - Added panel setup-mode resolver:
+
   - explicit override via `setupMode` request value;
   - env guard `FEATURE_ONBOARDING_RUN_FULL=true`;
   - staged default: Xray nodes use durable onboarding path first.
@@ -394,6 +395,28 @@ Change types:
 
 - `local patch` — onboarding jobs/operator visibility on node management page
 - `stability fix` — controlled step resume input for durable onboarding runs
+
+## 2026-04-17 Onboarding Mode Isolation + Diagnostics UI (Phase 3.4)
+
+- Isolated onboarding modes to prevent synthetic legacy bridge transitions from mutating durable onboarding jobs:
+  - added mode resolver by onboarding metadata/flow;
+  - setup starts now reject incompatible active job mode reuse (`legacy` vs `onboarding-full`);
+  - legacy bridge complete/fail mirrors now run only on legacy-bridge jobs.
+- Hardened operator recovery endpoints:
+  - panel resume now supports explicit `jobId`;
+  - resume blocks legacy bridge snapshots from onboarding-full path;
+  - repair no longer resumes legacy bridge jobs and keeps durable repair flow.
+- Extended onboarding diagnostics surface:
+  - added `GET /api/nodes/:id/onboarding/jobs/:jobId` details endpoint;
+  - upgraded node management onboarding summary into actionable job cards;
+  - added per-job diagnostics blocks (step chips + recent logs);
+  - added per-job actions (resume selected job, use failed step, copy diagnostics).
+- Added locale keys (`ru/en`) for onboarding diagnostics/action/mode labels.
+
+Change types:
+
+- `stability fix` — strict legacy/durable onboarding mode isolation
+- `local patch` — richer onboarding diagnostics/actions UI for node operators
 
 ## 2026-04-17 Session Close Summary
 
