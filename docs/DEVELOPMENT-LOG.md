@@ -1468,3 +1468,43 @@ Change type:
 Change type:
 
 - `continuity` — operational verification + deferred cleanup handoff
+
+## 2026-04-17 Stand Cleanup Completion After Mixed-Run
+
+- Completed pending stand cleanup after mixed-run validation:
+  - deleted temporary active links:
+    - `69e267f6a6d4f3277dcf1a31`,
+    - `69e267f6a6d4f3277dcf1a2c`;
+  - deleted temporary node:
+    - `69e265b21238cf4d4b3fc916` (`QA-FAIL-MIX`);
+  - deleted stale inactive QA-link:
+    - `69e266941238cf4d4b3fc97b`.
+- Re-verified topology post-cleanup:
+  - builder state summary now clean (`nodes=3`, `hops=0`, `draftHops=0`);
+  - `/api/nodes` shows only baseline node set.
+
+Change type:
+
+- `continuity` — stand topology normalization / cleanup completion
+
+## 2026-04-17 Hop Endpoint Status Diagnostics (Depth Increment)
+
+- Extended cascade execution diagnostics payload:
+  - added `hopSourceNodeStatus`,
+  - added `hopTargetNodeStatus`
+  in `errorDetails` for hop-attributed failures.
+- Extended builder diagnostics card rendering:
+  - now shows endpoint line with source/target node names and statuses.
+- Added locale keys (`ru`/`en`):
+  - `executionHopEndpoints`,
+  - `statusUnknown`.
+- Pushed code commit:
+  - `a048834` (`feat: enrich hop endpoint status diagnostics in builder execution`).
+- Deployed commit to stand:
+  - deployment UUID: `b5jtcgvrpuct3kvst7se9z5z`;
+  - status: `finished`;
+  - app: `running:healthy`.
+
+Change type:
+
+- `local patch` — cascade execution diagnostics depth

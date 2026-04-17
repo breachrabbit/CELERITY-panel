@@ -684,3 +684,16 @@
   - finish topology cleanup on stand;
   - verify baseline via `/api/cascade-builder/state` and `/api/cascade/links`;
   - continue diagnostics depth and staged legacy setup-path retirement.
+
+- Mixed-run cleanup continuation:
+  - completed stand cleanup (temporary active links + QA node removed);
+  - removed stale inactive QA-link that became null after node deletion;
+  - baseline stand topology rechecked via `/api/cascade-builder/state`, `/api/cascade/links`, `/api/nodes`.
+- Diagnostics depth continuation:
+  - added hop endpoint statuses to `errorDetails` (`hopSourceNodeStatus`, `hopTargetNodeStatus`);
+  - rendered endpoint status line in execution details UI;
+  - shipped as `a048834`, deployed via Coolify (`b5jtcgvrpuct3kvst7se9z5z`, finished healthy).
+- Next step:
+  - continue chain/hop/node diagnostics precision for ambiguous failures;
+  - add one more compact repair/re-run operator convenience action;
+  - keep staged retirement of non-critical legacy `setupJobs` reads incremental.

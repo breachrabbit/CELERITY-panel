@@ -322,25 +322,26 @@ Status: `pending verification`
 
 ### 12. Stand topology still contains temporary mixed-run artifacts
 
-Issue:
+Issue history:
 
 - live mixed-run diagnostics verification created temporary active links and a temporary fail node on the stand;
 - cleanup was started but interrupted by explicit stop request.
 
-Current pending artifacts:
+Resolution:
 
-- active links to remove:
-  - `69e267f6a6d4f3277dcf1a31` (`Хельсинки, Финляндия -> QA-FAIL-MIX`)
-  - `69e267f6a6d4f3277dcf1a2c` (`Вена, Австрия -> Санкт-Петербург, Россия`)
-- temporary node candidate for removal:
-  - `69e265b21238cf4d4b3fc916` (`QA-FAIL-MIX`)
+- temporary active links were deleted:
+  - `69e267f6a6d4f3277dcf1a31`
+  - `69e267f6a6d4f3277dcf1a2c`
+- temporary node `69e265b21238cf4d4b3fc916` (`QA-FAIL-MIX`) was deleted;
+- stale inactive QA link `69e266941238cf4d4b3fc97b` was deleted as cleanup follow-up.
 
-Why it matters:
+Post-check:
 
-- leaves non-baseline active topology on the stand;
-- can pollute subsequent diagnostics and parity checks.
+- `/api/nodes` shows baseline node set;
+- `/api/cascade-builder/state` is clean after cleanup;
+- temporary mixed-run active artifacts are no longer present.
 
-Status: `pending cleanup`
+Status: `resolved`
 
 ### 11. Onboarding verify-runtime-local could report false offline state
 

@@ -1950,6 +1950,93 @@ After deploy, verify on Android / mobile browser:
 - после существенного шага снова обнови SESSION-HANDOFF, DEVELOPMENT-LOG и SESSION-LEDGER.
 ```
 
+## 2026-04-17 Stop-Point — Stand Cleanup Completed + Hop Endpoint Status Diagnostics
+
+Done:
+- Executed pending stand cleanup from previous stop-point:
+  - deleted temporary active mixed-run links:
+    - `69e267f6a6d4f3277dcf1a31`,
+    - `69e267f6a6d4f3277dcf1a2c`;
+  - deleted temporary mixed-run node:
+    - `69e265b21238cf4d4b3fc916` (`QA-FAIL-MIX`);
+  - deleted stale inactive QA link with null bridge after node removal:
+    - `69e266941238cf4d4b3fc97b`.
+- Verified post-cleanup stand state:
+  - `/api/nodes` now returns only baseline 3 online xray nodes;
+  - `/api/cascade-builder/state` summary is clean (`nodes=3`, `hops=0`, `draftHops=0`);
+  - `/api/cascade/links` contains only baseline inactive links (no temporary active mixed-run links).
+- Delivered next cascade diagnostics depth increment:
+  - code commit `a048834`:
+    - added hop endpoint statuses to `errorDetails`:
+      - `hopSourceNodeStatus`,
+      - `hopTargetNodeStatus`;
+    - rendered hop endpoint status line in execution diagnostics cards;
+    - added RU/EN i18n keys for endpoint diagnostics labels.
+- Deployed `a048834` to stand:
+  - deployment UUID: `b5jtcgvrpuct3kvst7se9z5z`;
+  - status: `finished`;
+  - app status: `running:healthy`.
+
+Current state:
+- mixed-run parity remains confirmed;
+- temporary test artifacts are now removed from stand;
+- cascade diagnostics now provide more precise hop-level operator context for repair/re-run.
+
+Next step:
+1. Continue execution diagnostics depth:
+   - tighten attribution for ambiguous multi-node failures;
+   - keep `suggestedActions` compact and execution-focused.
+2. Add one more operator convenience increment for failed chains (minimal clicks from detail -> repair -> rerun).
+3. Continue staged retirement of non-critical legacy `setupJobs` control/status-path reads without touching legacy fallback guarantees.
+
+## Prompt For Next Session (Latest, supersedes older prompts)
+
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+7. docs/node-onboarding-rewrite-blueprint.ru.md
+
+Потом сразу продолжай без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связан с Rabbit Platform;
+- continuity docs — source of truth;
+- последний код-коммит в main: a048834;
+- последний docs-коммит в main: 9ca01e6;
+- стенд: https://tunnel.hiddenrabbit.net.ru/panel, статус running:healthy;
+- mixed-run parity уже подтверждён (success + failed в одном запуске).
+
+Что уже закрыто:
+- cleanup временной mixed-run топологии на стенде завершён:
+  - удалены временные active links `69e267f6...a31` и `69e267f6...a2c`;
+  - удалена временная нода `QA-FAIL-MIX` (`69e265b21238cf4d4b3fc916`);
+  - удалён stale QA-link `69e266941238cf4d4b3fc97b`.
+- добавлен новый diagnostics depth слой:
+  - `errorDetails.hopSourceNodeStatus/hopTargetNodeStatus`;
+  - endpoint status line в execution detail card.
+
+Приоритет:
+1) продолжить execution parity/diagnostics depth:
+   - точнее причины на уровне chain/hop/node для неоднозначных ошибок;
+   - сохранить быстрый loop repair/re-run.
+2) добавить следующий удобный operator action для failed chains (минимум кликов, без шумных изменений UI).
+3) параллельно продолжить staged retirement legacy setupJobs:
+   - убрать ещё один безопасный non-critical слой из onboarding status/control-path;
+   - не ломать legacy fallback до подтверждения паритета.
+
+Важно:
+- не смешивать код-коммит и docs-коммит;
+- после существенного шага обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```
+
 ## 2026-04-16 Visual Cascade Builder Blueprint
 
 - Added a dedicated product blueprint:
