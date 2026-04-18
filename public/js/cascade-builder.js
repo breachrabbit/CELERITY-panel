@@ -26,11 +26,14 @@
         flow: null,
         cy: null,
         edgehandles: null,
+        edgeDrawActive: false,
         execution: null,
         executionReruns: {},
         executionFilter: 'all',
         connectIntent: null,
         connectInFlight: false,
+        lastConnectSignature: '',
+        lastConnectAt: 0,
         connectFallbackEnabled: false,
         selection: { type: null, id: null },
     };
@@ -477,7 +480,9 @@
                     'line-color': '#08C5CB',
                     'target-arrow-color': '#08C5CB',
                     'line-style': 'dashed',
-                    'width': 3,
+                    'width': 0.001,
+                    'opacity': 0,
+                    'target-arrow-shape': 'none',
                 },
             },
         ];
@@ -656,6 +661,28 @@
     function syncAllNodePorts() {
         if (!state.cy) return;
         state.cy.nodes('[isPort != 1]').forEach((node) => syncNodePorts(node.id()));
+    }
+
+    function cleanupTransientBuilderEdges() {
+        if (!state.cy) return;
+        const staleEdges = state.cy.edges().filter((edge) => {
+            const isTransientClass = edge.hasClass('eh-preview')
+                || edge.hasClass('eh-ghost-edge')
+                || edge.hasClass('eh-ghost')
+                || edge.hasClass('eh-temp');
+            if (isTransientClass) return true;
+            const isVirtualInternet = Number(edge.data('isVirtualInternet')) === 1;
+            const hopId = String(edge.data('hopId') || '').trim();
+            return !isVirtualInternet && !hopId;
+        });
+        if (staleEdges.length) staleEdges.remove();
+    }
+
+    function scheduleTransientEdgeCleanup() {
+        if (!state.cy) return;
+        requestAnimationFrame(() => {
+            cleanupTransientBuilderEdges();
+        });
     }
 
     function syncInternetNodePosition() {
@@ -2165,6 +2192,7 @@
         if (portNodes.length) {
             portNodes.ungrabify();
         }
+        scheduleTransientEdgeCleanup();
         syncAllNodePorts();
         syncInternetNodePosition();
 
@@ -2196,6 +2224,7 @@
         state.cy.on('tap', (event) => {
             if (event.target === state.cy) {
                 clearConnectIntent();
+                scheduleTransientEdgeCleanup();
                 renderInspectorEmpty();
             }
         });
@@ -2230,6 +2259,7 @@
                 disableBrowserGestures: true,
                 complete: async (sourceNode, targetNode, addedEles) => {
                     if (addedEles && addedEles.remove) addedEles.remove();
+                    cleanupTransientBuilderEdges();
                     clearConnectIntent();
                     const sourceEndpoint = resolveConnectEndpoint(sourceNode);
                     const targetEndpoint = resolveConnectEndpoint(targetNode);
@@ -2241,11 +2271,20 @@
             });
         }
 
+        state.cy.on('ehstart', () => {
+            state.edgeDrawActive = true;
+        });
+        state.cy.on('ehcomplete ehstop ehcancel', () => {
+            state.edgeDrawActive = false;
+            scheduleTransientEdgeCleanup();
+        });
+
         // This edgehandles bundle does not auto-start draw gestures from custom port nodes
         // in non-draw mode, so we start it explicitly on tapstart over OUT ports.
         state.cy.on('tapstart', 'node[isPort = 1][portType = "out"]', (event) => {
             if (!state.edgehandles || typeof state.edgehandles.start !== 'function') return;
             const sourcePort = event.target;
+            if (state.edgeDrawActive || sourcePort.hasClass('eh-source')) return;
             if (state.edgehandles) state.edgehandles.grabbingNode = false;
             state.edgehandles.start(sourcePort);
         });
@@ -2309,6 +2348,13 @@
         if (!sourceId || !targetId || sourceId === targetId) return;
         if (sourceId === INTERNET_NODE_ID || targetId === INTERNET_NODE_ID) return;
         if (state.connectInFlight) return;
+        const connectSignature = `${sourceId}->${targetId}`;
+        const now = Date.now();
+        if (state.lastConnectSignature === connectSignature && (now - state.lastConnectAt) < 900) {
+            return;
+        }
+        state.lastConnectSignature = connectSignature;
+        state.lastConnectAt = now;
         state.connectInFlight = true;
         try {
             const payload = await requestJson('/api/cascade-builder/connect', {
@@ -2332,6 +2378,7 @@
             toast(`${i18n.connectFailed || 'Connect failed'}: ${error.message}`, 'error');
         } finally {
             state.connectInFlight = false;
+            scheduleTransientEdgeCleanup();
         }
     }
 
