@@ -2346,6 +2346,89 @@ Next step:
   - docs/SESSION-LEDGER.md
 ```
 
+## 2026-04-18 Update — Runtime Offline Root Cause + Builder Clarification Wave
+
+What was done:
+- shipped `683c013` to `main` and deployed (`z11s5wx8k1d29ztjgofqc1g5`, finished healthy).
+- fixed onboarding/runtime Xray log permissions:
+  - repaired `/var/log/xray` owner/group and file mode in:
+    - `runPrepareHost` durable step,
+    - `setupXrayNode` runtime path before service start,
+    - cc-agent setup path that touches xray logs.
+- improved cascade builder validation UX:
+  - explicit `Errors / Warnings` counters in validation panel;
+  - each validation item now carries context (code/hop/node) and focuses canvas selection on click.
+- hardened link reset/disconnect:
+  - live link delete now retries using normalized id candidates from `id/edgeId/linkId`.
+- normalized new draft identifiers:
+  - single nonce for `id` and `edgeId` in connect API.
+
+Why this matters:
+- latest user logs show Xray service failing with:
+  - `Failed to initialize access logger > open /var/log/xray/access.log: permission denied`,
+  which caused durable onboarding to end at `verify-runtime-local` with `Runtime is offline`.
+- patched paths now enforce a deterministic writable log setup for `User=nobody`.
+
+Current state:
+- code: merged in `main`.
+- stand: `running:healthy`.
+- still requires live re-check by re-running onboarding on affected nodes to confirm no `repairable` loop.
+
+Immediate next step:
+1. re-run onboarding for the previously failing node(s) and confirm:
+   - `install-runtime` and `verify-runtime-local` complete without `offline`;
+   - no `permission denied` in xray journal.
+2. verify in builder:
+   - `Сбросить связи` clears all current links reliably;
+   - validation items focus problematic hop/node correctly.
+3. continue automation roadmap requested by user:
+   - automatic role transition orchestration (standalone/portal/relay/bridge),
+   - background reconfigure jobs with progress/notifications,
+   - node delete with remote agent cleanup.
+
+## Prompt For Next Session (fresh)
+
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+7. docs/node-onboarding-rewrite-blueprint.ru.md
+
+Потом сразу продолжай без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связан с Rabbit Platform;
+- continuity docs — source of truth;
+- последний код-коммит в main: 683c013;
+- стенд: https://tunnel.hiddenrabbit.net.ru/panel, статус running:healthy;
+- в этом шаге исправлен root-cause по onboarding runtime-offline:
+  - /var/log/xray/access.log permission denied (User=nobody).
+
+Приоритет:
+1) прогнать live onboarding retry на проблемной ноде(ах), подтвердить completed без repairable:
+   - install-runtime -> verify-runtime-local успешно;
+   - в journal нет permission denied по /var/log/xray/*.log.
+2) проверить builder UX на стенде:
+   - Сбросить связи удаляет все текущие связи;
+   - validation-панель показывает ясные причины и кликом фокусит hop/node.
+3) продолжить product-автоматизацию по запросу пользователя:
+   - автоматический rollback в standalone при разборе каскада;
+   - автопереназначение ролей при сборке цепочки (portal/relay/bridge);
+   - фоновая оркестрация с прогрессом/уведомлениями;
+   - удаление ноды с удалённой деинсталляцией нашего агента и следов.
+
+Важно:
+- не смешивать код-коммит и docs-коммит;
+- после существенного шага обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```
+
 ## 2026-04-18 Stop-Point — Builder Drag-To-Empty Disconnect + Curve Routing Update
 
 Done in this session:

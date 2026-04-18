@@ -1804,3 +1804,28 @@ Change type:
 
 - `local patch` — cascade builder connect/disconnect UX
 - `ux` — graph readability / dense edge routing
+
+## 2026-04-18 Builder Validation Clarity + Reset Hardening + Xray Log Permission Repair
+
+- Strengthened cascade builder operator UX:
+  - validation panel now includes explicit error/warning counters;
+  - validation items now show context metadata (code/hop/node) and are clickable to focus failing hop/node on canvas;
+  - reset/disconnect path for live links now includes robust ObjectId fallback candidates (`hop.id`, `hop.edgeId`, `hop.linkId`) to avoid id-format mismatch failures.
+- Removed remaining ambiguity from draft edge IDs:
+  - `/api/cascade-builder/connect` now uses one shared nonce for `id` and `edgeId`.
+- Fixed durable onboarding/runtime regression seen in live logs:
+  - `xray` failed with `permission denied` on `/var/log/xray/access.log`;
+  - added ownership/permission repair (`nobody:nogroup` fallback `nobody:nobody`, `750` dir, `640` files) in:
+    - host prepare step (`nodeOnboardingHandlers`),
+    - Xray install/runtime setup (`nodeSetup`),
+    - CC-agent install path touching `/var/log/xray`.
+- Code commit:
+  - `683c013` — `fix: harden link reset UX and repair xray log permissions in onboarding`
+- Deployed to stand:
+  - deployment `z11s5wx8k1d29ztjgofqc1g5` finished;
+  - app status `running:healthy`.
+
+Change type:
+
+- `local patch` — cascade builder diagnostics + unlink controls
+- `stability fix` — durable onboarding Xray runtime startup permissions

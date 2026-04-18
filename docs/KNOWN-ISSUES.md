@@ -392,6 +392,33 @@ What is still pending:
 
 Status: `pending verification`
 
+### 14. Runtime offline after role/cascade transitions due Xray log permission drift
+
+Issue history:
+
+- after disconnecting links / changing node role back toward standalone, durable onboarding could fail on:
+  - `verify-runtime-local — Runtime is offline (offline)`.
+- live journal from failing node showed real root cause:
+  - `Failed to initialize access logger > open /var/log/xray/access.log: permission denied`.
+
+Current state after patch (`683c013`):
+
+- onboarding/runtime paths now repair `/var/log/xray` ownership and modes before service start:
+  - owner/group fallback: `nobody:nogroup` → `nobody:nobody`,
+  - directory mode: `750`,
+  - log files mode: `640`.
+- fix applied in:
+  - durable `prepare-host`,
+  - xray runtime setup path,
+  - cc-agent install path that touches xray logs.
+
+What is still pending:
+
+- confirm on live retry that previously failing node reaches `completed` with no `repairable`;
+- verify no repeated permission errors in `journalctl -u xray`.
+
+Status: `pending verification`
+
 ### 13. Cascade builder could show temporary extra lines before refresh (drag-connect UX race)
 
 Issue history:

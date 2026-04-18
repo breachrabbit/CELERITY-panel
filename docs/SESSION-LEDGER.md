@@ -845,3 +845,22 @@
   - validate operator feel on real chains (connect/disconnect rhythm);
   - if needed, fine-tune curve bias constants and per-density spacing;
   - continue cascade diagnostics depth + staged legacy setupJobs retirement.
+
+## 2026-04-18 Session — Runtime Offline Fix + Builder Validation/Reset Pass
+
+- Worked on:
+  - user-reported runtime onboarding failures after role/cascade changes (`Runtime is offline`);
+  - unclear validation behavior in cascade builder;
+  - reset links action intermittently failing for mixed link-id formats.
+- Finished with:
+  - `683c013` in `main`;
+  - onboarding/runtime now repairs `/var/log/xray/*` ownership/permissions before Xray service start;
+  - builder validation list now has explicit counters and focusable context entries (code/hop/node);
+  - live-link disconnect/reset hardened with multi-candidate ObjectId fallback;
+  - connect draft nonce normalized (`id` == `edgeId` suffix).
+- Deployed:
+  - `z11s5wx8k1d29ztjgofqc1g5` (finished), stand `running:healthy`.
+- Next step:
+  - run live onboarding retry on affected node(s) to confirm no more `permission denied` / `Runtime is offline`;
+  - verify reset links and validation focus behavior in builder UI under real topology;
+  - continue automation wave: role transitions (standalone/portal/relay/bridge) + background reconfigure orchestration.
