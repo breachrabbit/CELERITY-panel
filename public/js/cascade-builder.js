@@ -355,6 +355,16 @@
                 },
             },
             {
+                selector: 'node[isPort != 1][isInternetExit = 1]',
+                style: {
+                    'border-color': '#02A8AD',
+                    'border-width': 2,
+                    'shadow-blur': 18,
+                    'shadow-color': '#02A8AD',
+                    'shadow-opacity': 0.2,
+                },
+            },
+            {
                 selector: 'node[isPort != 1]:selected',
                 style: {
                     'border-color': '#08C5CB',
@@ -378,6 +388,14 @@
                     'text-opacity': 0,
                     'overlay-opacity': 0,
                     'z-index': 9999,
+                },
+            },
+            {
+                selector: 'node[isPort = 1][isInternetExitPort = 1][portType = "out"]',
+                style: {
+                    'border-color': '#02A8AD',
+                    'border-width': 3,
+                    'background-color': '#d9fbfc',
                 },
             },
             {
@@ -495,9 +513,11 @@
         state.cy.resize();
     }
 
-    function buildNodeLabel(node) {
+    function buildNodeLabel(node, { isInternetExit = false } = {}) {
         const prefix = node.flag ? `${node.flag} ` : '';
-        return `${prefix}${node.name}`;
+        const name = `${prefix}${node.name}`;
+        if (!isInternetExit) return name;
+        return `${name}\n↗ ${t('internetNodeLabel', 'Internet')}`;
     }
 
     function buildPortId(nodeId, portType) {
@@ -727,18 +747,20 @@
 
     function flowToElements(flow) {
         const elements = [];
-        const internetNode = getFlowInternetNodeData(flow);
-        const exitNodeIds = internetNode?.exitNodeIds || [];
+        const exitNodeIds = getFlowExitNodeIds(flow);
+        const exitNodeIdSet = new Set(exitNodeIds.map((id) => String(id)));
 
         for (const node of flow.nodes) {
+            const isInternetExit = exitNodeIdSet.has(String(node.id));
             elements.push({
                 group: 'nodes',
                 data: {
                     id: node.id,
-                    label: buildNodeLabel(node),
+                    label: buildNodeLabel(node, { isInternetExit }),
                     nodeType: node.type,
                     status: node.status,
                     isPort: 0,
+                    isInternetExit: isInternetExit ? 1 : 0,
                 },
                 position: node.position || undefined,
             });
@@ -763,26 +785,11 @@
                     isPort: 1,
                     ownerNodeId: node.id,
                     portType: 'out',
+                    isInternetExitPort: isInternetExit ? 1 : 0,
                 },
                 position: getPortPositionFromRaw(node.position, 'out'),
                 grabbable: false,
                 selectable: false,
-            });
-        }
-
-        if (internetNode) {
-            elements.push({
-                group: 'nodes',
-                data: {
-                    id: internetNode.id,
-                    label: internetNode.label,
-                    nodeType: 'internet',
-                    status: exitNodeIds.length ? 'online' : 'pending',
-                    isPort: 0,
-                    isVirtualInternet: 1,
-                },
-                position: internetNode.position,
-                grabbable: false,
             });
         }
 
@@ -798,23 +805,6 @@
                     status: hop.status,
                     isDraft: hop.isDraft ? 1 : 0,
                 },
-            });
-        }
-
-        if (internetNode) {
-            exitNodeIds.forEach((exitNodeId) => {
-                elements.push({
-                    group: 'edges',
-                    data: {
-                        id: `internet-edge:${String(exitNodeId)}`,
-                        source: buildPortId(exitNodeId, 'out'),
-                        target: internetNode.id,
-                        status: 'online',
-                        isDraft: 0,
-                        isVirtualInternet: 1,
-                    },
-                    selectable: false,
-                });
             });
         }
 
@@ -2194,13 +2184,11 @@
         }
         scheduleTransientEdgeCleanup();
         syncAllNodePorts();
-        syncInternetNodePosition();
 
         const hasPositions = flow.nodes.some((node) => node.position && typeof node.position.x === 'number');
         if (!hasPositions) {
             runAutoLayout({ animate: true });
         } else {
-            syncInternetNodePosition();
             state.cy.fit(undefined, 48);
         }
 
@@ -2231,9 +2219,6 @@
 
         state.cy.on('position', 'node[isPort != 1]', (event) => {
             syncNodePorts(event.target.id());
-            if (Number(event.target.data('isVirtualInternet')) !== 1) {
-                syncInternetNodePosition();
-            }
         });
 
         if (typeof state.cy.edgehandles === 'function') {
@@ -2279,22 +2264,9 @@
             scheduleTransientEdgeCleanup();
         });
 
-        // This edgehandles bundle does not auto-start draw gestures from custom port nodes
-        // in non-draw mode, so we start it explicitly on tapstart over OUT ports.
-        state.cy.on('tapstart', 'node[isPort = 1][portType = "out"]', (event) => {
-            if (!state.edgehandles || typeof state.edgehandles.start !== 'function') return;
-            const sourcePort = event.target;
-            if (state.edgeDrawActive || sourcePort.hasClass('eh-source')) return;
-            if (state.edgehandles) state.edgehandles.grabbingNode = false;
-            state.edgehandles.start(sourcePort);
-        });
-
-        const isCoarsePointer = typeof window.matchMedia === 'function'
-            ? window.matchMedia('(pointer: coarse)').matches
-            : false;
-        state.connectFallbackEnabled = !state.edgehandles || isCoarsePointer;
+        state.connectFallbackEnabled = true;
         if (state.connectFallbackEnabled) {
-            // Fallback connect mode: tap OUT port -> tap target node/IN port.
+            // Stable connect mode: tap OUT port -> tap target node/IN port.
             state.cy.on('tap', 'node[isPort = 1][portType = "out"]', (event) => {
                 const sourceEndpoint = resolveConnectEndpoint(event.target);
                 if (!sourceEndpoint.ownerNodeId) return;
