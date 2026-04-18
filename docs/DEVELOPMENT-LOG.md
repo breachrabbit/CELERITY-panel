@@ -1747,3 +1747,35 @@ Change type:
 Change type:
 
 - `local patch` — cascade execution diagnostics depth
+
+## 2026-04-18 Builder Reset/Disconnect + Fullscreen UX Pass
+
+- Solved operator-side link management gaps in cascade builder:
+  - reset button now clears **all current links** (draft + live), not drafts-only;
+  - right-click on line now disconnects selected hop;
+  - selected hop can be removed by keyboard (`Delete` / `Backspace`);
+  - live hop inspector now has explicit `Disconnect link` action.
+- Improved graph readability:
+  - edge endpoints now anchor to port centers for cleaner point alignment;
+  - status color split:
+    - online/active/deployed — Java flow;
+    - pending — muted dashed;
+    - offline/error/failed — red dashed;
+  - flow animation now covers active statuses + Internet egress edges.
+- Improved builder navigation:
+  - Fullscreen API integrated (native fullscreen + fallback class mode);
+  - toggle/icon/text syncs on `fullscreenchange`, exit via `Esc`;
+  - inspector auto-scrolls to top when node/hop/Internet is selected.
+- Internet UX:
+  - right-side Internet list items are now clickable and focus related exit nodes.
+- Localized new UI copy (`ru` + `en`) for reset/disconnect flows.
+- Code commit:
+  - `e09ac95` — `feat: improve cascade builder reset/disconnect UX and fullscreen`
+- Deployed to stand:
+  - deployment `l3zntrbwr90pks4tx9ns7mst` finished;
+  - app status `running:healthy`.
+
+Change type:
+
+- `local patch` — cascade builder UX/logic
+- `stability fix` — deterministic link reset/disconnect controls

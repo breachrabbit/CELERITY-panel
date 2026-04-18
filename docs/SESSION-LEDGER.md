@@ -793,6 +793,26 @@
   - add one more compact repair/re-run operator convenience action;
   - keep staged retirement of non-critical legacy `setupJobs` reads incremental.
 
+## 2026-04-18 Session — Builder Reset/Disconnect + Fullscreen
+
+- Worked on:
+  - reset button was not useful for already created links;
+  - no direct unlink from line interaction;
+  - confusing fullscreen behavior and inspector navigation.
+- Finished with:
+  - `e09ac95` in `main`;
+  - reset now clears current draft + live links with one action;
+  - line unlink via right-click and via keyboard on selected hop;
+  - live hop inspector unlink action added;
+  - native fullscreen API integrated and synced with UI state;
+  - inspector auto-scroll and clickable Internet exit list.
+- Deployed:
+  - `l3zntrbwr90pks4tx9ns7mst` (finished), stand `running:healthy`.
+- Next step:
+  - user validation pass on builder UX (reset, right-click unlink, fullscreen);
+  - if needed, add optional drag-to-empty unlink gesture and stronger routing curves for dense graphs;
+  - continue cascade diagnostics depth + staged legacy setupJobs retirement.
+
 ## 2026-04-18 Session — Builder Link Stability + Internet Section
 
 - Worked on:

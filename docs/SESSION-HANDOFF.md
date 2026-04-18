@@ -2262,6 +2262,90 @@ After deploy, verify on Android / mobile browser:
 - после существенного шага снова обнови SESSION-HANDOFF, DEVELOPMENT-LOG и SESSION-LEDGER.
 ```
 
+## 2026-04-18 Stop-Point — Builder Reset/Disconnect + Fullscreen Deployed
+
+Done in this session:
+- Implemented and shipped cascade builder UX fixes:
+  - reset button now clears all current links (`draft + live`);
+  - right-click on line disconnects hop (draft or live);
+  - selected hop can be removed via `Delete`/`Backspace`;
+  - live-hop inspector now has explicit `Disconnect link` action.
+- Improved graph and flow readability:
+  - edge endpoints are now anchored to port centers;
+  - status-based coloring split added (online/pending/offline-failed);
+  - packet-flow animation now also covers `active/deployed` statuses.
+- Improved right inspector navigation:
+  - selecting node/hop/Internet scrolls inspector column to top;
+  - Internet list items are clickable and focus related exit nodes.
+- Implemented native Fullscreen API behavior for builder:
+  - fullscreen toggle now requests true fullscreen;
+  - `Esc` exits; UI state synchronizes on `fullscreenchange`.
+- Code and deployment:
+  - code commit: `e09ac95`;
+  - deploy UUID: `l3zntrbwr90pks4tx9ns7mst`;
+  - stand: `running:healthy`.
+
+Current stop-point:
+- Core requested fixes are shipped to stand and ready for UX validation.
+- Remaining UX refinement likely needed after user test:
+  - optional “drag line to empty canvas to disconnect” gesture (not implemented yet);
+  - additional curve routing polish for dense/overlapping chains.
+
+Next step:
+1. Run user validation pass on stand for:
+   - reset all links,
+   - right-click disconnect,
+   - fullscreen behavior,
+   - edge color/animation clarity.
+2. If requested by user after test:
+   - add drag-to-empty unlink gesture;
+   - tune dense-graph bezier routing and anti-overlap spacing.
+3. Continue cascade diagnostics depth + staged legacy `setupJobs` retirement.
+
+## Prompt For Next Session (Latest, supersedes older prompts)
+
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+7. docs/node-onboarding-rewrite-blueprint.ru.md
+
+Потом сразу продолжай без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связан с Rabbit Platform;
+- continuity docs — source of truth;
+- последний код-коммит в main: e09ac95;
+- последний docs-коммит в main: (заполнить после фиксации текущей docs-wave);
+- стенд: https://tunnel.hiddenrabbit.net.ru/panel, статус running:healthy;
+- деплой последнего кода: l3zntrbwr90pks4tx9ns7mst (finished).
+
+Что уже сделано:
+- reset links теперь удаляет draft+live связи;
+- unlink с линии по правому клику + Del/Backspace для выбранного hop;
+- native fullscreen для builder;
+- status-color split и flow animation для active/deployed;
+- clickable Internet exits + inspector auto-scroll to top.
+
+Приоритет:
+1) получить живой UX-фидбек с теста на стенде и точечно добить оставшиеся шероховатости;
+2) при необходимости добавить жест:
+   - drag line to empty canvas => unlink конкретной связи;
+3) продолжить cascade diagnostics depth (chain/hop/node reasons + repair/re-run actions);
+4) параллельно продолжать staged retirement legacy setupJobs без ломки fallback.
+
+Важно:
+- не смешивать код-коммит и docs-коммит;
+- после существенного шага обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```
+
 ## 2026-04-18 Stop-Point — Builder Connect Stabilized + Internet Context
 
 Done:
