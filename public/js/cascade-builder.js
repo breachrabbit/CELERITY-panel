@@ -29,6 +29,7 @@
         execution: null,
         executionReruns: {},
         executionFilter: 'all',
+        connectIntent: null,
         selection: { type: null, id: null },
     };
     const HOP_MODE_OPTIONS = ['reverse', 'forward'];
@@ -366,6 +367,17 @@
                 },
             },
             {
+                selector: 'node[isPort = 1].builder-connect-source',
+                style: {
+                    'border-color': '#02A8AD',
+                    'border-width': 3,
+                    'background-color': '#ffffff',
+                    'shadow-blur': 8,
+                    'shadow-opacity': 0.32,
+                    'shadow-color': '#08C5CB',
+                },
+            },
+            {
                 selector: 'edge',
                 style: {
                     'curve-style': 'bezier',
@@ -486,6 +498,34 @@
             isPort: false,
             portType: '',
         };
+    }
+
+    function clearConnectIntent() {
+        if (state.cy && state.connectIntent?.sourcePortId) {
+            const sourcePort = state.cy.getElementById(state.connectIntent.sourcePortId);
+            if (sourcePort.length) {
+                sourcePort.removeClass('builder-connect-source');
+            }
+        }
+        state.connectIntent = null;
+    }
+
+    function setConnectIntent(sourceNodeId, sourcePortId) {
+        clearConnectIntent();
+        const nodeId = String(sourceNodeId || '').trim();
+        const portId = String(sourcePortId || '').trim();
+        if (!nodeId || !portId) return;
+        state.connectIntent = {
+            sourceNodeId: nodeId,
+            sourcePortId: portId,
+        };
+        if (state.cy) {
+            const sourcePort = state.cy.getElementById(portId);
+            if (sourcePort.length) {
+                sourcePort.addClass('builder-connect-source');
+            }
+        }
+        toast(i18n.connectPickTarget || 'Select target node to create draft hop.');
     }
 
     function getPortPositionFromNodeElement(nodeElement, portType) {
@@ -1932,6 +1972,7 @@
 
         state.cy.on('tap', (event) => {
             if (event.target === state.cy) {
+                clearConnectIntent();
                 renderInspectorEmpty();
             }
         });
@@ -1977,8 +2018,28 @@
         state.cy.on('tapstart', 'node[isPort = 1][portType = "out"]', (event) => {
             if (!state.edgehandles || typeof state.edgehandles.start !== 'function') return;
             const sourcePort = event.target;
-            if (typeof state.edgehandles.canStartOn === 'function' && !state.edgehandles.canStartOn(sourcePort)) return;
+            if (state.edgehandles) state.edgehandles.grabbingNode = false;
             state.edgehandles.start(sourcePort);
+        });
+
+        // Fallback connect mode: tap OUT port -> tap target node/IN port.
+        state.cy.on('tap', 'node[isPort = 1][portType = "out"]', (event) => {
+            const sourceEndpoint = resolveConnectEndpoint(event.target);
+            if (!sourceEndpoint.ownerNodeId) return;
+            setConnectIntent(sourceEndpoint.ownerNodeId, event.target.id());
+        });
+
+        state.cy.on('tap', 'node[isPort = 1][portType = "in"], node[isPort != 1]', async (event) => {
+            const pending = state.connectIntent;
+            if (!pending?.sourceNodeId) return;
+            const targetEndpoint = resolveConnectEndpoint(event.target);
+            const targetNodeId = targetEndpoint.ownerNodeId;
+            if (!targetNodeId) return;
+
+            const sourceNodeId = String(pending.sourceNodeId || '').trim();
+            clearConnectIntent();
+            if (!sourceNodeId || sourceNodeId === targetNodeId) return;
+            await handleDraftConnect(sourceNodeId, targetNodeId);
         });
     }
 
