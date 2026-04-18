@@ -40,6 +40,7 @@ const mcpRoutes = require('./src/routes/mcp');
 
 const helmet = require('helmet');
 const app = express();
+const ASSET_VERSION = process.env.ASSET_VERSION || process.env.COOLIFY_DEPLOYMENT_UUID || String(Date.now());
 
 app.set('trust proxy', 1);
 
@@ -95,6 +96,10 @@ app.use((req, res, next) => {
 
 app.use(cookieParser());
 app.use(i18nMiddleware);
+app.use((req, res, next) => {
+    res.locals.assetVersion = ASSET_VERSION;
+    next();
+});
 app.use(countRequest);
 app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,

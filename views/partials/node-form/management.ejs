@@ -3,7 +3,7 @@
 <div class="card mt-3" id="xrayNodeInfoCard">
     <div class="card-header">
         <h2><img src="/img/xray.svg" alt="Xray" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;"><%= t('nodes.nodeInfo') %></h2>
-        <button class="btn btn-sm" onclick="refreshNodeInfo()" id="btnRefreshInfo" title="<%= t('common.refresh') %>">
+        <button type="button" class="btn btn-sm" onclick="refreshNodeInfo()" id="btnRefreshInfo" title="<%= t('common.refresh') %>">
             <i class="ti ti-refresh"></i>
         </button>
     </div>
@@ -99,10 +99,10 @@
                     </td>
                     <td>
                         <div class="cascade-link-actions">
-                        <button class="btn btn-sm btn-success" onclick="cascadeAction('<%= link._id %>', 'deploy', this)">
+                        <button type="button" class="btn btn-sm btn-success" onclick="cascadeAction('<%= link._id %>', 'deploy', this)">
                             <i class="ti ti-upload"></i> <%= t('network.deploy') %>
                         </button>
-                        <button class="btn btn-sm btn-danger btn-icon" onclick="cascadeDelete('<%= link._id %>', '<%= link.name.replace(/'/g, "\\'") %>')" title="<%= t('common.delete') %>">
+                        <button type="button" class="btn btn-sm btn-danger btn-icon" onclick="cascadeDelete('<%= link._id %>', '<%= link.name.replace(/'/g, "\\'") %>')" title="<%= t('common.delete') %>">
                             <i class="ti ti-trash"></i>
                         </button>
                         </div>
@@ -134,15 +134,15 @@
         </div>
         <% } %>
         <div class="actions-grid">
-            <button class="action-btn" onclick="setupNode()" id="btnSetup" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
+            <button type="button" class="action-btn" onclick="setupNode()" id="btnSetup" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
                 <span class="action-icon"><i class="ti ti-settings"></i></span>
                 <span><%= t('nodes.autoSetup') %></span>
             </button>
-            <button class="action-btn" onclick="resumeOnboarding()" id="btnResumeOnboarding" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
+            <button type="button" class="action-btn" onclick="resumeOnboarding()" id="btnResumeOnboarding" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
                 <span class="action-icon"><i class="ti ti-player-play"></i></span>
                 <span><%= t('nodes.onboardingResume') %></span>
             </button>
-            <button class="action-btn" onclick="repairOnboarding()" id="btnRepairOnboarding" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
+            <button type="button" class="action-btn" onclick="repairOnboarding()" id="btnRepairOnboarding" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
                 <span class="action-icon"><i class="ti ti-bolt"></i></span>
                 <span><%= t('nodes.onboardingRepair') %></span>
             </button>
@@ -174,25 +174,25 @@
                 <span><%= t('nodes.downloadSshKey') %></span>
             </span>
             <% } %>
-            <button class="action-btn" onclick="openTerminal()">
+            <button type="button" class="action-btn" onclick="openTerminal()">
                 <span class="action-icon"><i class="ti ti-terminal-2"></i></span>
                 <span><%= t('nodes.terminal') %></span>
             </button>
-            <button class="action-btn" onclick="getNodeLogs()">
+            <button type="button" class="action-btn" onclick="getNodeLogs()">
                 <span class="action-icon"><i class="ti ti-file-text"></i></span>
                 <span><%= t('nodes.viewLogs') %></span>
             </button>
             <% if (node.type !== 'xray') { %>
-            <button class="action-btn" onclick="runHybridSmokeCheck()" id="btnHybridSmoke" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
+            <button type="button" class="action-btn" onclick="runHybridSmokeCheck()" id="btnHybridSmoke" <%= !node.ssh?.password && !node.ssh?.privateKey ? 'disabled title="Configure SSH first"' : '' %>>
                 <span class="action-icon"><i class="ti ti-heart-rate-monitor"></i></span>
                 <span><%= t('nodes.hybridSmokeCheck') %></span>
             </button>
             <% } %>
-            <button class="action-btn" onclick="checkStatus()">
+            <button type="button" class="action-btn" onclick="checkStatus()">
                 <span class="action-icon"><i class="ti ti-search"></i></span>
                 <span><%= t('nodes.checkStatus') %></span>
             </button>
-            <button class="action-btn" onclick="resetStatus()">
+            <button type="button" class="action-btn" onclick="resetStatus()">
                 <span class="action-icon"><i class="ti ti-refresh"></i></span>
                 <span><%= t('nodes.resetStatus') %></span>
             </button>
@@ -224,7 +224,7 @@
         <div id="logsContainer" class="mt-2" style="display:none;">
             <div class="logs-header">
                 <strong><%= t('nodes.executionLogs') %></strong>
-                <button class="btn btn-sm" onclick="clearLogs()"><%= t('common.clear') %></button>
+                <button type="button" class="btn btn-sm" onclick="clearLogs()"><%= t('common.clear') %></button>
             </div>
             <pre class="logs-output" id="logsOutput"></pre>
         </div>

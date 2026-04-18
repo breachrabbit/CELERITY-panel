@@ -1727,7 +1727,7 @@ html.layout-stabilizing * {
 
 #nodesTable {
     width: 100%;
-    min-width: 860px;
+    min-width: 720px;
     table-layout: auto;
 }
 
@@ -1736,6 +1736,20 @@ html.layout-stabilizing * {
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+}
+
+#nodesTable th,
+#nodesTable td {
+    padding: 14px 12px;
+    vertical-align: middle;
+}
+
+#nodesTable td .node-name-cell {
+    min-width: 220px;
+}
+
+#nodesTable td code {
+    white-space: nowrap;
 }
 
 .user-row {
@@ -2231,7 +2245,7 @@ html.layout-stabilizing * {
 .hr-confirm-modal {
     position: fixed;
     inset: 0;
-    z-index: 1200;
+    z-index: 5000;
     display: none;
     align-items: center;
     justify-content: center;
@@ -3567,6 +3581,10 @@ body.mobile-menu-open {
     .nodes-table-wrapper {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    #nodesTable {
+        min-width: 620px;
     }
     
     /* Quick Actions */

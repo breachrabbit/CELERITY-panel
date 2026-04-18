@@ -1714,9 +1714,17 @@ touch /var/log/xray/access.log /var/log/xray/error.log
 XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"
 [ -z "$XRAY_USER" ] && XRAY_USER="nobody"
 XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"
-chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true
+XRAY_OWNER_OK=0
+if chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null; then
+    XRAY_OWNER_OK=1
+fi
 chmod 755 /var/log/xray
-chmod 640 /var/log/xray/access.log /var/log/xray/error.log
+if [ "$XRAY_OWNER_OK" = "1" ]; then
+    chmod 640 /var/log/xray/access.log /var/log/xray/error.log
+else
+    echo "WARN: Could not chown /var/log/xray to $XRAY_USER:$XRAY_GROUP, applying fallback permissions"
+    chmod 666 /var/log/xray/access.log /var/log/xray/error.log
+fi
 echo "Done: Xray directories ready"
 `;
 
@@ -1986,9 +1994,17 @@ touch /var/log/xray/access.log /var/log/xray/error.log
 XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"
 [ -z "$XRAY_USER" ] && XRAY_USER="nobody"
 XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"
-chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true
+XRAY_OWNER_OK=0
+if chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null; then
+    XRAY_OWNER_OK=1
+fi
 chmod 755 /var/log/xray
-chmod 640 /var/log/xray/access.log /var/log/xray/error.log
+if [ "$XRAY_OWNER_OK" = "1" ]; then
+    chmod 640 /var/log/xray/access.log /var/log/xray/error.log
+else
+    echo "WARN: Could not chown /var/log/xray to $XRAY_USER:$XRAY_GROUP, applying fallback permissions"
+    chmod 666 /var/log/xray/access.log /var/log/xray/error.log
+fi
         `);
         if (!onLogLine && fixLogPermsResult.output) logs.push(fixLogPermsResult.output);
         if (!fixLogPermsResult.success) {
@@ -2457,9 +2473,17 @@ touch /var/log/xray/access.log /var/log/xray/error.log
 XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"
 [ -z "$XRAY_USER" ] && XRAY_USER="nobody"
 XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"
-chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true
+XRAY_OWNER_OK=0
+if chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null; then
+    XRAY_OWNER_OK=1
+fi
 chmod 755 /var/log/xray
-chmod 640 /var/log/xray/access.log /var/log/xray/error.log
+if [ "$XRAY_OWNER_OK" = "1" ]; then
+    chmod 640 /var/log/xray/access.log /var/log/xray/error.log
+else
+    echo "WARN: Could not chown /var/log/xray to $XRAY_USER:$XRAY_GROUP, applying fallback permissions"
+    chmod 666 /var/log/xray/access.log /var/log/xray/error.log
+fi
 
 echo "=== [3/5] Writing config ==="
 cat > /etc/cc-agent/config.json << 'EOFCONFIG'

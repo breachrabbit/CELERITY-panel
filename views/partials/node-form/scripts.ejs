@@ -573,6 +573,8 @@ const i18n = {
     hybridSmokeFailed: <%- JSON.stringify(t("nodes.hybridSmokeFailed")) %>,
     hybridSmokeSummary: <%- JSON.stringify(t("nodes.hybridSmokeSummary")) %>,
     autoSetup: <%- JSON.stringify(t("nodes.autoSetup")) %>,
+    confirm: <%- JSON.stringify(t("common.confirm")) %>,
+    cancel: <%- JSON.stringify(t("common.cancel")) %>,
     error: <%- JSON.stringify(t("common.error")) %>,
     confirmDeployCascade: <%- JSON.stringify(t("nodes.confirmDeployCascade")) %>,
     confirmUndeployCascade: <%- JSON.stringify(t("nodes.confirmUndeployCascade")) %>,
@@ -1434,7 +1436,11 @@ async function loadOnboardingJobs() {
 
 async function setupNode() {
     const confirmMsg = nodeType === 'xray' ? i18n.autoSetupConfirmXray : i18n.autoSetupConfirm;
-    if (!await window.hrConfirm(confirmMsg)) return;
+    if (!await window.hrConfirm(confirmMsg, {
+        title: i18n.autoSetup || 'Setup automatically',
+        confirmText: i18n.confirm || 'Confirm',
+        cancelText: i18n.cancel || 'Cancel',
+    })) return;
     const btn = document.getElementById('btnSetup');
     setActionButtonBusy(btn, true, 'ti ti-settings', i18n.autoSetup);
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.setupRunning + '</div>';

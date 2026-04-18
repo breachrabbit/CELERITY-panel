@@ -168,9 +168,14 @@ async function runPrepareHost({ job, context = {} }) {
             'XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"',
             '[ -z "$XRAY_USER" ] && XRAY_USER="nobody"',
             'XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"',
-            'chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true',
+            'XRAY_OWNER_OK=0',
+            'if chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null; then XRAY_OWNER_OK=1; fi',
             'chmod 755 /var/log/xray || true',
-            'chmod 640 /var/log/xray/access.log /var/log/xray/error.log || true',
+            'if [ "$XRAY_OWNER_OK" = "1" ]; then',
+            '  chmod 640 /var/log/xray/access.log /var/log/xray/error.log || true',
+            'else',
+            '  chmod 666 /var/log/xray/access.log /var/log/xray/error.log || true',
+            'fi',
             'echo "__prepared__=1"',
         ].join('\n');
 
@@ -230,9 +235,14 @@ async function tryRecoverXrayAccessLogPermission(nodeId, onLogLine = null) {
             '  XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"',
             '  [ -z "$XRAY_USER" ] && XRAY_USER="nobody"',
             '  XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"',
-            '  chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true',
+            '  XRAY_OWNER_OK=0',
+            '  if chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null; then XRAY_OWNER_OK=1; fi',
             '  chmod 755 /var/log/xray || true',
-            '  chmod 640 /var/log/xray/access.log /var/log/xray/error.log || true',
+            '  if [ "$XRAY_OWNER_OK" = "1" ]; then',
+            '    chmod 640 /var/log/xray/access.log /var/log/xray/error.log || true',
+            '  else',
+            '    chmod 666 /var/log/xray/access.log /var/log/xray/error.log || true',
+            '  fi',
             '  systemctl restart xray 2>/dev/null || true',
             '  sleep 2',
             'fi',
@@ -335,7 +345,22 @@ async function runVerifyRuntimeLocal({ job, context = {} }) {
     }
 
     if (!resolvedStatus.online) {
-        throw new Error(`Runtime is offline (${resolvedStatus.error || resolvedStatus.status || 'no status'})`);
+        let diagnostics = '';
+        try {
+            if (node.type === 'xray') {
+                const xrayLogs = await nodeSetup.getXrayNodeLogs(node, 30);
+                if (xrayLogs?.success && xrayLogs?.logs) diagnostics = tailText(xrayLogs.logs, 700);
+            } else {
+                const hyLogs = await nodeSetup.getNodeLogs(node, 30);
+                if (hyLogs?.success && hyLogs?.logs) diagnostics = tailText(hyLogs.logs, 700);
+            }
+        } catch (_) {
+            diagnostics = '';
+        }
+        throw new Error(
+            `Runtime is offline (${resolvedStatus.error || resolvedStatus.status || 'no status'})` +
+            (diagnostics ? ` — ${diagnostics}` : '')
+        );
     }
 
     return {
