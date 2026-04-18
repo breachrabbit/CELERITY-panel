@@ -935,14 +935,18 @@ async function waitForListeningSocket(conn, port, options = {}) {
     const intervalMs = Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 1000;
     const deadline = Date.now() + timeoutMs;
     const portNum = Number(port);
+    const allowServiceFallback = protocol === 'udp' ? options.allowServiceFallback !== false : false;
+    const fallbackServices = Array.isArray(options.serviceNames) && options.serviceNames.length
+        ? options.serviceNames
+        : ['hysteria-server', 'hysteria'];
 
     const buildCheck = () => {
         if (protocol === 'udp') {
             return `
 if command -v ss >/dev/null 2>&1; then
-    ss -lun 2>/dev/null | awk '{print $5}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting
+    ss -lunH 2>/dev/null | awk '{print $5}' | grep -E '[:.]${portNum}$' >/dev/null && echo listening || echo waiting
 elif command -v netstat >/dev/null 2>&1; then
-    netstat -lun 2>/dev/null | awk '{print $4}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting
+    netstat -lun 2>/dev/null | awk '{print $4}' | grep -E '[:.]${portNum}$' >/dev/null && echo listening || echo waiting
 else
     echo unknown
 fi
@@ -950,9 +954,9 @@ fi
         }
         return `
 if command -v ss >/dev/null 2>&1; then
-    ss -ltn 2>/dev/null | awk '{print $4}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting
+    ss -ltnH 2>/dev/null | awk '{print $4}' | grep -E '[:.]${portNum}$' >/dev/null && echo listening || echo waiting
 elif command -v netstat >/dev/null 2>&1; then
-    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -F ':${portNum}' >/dev/null && echo listening || echo waiting
+    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -E '[:.]${portNum}$' >/dev/null && echo listening || echo waiting
 else
     echo unknown
 fi
@@ -963,11 +967,32 @@ fi
         const result = await execSSH(conn, buildCheck());
         const state = String(result.output || '').trim().split('\n').pop();
         if (state === 'listening' || state === 'unknown') {
-            return true;
+            return { listening: true, via: state === 'unknown' ? 'unknown-tool' : 'socket' };
         }
         if (Date.now() < deadline) {
             await new Promise(resolve => setTimeout(resolve, intervalMs));
         }
+    }
+
+    if (allowServiceFallback) {
+        const serviceState = await getServiceState(conn, fallbackServices);
+        const diagnostics = await collectServiceDiagnostics(conn, fallbackServices, 20);
+        const normalizedDiagnostics = String(diagnostics || '').toLowerCase();
+        const hasBindError = /(failed to listen|failed to bind|cannot bind|address already in use|permission denied)/i.test(normalizedDiagnostics);
+
+        if (serviceState === 'active' && !hasBindError) {
+            return {
+                listening: false,
+                via: 'service-active-fallback',
+                serviceState,
+                diagnostics: trimExecOutput({ output: diagnostics }, 700),
+            };
+        }
+
+        throw new Error(
+            `${protocol.toUpperCase()} port ${portNum} is not listening after service start (service: ${serviceState || 'unknown'})` +
+            (diagnostics ? `. Diagnostics: ${trimExecOutput({ output: diagnostics }, 700)}` : '')
+        );
     }
 
     throw new Error(`${protocol.toUpperCase()} port ${portNum} is not listening after service start`);
@@ -1290,6 +1315,7 @@ systemctl restart ${shellQuote(serviceUnitName)}
             }
         }
 
+        log(`Port hopping decision: enabled=${setupPortHopping ? 'yes' : 'no'}, sameVps=${isSameVpsSetup ? 'yes' : 'no'}, range=${node.portRange || 'none'}`);
         if (setupPortHopping && node.portRange) {
             if (isSameVpsSetup) {
                 log('Skipping port hopping for same-VPS node (incompatible with panel networking)');
@@ -1306,6 +1332,8 @@ systemctl restart ${shellQuote(serviceUnitName)}
                     }
                 }
             }
+        } else {
+            log('Port hopping skipped (disabled or no range configured)');
         }
 
         const statsPort = node.statsPort || 9999;
@@ -1356,7 +1384,15 @@ journalctl -u hysteria-server -u hysteria -n 20 --no-pager || true
                 timeoutMs: 25000,
                 journalLines: 20,
             });
-            await waitForListeningSocket(conn, mainPort, { protocol: 'udp', timeoutMs: 15000 });
+            const listenerProbe = await waitForListeningSocket(conn, mainPort, {
+                protocol: 'udp',
+                timeoutMs: 20000,
+                serviceNames: ['hysteria-server', 'hysteria'],
+                allowServiceFallback: true,
+            });
+            if (listenerProbe?.via === 'service-active-fallback') {
+                log('UDP listener probe returned no socket output, but service is active. Continuing with fallback health check.');
+            }
             log('Hysteria service restarted');
         }
 

@@ -537,7 +537,6 @@
                 position: getPortPositionFromRaw(node.position, 'in'),
                 grabbable: false,
                 selectable: false,
-                locked: true,
             });
             elements.push({
                 group: 'nodes',
@@ -551,7 +550,6 @@
                 position: getPortPositionFromRaw(node.position, 'out'),
                 grabbable: false,
                 selectable: false,
-                locked: true,
             });
         }
 
@@ -561,8 +559,8 @@
                 data: {
                     id: hop.edgeId || hop.id,
                     hopId: hop.id,
-                    source: hop.sourceNodeId,
-                    target: hop.targetNodeId,
+                    source: buildPortId(hop.sourceNodeId, 'out'),
+                    target: buildPortId(hop.targetNodeId, 'in'),
                     label: hop.isDraft ? (i18n.draftTag || 'Draft') : `${hop.mode.toUpperCase()} · ${hop.stack.toUpperCase()}`,
                     status: hop.status,
                     isDraft: hop.isDraft ? 1 : 0,
@@ -1886,7 +1884,6 @@
         const portNodes = state.cy.nodes('[isPort = 1]');
         if (portNodes.length) {
             portNodes.ungrabify();
-            portNodes.lock();
         }
         syncAllNodePorts();
 
@@ -1998,8 +1995,8 @@
                 data: {
                     id: draftHop.edgeId,
                     hopId: draftHop.id,
-                    source: draftHop.sourceNodeId,
-                    target: draftHop.targetNodeId,
+                    source: buildPortId(draftHop.sourceNodeId, 'out'),
+                    target: buildPortId(draftHop.targetNodeId, 'in'),
                     label: i18n.draftTag || 'Draft',
                     status: 'draft',
                     isDraft: 1,
