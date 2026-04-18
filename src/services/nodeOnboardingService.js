@@ -390,10 +390,12 @@ class NodeOnboardingService {
             readyState.startedAt = readyState.startedAt || new Date();
             readyState.finishedAt = new Date();
         }
+        readyState.lastError = null;
 
         this._setJobStatus(job, 'completed');
         job.currentStep = lastStep;
         job.resultSnapshot = resultSnapshot && typeof resultSnapshot === 'object' ? resultSnapshot : {};
+        job.lastError = null;
         job.lastHeartbeatAt = new Date();
         this._appendLog(job, { step: lastStep, message: 'Onboarding completed' });
 

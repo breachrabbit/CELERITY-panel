@@ -1216,7 +1216,8 @@ function buildOnboardingDiagnosticText(job) {
     lines.push(`Status: ${String(job?.status || 'unknown')}`);
     lines.push(`Current step: ${String(job?.currentStep || 'n/a')}`);
     lines.push(`Updated: ${formatOnboardingJobDate(job?.updatedAt || job?.lastHeartbeatAt || job?.finishedAt || job?.startedAt)}`);
-    if (job?.lastError?.message) {
+    const status = String(job?.status || 'unknown').toLowerCase();
+    if (status !== 'completed' && job?.lastError?.message) {
         lines.push(`Error: ${String(job.lastError.message)}`);
     }
     lines.push('');
@@ -1360,7 +1361,9 @@ function renderOnboardingJobsSummary(jobs) {
         const modeLabel = getOnboardingJobModeLabel(job);
         const step = humanizeOnboardingStep(job?.currentStep || 'preflight');
         const updated = formatOnboardingJobDate(job?.updatedAt || job?.lastHeartbeatAt || job?.finishedAt || job?.startedAt);
-        const errorText = String(job?.lastError?.message || '').trim();
+        const errorText = status === 'completed'
+            ? ''
+            : String(job?.lastError?.message || '').trim();
         const canResume = canResumeJob(job);
         const logs = (Array.isArray(job?.stepLogs) ? job.stepLogs : []).slice(-8)
             .map((entry) => {

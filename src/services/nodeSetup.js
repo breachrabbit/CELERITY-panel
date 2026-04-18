@@ -2416,6 +2416,17 @@ echo "Done: TLS cert generated"
 echo "TLS disabled, skipping cert generation"
 `;
 
+    const agentReleaseBase = String(config.CC_AGENT_RELEASE_BASE || 'https://github.com/breachrabbit/CELERITY-panel/releases')
+        .trim()
+        .replace(/\/+$/, '');
+    const agentReleaseTag = String(config.CC_AGENT_RELEASE_TAG || 'latest').trim() || 'latest';
+    const directReleaseUrl = agentReleaseTag === 'latest'
+        ? `${agentReleaseBase}/latest/download/$BIN_NAME`
+        : `${agentReleaseBase}/download/${agentReleaseTag}/$BIN_NAME`;
+    const proxyBase = directReleaseUrl.startsWith('https://github.com/')
+        ? directReleaseUrl
+        : '';
+
     const AGENT_INSTALL = `#!/bin/bash
 set -euo pipefail
 
@@ -2427,10 +2438,11 @@ else
     BIN_NAME="cc-agent-linux-amd64"
 fi
 
-GITHUB_URL="https://github.com/ClickDevTech/CELERITY-panel/releases/latest/download/$BIN_NAME"
-MIRROR_URL_1="https://ghproxy.com/https://github.com/ClickDevTech/CELERITY-panel/releases/latest/download/$BIN_NAME"
-MIRROR_URL_2="https://mirror.ghproxy.com/https://github.com/ClickDevTech/CELERITY-panel/releases/latest/download/$BIN_NAME"
-MIRROR_URL_3="https://ghproxy.net/https://github.com/ClickDevTech/CELERITY-panel/releases/latest/download/$BIN_NAME"
+GITHUB_URL="${directReleaseUrl}"
+MIRROR_URL_1="${proxyBase ? `https://ghproxy.com/${proxyBase}` : ''}"
+MIRROR_URL_2="${proxyBase ? `https://mirror.ghproxy.com/${proxyBase}` : ''}"
+MIRROR_URL_3="${proxyBase ? `https://ghproxy.net/${proxyBase}` : ''}"
+echo "Agent release source: $GITHUB_URL"
 
 # Clean up any previous broken/stale binary before downloading
 rm -f /usr/local/bin/cc-agent
@@ -2440,6 +2452,7 @@ DOWNLOADED=0
 for ATTEMPT in 1 2 3; do
     echo "Download attempt $ATTEMPT/3..."
     for URL in "$GITHUB_URL" "$MIRROR_URL_1" "$MIRROR_URL_2" "$MIRROR_URL_3"; do
+        [ -z "$URL" ] && continue
         echo "Trying: $URL"
         rm -f /usr/local/bin/cc-agent
         if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 180 \

@@ -27,6 +27,8 @@ module.exports = {
     API_DOCS_ENABLED: process.env.API_DOCS_ENABLED === 'true',
     FEATURE_CASCADE_HYBRID: process.env.FEATURE_CASCADE_HYBRID !== 'false',
     HYSTERIA_VERSION: String(process.env.HYSTERIA_VERSION || '').trim(),
+    CC_AGENT_RELEASE_BASE: String(process.env.CC_AGENT_RELEASE_BASE || 'https://github.com/breachrabbit/CELERITY-panel/releases').trim(),
+    CC_AGENT_RELEASE_TAG: String(process.env.CC_AGENT_RELEASE_TAG || 'latest').trim(),
     DEFAULT_NODE_CONFIG: {
         portRange: '20000-50000',
         mainPort: 443,

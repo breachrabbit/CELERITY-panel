@@ -1905,6 +1905,7 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
             const mappedState = mapOnboardingStatusToSetupState(onboardingStatus.status);
             const onboardingLogs = Array.isArray(onboardingStatus.logs) ? onboardingStatus.logs : [];
             const mergedLogs = trimSetupLogs(onboardingLogs);
+            const runtimeError = mappedState === 'success' ? '' : (onboardingStatus.lastError || '');
             return res.json({
                 success: true,
                 state: mappedState,
@@ -1912,11 +1913,12 @@ router.get('/nodes/:id/setup-status', async (req, res) => {
                 statusSource: 'onboarding',
                 logs: mergedLogs,
                 message: mappedState === 'success' ? 'Нода успешно настроена' : '',
-                error: onboardingStatus.lastError || '',
+                error: runtimeError,
                 startedAt: onboardingStatus.startedAt || null,
                 finishedAt: onboardingStatus.finishedAt || null,
                 onboarding: {
                     ...onboardingStatus,
+                    lastError: runtimeError,
                     logs: mergedLogs,
                 },
                 setupMode: onboardingMode || SETUP_MODE_ONBOARDING_FULL,
