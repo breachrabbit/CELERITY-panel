@@ -1779,3 +1779,28 @@ Change type:
 
 - `local patch` — cascade builder UX/logic
 - `stability fix` — deterministic link reset/disconnect controls
+
+## 2026-04-18 Builder Curves + Drag-To-Empty Disconnect
+
+- Added a disconnect gesture fallback for operators:
+  - when drag-connect starts from node OUT port and ends on empty canvas, builder now offers disconnect for the outgoing link of that source node;
+  - protected against false positives:
+    - short accidental taps are ignored;
+    - gesture is ignored when a valid target was hovered during drag;
+    - if a node has multiple outgoing links, UI asks to use exact line disconnect (right-click) instead of ambiguous auto-remove.
+- Improved edge routing/readability on dense graphs:
+  - switched hop edges to `unbundled-bezier` with data-driven curve offsets;
+  - added deterministic per-hop curve fanout and reverse-direction bias;
+  - updated edge rendering to use rounded joins/caps and `vee` arrows;
+  - virtual Internet egress edges now share the same smooth routing model.
+- Added new i18n strings (`ru`/`en`) for drag disconnect hints.
+- Code commit:
+  - `386317d` — `feat: add drag-to-empty disconnect gesture and smooth builder curves`
+- Deployed to stand:
+  - deployment `y6rq8z8oe2fj6mmcd5onwucp` finished;
+  - app status `running:healthy`.
+
+Change type:
+
+- `local patch` — cascade builder connect/disconnect UX
+- `ux` — graph readability / dense edge routing

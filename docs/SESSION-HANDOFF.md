@@ -2346,6 +2346,74 @@ Next step:
   - docs/SESSION-LEDGER.md
 ```
 
+## 2026-04-18 Stop-Point — Builder Drag-To-Empty Disconnect + Curve Routing Update
+
+Done in this session:
+- Shipped builder connect/disconnect UX + routing update:
+  - drag-connect to empty canvas now triggers disconnect path for source outgoing link (with guardrails);
+  - existing right-click/keyboard disconnect flows kept as explicit exact actions;
+  - edge routing switched to data-driven `unbundled-bezier` with deterministic curve fanout;
+  - virtual Internet edges aligned to same smooth routing model.
+- Code + deploy:
+  - code commit: `386317d`;
+  - deploy UUID: `y6rq8z8oe2fj6mmcd5onwucp`;
+  - stand: `running:healthy`.
+
+Current stop-point:
+- Core UX complaints on reset/disconnect/curves addressed in code and deployed.
+- Next pass should be operator validation on real mixed topologies + constant tuning (curve spacing/bias).
+
+Next step:
+1. Live check on stand (`/panel/cascades/builder`):
+   - connect from right port -> left port/node;
+   - right-click disconnect;
+   - drag to empty (disconnect intent) on source out-port.
+2. If user still sees visually “crooked” segments:
+   - tune `curveDistance` fanout / reverse bias constants in `buildHopCurveMap`.
+3. Continue cascade diagnostics depth + staged retirement of legacy `setupJobs` control/status path.
+
+## Prompt For Next Session (Latest)
+
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+7. docs/node-onboarding-rewrite-blueprint.ru.md
+
+Потом сразу продолжай без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связан с Rabbit Platform;
+- continuity docs — source of truth;
+- последний код-коммит в main: 386317d;
+- последний docs-коммит в main: (заполнить после фиксации текущей docs-wave);
+- стенд: https://tunnel.hiddenrabbit.net.ru/panel, статус running:healthy;
+- последний деплой: y6rq8z8oe2fj6mmcd5onwucp (finished).
+
+Что уже сделано:
+- reset links удаляет draft+live;
+- right-click/keyboard disconnect для hop;
+- fullscreen + inspector auto-scroll;
+- добавлен drag-to-empty disconnect intent для исходящей связи;
+- включён data-driven smooth routing (`unbundled-bezier`) для hops + Internet edges.
+
+Приоритет:
+1) живой UX-прогон builder на реальных цепочках и точечная подстройка curve fanout;
+2) продолжить execution diagnostics depth (точнее chain/hop/node reasons + fast repair/rerun actions);
+3) параллельно staged retirement legacy setupJobs без ломки fallback.
+
+Важно:
+- не смешивать код-коммит и docs-коммит;
+- после существенного шага обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```
+
 ## 2026-04-18 Stop-Point — Builder Connect Stabilized + Internet Context
 
 Done:

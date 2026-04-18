@@ -828,3 +828,20 @@
   - deploy and run live manual drag test on stand;
   - verify no transient extra lines appear during connect;
   - tune visual routing/edge spacing after real user pass.
+
+## 2026-04-18 Session — Drag-To-Empty Disconnect + Smoother Curves
+
+- Worked on:
+  - need a faster way to disconnect specific links without hunting in inspector;
+  - graph lines still looked uneven/crooked on dense layouts.
+- Finished with:
+  - code commit `386317d` in `main`;
+  - drag-connect to empty canvas now acts as disconnect intent for source outgoing link (with safety guards);
+  - right-click disconnect remains the exact/primary per-line action;
+  - edges switched to data-driven smooth bezier routing with cleaner joins and consistent arrow style.
+- Deployed:
+  - `y6rq8z8oe2fj6mmcd5onwucp` (finished), stand `running:healthy`.
+- Next step:
+  - validate operator feel on real chains (connect/disconnect rhythm);
+  - if needed, fine-tune curve bias constants and per-density spacing;
+  - continue cascade diagnostics depth + staged legacy setupJobs retirement.
