@@ -465,6 +465,29 @@
         return Number(element.data('isPort')) === 1;
     }
 
+    function resolveConnectEndpoint(element) {
+        if (!element || !element.length) {
+            return {
+                ownerNodeId: '',
+                isPort: false,
+                portType: '',
+            };
+        }
+        const isPort = Number(element.data('isPort')) === 1;
+        if (isPort) {
+            return {
+                ownerNodeId: String(element.data('ownerNodeId') || '').trim(),
+                isPort: true,
+                portType: String(element.data('portType') || '').trim().toLowerCase(),
+            };
+        }
+        return {
+            ownerNodeId: String(element.id() || '').trim(),
+            isPort: false,
+            portType: '',
+        };
+    }
+
     function getPortPositionFromNodeElement(nodeElement, portType) {
         const width = Number(nodeElement.width()) || BUILDER_NODE_WIDTH;
         const delta = (width / 2) + BUILDER_PORT_OFFSET;
@@ -1923,11 +1946,15 @@
                 preview: true,
                 hoverDelay: 80,
                 canConnect: (sourceNode, targetNode) => {
-                    if (!isPortElement(sourceNode) || !isPortElement(targetNode)) return false;
-                    if (String(sourceNode.data('portType')) !== 'out') return false;
-                    if (String(targetNode.data('portType')) !== 'in') return false;
-                    const sourceOwner = String(sourceNode.data('ownerNodeId') || '').trim();
-                    const targetOwner = String(targetNode.data('ownerNodeId') || '').trim();
+                    const sourceEndpoint = resolveConnectEndpoint(sourceNode);
+                    const targetEndpoint = resolveConnectEndpoint(targetNode);
+
+                    if (!sourceEndpoint.isPort || sourceEndpoint.portType !== 'out') return false;
+                    if (!targetEndpoint.ownerNodeId) return false;
+                    if (targetEndpoint.isPort && targetEndpoint.portType !== 'in') return false;
+
+                    const sourceOwner = sourceEndpoint.ownerNodeId;
+                    const targetOwner = targetEndpoint.ownerNodeId;
                     if (!sourceOwner || !targetOwner) return false;
                     return sourceOwner !== targetOwner;
                 },
@@ -1935,13 +1962,24 @@
                 disableBrowserGestures: true,
                 complete: async (sourceNode, targetNode, addedEles) => {
                     if (addedEles && addedEles.remove) addedEles.remove();
-                    const sourceNodeId = String(sourceNode?.data('ownerNodeId') || '').trim();
-                    const targetNodeId = String(targetNode?.data('ownerNodeId') || '').trim();
+                    const sourceEndpoint = resolveConnectEndpoint(sourceNode);
+                    const targetEndpoint = resolveConnectEndpoint(targetNode);
+                    const sourceNodeId = sourceEndpoint.ownerNodeId;
+                    const targetNodeId = targetEndpoint.ownerNodeId;
                     if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
                     await handleDraftConnect(sourceNodeId, targetNodeId);
                 },
             });
         }
+
+        // This edgehandles bundle does not auto-start draw gestures from custom port nodes
+        // in non-draw mode, so we start it explicitly on tapstart over OUT ports.
+        state.cy.on('tapstart', 'node[isPort = 1][portType = "out"]', (event) => {
+            if (!state.edgehandles || typeof state.edgehandles.start !== 'function') return;
+            const sourcePort = event.target;
+            if (typeof state.edgehandles.canStartOn === 'function' && !state.edgehandles.canStartOn(sourcePort)) return;
+            state.edgehandles.start(sourcePort);
+        });
     }
 
     function focusNodeById(nodeId) {
