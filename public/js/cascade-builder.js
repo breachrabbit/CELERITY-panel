@@ -27,6 +27,7 @@
         cy: null,
         edgehandles: null,
         edgeDrawActive: false,
+        edgeDrawSession: null,
         edgeFlowTimer: null,
         edgeFlowOffset: 0,
         execution: null,
@@ -527,17 +528,21 @@
             {
                 selector: 'edge',
                 style: {
-                    'curve-style': 'bezier',
-                    'source-endpoint': 'center',
-                    'target-endpoint': 'center',
-                    'control-point-step-size': 40,
-                    'width': 3,
+                    'curve-style': 'unbundled-bezier',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
+                    'edge-distances': 'endpoints',
+                    'control-point-distances': 'data(curveDistance)',
+                    'control-point-weights': 'data(curveWeight)',
+                    'width': 4,
                     'line-color': palette.edgeColor,
                     'target-arrow-color': palette.edgeColor,
-                    'target-arrow-shape': 'triangle',
-                    'arrow-scale': 0.9,
+                    'target-arrow-shape': 'vee',
+                    'arrow-scale': 0.94,
                     'line-style': 'solid',
                     'overlay-opacity': 0,
+                    'line-cap': 'round',
+                    'line-join': 'round',
                     'label': 'data(label)',
                     'font-size': 9,
                     'font-family': 'Lilex, Inter, sans-serif',
@@ -589,13 +594,15 @@
                 selector: 'edge[isVirtualInternet = 1]',
                 style: {
                     'line-style': 'dashed',
-                    'curve-style': 'bezier',
-                    'source-endpoint': 'center',
-                    'target-endpoint': 'center',
-                    'control-point-step-size': 44,
+                    'curve-style': 'unbundled-bezier',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
+                    'edge-distances': 'endpoints',
+                    'control-point-distances': 'data(curveDistance)',
+                    'control-point-weights': 'data(curveWeight)',
                     'line-color': '#02A8AD',
                     'target-arrow-color': '#02A8AD',
-                    'target-arrow-shape': 'triangle',
+                    'target-arrow-shape': 'vee',
                     'arrow-scale': 0.72,
                     'width': 2,
                     'label': '',
@@ -929,11 +936,59 @@
         }).run();
     }
 
+    function buildHopCurveMap(hops) {
+        const buckets = new Map();
+        const reverseCounts = new Map();
+
+        (hops || []).forEach((hop) => {
+            const sourceNodeId = String(hop.sourceNodeId || '').trim();
+            const targetNodeId = String(hop.targetNodeId || '').trim();
+            const hopId = String(hop.id || '').trim();
+            if (!sourceNodeId || !targetNodeId || !hopId) return;
+            const key = `${sourceNodeId}->${targetNodeId}`;
+            if (!buckets.has(key)) buckets.set(key, []);
+            buckets.get(key).push(hop);
+        });
+
+        buckets.forEach((list, key) => {
+            const [sourceNodeId, targetNodeId] = key.split('->');
+            const reverseKey = `${targetNodeId}->${sourceNodeId}`;
+            reverseCounts.set(key, (buckets.get(reverseKey) || []).length);
+            if (!Array.isArray(list) || !list.length) return;
+            list.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')));
+        });
+
+        const curveByHopId = new Map();
+        buckets.forEach((list, key) => {
+            const [sourceNodeId, targetNodeId] = key.split('->');
+            const reverseCount = Number(reverseCounts.get(key) || 0);
+            const centerIndex = (list.length - 1) / 2;
+            const reverseBias = reverseCount > 0
+                ? ((sourceNodeId.localeCompare(targetNodeId) <= 0) ? -22 : 22)
+                : 0;
+
+            list.forEach((hop, index) => {
+                const hopId = String(hop.id || '').trim();
+                if (!hopId) return;
+                const fanOffset = (index - centerIndex) * 28;
+                let curveDistance = fanOffset + reverseBias;
+                if (Math.abs(curveDistance) < 6) curveDistance = 0;
+                curveByHopId.set(hopId, {
+                    curveDistance,
+                    curveWeight: 0.5,
+                });
+            });
+        });
+
+        return curveByHopId;
+    }
+
     function flowToElements(flow) {
         const elements = [];
         const exitNodeIds = getFlowExitNodeIds(flow);
         const exitNodeIdSet = new Set(exitNodeIds.map((id) => String(id)));
         const internetNode = getFlowInternetNodeData(flow);
+        const curveByHopId = buildHopCurveMap(flow?.hops || []);
 
         for (const node of flow.nodes) {
             const isInternetExit = exitNodeIdSet.has(String(node.id));
@@ -1011,6 +1066,7 @@
         }
 
         for (const hop of flow.hops) {
+            const curve = curveByHopId.get(String(hop.id || '')) || { curveDistance: 0, curveWeight: 0.5 };
             elements.push({
                 group: 'edges',
                 data: {
@@ -1021,6 +1077,8 @@
                     label: hop.isDraft ? (i18n.draftTag || 'Draft') : `${hop.mode.toUpperCase()} · ${hop.stack.toUpperCase()}`,
                     status: hop.status,
                     isDraft: hop.isDraft ? 1 : 0,
+                    curveDistance: curve.curveDistance,
+                    curveWeight: curve.curveWeight,
                 },
             });
         }
@@ -1038,6 +1096,8 @@
                         isVirtualInternet: 1,
                         status: 'online',
                         flowOffset: 0,
+                        curveDistance: 18,
+                        curveWeight: 0.48,
                     },
                     selectable: false,
                 });
@@ -2438,6 +2498,7 @@
             state.edgehandles = null;
         }
         state.connectInFlight = false;
+        state.edgeDrawSession = null;
 
         state.cy = cytoscape({
             container: document.getElementById('builderCy'),
@@ -2543,12 +2604,35 @@
             });
         }
 
-        state.cy.on('ehstart', () => {
+        state.cy.on('ehstart', (event, sourceNode) => {
             state.edgeDrawActive = true;
+            const endpoint = resolveConnectEndpoint(sourceNode && sourceNode.length ? sourceNode : event?.target);
+            state.edgeDrawSession = {
+                sourceNodeId: String(endpoint.ownerNodeId || '').trim(),
+                startedAt: Date.now(),
+                completed: false,
+                hoveredTarget: false,
+            };
         });
-        state.cy.on('ehcomplete ehstop ehcancel', () => {
+        state.cy.on('ehhoverover', () => {
+            if (state.edgeDrawSession) {
+                state.edgeDrawSession.hoveredTarget = true;
+            }
+        });
+        state.cy.on('ehcomplete', () => {
+            if (state.edgeDrawSession) {
+                state.edgeDrawSession.completed = true;
+            }
+        });
+        state.cy.on('ehstop ehcancel', () => {
+            const session = state.edgeDrawSession;
             state.edgeDrawActive = false;
+            state.edgeDrawSession = null;
             scheduleTransientEdgeCleanup();
+            if (!session || session.completed) return;
+            if ((Date.now() - Number(session.startedAt || 0)) < 250) return;
+            if (session.hoveredTarget) return;
+            maybeDisconnectSourceOutgoing(session.sourceNodeId);
         });
 
         state.connectFallbackEnabled = true;
@@ -2667,6 +2751,25 @@
             }
             return { success: false, error: error.message };
         }
+    }
+
+    function maybeDisconnectSourceOutgoing(sourceNodeId) {
+        const sourceId = String(sourceNodeId || '').trim();
+        if (!sourceId || sourceId === INTERNET_NODE_ID) return;
+
+        const hops = Array.isArray(state.flow?.hops) ? state.flow.hops : [];
+        const outgoing = hops.filter((hop) => String(hop.sourceNodeId || '').trim() === sourceId);
+
+        if (!outgoing.length) {
+            toast(i18n.dragDisconnectNoLink || 'There is no outgoing link to disconnect from this node.', 'info');
+            return;
+        }
+        if (outgoing.length > 1) {
+            toast(i18n.dragDisconnectMultiHint || 'Multiple outgoing links found. Disconnect the exact line via right-click.', 'info');
+            return;
+        }
+
+        removeHopConnection(outgoing[0], { confirm: true, reload: true, showToast: true });
     }
 
     async function handleDraftConnect(sourceNodeId, targetNodeId) {

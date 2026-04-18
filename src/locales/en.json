@@ -1507,6 +1507,8 @@
     "removeLinkConfirm": "Disconnect this live link?",
     "linkRemoved": "Link disconnected.",
     "linkRemoveFailed": "Failed to disconnect link",
+    "dragDisconnectNoLink": "This node currently has no outgoing link to disconnect.",
+    "dragDisconnectMultiHint": "This node has multiple outgoing links. Disconnect the exact line with right-click.",
     "cyUnavailable": "Builder canvas is unavailable right now. Check Cytoscape and network assets.",
     "hybridDisabledError": "Hybrid cascade is disabled. Enable FEATURE_CASCADE_HYBRID=true or turn it on in Settings > System.",
     "unsupportedLinkType": "Unsupported link type: {src} -> {dst}",
