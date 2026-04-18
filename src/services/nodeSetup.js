@@ -13,6 +13,7 @@ const cryptoService = require('./cryptoService');
 const Settings = require('../models/settingsModel');
 const configGenerator = require('./configGenerator');
 const CASCADE_SIDECAR_OUTBOUND = '__cascade_sidecar__';
+const CC_AGENT_BUNDLE_DIR = path.join(__dirname, '../../artifacts/cc-agent');
 
 function getPanelHost() {
     return String(config.PANEL_DOMAIN || config.BASE_URL || '')
@@ -2412,11 +2413,46 @@ function generateAgentToken() {
     return require('crypto').randomBytes(32).toString('hex');
 }
 
+async function preloadBundledCcAgentBinaries(conn, log = null) {
+    const result = {
+        amd64: '',
+        arm64: '',
+    };
+
+    const bundledPaths = {
+        amd64: path.join(CC_AGENT_BUNDLE_DIR, 'cc-agent-linux-amd64'),
+        arm64: path.join(CC_AGENT_BUNDLE_DIR, 'cc-agent-linux-arm64'),
+    };
+
+    for (const [arch, localPath] of Object.entries(bundledPaths)) {
+        try {
+            if (!fs.existsSync(localPath)) continue;
+            const stat = fs.statSync(localPath);
+            if (!stat.isFile() || stat.size <= 0) continue;
+
+            const remotePath = `/tmp/hr-cc-agent-${arch}`;
+            const content = fs.readFileSync(localPath);
+            await uploadFile(conn, content, remotePath);
+            await execSSH(conn, `chmod 755 ${shellQuote(remotePath)}`, 10000);
+            result[arch] = remotePath;
+            if (typeof log === 'function') {
+                log(`Preloaded bundled cc-agent (${arch}) from panel image`);
+            }
+        } catch (error) {
+            if (typeof log === 'function') {
+                log(`Bundled cc-agent preload warning (${arch}): ${error.message}`);
+            }
+        }
+    }
+
+    return result;
+}
+
 /**
  * Install and configure cc-agent on an Xray node via SSH.
  *
  * Flow:
- *  1. Download binary from GitHub releases (or fallback URL)
+ *  1. Try preloaded bundled binary from panel image, then fallback to GitHub release URL
  *  2. Write /etc/cc-agent/config.json with token + TLS settings
  *  3. If TLS: generate self-signed cert with openssl
  *  4. Open firewall for panel source (remote) or Docker/local subnets (same-VPS)
@@ -2476,6 +2512,9 @@ echo "TLS disabled, skipping cert generation"
     const proxyBase = directReleaseUrl.startsWith('https://github.com/')
         ? directReleaseUrl
         : '';
+    const preloaded = await preloadBundledCcAgentBinaries(conn, log);
+    const preloadedAmd64 = String(preloaded.amd64 || '').trim();
+    const preloadedArm64 = String(preloaded.arm64 || '').trim();
 
     const AGENT_INSTALL = `#!/bin/bash
 set -euo pipefail
@@ -2492,6 +2531,8 @@ GITHUB_URL="${directReleaseUrl}"
 MIRROR_URL_1="${proxyBase ? `https://ghproxy.com/${proxyBase}` : ''}"
 MIRROR_URL_2="${proxyBase ? `https://mirror.ghproxy.com/${proxyBase}` : ''}"
 MIRROR_URL_3="${proxyBase ? `https://ghproxy.net/${proxyBase}` : ''}"
+PRELOADED_AMD64=${shellQuote(preloadedAmd64)}
+PRELOADED_ARM64=${shellQuote(preloadedArm64)}
 echo "Agent release source: $GITHUB_URL"
 
 # Clean up any previous broken/stale binary before downloading
@@ -2499,22 +2540,36 @@ rm -f /usr/local/bin/cc-agent
 
 DOWNLOADED=0
 
-for ATTEMPT in 1 2 3; do
-    echo "Download attempt $ATTEMPT/3..."
-    for URL in "$GITHUB_URL" "$MIRROR_URL_1" "$MIRROR_URL_2" "$MIRROR_URL_3"; do
-        [ -z "$URL" ] && continue
-        echo "Trying: $URL"
-        rm -f /usr/local/bin/cc-agent
-        if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 180 \
-            "$URL" -o /usr/local/bin/cc-agent 2>/dev/null && [ -s /usr/local/bin/cc-agent ]; then
-            chmod +x /usr/local/bin/cc-agent
-            echo "Done: cc-agent downloaded"
-            DOWNLOADED=1
-            break 2
-        fi
+if [ "$BIN_NAME" = "cc-agent-linux-arm64" ] && [ -n "$PRELOADED_ARM64" ] && [ -s "$PRELOADED_ARM64" ]; then
+    cp "$PRELOADED_ARM64" /usr/local/bin/cc-agent
+    chmod +x /usr/local/bin/cc-agent
+    echo "Done: cc-agent installed from panel bundle ($BIN_NAME)"
+    DOWNLOADED=1
+elif [ "$BIN_NAME" = "cc-agent-linux-amd64" ] && [ -n "$PRELOADED_AMD64" ] && [ -s "$PRELOADED_AMD64" ]; then
+    cp "$PRELOADED_AMD64" /usr/local/bin/cc-agent
+    chmod +x /usr/local/bin/cc-agent
+    echo "Done: cc-agent installed from panel bundle ($BIN_NAME)"
+    DOWNLOADED=1
+fi
+
+if [ "$DOWNLOADED" = "0" ]; then
+    for ATTEMPT in 1 2 3; do
+        echo "Download attempt $ATTEMPT/3..."
+        for URL in "$GITHUB_URL" "$MIRROR_URL_1" "$MIRROR_URL_2" "$MIRROR_URL_3"; do
+            [ -z "$URL" ] && continue
+            echo "Trying: $URL"
+            rm -f /usr/local/bin/cc-agent
+            if curl -fL --retry 6 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 180 \
+                "$URL" -o /usr/local/bin/cc-agent 2>/dev/null && [ -s /usr/local/bin/cc-agent ]; then
+                chmod +x /usr/local/bin/cc-agent
+                echo "Done: cc-agent downloaded"
+                DOWNLOADED=1
+                break 2
+            fi
+        done
+        sleep $((ATTEMPT * 2))
     done
-    sleep $((ATTEMPT * 2))
-done
+fi
 
 # Validate the downloaded file is a real ELF binary, not an error page
 if [ "$DOWNLOADED" = "1" ]; then
@@ -2529,6 +2584,9 @@ if [ "$DOWNLOADED" = "0" ]; then
     echo "ERROR: Could not download cc-agent binary from any source."
     exit 1
 fi
+
+if [ -n "$PRELOADED_AMD64" ]; then rm -f "$PRELOADED_AMD64" 2>/dev/null || true; fi
+if [ -n "$PRELOADED_ARM64" ]; then rm -f "$PRELOADED_ARM64" 2>/dev/null || true; fi
 
 echo "=== [2/5] Creating directories ==="
 mkdir -p /etc/cc-agent /var/lib/cc-agent /var/log/xray
