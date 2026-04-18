@@ -54,6 +54,56 @@
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-18 Stop-Point — Live Hysteria Smokes Executed (remote + same-VPS)
+
+### What was delivered
+
+- Fixed onboarding live-log parser crash in panel route:
+  - `src/routes/panel/nodes.js` no longer references undefined `isKnownStep` while parsing bracket-prefixed lines;
+  - code commit: `2d3d12c` (`fix: avoid undefined step helper in onboarding live log parsing`).
+- Deployed fix to stand:
+  - deployment: `gfh5tc7t040l9x96ne3b184t`;
+  - status: `finished`;
+  - app state: `running:healthy`.
+- Executed two live durable onboarding smokes via panel setup endpoint:
+  1. `SMOKE-HY-REMOTE-194` (`194.50.94.149`, `portRange=23000-23080`)  
+     - `preflight` + `prepare-host` passed;
+     - runtime install reached port-hopping block:
+       - `Setting up port hopping (23000-23080)...`
+       - `Done: INPUT rules added`
+       - `Done: iptables NAT rules added`
+     - final state: `repairable` on `install-runtime` with error:
+       - `UDP port 443 is not listening after service start`.
+  2. `SMOKE-HY-SAMEVPS-89` (`89.125.188.83`, `portRange=22000-22050`)  
+     - `preflight` + `prepare-host` passed;
+     - runtime install proceeded but expected explicit same-VPS port-hopping skip line did not appear;
+     - final state: `repairable` on `install-runtime` with error:
+       - `UDP port 4443 is not listening after service start`.
+- Cleanup completed:
+  - removed temporary test nodes from panel:
+    - `69e298af05b9b28c66a19674`,
+    - `69e29db405b9b28c66a19751`,
+    - `69e299ba05b9b28c66a1969d`;
+  - verified baseline stand nodes remained online.
+
+### What is pending
+
+1. Investigate Hysteria runtime verify mismatch:
+   - onboarding `install-runtime` fails on UDP listener check,
+   - but node status can still end up `online` afterward.
+2. Validate/fix same-VPS branch visibility for port-hopping step:
+   - expected log `Skipping port hopping for same-VPS node...` did not appear in live same-VPS smoke.
+3. Keep moving staged retirement of legacy `setupJobs` in non-critical paths.
+
+### Next step
+
+1. Add diagnostics for `isSameVpsAsPanel` decision source in Hysteria setup logs.
+2. Harden UDP listener verification path (service bind race / check method) so onboarding result matches practical runtime state.
+3. Re-run two live smokes (remote + same-VPS) and confirm:
+   - remote applies port-hopping idempotently,
+   - same-VPS prints explicit skip message,
+   - runtime verify step ends `completed` (no false negative).
+
 ## 2026-04-17 Stop-Point — Upstream Audit Finalized + Safe-Port Batch #3
 
 ### What was delivered

@@ -2,6 +2,22 @@
 
 ## 2026-04-17
 
+- Worked on: two live Hysteria onboarding smokes (remote portRange + same-VPS) and parser crash blocking onboarding logs.
+- Finished with:
+  - fixed panel onboarding log parser crash (`isKnownStep is not defined`) in `src/routes/panel/nodes.js`;
+  - code commit: `2d3d12c`, deployed to stand (`gfh5tc7t040l9x96ne3b184t`, finished);
+  - executed remote smoke (`194.50.94.149`, `portRange=23000-23080`):
+    - confirmed port-hopping apply lines in live logs;
+    - run stopped on `install-runtime` with UDP listener verify error;
+  - executed same-VPS smoke (`89.125.188.83`, `portRange=22000-22050`):
+    - run stopped on same UDP listener verify error;
+    - expected explicit same-VPS skip-port-hopping line not observed yet;
+  - removed temporary smoke nodes and rechecked baseline node list.
+- Next step:
+  - instrument/fix same-VPS decision visibility for port-hopping branch;
+  - harden Hysteria UDP listener verify path to eliminate false negatives;
+  - rerun remote + same-VPS live smokes and confirm clean completion.
+
 - Worked on: finishing upstream `v1.0.0...v1.1.0` shortlist + next safe-port wave.
 - Finished with:
   - completed final shortlist document with decision buckets and category coverage:

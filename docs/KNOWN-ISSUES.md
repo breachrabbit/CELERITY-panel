@@ -36,6 +36,42 @@ Still missing:
 
 Status: `pending`
 
+### 0a. Hysteria onboarding runtime verify can fail while node ends up online
+
+Live smoke status:
+
+- remote and same-VPS Hysteria onboarding runs can stop on `install-runtime` with:
+  - `UDP port <port> is not listening after service start`;
+- despite this, node status may later be observed as `online`.
+
+Implication:
+
+- durable onboarding can report `repairable` even when runtime is practically up;
+- operator trust in onboarding state decreases.
+
+Likely area:
+
+- listener verification race/method in `setupHysteriaNode(...)` (`waitForListeningSocket` phase) and service-state timing.
+
+Status: `broken`
+
+### 0b. same-VPS port-hopping explicit skip log is not consistently visible
+
+Expected behavior:
+
+- for same-VPS Hysteria setup with non-empty `portRange`, logs should explicitly show:
+  - `Skipping port hopping for same-VPS node (incompatible with panel networking)`.
+
+Observed in live smoke:
+
+- same-VPS run did not show either explicit skip line or explicit apply line, while continuing with firewall/service restart steps.
+
+Implication:
+
+- hard to confirm same-VPS branch selection from operator logs.
+
+Status: `pending`
+
 ### 1. Shell layout still drifts / shifts after navigation
 
 User reports that parts of the panel still move outside the browser width until the window is nudged or layout is recalculated.

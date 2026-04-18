@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-04-18 Live Onboarding Smokes + Parser Crash Fix
+
+- Fixed onboarding live-log parsing crash in panel setup route:
+  - removed undefined helper usage during step detection for bracket-prefixed log lines;
+  - file: `src/routes/panel/nodes.js`;
+  - code commit: `2d3d12c`.
+- Deployed commit to stand:
+  - deployment UUID: `gfh5tc7t040l9x96ne3b184t`;
+  - status: `finished`, app `running:healthy`.
+- Ran two live durable onboarding smokes (Hysteria):
+  1. remote node with portRange (`194.50.94.149`, `23000-23080`);
+  2. same-VPS node with portRange (`89.125.188.83`, `22000-22050`).
+- Practical log observations:
+  - remote smoke confirmed port-hopping apply path:
+    - `Setting up port hopping (...)`,
+    - INPUT/NAT apply lines in logs;
+  - same-VPS smoke did not show explicit skip-port-hopping line yet.
+- Both smokes currently stop at `install-runtime` with:
+  - `UDP port <port> is not listening after service start`,
+  while node runtime status can still become `online` afterward.
+- Cleanup:
+  - removed temporary smoke nodes from panel after run.
+
+Change types:
+
+- `stability fix` — onboarding log parser crash fix in panel setup path
+- `validation` — live smoke verification for remote/same-VPS Hysteria onboarding
+
 ## 2026-04-17 Upstream Audit Finalized + Safe-Port Batches #2/#3
 
 - Completed full categorized shortlist for upstream release train:
