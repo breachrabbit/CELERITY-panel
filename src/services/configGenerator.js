@@ -321,6 +321,17 @@ function applyOutboundsAndAcl(config, node) {
             return entry;
         });
     }
+
+    const knownOutbounds = new Set(realOutbounds.map((ob) => String(ob?.name || '').trim()).filter(Boolean));
+    const builtInAclActions = new Set(['direct', 'reject']);
+    const isAclRuleActionKnown = (rule) => {
+        const rawRule = String(rule || '').trim();
+        if (!rawRule || rawRule.startsWith('#')) return true;
+        const match = rawRule.match(/^([a-zA-Z0-9._-]+)\s*\(/);
+        if (!match) return true;
+        const action = String(match[1] || '').trim();
+        return builtInAclActions.has(action) || knownOutbounds.has(action);
+    };
     
     if (!aclEnabled) {
         return;
@@ -333,8 +344,20 @@ function applyOutboundsAndAcl(config, node) {
         aclConfig = { file: aclOptions.file };
     } else if (customAclRules.length > 0) {
         // 'block' is not a valid ACL action in Hysteria 2 — replace with 'reject'
-        const normalizedRules = customAclRules.map(r => r.replace(/\bblock\(/g, 'reject('));
-        aclConfig = { inline: normalizedRules };
+        const normalizedRules = customAclRules
+            .map(r => String(r || '').replace(/\bblock\(/g, 'reject(').trim())
+            .filter(Boolean)
+            .filter(isAclRuleActionKnown);
+        if (normalizedRules.length > 0) {
+            aclConfig = { inline: normalizedRules };
+        } else {
+            aclConfig = {
+                inline: [
+                    'reject(geoip:cn)',
+                    'reject(geoip:private)',
+                ],
+            };
+        }
     } else {
         // Legacy safe defaults when ACL is enabled but no explicit source is provided.
         aclConfig = {
