@@ -98,6 +98,18 @@ Current state:
 
 Status: `broken`
 
+### 1b. Stale frontend assets after deploy can mask fixes
+
+Observed behavior:
+
+- stand can serve previous `app.js/style.css` from browser cache long enough to make already-fixed UI issues look unchanged (e.g. native confirm behavior).
+
+Mitigation now in progress:
+
+- static include versioning (`assetVersion`) was added in local patch to force fresh CSS/JS load after deploy.
+
+Status: `pending` (needs live deploy confirmation)
+
 ### 1a. Left sidebar does not always stretch to full height
 
 User reported on the settings screen that the left sidebar/footer block can stop early instead of visually reaching the bottom of the page content.
@@ -217,6 +229,18 @@ Practical effect:
 - a fresh node can appear “almost installed” but still need a second setup pass;
 - process restarts can erase the current install state;
 - panel/operator UX still hides too much of the real onboarding contract.
+
+Latest concrete failure signature still seen on live node:
+
+- Xray startup loop with:
+  - `failed to initialize access logger`,
+  - `open /var/log/xray/access.log: permission denied`,
+  - followed by onboarding `verify-runtime-local` -> `Runtime is offline`.
+
+Mitigation now in progress:
+
+- stronger permission fallback added in local patch across setup and onboarding repair paths;
+- still requires live smoke confirmation after deploy.
 
 Decision:
 

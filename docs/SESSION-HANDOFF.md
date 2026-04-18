@@ -11,6 +11,25 @@
   - review upstream delta `v1.0.0...v1.1.0` and selectively port safe high-value fixes into this fork:
     - compare link: `https://github.com/ClickDevTech/CELERITY-panel/compare/v1.0.0...v1.1.0`.
 - Current local patch focus:
+  - replaced remaining form-embedded management action buttons with explicit `type="button"` to stop accidental form submit while running onboarding/setup actions;
+  - strengthened in-app auto-setup confirmation presentation (`hrConfirm` with explicit action title/buttons), no native browser dialog path expected in node setup actions;
+  - added asset versioning for static files (`assetVersion`) and wired cache-busting query for:
+    - `/css/style.css`,
+    - `/js/app.js`,
+    - `/css/cascade-builder.css`,
+    - `/js/cascade-builder.js`;
+  - hardened Xray log-permission handling further in onboarding/setup paths:
+    - if `chown` cannot apply service owner, fallback to permissive log file mode to avoid `access.log permission denied` runtime crash-loop;
+    - same fallback applied in:
+      - Xray installer script,
+      - post-config xray log fix step,
+      - onboarding `prepare-host`,
+      - onboarding `verify-runtime-local` repair branch,
+      - cc-agent install prep.
+  - improved `verify-runtime-local` failure payload by attaching fresh runtime journal tail (`xray`/`hysteria`) directly to step error text.
+  - tuned nodes list fit:
+    - tighter node table min-width and cell paddings,
+    - explicit wrapper class usage for controlled horizontal scrolling.
   - hardened early onboarding steps (`preflight`, `prepare-host`) with real SSH failure details and live step output;
   - fixed durable preflight shell wrapper to preserve multiline script semantics under `/bin/sh`;
   - fixed runtime verify step to correctly parse runtime status and tolerate startup races;
@@ -117,6 +136,41 @@
    - fresh Hysteria node.
 2. Confirm onboarding jobs finish `completed` without repeated repair loops.
 3. If either path still fails, capture diagnostics payload and patch step-level handler immediately.
+
+## 2026-04-18 Stop-Point — Onboarding UX Confirm + Runtime Offline Hardening (Wave 2)
+
+### What was delivered
+
+- Code patch prepared locally (not yet deployed in this stop-point snapshot):
+  - `views/partials/node-form/management.ejs`:
+    - all management buttons moved to explicit `type="button"` to avoid accidental parent-form submit in node edit screen.
+  - `views/partials/node-form/scripts.ejs`:
+    - auto-setup confirmation now uses explicit in-app modal options (`title/confirm/cancel`), same UI style as the rest of panel actions.
+  - `index.js` + views:
+    - added `assetVersion` local and cache-busting query params for core CSS/JS assets to avoid stale browser cache after deploy.
+  - `src/services/nodeSetup.js` + `src/services/nodeOnboardingHandlers.js`:
+    - stronger Xray log permission fallback when ownership cannot be applied;
+    - verify-runtime error now includes direct runtime diagnostics tail.
+  - `public/css/style.css` + `views/nodes.ejs`:
+    - node list/table fit adjustments to reduce overflow and improve viewport behavior.
+
+### What is pending
+
+1. Deploy this local patch to stand and verify live behavior.
+2. Re-run failing Xray node onboarding (`Runtime is offline`) and confirm log-permission fallback removes restart loop.
+3. Re-run fresh Hysteria onboarding on a new node and confirm no perceived “stuck” stage in live logs.
+4. Validate node page/table fit on desktop/mobile after deploy.
+
+### Next step
+
+1. Commit current code patch as one focused stability/UX wave.
+2. Deploy to Coolify and confirm `/panel/login` plus `/panel/nodes/:id` fresh JS/CSS versions are loaded.
+3. Run 2 live onboarding smokes:
+   - Xray node with previous `access.log permission denied` history,
+   - fresh Hysteria node run.
+4. If Xray still fails:
+   - capture new `verify-runtime-local` diagnostics tail,
+   - patch exact failing branch without touching unrelated cascade builder code.
 
 ## 2026-04-18 Stop-Point — Builder Internet/Egress UX + Smooth Lines + Fullscreen
 

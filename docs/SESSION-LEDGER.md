@@ -2,6 +2,19 @@
 
 ## 2026-04-18
 
+- Worked on: node onboarding UX/behavior issues reported from live stand (`auto-setup confirm`, repeated `Runtime is offline`, node page fit, hysteria run stability visibility).
+- Finished with:
+  - converted management action buttons in node edit to explicit non-submit buttons (`type="button"`);
+  - improved setup confirm invocation to explicit in-app modal options;
+  - added `assetVersion` cache-busting for core CSS/JS includes to reduce stale frontend after deploy;
+  - hardened Xray log-permission fallback in installer + onboarding prepare/recovery paths;
+  - expanded `verify-runtime-local` error with direct runtime diagnostics tail;
+  - tuned nodes table wrapper/min-width behavior.
+- Next step:
+  - commit and deploy this wave,
+  - rerun live Xray/Hysteria onboarding smokes,
+  - confirm no native confirm behavior and no repeated `Runtime is offline` loop for the failing Xray node.
+
 - Worked on: onboarding reliability + UI confirmation consistency.
 - Finished with:
   - shipped `d005be8`:

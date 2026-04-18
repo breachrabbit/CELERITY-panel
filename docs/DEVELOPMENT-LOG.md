@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-04-18 Onboarding UX + Runtime Offline Hardening (Wave 2, local patch prepared)
+
+- Removed accidental form-submit behavior from node management actions:
+  - updated `views/partials/node-form/management.ejs` to use explicit `type="button"` for setup/onboarding/log/status actions.
+- Refined auto-setup confirmation UX:
+  - `views/partials/node-form/scripts.ejs` now calls `hrConfirm` with explicit modal title/confirm/cancel texts for setup start.
+- Added static asset cache-busting to avoid stale JS/CSS after deploy:
+  - `index.js`: added `assetVersion` local;
+  - versioned static includes in:
+    - `views/layout.ejs`,
+    - `views/login.ejs`,
+    - `views/setup.ejs`,
+    - `views/totp-verify.ejs`,
+    - `views/cascade-builder.ejs`.
+- Hardened Xray log permission fallback for onboarding/setup:
+  - `src/services/nodeSetup.js`: fallback to permissive log-file mode when ownership cannot be applied;
+  - `src/services/nodeOnboardingHandlers.js`: same fallback in `prepare-host` and verify recovery path.
+- Improved runtime failure diagnostics:
+  - `verify-runtime-local` now appends recent runtime journal tail (`xray`/`hysteria`) when status remains offline.
+- Nodes page fit tuning:
+  - `public/css/style.css` and `views/nodes.ejs` updated to keep node table inside viewport with cleaner horizontal overflow handling.
+
+Change types:
+
+- `stability fix` — runtime offline/permission handling hardening
+- `local patch` — setup/onboarding action UX behavior cleanup
+- `ux` — in-app setup confirm polish + nodes table fit adjustments
+
 ## 2026-04-18 In-App Confirmation Layer + Onboarding Runtime Verify Hardening
 
 - Replaced native browser confirm/alert interactions with in-app modal UX:
