@@ -2,6 +2,19 @@
 
 ## 2026-04-18
 
+- Worked on: onboarding reliability + UI confirmation consistency.
+- Finished with:
+  - shipped `d005be8`:
+    - removed native browser confirm/alert usage from panel action flows;
+    - added shared in-app `hrConfirm/hrAlert` modal layer and wired it across node/setup/settings/security/groups/users/network/outbounds paths;
+    - hardened Xray runtime verify path (`verify-runtime-local`) with longer retry window and targeted self-heal when runtime is not active;
+    - switched Xray log permission handling to dynamic service user/group with secure `640` file mode;
+    - reduced nodes table overflow pressure for better viewport fit.
+  - pushed to `main` and confirmed stand health endpoint `/panel/login` returns `HTTP 200`.
+- Next step:
+  - run two live onboarding smokes from panel (Xray + Hysteria) and confirm jobs complete without `repairable`;
+  - if any runtime verify failure persists, patch exact failing step with captured diagnostics.
+
 - Worked on: builder canvas usability pass (smooth links, internet egress visualization, bounded workspace/fullscreen, connect error tooltip).
 - Finished with:
   - shipped `1c09545`:

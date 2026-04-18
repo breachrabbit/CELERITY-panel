@@ -67,6 +67,57 @@
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-18 Stop-Point — In-App Confirms + Xray Runtime Verify Hardening
+
+### What was delivered
+
+- Code patch delivered:
+  - commit: `d005be8` (`fix: replace native confirms and harden onboarding runtime checks`).
+- Native browser confirms/alerts replaced with in-app UI confirmations:
+  - added shared `hrConfirm/hrAlert` modal layer in `public/js/app.js`;
+  - styled modal in `public/css/style.css`;
+  - migrated panel actions from native dialogs to UI modal across:
+    - node setup/onboarding actions,
+    - node delete,
+    - groups delete,
+    - settings maintenance actions,
+    - security/API keys/webhook validation,
+    - dashboard restore action,
+    - user detail actions,
+    - cascade network actions,
+    - node outbounds actions.
+- Runtime verify hardening for Xray onboarding:
+  - `src/services/nodeSetup.js`:
+    - status checks now parse clean `systemctl is-active ... 2>/dev/null` state (less false negatives);
+    - status return shape normalized as `{ online, status, error }`.
+  - `src/services/nodeOnboardingHandlers.js`:
+    - `verify-runtime-local` increased retries (`12`);
+    - recovery path now attempts xray log-permission/self-heal when runtime is not active;
+    - recovery logs now include before/after service state.
+- Xray log ownership/permissions hardening:
+  - switched from hardcoded `nobody:* + 666` to dynamic service user/group resolution with `640` log files in:
+    - runtime installer script,
+    - Xray post-config permission repair,
+    - cc-agent install prep,
+    - onboarding `prepare-host` and verify recovery.
+- Nodes table width containment tuned:
+  - reduced hard min-width and normalized wrapper overflow for better screen fit.
+
+### What is pending
+
+1. Live verify on stand that Xray `verify-runtime-local` no longer loops `Runtime is offline (offline)` for the previously failing node scenario.
+2. Live verify Hysteria onboarding “stuck at one step” report with fresh node run after this patch.
+3. Run focused UI check for in-app modal visibility on node setup screen (no dimmed page without visible dialog).
+4. Continue cascade builder logic/UX iteration after onboarding/runtime stability is confirmed.
+
+### Next step
+
+1. Run two live onboarding smokes from panel:
+   - Xray node previously reproducing `verify-runtime-local` offline;
+   - fresh Hysteria node.
+2. Confirm onboarding jobs finish `completed` without repeated repair loops.
+3. If either path still fails, capture diagnostics payload and patch step-level handler immediately.
+
 ## 2026-04-18 Stop-Point — Builder Internet/Egress UX + Smooth Lines + Fullscreen
 
 ### What was delivered

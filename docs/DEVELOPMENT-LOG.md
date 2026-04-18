@@ -1,5 +1,31 @@
 # Development Log
 
+## 2026-04-18 In-App Confirmation Layer + Onboarding Runtime Verify Hardening
+
+- Replaced native browser confirm/alert interactions with in-app modal UX:
+  - added global `hrConfirm/hrAlert` in `public/js/app.js`;
+  - added modal styles in `public/css/style.css`;
+  - migrated node setup/onboarding, node delete, settings maintenance, API keys, webhook validation, group delete, dashboard restore, user-detail actions, network actions, and outbounds actions.
+- Hardened Xray onboarding runtime verification:
+  - `src/services/nodeSetup.js`:
+    - status checks now use cleaned `systemctl is-active ... 2>/dev/null` and robust state parsing;
+    - status methods return structured `{ online, status, error }`.
+  - `src/services/nodeOnboardingHandlers.js`:
+    - increased verify retries (`12`);
+    - added runtime self-heal path for xray log permission/startup errors with before/after state telemetry.
+- Hardened Xray log file ownership/permissions:
+  - moved to dynamic service user/group detection and tighter file mode (`640`) in install/repair paths.
+- Nodes page fit improvement:
+  - tightened nodes table min-width and wrapper overflow behavior.
+- Code commit:
+  - `d005be8` — `fix: replace native confirms and harden onboarding runtime checks`.
+
+Change types:
+
+- `local patch` — unified in-app confirms/alerts across panel actions
+- `stability fix` — reduced false-negative runtime verify failures for Xray onboarding
+- `ux` — table fit and confirmation flow consistency
+
 ## 2026-04-18 Cascade Builder UX Wave: Smooth Links + Internet Egress + Fullscreen
 
 - Refined builder canvas rendering/interaction:
