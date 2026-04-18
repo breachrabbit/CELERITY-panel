@@ -1484,6 +1484,8 @@
     "layoutSaveFailed": "Не удалось сохранить схему",
     "validationFailed": "Ошибка проверки",
     "connectFailed": "Ошибка создания черновой связи",
+    "connectPickTarget": "Выберите целевую ноду для создания чернового хопа.",
+    "connectOpenInspectorHint": "Связь создана. Настройте хоп в инспекторе справа.",
     "stateFailed": "Не удалось загрузить состояние конструктора",
     "draftTag": "Черновик",
     "builderSourceMeta": "Черновик поверх живой топологии",
@@ -1559,7 +1561,10 @@
     "planActionNoRuntimeChange": "{node}: изменений runtime не требуется",
     "planActionReversePortal": "{node}: развернуть portal-конфиг и открыть портов: {count}",
     "planActionReverseRelay": "{node}: развернуть relay-конфиг и открыть downstream-портов: {count}",
-    "planActionBridgeRuntime": "{node}: развернуть bridge runtime / sidecar"
+    "planActionBridgeRuntime": "{node}: развернуть bridge runtime / sidecar",
+    "fullscreenEnable": "На весь экран",
+    "fullscreenDisable": "Отключить полный экран",
+    "connectHintFallback": "Проверьте направление связи и ограничения цепочки."
   },
   "mcp": {
     "title": "MCP Интеграция",

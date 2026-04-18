@@ -1478,6 +1478,8 @@
     "layoutSaveFailed": "Failed to save layout",
     "validationFailed": "Validation failed",
     "connectFailed": "Connection draft failed",
+    "connectPickTarget": "Select a target node to create a draft hop.",
+    "connectOpenInspectorHint": "Connection created. Tune hop settings in the inspector on the right.",
     "stateFailed": "Failed to load builder state",
     "draftTag": "Draft",
     "builderSourceMeta": "legacy-backed draft over live topology",
@@ -1553,7 +1555,10 @@
     "planActionNoRuntimeChange": "{node}: no runtime change",
     "planActionReversePortal": "{node}: deploy portal config and open ports: {count}",
     "planActionReverseRelay": "{node}: deploy relay config and open downstream ports: {count}",
-    "planActionBridgeRuntime": "{node}: deploy bridge runtime / sidecar"
+    "planActionBridgeRuntime": "{node}: deploy bridge runtime / sidecar",
+    "fullscreenEnable": "Full screen",
+    "fullscreenDisable": "Exit full screen",
+    "connectHintFallback": "Check connection direction and chain constraints."
   },
   "mcp": {
     "title": "MCP Integration",

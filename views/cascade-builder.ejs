@@ -78,6 +78,10 @@
                     <span><%= t('cascades.dragHint') %></span>
                 </div>
                 <div class="builder-canvas-actions">
+                    <button class="btn btn-secondary btn-sm" id="builderFullscreenToggle">
+                        <i class="ti ti-arrows-maximize"></i>
+                        <span><%= t('cascades.fullscreenEnable', 'На весь экран') %></span>
+                    </button>
                     <button class="btn btn-secondary btn-sm" id="builderResetDrafts">
                         <i class="ti ti-eraser"></i>
                         <span><%= t('cascades.resetDrafts') %></span>
@@ -89,18 +93,13 @@
                 </div>
             </div>
             <div id="builderCy" class="builder-canvas"></div>
+            <div class="builder-error-tooltip" id="builderErrorTooltip" role="status" aria-live="polite"></div>
         </div>
 
         <aside class="builder-inspector">
             <div class="builder-panel-head">
                 <h3><%= t('cascades.inspectorTitle') %></h3>
                 <p><%= t('cascades.inspectorHint') %></p>
-            </div>
-            <div class="builder-inspector-body" id="builderInspectorBody">
-                <div class="builder-empty-state">
-                    <i class="ti ti-pointer"></i>
-                    <p><%= t('cascades.inspectorEmpty') %></p>
-                </div>
             </div>
             <div class="builder-validation-box" id="builderValidationBox">
                 <div class="builder-validation-head">
@@ -128,6 +127,12 @@
                 </div>
                 <div class="builder-plan-list" id="builderPlanList">
                     <p class="builder-validation-empty"><%= t('cascades.deployPreviewEmpty') %></p>
+                </div>
+            </div>
+            <div class="builder-inspector-body" id="builderInspectorBody">
+                <div class="builder-empty-state">
+                    <i class="ti ti-pointer"></i>
+                    <p><%= t('cascades.inspectorEmpty') %></p>
                 </div>
             </div>
             <div class="builder-validation-box builder-execution-box" id="builderExecutionBox">
@@ -321,6 +326,8 @@ window._cascadeBuilderI18n = {
     noDraftsToCommit: <%- JSON.stringify(t('cascades.noDraftsToCommit')) %>,
     validationFailed: <%- JSON.stringify(t('cascades.validationFailed')) %>,
     connectFailed: <%- JSON.stringify(t('cascades.connectFailed')) %>,
+    connectPickTarget: <%- JSON.stringify(t('cascades.connectPickTarget', 'Выберите целевую ноду для связи.')) %>,
+    connectOpenInspectorHint: <%- JSON.stringify(t('cascades.connectOpenInspectorHint', 'Связь создана. Настройки хопа доступны в инспекторе справа.')) %>,
     stateFailed: <%- JSON.stringify(t('cascades.stateFailed')) %>,
     draftTag: <%- JSON.stringify(t('cascades.draftTag')) %>,
     requiresHybrid: <%- JSON.stringify(t('cascades.requiresHybrid')) %>,
@@ -343,6 +350,13 @@ window._cascadeBuilderI18n = {
     internetNoExits: <%- JSON.stringify(t('cascades.internetNoExits')) %>,
     internetNodeLabel: <%- JSON.stringify(t('cascades.internetNodeLabel')) %>,
     internetExitPath: <%- JSON.stringify(t('cascades.internetExitPath')) %>,
+    executionHintHybridDisabled: <%- JSON.stringify(t('cascades.executionHintHybridDisabled')) %>,
+    executionHintMixedMode: <%- JSON.stringify(t('cascades.executionHintMixedMode')) %>,
+    executionHintRuntimeConfigInvalid: <%- JSON.stringify(t('cascades.executionHintRuntimeConfigInvalid')) %>,
+    executionHintResourceMissing: <%- JSON.stringify(t('cascades.executionHintResourceMissing')) %>,
+    fullscreenEnable: <%- JSON.stringify(t('cascades.fullscreenEnable', 'На весь экран')) %>,
+    fullscreenDisable: <%- JSON.stringify(t('cascades.fullscreenDisable', 'Отключить полный экран')) %>,
+    connectHintFallback: <%- JSON.stringify(t('cascades.connectHintFallback', 'Проверьте направление связи и ограничения цепочки.')) %>,
 };
 </script>
 <script src="/vendor/cascade/cytoscape.min.js"></script>

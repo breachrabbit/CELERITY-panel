@@ -27,6 +27,8 @@
         cy: null,
         edgehandles: null,
         edgeDrawActive: false,
+        edgeFlowTimer: null,
+        edgeFlowOffset: 0,
         execution: null,
         executionReruns: {},
         executionFilter: 'all',
@@ -35,6 +37,8 @@
         lastConnectSignature: '',
         lastConnectAt: 0,
         connectFallbackEnabled: false,
+        tooltipHideTimer: null,
+        isFullscreen: false,
         selection: { type: null, id: null },
     };
     const HOP_MODE_OPTIONS = ['reverse', 'forward'];
@@ -58,6 +62,73 @@
     function toast(message, kind = 'info') {
         if (window.showToast) return window.showToast(message, kind);
         console[kind === 'error' ? 'error' : 'log'](message);
+    }
+
+    function getBuilderWorkspaceElement() {
+        return document.querySelector('.builder-workspace');
+    }
+
+    function getBuilderErrorTooltipElement() {
+        return document.getElementById('builderErrorTooltip');
+    }
+
+    function hideBuilderErrorTooltip() {
+        const tooltip = getBuilderErrorTooltipElement();
+        if (!tooltip) return;
+        if (state.tooltipHideTimer) {
+            clearTimeout(state.tooltipHideTimer);
+            state.tooltipHideTimer = null;
+        }
+        tooltip.classList.remove('is-visible');
+        tooltip.innerHTML = '';
+    }
+
+    function showBuilderErrorTooltip(message, hint = '') {
+        const tooltip = getBuilderErrorTooltipElement();
+        if (!tooltip) return;
+        if (state.tooltipHideTimer) {
+            clearTimeout(state.tooltipHideTimer);
+            state.tooltipHideTimer = null;
+        }
+        tooltip.innerHTML = `
+            <strong>${escapeHtml(message || t('connectFailed', 'Connect failed'))}</strong>
+            ${hint ? `<span>${escapeHtml(hint)}</span>` : ''}
+        `;
+        tooltip.classList.add('is-visible');
+        state.tooltipHideTimer = setTimeout(() => {
+            hideBuilderErrorTooltip();
+        }, 6200);
+    }
+
+    function setBuilderFullscreen(enabled) {
+        const shouldEnable = Boolean(enabled);
+        state.isFullscreen = shouldEnable;
+        const workspace = getBuilderWorkspaceElement();
+        const toggleButton = document.getElementById('builderFullscreenToggle');
+        if (workspace) {
+            workspace.classList.toggle('is-fullscreen', shouldEnable);
+        }
+        document.body.classList.toggle('builder-fullscreen-active', shouldEnable);
+        if (toggleButton) {
+            toggleButton.classList.toggle('is-active', shouldEnable);
+            const icon = toggleButton.querySelector('i');
+            const text = toggleButton.querySelector('span');
+            if (icon) {
+                icon.className = shouldEnable ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize';
+            }
+            if (text) {
+                text.textContent = shouldEnable
+                    ? (i18n.fullscreenDisable || 'Exit full screen')
+                    : (i18n.fullscreenEnable || 'Full screen');
+            }
+        }
+        requestAnimationFrame(() => {
+            if (!state.cy) return;
+            state.cy.resize();
+            fitRealGraphView(56);
+            syncInternetNodePosition();
+            syncAllNodePorts();
+        });
     }
 
     function t(key, fallback) {
@@ -420,14 +491,15 @@
             {
                 selector: 'edge',
                 style: {
-                    'curve-style': 'taxi',
-                    'taxi-direction': 'horizontal',
-                    'taxi-turn': 52,
+                    'curve-style': 'bezier',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
+                    'control-point-step-size': 54,
                     'width': 3,
                     'line-color': palette.edgeColor,
                     'target-arrow-color': palette.edgeColor,
                     'target-arrow-shape': 'triangle',
-                    'arrow-scale': 0.82,
+                    'arrow-scale': 0.9,
                     'line-style': 'solid',
                     'overlay-opacity': 0,
                     'label': 'data(label)',
@@ -461,9 +533,10 @@
                 selector: 'edge[isVirtualInternet = 1]',
                 style: {
                     'line-style': 'dashed',
-                    'curve-style': 'taxi',
-                    'taxi-direction': 'horizontal',
-                    'taxi-turn': 36,
+                    'curve-style': 'bezier',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
+                    'control-point-step-size': 68,
                     'line-color': '#02A8AD',
                     'target-arrow-color': '#02A8AD',
                     'target-arrow-shape': 'triangle',
@@ -480,6 +553,14 @@
                     'width': 4,
                     'line-color': '#02A8AD',
                     'target-arrow-color': '#02A8AD',
+                },
+            },
+            {
+                selector: 'edge.builder-flow-animated',
+                style: {
+                    'line-style': 'dashed',
+                    'line-dash-pattern': [12, 10],
+                    'line-dash-offset': 'data(flowOffset)',
                 },
             },
             {
@@ -510,6 +591,7 @@
         if (!state.cy) return;
         state.cy.style(getBuilderStyle());
         syncAllNodePorts();
+        syncEdgeFlowAnimation();
         state.cy.resize();
     }
 
@@ -573,24 +655,11 @@
         const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
         if (!nodes.length) return null;
         const exitNodeIds = getFlowExitNodeIds(flow);
-        const realNodesWithPosition = nodes.filter((node) => node?.position && Number.isFinite(Number(node.position.x)) && Number.isFinite(Number(node.position.y)));
-        const ySourceNodes = exitNodeIds.length
-            ? nodes.filter((node) => exitNodeIds.includes(String(node.id)))
-            : (realNodesWithPosition.length ? realNodesWithPosition : nodes);
-        const maxX = realNodesWithPosition.length
-            ? Math.max(...realNodesWithPosition.map((node) => Number(node.position?.x || 0)))
-            : 0;
-        const avgY = ySourceNodes.length
-            ? ySourceNodes.reduce((sum, node) => sum + Number(node.position?.y || 0), 0) / ySourceNodes.length
-            : 0;
 
         return {
             id: INTERNET_NODE_ID,
             label: t('internetNodeLabel', 'Internet'),
-            position: {
-                x: maxX + 240,
-                y: avgY,
-            },
+            position: { x: 0, y: 0 },
             exitNodeIds,
         };
     }
@@ -611,11 +680,15 @@
         }
         const isPort = Number(element.data('isPort')) === 1;
         if (isPort) {
+            const ownerNodeId = String(element.data('ownerNodeId') || '').trim();
+            const isVirtualInternet = ownerNodeId === INTERNET_NODE_ID
+                || Number(element.data('isVirtualInternet')) === 1
+                || Number(element.data('isInternetPort')) === 1;
             return {
-                ownerNodeId: String(element.data('ownerNodeId') || '').trim(),
+                ownerNodeId,
                 isPort: true,
                 portType: String(element.data('portType') || '').trim().toLowerCase(),
-                isVirtualInternet: false,
+                isVirtualInternet,
             };
         }
         return {
@@ -710,18 +783,73 @@
         const internetNode = state.cy.getElementById(INTERNET_NODE_ID);
         if (!internetNode.length) return;
 
-        const realNodes = state.cy.nodes('[isPort != 1][isVirtualInternet != 1]');
-        if (!realNodes.length) return;
+        const width = Number(state.cy.width() || 0);
+        const height = Number(state.cy.height() || 0);
+        if (!width || !height) return;
+        const pan = state.cy.pan();
+        const zoom = state.cy.zoom() || 1;
+        const viewX = Math.max(160, width - 110);
+        const viewY = Math.max(130, Math.min(height - 130, height * 0.5));
+        const modelX = (viewX - Number(pan?.x || 0)) / zoom;
+        const modelY = (viewY - Number(pan?.y || 0)) / zoom;
 
-        const exitNodeIds = getFlowExitNodeIds(state.flow);
-        const exitNodes = realNodes.filter((node) => exitNodeIds.includes(String(node.id())));
-        const yReferenceNodes = exitNodes.length ? exitNodes : realNodes;
-        const maxX = Math.max(...realNodes.map((node) => Number(node.position('x') || 0)));
-        const avgY = yReferenceNodes.reduce((sum, node) => sum + Number(node.position('y') || 0), 0) / yReferenceNodes.length;
         internetNode.position({
-            x: maxX + 240,
-            y: avgY,
+            x: modelX,
+            y: modelY,
         });
+        syncNodePorts(INTERNET_NODE_ID);
+    }
+
+    function fitRealGraphView(padding = 48) {
+        if (!state.cy) return;
+        const fitCollection = state.cy.elements().filter((element) => (
+            (element.isEdge() && Number(element.data('isVirtualInternet')) !== 1)
+            || (Number(element.data('isPort')) !== 1 && Number(element.data('isVirtualInternet')) !== 1)
+        ));
+        if (fitCollection.length) {
+            state.cy.fit(fitCollection, padding);
+            return;
+        }
+        state.cy.fit(undefined, padding);
+    }
+
+    function stopEdgeFlowAnimation() {
+        if (!state.edgeFlowTimer) return;
+        clearInterval(state.edgeFlowTimer);
+        state.edgeFlowTimer = null;
+    }
+
+    function syncEdgeFlowAnimation() {
+        if (!state.cy) return;
+        const animatedEdges = state.cy.edges().filter((edge) => (
+            Number(edge.data('isVirtualInternet')) === 1
+            || String(edge.data('status') || '').toLowerCase() === 'online'
+        ));
+        state.cy.edges().removeClass('builder-flow-animated');
+        if (!animatedEdges.length) {
+            stopEdgeFlowAnimation();
+            return;
+        }
+
+        animatedEdges.addClass('builder-flow-animated');
+        state.edgeFlowOffset = 0;
+        state.cy.batch(() => {
+            animatedEdges.forEach((edge) => edge.data('flowOffset', 0));
+        });
+
+        if (state.edgeFlowTimer) return;
+        state.edgeFlowTimer = setInterval(() => {
+            if (!state.cy) {
+                stopEdgeFlowAnimation();
+                return;
+            }
+            state.edgeFlowOffset = (state.edgeFlowOffset - 2);
+            const edges = state.cy.edges('.builder-flow-animated');
+            if (!edges.length) return;
+            state.cy.batch(() => {
+                edges.forEach((edge) => edge.data('flowOffset', state.edgeFlowOffset));
+            });
+        }, 90);
     }
 
     function runAutoLayout({ animate = true } = {}) {
@@ -733,7 +861,7 @@
         state.cy.one('layoutstop', () => {
             syncAllNodePorts();
             syncInternetNodePosition();
-            state.cy.fit(undefined, 48);
+            fitRealGraphView(48);
         });
         layoutCollection.layout({
             name: 'dagre',
@@ -749,6 +877,7 @@
         const elements = [];
         const exitNodeIds = getFlowExitNodeIds(flow);
         const exitNodeIdSet = new Set(exitNodeIds.map((id) => String(id)));
+        const internetNode = getFlowInternetNodeData(flow);
 
         for (const node of flow.nodes) {
             const isInternetExit = exitNodeIdSet.has(String(node.id));
@@ -793,6 +922,38 @@
             });
         }
 
+        if (internetNode) {
+            elements.push({
+                group: 'nodes',
+                data: {
+                    id: internetNode.id,
+                    label: internetNode.label,
+                    isPort: 0,
+                    isVirtualInternet: 1,
+                    nodeType: 'internet',
+                    status: 'online',
+                },
+                position: internetNode.position,
+                grabbable: false,
+                selectable: true,
+            });
+            elements.push({
+                group: 'nodes',
+                data: {
+                    id: buildPortId(INTERNET_NODE_ID, 'in'),
+                    label: '',
+                    isPort: 1,
+                    ownerNodeId: INTERNET_NODE_ID,
+                    portType: 'in',
+                    isVirtualInternet: 1,
+                    isInternetPort: 1,
+                },
+                position: getPortPositionFromRaw(internetNode.position, 'in'),
+                grabbable: false,
+                selectable: false,
+            });
+        }
+
         for (const hop of flow.hops) {
             elements.push({
                 group: 'edges',
@@ -805,6 +966,25 @@
                     status: hop.status,
                     isDraft: hop.isDraft ? 1 : 0,
                 },
+            });
+        }
+
+        if (internetNode) {
+            internetNode.exitNodeIds.forEach((nodeId) => {
+                const sourceNodeId = String(nodeId || '').trim();
+                if (!sourceNodeId || !exitNodeIdSet.has(sourceNodeId)) return;
+                elements.push({
+                    group: 'edges',
+                    data: {
+                        id: `internet:${sourceNodeId}`,
+                        source: buildPortId(sourceNodeId, 'out'),
+                        target: buildPortId(INTERNET_NODE_ID, 'in'),
+                        isVirtualInternet: 1,
+                        status: 'online',
+                        flowOffset: 0,
+                    },
+                    selectable: false,
+                });
             });
         }
 
@@ -2160,8 +2340,28 @@
         renderValidation(validation);
     }
 
+    function getConnectHintByCode(code) {
+        const normalized = String(code || '').trim().toLowerCase();
+        if (normalized === 'cycle') return i18n.executionHintMixedMode || i18n.connectHintFallback || 'Remove loop and keep one direction chain.';
+        if (normalized === 'bidirectional-hop') return i18n.connectHintFallback || 'Keep only one direction between these nodes.';
+        if (normalized === 'duplicate-hop') return i18n.connectHintFallback || 'This link already exists. Edit existing draft hop settings instead.';
+        if (normalized === 'self-link') return i18n.connectHintFallback || 'Source and target must be different nodes.';
+        if (normalized === 'hybrid-disabled' || normalized === 'hybrid-disabled-hop') {
+            return i18n.executionHintHybridDisabled || i18n.connectHintFallback || 'Enable hybrid mode before mixing runtime types.';
+        }
+        if (normalized === 'invalid-security-transport') {
+            return i18n.executionHintRuntimeConfigInvalid || i18n.connectHintFallback || 'Try TCP/GRPC/XHTTP transport or adjust security mode.';
+        }
+        if (normalized === 'multiple-upstreams-not-supported' || normalized === 'multiple-downstreams-not-supported') {
+            return i18n.connectHintFallback || 'Builder currently supports one upstream and one downstream per node.';
+        }
+        if (normalized === 'missing-node') return i18n.executionHintResourceMissing || i18n.connectHintFallback || 'Refresh topology and retry.';
+        return i18n.connectHintFallback || 'Check link direction and chain constraints.';
+    }
+
     function initCy(flow) {
         if (state.cy) {
+            stopEdgeFlowAnimation();
             state.cy.destroy();
             state.cy = null;
             state.edgehandles = null;
@@ -2189,8 +2389,10 @@
         if (!hasPositions) {
             runAutoLayout({ animate: true });
         } else {
-            state.cy.fit(undefined, 48);
+            fitRealGraphView(48);
         }
+        syncInternetNodePosition();
+        syncEdgeFlowAnimation();
 
         state.cy.on('select', 'node', (event) => {
             if (isPortElement(event.target)) return;
@@ -2213,12 +2415,17 @@
             if (event.target === state.cy) {
                 clearConnectIntent();
                 scheduleTransientEdgeCleanup();
+                hideBuilderErrorTooltip();
                 renderInspectorEmpty();
             }
         });
 
         state.cy.on('position', 'node[isPort != 1]', (event) => {
+            if (String(event.target.id() || '') === INTERNET_NODE_ID) return;
             syncNodePorts(event.target.id());
+        });
+        state.cy.on('pan zoom resize', () => {
+            syncInternetNodePosition();
         });
 
         if (typeof state.cy.edgehandles === 'function') {
@@ -2328,6 +2535,7 @@
         state.lastConnectSignature = connectSignature;
         state.lastConnectAt = now;
         state.connectInFlight = true;
+        hideBuilderErrorTooltip();
         try {
             const payload = await requestJson('/api/cascade-builder/connect', {
                 method: 'POST',
@@ -2336,9 +2544,10 @@
 
             renderConnectInspector(payload);
             if (!payload.accepted) {
-                const firstValidationMessage = payload?.validation?.errors?.[0]?.message
-                    || payload?.validation?.warnings?.[0]?.message
-                    || '';
+                const firstValidationError = payload?.validation?.errors?.[0] || payload?.validation?.warnings?.[0] || null;
+                const firstValidationMessage = firstValidationError?.message || '';
+                const hint = getConnectHintByCode(firstValidationError?.code);
+                showBuilderErrorTooltip(firstValidationMessage || (i18n.rejectedDraft || 'Draft connection is invalid.'), hint);
                 toast(firstValidationMessage || (i18n.rejectedDraft || 'Draft connection is invalid.'), 'error');
                 return;
             }
@@ -2346,7 +2555,9 @@
             const draftHop = payload.draftHop;
             await loadState({ selectHopId: draftHop.id });
             toast(i18n.acceptedDraft || 'Draft hop added.');
+            toast(i18n.connectOpenInspectorHint || 'Connection created. Tune mode/protocol/security in the inspector on the right.');
         } catch (error) {
+            showBuilderErrorTooltip(`${i18n.connectFailed || 'Connect failed'}: ${error.message}`, i18n.connectHintFallback || 'Check link direction and chain constraints.');
             toast(`${i18n.connectFailed || 'Connect failed'}: ${error.message}`, 'error');
         } finally {
             state.connectInFlight = false;
@@ -2501,6 +2712,7 @@
 
     async function loadState({ selectHopId = null, selectNodeId = null } = {}) {
         try {
+            hideBuilderErrorTooltip();
             const flow = await requestJson('/api/cascade-builder/state');
             state.flow = flow;
             renderLibrary(flow);
@@ -2592,9 +2804,12 @@
             syncExecutionFilterUi(state.execution);
             renderExecutionResult(state.execution);
         });
-        document.getElementById('builderFitView')?.addEventListener('click', () => state.cy && state.cy.fit(undefined, 48));
+        document.getElementById('builderFitView')?.addEventListener('click', () => fitRealGraphView(48));
         document.getElementById('builderAutoLayout')?.addEventListener('click', () => {
             runAutoLayout({ animate: true });
+        });
+        document.getElementById('builderFullscreenToggle')?.addEventListener('click', () => {
+            setBuilderFullscreen(!state.isFullscreen);
         });
 
         if (typeof MutationObserver !== 'undefined') {
@@ -2605,6 +2820,11 @@
             });
             observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
         }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape' || !state.isFullscreen) return;
+            setBuilderFullscreen(false);
+        });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
