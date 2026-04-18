@@ -212,6 +212,15 @@
                     </button>
                 </div>
             </div>
+            <div class="onboarding-jobs-controls">
+                <label class="checkbox-inline">
+                    <input type="checkbox" id="onboardingHideCompleted" checked>
+                    <span><%= t('nodes.onboardingHideCompleted') %></span>
+                </label>
+                <button type="button" class="btn btn-sm" id="btnClearOnboardingCompleted" onclick="clearCompletedOnboardingJobs()">
+                    <i class="ti ti-trash"></i> <%= t('nodes.onboardingClearCompleted') %>
+                </button>
+            </div>
             <div id="onboardingJobsSummary" class="onboarding-jobs-summary" style="margin-top:6px;"><%= t('nodes.onboardingJobsLoading') %></div>
         </div>
         <% if (outboundsAclLocked) { %>

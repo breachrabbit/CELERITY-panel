@@ -257,6 +257,44 @@ class NodeOnboardingService {
         return jobs.map((job) => this._asPublicJob(job));
     }
 
+    async clearJobsByNode(nodeId, {
+        scope = 'completed',
+        keepLatest = 0,
+    } = {}) {
+        const validNodeId = this._assertObjectId(nodeId, 'nodeId');
+        const normalizedScope = String(scope || 'completed').trim().toLowerCase();
+        const normalizedKeepLatest = Math.max(parseInt(keepLatest, 10) || 0, 0);
+
+        const filter = { nodeId: validNodeId };
+        if (normalizedScope === 'terminal') {
+            filter.isActive = false;
+        } else {
+            filter.status = 'completed';
+        }
+
+        const jobs = await NodeOnboardingJob
+            .find(filter)
+            .sort({ createdAt: -1 })
+            .select('_id status createdAt');
+
+        const idsToDelete = jobs
+            .slice(normalizedKeepLatest)
+            .map((job) => String(job._id));
+
+        if (!idsToDelete.length) {
+            return { deleted: 0, scope: normalizedScope };
+        }
+
+        const deleteResult = await NodeOnboardingJob.deleteMany({
+            _id: { $in: idsToDelete },
+        });
+
+        return {
+            deleted: Number(deleteResult?.deletedCount || 0),
+            scope: normalizedScope,
+        };
+    }
+
     async startJob(jobId, { actorLabel = '' } = {}) {
         const job = await this._loadJob(jobId);
         if (job.status === 'running') {

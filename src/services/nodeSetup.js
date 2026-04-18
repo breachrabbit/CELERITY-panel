@@ -830,6 +830,48 @@ function buildHybridHysteriaConfigNode(node, socksPort) {
     return nodeForConfig;
 }
 
+function buildStandaloneHysteriaConfigNode(node) {
+    const nodeForConfig = { ...(node?.toObject ? node.toObject() : node) };
+    const outbounds = Array.isArray(nodeForConfig.outbounds) ? nodeForConfig.outbounds : [];
+    const aclRules = Array.isArray(nodeForConfig.aclRules) ? nodeForConfig.aclRules : [];
+
+    nodeForConfig.outbounds = outbounds.filter(ob => ob && ob.name !== CASCADE_SIDECAR_OUTBOUND);
+    nodeForConfig.aclRules = aclRules.filter(rule => !String(rule || '').startsWith(`${CASCADE_SIDECAR_OUTBOUND}(`));
+    return nodeForConfig;
+}
+
+async function resolveHybridSidecarSetupState(node) {
+    const sidecarConfigured = config.FEATURE_CASCADE_HYBRID && (node?.cascadeSidecar?.enabled !== false);
+    if (!sidecarConfigured) {
+        return { sidecarConfigured, sidecarRequired: false, reason: 'disabled' };
+    }
+
+    if (!node?._id) {
+        // New or detached node object without id: keep legacy behavior.
+        return { sidecarConfigured, sidecarRequired: true, reason: 'node-id-missing' };
+    }
+
+    try {
+        const CascadeLink = require('../models/cascadeLinkModel');
+        const sidecarRequired = !!(await CascadeLink.exists({
+            active: true,
+            $or: [
+                { portalNode: node._id },
+                { bridgeNode: node._id, mode: 'forward' },
+            ],
+        }));
+        return {
+            sidecarConfigured,
+            sidecarRequired,
+            reason: sidecarRequired ? 'active-cascade-links' : 'no-active-cascade-links',
+        };
+    } catch (error) {
+        logger.warn(`[NodeSetup] Hybrid sidecar requirement check failed for ${node?.name || node?._id || 'node'}: ${error.message}`);
+        // Preserve previous behavior on check failures to avoid breaking real cascades.
+        return { sidecarConfigured, sidecarRequired: true, reason: 'requirement-check-failed' };
+    }
+}
+
 async function getServiceState(conn, serviceNames) {
     const names = (Array.isArray(serviceNames) ? serviceNames : [serviceNames])
         .map(name => String(name || '').trim())
@@ -1249,8 +1291,10 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
             log('ACME preparation done');
         }
 
-        const hybridSidecarEnabled = config.FEATURE_CASCADE_HYBRID && (node?.cascadeSidecar?.enabled !== false);
-        const rawSidecar = hybridSidecarEnabled ? (node?.cascadeSidecar || {}) : {};
+        const sidecarState = await resolveHybridSidecarSetupState(node);
+        const hybridSidecarConfigured = sidecarState.sidecarConfigured;
+        const hybridSidecarEnabled = sidecarState.sidecarRequired;
+        const rawSidecar = hybridSidecarConfigured ? (node?.cascadeSidecar || {}) : {};
         const socksPort = Number(rawSidecar.socksPort) > 0 ? Number(rawSidecar.socksPort) : 11080;
         const rawServiceName = String(rawSidecar.serviceName || 'xray-cascade').trim() || 'xray-cascade';
         const serviceName = rawServiceName.endsWith('.service')
@@ -1260,9 +1304,12 @@ echo "Note: Make sure DNS for ${node.domain} points to this server's IP!"
         const sidecarConfigPath = (typeof rawSidecar.configPath === 'string' && rawSidecar.configPath.trim().startsWith('/'))
             ? rawSidecar.configPath.trim()
             : '/usr/local/etc/xray-cascade/config.json';
+        if (hybridSidecarConfigured && !hybridSidecarEnabled) {
+            log(`Hybrid sidecar is enabled in node settings, but overlay is not required now (${sidecarState.reason}). Using standalone runtime profile.`);
+        }
         const nodeForConfig = hybridSidecarEnabled
             ? buildHybridHysteriaConfigNode(node, socksPort)
-            : node;
+            : buildStandaloneHysteriaConfigNode(node);
 
         log('Uploading config...');
         const hysteriaConfig = configGenerator.generateNodeConfig(nodeForConfig, authUrl, { authInsecure, useTlsFiles });
@@ -1313,6 +1360,9 @@ systemctl restart ${shellQuote(serviceUnitName)}
             } catch (sidecarErr) {
                 throw new Error(`Hybrid sidecar setup failed: ${sidecarErr.message}`);
             }
+        } else if (hybridSidecarConfigured) {
+            log(`Stopping ${serviceUnitName} (overlay not required)...`);
+            await execRemote(`systemctl stop ${shellQuote(serviceUnitName)} 2>/dev/null || true; systemctl disable ${shellQuote(serviceUnitName)} 2>/dev/null || true`);
         }
 
         log(`Port hopping decision: enabled=${setupPortHopping ? 'yes' : 'no'}, sameVps=${isSameVpsSetup ? 'yes' : 'no'}, range=${node.portRange || 'none'}`);

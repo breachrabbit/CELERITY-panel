@@ -168,6 +168,61 @@
     gap: 10px;
     margin-bottom: 8px;
 }
+.onboarding-jobs-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+.onboarding-jobs-controls .checkbox-inline {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.onboarding-jobs-controls .checkbox-inline input {
+    margin: 0;
+}
+.onboarding-job-shell {
+    overflow: hidden;
+}
+.onboarding-job-summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+.onboarding-job-summary::-webkit-details-marker {
+    display: none;
+}
+.onboarding-job-summary-title {
+    min-width: 0;
+}
+.onboarding-job-summary-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+.onboarding-job-summary-caret {
+    color: var(--text-muted);
+    font-size: 14px;
+    transition: transform 0.2s ease;
+}
+.onboarding-job-shell[open] .onboarding-job-summary-caret {
+    transform: rotate(90deg);
+}
+.onboarding-job-content {
+    margin-top: 8px;
+    border-top: 1px dashed var(--border);
+    padding-top: 8px;
+}
 .onboarding-job-title {
     font-size: 13px;
     font-weight: 600;
@@ -563,6 +618,12 @@ const i18n = {
     onboardingCopyDone: <%- JSON.stringify(t("nodes.onboardingCopyDone")) %>,
     onboardingNoLogs: <%- JSON.stringify(t("nodes.onboardingNoLogs")) %>,
     onboardingLegacyBridgeHint: <%- JSON.stringify(t("nodes.onboardingLegacyBridgeHint")) %>,
+    onboardingHideCompleted: <%- JSON.stringify(t("nodes.onboardingHideCompleted")) %>,
+    onboardingClearCompleted: <%- JSON.stringify(t("nodes.onboardingClearCompleted")) %>,
+    onboardingClearCompletedConfirm: <%- JSON.stringify(t("nodes.onboardingClearCompletedConfirm")) %>,
+    onboardingClearCompletedDone: <%- JSON.stringify(t("nodes.onboardingClearCompletedDone")) %>,
+    onboardingExpand: <%- JSON.stringify(t("common.expand")) %>,
+    onboardingCollapse: <%- JSON.stringify(t("common.collapse")) %>,
     loadingLogs: <%- JSON.stringify(t("nodes.loadingLogs")) %>,
     checking: <%- JSON.stringify(t("nodes.checking")) %>,
     resettingStatus: <%- JSON.stringify(t("nodes.resettingStatus")) %>,
@@ -591,6 +652,8 @@ const i18nConfig = {
     baseUrl: <%- JSON.stringify(baseUrl) %>
 };
 let onboardingJobsCache = [];
+let onboardingHideCompleted = true;
+const onboardingCollapsedJobs = new Set();
 
 // ==================== Protocol switcher ====================
 
@@ -1355,8 +1418,17 @@ function renderOnboardingJobsSummary(jobs) {
         summary.textContent = i18n.onboardingJobsEmpty;
         return;
     }
-    const cards = jobs.slice(0, 6).map((job) => {
-        const id = String(job?.id || '').slice(-8) || '—';
+    const filteredJobs = jobs.filter((job) => {
+        if (!onboardingHideCompleted) return true;
+        return String(job?.status || '').trim().toLowerCase() !== 'completed';
+    });
+    if (!filteredJobs.length) {
+        summary.textContent = i18n.onboardingJobsEmpty;
+        return;
+    }
+    const cards = filteredJobs.slice(0, 20).map((job) => {
+        const fullId = String(job?.id || '').trim();
+        const id = fullId.slice(-8) || '—';
         const status = String(job?.status || 'unknown').toLowerCase();
         const modeLabel = getOnboardingJobModeLabel(job);
         const step = humanizeOnboardingStep(job?.currentStep || 'preflight');
@@ -1374,21 +1446,29 @@ function renderOnboardingJobsSummary(jobs) {
             });
         const logPreview = logs.length ? logs.join('\n') : (i18n.onboardingNoLogs || 'No logs yet');
         const chips = renderStepChips(job);
+        const isCollapsed = onboardingCollapsedJobs.has(fullId);
+        const toggleLabel = isCollapsed
+            ? (i18n.onboardingExpand || 'Expand')
+            : (i18n.onboardingCollapse || 'Collapse');
 
         return `
             <div class="onboarding-job-card">
-                <div class="onboarding-job-head">
-                    <div>
-                        <div class="onboarding-job-title">${escapeHtml(i18n.onboardingJobLabel)} #${escapeHtml(id)}</div>
-                        <div class="onboarding-job-meta">
-                            <div>${escapeHtml(i18n.onboardingStatusLabel)}: ${escapeHtml(status)}</div>
-                            <div>${escapeHtml(i18n.onboardingStepLabel)}: ${escapeHtml(step)}</div>
-                            <div>${escapeHtml(i18n.onboardingModeLabel || 'Mode')}: ${escapeHtml(modeLabel)}</div>
-                            <div>${escapeHtml(i18n.onboardingUpdatedLabel)}: ${escapeHtml(updated)}</div>
-                            <div>${escapeHtml(i18n.onboardingStepsSummaryLabel || 'Steps')}: ${escapeHtml(summarizeStepStates(job))}</div>
+                <details class="onboarding-job-shell" ${isCollapsed ? '' : 'open'}>
+                    <summary class="onboarding-job-summary" onclick="toggleOnboardingJobCard('${escapeAttr(fullId)}'); return false;">
+                        <div class="onboarding-job-summary-title">
+                            <div class="onboarding-job-title">${escapeHtml(i18n.onboardingJobLabel)} #${escapeHtml(id)}</div>
+                            <div class="onboarding-job-summary-meta">
+                                <div>${escapeHtml(i18n.onboardingStatusLabel)}: ${escapeHtml(status)}</div>
+                                <div>${escapeHtml(i18n.onboardingStepLabel)}: ${escapeHtml(step)}</div>
+                                <div>${escapeHtml(i18n.onboardingModeLabel || 'Mode')}: ${escapeHtml(modeLabel)}</div>
+                                <div>${escapeHtml(i18n.onboardingUpdatedLabel)}: ${escapeHtml(updated)}</div>
+                                <div>${escapeHtml(i18n.onboardingStepsSummaryLabel || 'Steps')}: ${escapeHtml(summarizeStepStates(job))}</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="onboarding-job-actions">
+                        <div class="onboarding-job-summary-caret" title="${escapeAttr(toggleLabel)}">▸</div>
+                    </summary>
+                    <div class="onboarding-job-content">
+                        <div class="onboarding-job-actions">
                         <button type="button" class="btn btn-sm" onclick="resumeOnboardingJob('${escapeAttr(job?.id || '')}')" ${canResume ? '' : 'disabled'}>
                             <i class="ti ti-player-play"></i> ${escapeHtml(i18n.onboardingResumeJob || i18n.onboardingResume)}
                         </button>
@@ -1402,18 +1482,27 @@ function renderOnboardingJobsSummary(jobs) {
                             <i class="ti ti-copy"></i> ${escapeHtml(i18n.onboardingCopyDiagnostics || 'Copy diagnostics')}
                         </button>
                     </div>
-                </div>
-                ${errorText ? `<div class="onboarding-job-error">${escapeHtml(i18n.onboardingErrorLabel)}: ${escapeHtml(errorText)}</div>` : ''}
-                ${isLegacyBridgeJob(job) ? `<div class="onboarding-job-hint">${escapeHtml(i18n.onboardingLegacyBridgeHint || 'Legacy bridge mode; use Repair to start durable onboarding')}</div>` : ''}
-                <details class="onboarding-job-details">
-                    <summary>${escapeHtml(i18n.onboardingDiagnosticsLabel || 'Diagnostics')}</summary>
-                    <div class="onboarding-step-states">${chips}</div>
-                    <pre class="onboarding-job-log-preview">${escapeHtml(logPreview)}</pre>
+                        ${errorText ? `<div class="onboarding-job-error">${escapeHtml(i18n.onboardingErrorLabel)}: ${escapeHtml(errorText)}</div>` : ''}
+                        ${isLegacyBridgeJob(job) ? `<div class="onboarding-job-hint">${escapeHtml(i18n.onboardingLegacyBridgeHint || 'Legacy bridge mode; use Repair to start durable onboarding')}</div>` : ''}
+                        <details class="onboarding-job-details">
+                            <summary>${escapeHtml(i18n.onboardingDiagnosticsLabel || 'Diagnostics')}</summary>
+                            <div class="onboarding-step-states">${chips}</div>
+                            <pre class="onboarding-job-log-preview">${escapeHtml(logPreview)}</pre>
+                        </details>
+                    </div>
                 </details>
             </div>
         `;
     });
     summary.innerHTML = cards.join('');
+}
+
+function toggleOnboardingJobCard(jobId) {
+    const normalized = String(jobId || '').trim();
+    if (!normalized) return;
+    if (onboardingCollapsedJobs.has(normalized)) onboardingCollapsedJobs.delete(normalized);
+    else onboardingCollapsedJobs.add(normalized);
+    renderOnboardingJobsSummary(onboardingJobsCache);
 }
 
 async function loadOnboardingJobs() {
@@ -1422,16 +1511,47 @@ async function loadOnboardingJobs() {
     if (summary) summary.textContent = i18n.onboardingJobsLoading;
     if (btn) btn.disabled = true;
     try {
-        const res = await fetch('/api/nodes/<%= node._id %>/onboarding/jobs?limit=6', { credentials: 'include' });
+        const res = await fetch('/api/nodes/<%= node._id %>/onboarding/jobs?limit=20', { credentials: 'include' });
         const data = await res.json();
         if (!res.ok) {
             throw new Error(data?.error || i18n.onboardingJobsLoadError);
         }
         onboardingJobsCache = Array.isArray(data?.jobs) ? data.jobs : [];
+        const knownIds = new Set(
+            onboardingJobsCache
+                .map((job) => String(job?.id || '').trim())
+                .filter(Boolean)
+        );
+        Array.from(onboardingCollapsedJobs).forEach((id) => {
+            if (!knownIds.has(id)) onboardingCollapsedJobs.delete(id);
+        });
         renderOnboardingJobsSummary(onboardingJobsCache);
     } catch (err) {
         onboardingJobsCache = [];
         if (summary) summary.innerHTML = '<span class="text-danger">' + escapeHtml((i18n.onboardingJobsLoadError || i18n.error) + ': ' + err.message) + '</span>';
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function clearCompletedOnboardingJobs() {
+    if (!await window.hrConfirm(i18n.onboardingClearCompletedConfirm || 'Clear completed onboarding jobs?')) return;
+    const btn = document.getElementById('btnClearOnboardingCompleted');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch('/api/nodes/<%= node._id %>/onboarding/jobs?scope=completed', {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data?.error || i18n.error || 'Request failed');
+        }
+        const deletedCount = Number(data?.deleted || 0);
+        document.getElementById('setupResult').innerHTML = `<div class="alert alert-success"><i class="ti ti-check"></i> ${escapeHtml(i18n.onboardingClearCompletedDone || 'Completed onboarding jobs cleared')} (${deletedCount})</div>`;
+        await loadOnboardingJobs();
+    } catch (err) {
+        document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + escapeHtml((i18n.onboardingJobsLoadError || i18n.error || 'Error') + ': ' + err.message) + '</div>';
     } finally {
         if (btn) btn.disabled = false;
     }
@@ -1666,6 +1786,14 @@ async function generateXrayKeys() {
     if (proto === 'xray') {
         updateXrayTransportUI();
         updateXraySecurityUI();
+    }
+    const hideCompletedEl = document.getElementById('onboardingHideCompleted');
+    if (hideCompletedEl) {
+        onboardingHideCompleted = !!hideCompletedEl.checked;
+        hideCompletedEl.addEventListener('change', () => {
+            onboardingHideCompleted = !!hideCompletedEl.checked;
+            renderOnboardingJobsSummary(onboardingJobsCache);
+        });
     }
     initOnboardingStepSelect();
     loadOnboardingJobs().catch(() => {});

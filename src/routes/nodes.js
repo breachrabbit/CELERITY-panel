@@ -977,6 +977,32 @@ router.get('/:id/onboarding/jobs', requireScope('nodes:read'), async (req, res) 
 });
 
 /**
+ * DELETE /nodes/:id/onboarding/jobs - Clear onboarding jobs by scope
+ * query:
+ *   - scope: completed | terminal (default: completed)
+ *   - keepLatest: number (default: 0)
+ */
+router.delete('/:id/onboarding/jobs', requireScope('nodes:write'), async (req, res) => {
+    try {
+        const node = await HyNode.findById(req.params.id).select('_id');
+        if (!node) {
+            return res.status(404).json({ error: 'Нода не найдена' });
+        }
+
+        const scope = ['completed', 'terminal'].includes(String(req.query.scope || '').trim().toLowerCase())
+            ? String(req.query.scope).trim().toLowerCase()
+            : 'completed';
+        const keepLatest = Math.max(parseInt(req.query.keepLatest, 10) || 0, 0);
+
+        const result = await nodeOnboardingService.clearJobsByNode(req.params.id, { scope, keepLatest });
+        res.json({ success: true, ...result });
+    } catch (error) {
+        logger.error(`[Nodes API] Onboarding clear error: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
  * POST /nodes/:id/onboarding/jobs - Create onboarding job (scaffold layer)
  */
 router.post('/:id/onboarding/jobs', requireScope('nodes:write'), async (req, res) => {

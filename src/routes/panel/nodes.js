@@ -801,6 +801,16 @@ async function runHybridSidecarSmokeCheck(node) {
         ssh = new NodeSSH(node);
         await ssh.connect();
 
+        const CascadeLink = require('../../models/cascadeLinkModel');
+        const overlayRequired = !!(await CascadeLink.exists({
+            active: true,
+            $or: [
+                { portalNode: node._id },
+                { bridgeNode: node._id, mode: 'forward' },
+            ],
+        }));
+        logs.push(`[INFO] overlay required: ${overlayRequired ? 'yes' : 'no'}`);
+
         logs.push(`[INFO] Node: ${node.name} (${node.ip})`);
         logs.push(`[INFO] sidecar service: ${runtime.serviceName}`);
         logs.push(`[INFO] sidecar config: ${runtime.sidecarConfigPath}`);
@@ -832,24 +842,24 @@ async function runHybridSidecarSmokeCheck(node) {
                 .join(' | ');
             if (journalTail) sidecarDetails += `; logs=${journalTail}`;
         }
-        pushCheck('sidecar service active', sidecarStatus === 'active', sidecarDetails);
+        pushCheck(
+            'sidecar service active',
+            overlayRequired ? sidecarStatus === 'active' : true,
+            overlayRequired ? sidecarDetails : `not required (overlay disabled for current topology); ${sidecarDetails}`
+        );
 
         const sidecarConfig = await ssh.exec(`[ -f ${shellQuote(runtime.sidecarConfigPath)} ] && echo yes || echo no`);
-        pushCheck('sidecar config exists', String(sidecarConfig.stdout || '').trim() === 'yes', runtime.sidecarConfigPath);
+        pushCheck(
+            'sidecar config exists',
+            overlayRequired ? String(sidecarConfig.stdout || '').trim() === 'yes' : true,
+            overlayRequired ? runtime.sidecarConfigPath : `not required (overlay disabled for current topology); ${runtime.sidecarConfigPath}`
+        );
 
         const hysteriaConfig = await ssh.exec(`[ -f ${shellQuote(runtime.hysteriaConfigPath)} ] && echo yes || echo no`);
         pushCheck('hysteria config exists', String(hysteriaConfig.stdout || '').trim() === 'yes', runtime.hysteriaConfigPath);
 
         const sidecarRule = await ssh.exec(`grep -n "__cascade_sidecar__" ${shellQuote(runtime.hysteriaConfigPath)} 2>/dev/null | head -n 1`);
         const sidecarRuleLine = String(sidecarRule.stdout || '').trim();
-        const CascadeLink = require('../../models/cascadeLinkModel');
-        const overlayRequired = !!(await CascadeLink.exists({
-            active: true,
-            $or: [
-                { portalNode: node._id },
-                { bridgeNode: node._id, mode: 'forward' },
-            ],
-        }));
         if (overlayRequired) {
             pushCheck('overlay marker in hysteria config', !!sidecarRuleLine, sidecarRuleLine || 'not found');
         } else {
@@ -862,7 +872,13 @@ async function runHybridSidecarSmokeCheck(node) {
 
         const listenCheck = await ssh.exec(`ss -ltnH '( sport = :${runtime.socksPort} )' | wc -l`);
         const listeners = parseInt(String(listenCheck.stdout || '0').trim(), 10) || 0;
-        pushCheck('sidecar listens on SOCKS port', listeners > 0, `port=${runtime.socksPort}, listeners=${listeners}`);
+        pushCheck(
+            'sidecar listens on SOCKS port',
+            overlayRequired ? listeners > 0 : true,
+            overlayRequired
+                ? `port=${runtime.socksPort}, listeners=${listeners}`
+                : `not required (overlay disabled for current topology); port=${runtime.socksPort}, listeners=${listeners}`
+        );
 
         const xrayBinary = await ssh.exec('command -v xray >/dev/null 2>&1 && echo yes || echo no');
         pushCheck('xray binary present', String(xrayBinary.stdout || '').trim() === 'yes', '/usr/local/bin/xray');
