@@ -1,5 +1,32 @@
 # Development Log
 
+## 2026-04-18 Hybrid-by-default + Topology Reconcile Automation + Remote Cleanup
+
+- Shipped automation wave to reduce manual operator actions around cascade/node lifecycle:
+  - commit: `19d8e6a` (`feat: automate cascade topology reconcile and cleanup flows`).
+- Hybrid cascade sidecar behavior normalized to always-on policy:
+  - removed operational dependence on per-node sidecar enable toggle in form/settings paths;
+  - runtime/cascade service paths now enforce hybrid behavior by default where feature is enabled.
+- Added topology reconcile orchestration after cascade link changes:
+  - create/reconnect/delete link APIs and builder commit now queue background topology reconcile;
+  - reconcile updates roles, auto-restores detached nodes to standalone runtime, and deploys affected chain/runtime updates.
+- Added remote node cleanup before panel delete:
+  - new cleanup path removes/stops `cc-agent`, cascade sidecar/bridge artifacts, stale dirs and reloads systemd;
+  - related cascade links are undeployed/deleted and neighbor reconcile is queued.
+- Users-page UX:
+  - added delete button/action to users list/cards with in-app confirm.
+- Local validation:
+  - syntax checks passed on modified backend/frontend JS;
+  - locale JSON validation passed.
+- Operational note:
+  - commit is in `main`; stand requires final visual/regression verification pass for this exact wave.
+
+Change types:
+
+- `stability fix` — automated role/runtime transitions and delete-time cleanup
+- `local patch` — sidecar always-on policy + users delete action
+- `ops` — reduced manual reconfigure/redeploy steps after cascade topology edits
+
 ## 2026-04-18 Agent Source Guardrail (Legacy URL Auto-Rewrite)
 
 - Closed ambiguity where installer logs could still show legacy ClickDevTech release URL in some runs.

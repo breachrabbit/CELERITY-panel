@@ -2,6 +2,21 @@
 
 ## 2026-04-18
 
+- Worked on: full automation pass requested by operator (hybrid-by-default, auto role/runtime transitions, node delete cleanup, users delete action).
+- Finished with:
+  - pushed `19d8e6a` to `main`:
+    - hybrid sidecar flow normalized to always-on policy;
+    - cascade link lifecycle now queues topology reconcile automatically;
+    - detached nodes auto-restore to standalone runtime;
+    - affected linked nodes auto-deploy/reconfigure in background;
+    - node delete now performs remote cleanup of agent/cascade artifacts + link cleanup/reconcile;
+    - users list now has delete action.
+  - performed local syntax/json checks on modified files.
+- Next step:
+  - verify stand is serving this exact commit on UI pages (`/panel/users`, node form/settings);
+  - run live regression for link create/reconnect/delete and validate auto topology reconcile behavior end-to-end;
+  - run disposable node delete test and confirm remote artifact cleanup path.
+
 - Worked on: report that Hysteria/Xray agent source still appears as original upstream in setup logs.
 - Finished with:
   - shipped hard runtime guardrail in installer path (`src/services/nodeSetup.js`);

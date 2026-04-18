@@ -86,6 +86,58 @@
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-18 Stop-Point — Hybrid-by-default + Topology Automation + Cleanup/Delete UX
+
+### What was delivered
+
+- Large code wave shipped to `main`:
+  - commit: `19d8e6a` (`feat: automate cascade topology reconcile and cleanup flows`).
+- Hybrid sidecar mode moved to always-on runtime behavior:
+  - per-node sidecar enable toggle removed from operational flow;
+  - settings/UI reflect always-enabled policy for hybrid runtime path.
+- Cascade topology automation added:
+  - link create/reconnect/delete and builder commit now queue background topology reconcile;
+  - roles re-evaluated automatically;
+  - nodes detached from links are auto-restored to standalone runtime;
+  - linked nodes get chain deploy/reconfigure in background with operator-facing queued signal.
+- Node deletion hardening:
+  - remote cleanup path added before delete:
+    - stop/disable/remove `cc-agent`,
+    - cleanup cascade runtime artifacts (`xray-bridge`/sidecar units, config dirs),
+    - daemon reload + basic firewall cleanup attempt;
+  - related cascade links are undeployed/deleted and topology reconcile is queued for affected neighbors.
+- Users list operator UX:
+  - delete action added in users table/cards with in-app confirm flow.
+
+### Validation status at this stop-point
+
+- Local checks passed for changed JS/JSON files.
+- Code is pushed to `main`.
+- Live onboarding API smokes were run against stand and completed (`Xray` + `Hysteria`) from durable jobs.
+- Important open check:
+  - one visual/live verification pass is still required to confirm stand serves this exact commit on all relevant pages
+    (`/panel/users`, node form/settings sidecar sections, cascade auto-reconcile behavior after link changes).
+
+### What is pending
+
+1. Force/confirm stand deploy for latest `main` and verify rendered UI includes:
+   - users delete action;
+   - sidecar always-on UI (without legacy enable toggle).
+2. Run live regression on topology automation:
+   - create/reconnect/delete links,
+   - confirm auto role transition + standalone restore + background deploy notifications.
+3. Recheck node delete path on a disposable node and confirm remote cleanup warning/success behavior.
+4. Continue onboarding jobs UX cleanup and Hysteria sidecar smoke stability from this baseline.
+
+### Next step
+
+1. Deploy/verify `main` on `https://tunnel.hiddenrabbit.net.ru/panel`.
+2. Run short UI/API regression for:
+   - `/panel/users` delete action,
+   - cascade link lifecycle automation,
+   - node delete cleanup path.
+3. If mismatch appears, patch only failing path and keep code/docs commits split.
+
 ## 2026-04-18 Stop-Point — Legacy Agent URL Runtime Rewrite
 
 ### What was delivered

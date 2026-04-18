@@ -439,27 +439,26 @@ What is still pending:
 
 Status: `monitoring`
 
-### 16. Hysteria may work only with sidecar disabled in some standalone-like scenarios
+### 16. Hysteria sidecar behavior after hybrid-always-on switch still needs live confirmation
 
 Issue history:
 
-- user reports: Hysteria fails with sidecar checkbox enabled; works when disabled.
+- user reports: Hysteria/TLS path can fail in scenarios where sidecar overlay behavior is expected.
 
 Current state:
 
-- sidecar requirement gate was introduced in setup/smoke-check logic and shipped:
-  - sidecar is treated as required only when active cascade links need overlay for node;
-  - standalone config path strips reserved `__cascade_sidecar__` outbound/ACL marker.
-- live stand check (`tunnel.hiddenrabbit.net.ru`) now confirms:
-  - with `sidecar=true` and no active relevant links, hybrid smoke-check returns `success: true`;
-  - sidecar checks are marked as `not required (overlay disabled for current topology)` instead of false-fail.
+- hybrid sidecar policy has been moved to always-on runtime behavior in current `main` wave;
+- per-node sidecar enable checkbox is removed from normal operator flow;
+- standalone-like topology should now be handled automatically by topology reconcile/runtime restore without manual toggle cycles.
 
 What is still pending:
 
-- run a second live check where active cascade links *do* require overlay and verify sidecar service/listener are active;
-- if overlay-required scenario fails, patch only failing step and keep standalone behavior unchanged.
+- deploy/verify this wave on stand and run two targeted checks:
+  - Hysteria standalone-like flow (no active cascade links),
+  - Hysteria overlay-required flow (active links require sidecar path);
+- if TLS/runtime fail persists, capture fresh diagnostics and patch only failing step.
 
-Status: `in progress (partially resolved)`
+Status: `pending verification`
 
 ### 14. Runtime offline after role/cascade transitions due Xray log permission drift
 
