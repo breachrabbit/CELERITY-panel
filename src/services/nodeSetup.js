@@ -2509,9 +2509,10 @@ echo "TLS disabled, skipping cert generation"
     const directReleaseUrl = agentReleaseTag === 'latest'
         ? `${agentReleaseBase}/latest/download/$BIN_NAME`
         : `${agentReleaseBase}/download/${agentReleaseTag}/$BIN_NAME`;
-    const proxyBase = directReleaseUrl.startsWith('https://github.com/')
-        ? directReleaseUrl
-        : '';
+    const hardReleaseBase = 'https://github.com/breachrabbit/CELERITY-panel/releases';
+    const hardReleaseUrl = agentReleaseTag === 'latest'
+        ? `${hardReleaseBase}/latest/download/$BIN_NAME`
+        : `${hardReleaseBase}/download/${agentReleaseTag}/$BIN_NAME`;
     const preloaded = await preloadBundledCcAgentBinaries(conn, log);
     const preloadedAmd64 = String(preloaded.amd64 || '').trim();
     const preloadedArm64 = String(preloaded.arm64 || '').trim();
@@ -2528,11 +2529,24 @@ else
 fi
 
 GITHUB_URL="${directReleaseUrl}"
-MIRROR_URL_1="${proxyBase ? `https://ghproxy.com/${proxyBase}` : ''}"
-MIRROR_URL_2="${proxyBase ? `https://mirror.ghproxy.com/${proxyBase}` : ''}"
-MIRROR_URL_3="${proxyBase ? `https://ghproxy.net/${proxyBase}` : ''}"
+HIDDEN_RABBIT_URL="${hardReleaseUrl}"
 PRELOADED_AMD64=${shellQuote(preloadedAmd64)}
 PRELOADED_ARM64=${shellQuote(preloadedArm64)}
+
+# Safety net: force legacy ClickDevTech release source to Hidden Rabbit fork.
+if echo "$GITHUB_URL" | grep -Eqi 'github\.com/ClickDevTech/(CELERITY-panel|hysteria-panel)/releases'; then
+    echo "WARN: Legacy ClickDevTech agent release source detected. Switching to Hidden Rabbit fork releases."
+    GITHUB_URL="$HIDDEN_RABBIT_URL"
+fi
+
+MIRROR_URL_1=""
+MIRROR_URL_2=""
+MIRROR_URL_3=""
+if echo "$GITHUB_URL" | grep -q '^https://github.com/'; then
+    MIRROR_URL_1="https://ghproxy.com/$GITHUB_URL"
+    MIRROR_URL_2="https://mirror.ghproxy.com/$GITHUB_URL"
+    MIRROR_URL_3="https://ghproxy.net/$GITHUB_URL"
+fi
 
 # Clean up any previous broken/stale binary before downloading
 rm -f /usr/local/bin/cc-agent
