@@ -1,5 +1,35 @@
 # Development Log
 
+## 2026-04-18 Agent Source Fix + Onboarding Completed-State Cleanup
+
+- Fixed cc-agent install source to use Hidden Rabbit fork release channel by default:
+  - `config.js`:
+    - added `CC_AGENT_RELEASE_BASE` (default `https://github.com/breachrabbit/CELERITY-panel/releases`);
+    - added `CC_AGENT_RELEASE_TAG` (default `latest`).
+  - `src/services/nodeSetup.js`:
+    - replaced hardcoded upstream download URLs (`ClickDevTech/...`) with config-driven release URL;
+    - retained proxy mirrors only when base URL is GitHub-based;
+    - added explicit setup log line:
+      - `Agent release source: ...`
+    - this removes ambiguous installer logs pointing to original repository.
+- Fixed misleading onboarding diagnostics for completed jobs:
+  - `src/services/nodeOnboardingService.js`:
+    - `completeJob(...)` now clears both `readyState.lastError` and `job.lastError`.
+  - `src/routes/panel/nodes.js`:
+    - setup-status now suppresses error payload when mapped state is `success`;
+    - onboarding payload also receives sanitized `lastError` for success state.
+  - `views/partials/node-form/scripts.ejs`:
+    - completed onboarding jobs no longer render stale red error banner in jobs summary;
+    - diagnostic copy text no longer prints top-level error line for completed jobs.
+- Added env docs for operator control:
+  - `docker.env.example` now includes `CC_AGENT_RELEASE_BASE` and `CC_AGENT_RELEASE_TAG`.
+
+Change types:
+
+- `stability fix` — remove stale error state leakage into completed onboarding UX
+- `local patch` — switch installer source to fork-controlled agent releases
+- `ops` — configurable agent release channel/tag
+
 ## 2026-04-18 Live Smoke Verification (Xray + Hysteria) and Deploy Source Check
 
 - Revalidated stand asset versioning on live endpoints:

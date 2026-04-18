@@ -86,6 +86,37 @@
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-18 Stop-Point — Agent Source Repoint + Completed-Job Error Cleanup
+
+### What was delivered
+
+- Installer source correction for `cc-agent`:
+  - removed hardcoded original upstream release URL usage from setup script output path;
+  - setup now uses config-driven release channel:
+    - `CC_AGENT_RELEASE_BASE` (default `https://github.com/breachrabbit/CELERITY-panel/releases`),
+    - `CC_AGENT_RELEASE_TAG` (default `latest`);
+  - setup logs now print explicit source line:
+    - `Agent release source: ...`.
+- Onboarding diagnostics consistency fixes:
+  - `completeJob(...)` now clears stale top-level `lastError`;
+  - panel `setup-status` no longer returns `error` field for `success` state;
+  - node management onboarding jobs UI no longer renders red error banner for completed jobs, even if historical step failures existed during earlier attempts.
+- Operator env example updated:
+  - added `CC_AGENT_RELEASE_BASE` and `CC_AGENT_RELEASE_TAG` to `docker.env.example`.
+
+### What is pending
+
+1. Live verify on stand:
+  - new setup run should show fork-based `Agent release source` and no `ClickDevTech` URL in agent download line.
+2. Recheck reported Hysteria TLS client error with fresh runtime diagnostics:
+  - if onboarding is completed but client still fails TLS, capture updated server/runtime logs and config snapshot for targeted TLS-path patch.
+
+### Next step
+
+1. Trigger one fresh setup run and confirm installer source log path is correct.
+2. If TLS client issue persists on Hysteria, patch only failing validation/runtime segment and keep setup state reporting aligned.
+3. Continue staged retirement of legacy `setupJobs` only after this operator-facing stability checkpoint.
+
 ## 2026-04-18 Stop-Point — Live Xray/Hysteria Smokes Rechecked + Asset Version Confirmed
 
 ### What was delivered

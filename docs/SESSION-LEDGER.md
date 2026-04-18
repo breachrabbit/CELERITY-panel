@@ -2,6 +2,20 @@
 
 ## 2026-04-18
 
+- Worked on: mismatch between onboarding UX messages and actual node state (Hysteria/Xray operator feedback).
+- Finished with:
+  - switched `cc-agent` installer source from hardcoded upstream release URL to fork-controlled configurable channel:
+    - defaults now point to `breachrabbit/CELERITY-panel` releases;
+    - added env controls `CC_AGENT_RELEASE_BASE` / `CC_AGENT_RELEASE_TAG`;
+    - setup logs now print exact source URL (`Agent release source: ...`);
+  - removed stale red error display for completed onboarding jobs:
+    - cleared `lastError` on job completion;
+    - suppressed setup-status `error` when state is `success`;
+    - suppressed completed-job error banner in node management UI diagnostics block.
+- Next step:
+  - deploy and verify live that setup logs no longer mention `ClickDevTech/CELERITY-panel` download URL;
+  - rerun Hysteria onboarding on reported TLS-problem node and capture fresh runtime diagnostics if client-side TLS error persists despite clean onboarding completion.
+
 - Worked on: live verification cycle requested for onboarding stability and stand deploy source.
 - Finished with:
   - confirmed live stand serves versioned assets on `/panel/login` and `/panel/nodes` (`?v=1776518691049`);
