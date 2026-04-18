@@ -2,6 +2,24 @@
 
 ## 2026-04-18
 
+- Worked on: builder canvas usability pass (smooth links, internet egress visualization, bounded workspace/fullscreen, connect error tooltip).
+- Finished with:
+  - shipped `1c09545`:
+    - smooth bezier lines anchored to node ports;
+    - restored virtual Internet node with auto egress links from exit nodes;
+    - pinned Internet anchor to viewport (no drag-follow);
+    - added flow animation for active/egress links;
+    - added fullscreen toggle + `Esc` exit;
+    - added canvas error tooltip with quick hints for invalid connect;
+    - bounded workspace behavior to avoid infinite downward spread;
+  - deployed to stand:
+    - deployment `n4dzgdhmg8wpekxttn45gmx7` finished;
+    - app `running:healthy`.
+- Next step:
+  - run live visual pass on real mixed chains and polish crossing/readability in dense layouts;
+  - add quick connect preset UX (mode/security preset on connect);
+  - continue staged retirement of legacy `setupJobs` in non-critical onboarding paths.
+
 - Worked on: eliminating false Hysteria UDP-listener onboarding failures and fixing cascade-builder connector anchoring.
 - Finished with:
   - shipped `07ed7a7`:

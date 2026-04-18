@@ -70,17 +70,19 @@ Remaining check:
 
 Status: `pending`
 
-### 0c. Builder connector dots can appear detached from node cards (UI verification pending)
+### 0c. Builder routing readability in dense topologies still needs polish
 
 Latest status:
 
-- patch shipped in `07ed7a7` (`public/js/cascade-builder.js`):
-  - port nodes are no longer hard-locked;
-  - edges now render between explicit node out/in ports.
+- patch wave shipped in `1c09545` (`public/js/cascade-builder.js`, `public/css/cascade-builder.css`, `views/cascade-builder.ejs`):
+  - edges switched to smooth bezier routing with explicit port endpoints;
+  - virtual `Internet` node restored on canvas with auto egress links;
+  - canvas now bounded and has fullscreen mode for easier flow review.
 
 What still needs confirmation:
 
-- visual alignment and drag ergonomics in the browser (desktop + mobile) after deploy.
+- visual clarity for multi-link crossings in dense graphs (reduce perceived “spaghetti”);
+- whether additional route constraints are needed for branch-heavy layouts.
 
 Status: `pending`
 

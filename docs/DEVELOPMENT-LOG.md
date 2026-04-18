@@ -1,5 +1,42 @@
 # Development Log
 
+## 2026-04-18 Cascade Builder UX Wave: Smooth Links + Internet Egress + Fullscreen
+
+- Refined builder canvas rendering/interaction:
+  - file: `public/js/cascade-builder.js`;
+  - switched hop links to smooth bezier edges with port endpoint alignment;
+  - restored virtual `Internet` node directly on canvas and auto-built virtual egress links for terminal nodes;
+  - pinned `Internet` node to viewport anchor (not drifting with node drag);
+  - added active link flow animation (`builder-flow-animated` + dash offset update timer);
+  - added connect-error canvas tooltip with fix hint mapping by validation code;
+  - added bounded fit function for real topology only (ignores virtual internet decorations);
+  - wired fullscreen mode for builder workspace and `Esc` exit.
+- Updated builder UI shell:
+  - file: `views/cascade-builder.ejs`;
+  - added fullscreen button in canvas toolbar;
+  - added canvas-level error tooltip container;
+  - reordered inspector blocks to surface validation/internet/preview ahead of deep inspector content.
+- Updated builder styles:
+  - file: `public/css/cascade-builder.css`;
+  - bounded workspace height with viewport clamp;
+  - fullscreen overlay style and body scroll lock;
+  - tooltip visuals for light/dark themes.
+- Locale additions:
+  - files: `src/locales/ru.json`, `src/locales/en.json`;
+  - new keys for fullscreen labels and connect helper prompts.
+- Released code commit:
+  - `1c09545` — `feat: refine cascade canvas flow lines and internet egress UX`.
+- Deployed to stand:
+  - deployment UUID: `n4dzgdhmg8wpekxttn45gmx7`;
+  - status: `finished`;
+  - app state: `running:healthy`.
+
+Change types:
+
+- `local patch` — cascade builder interaction/rendering improvements
+- `ux` — bounded canvas/fullscreen/error tooltip and internet egress visibility
+- `deployment` — stand redeploy with healthy verification
+
 ## 2026-04-18 UDP Verify Hardening + Live Smokes to Completed + Builder Port Anchors
 
 - Hardened Hysteria UDP runtime verification in onboarding runtime setup:

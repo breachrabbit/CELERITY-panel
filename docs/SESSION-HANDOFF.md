@@ -51,6 +51,12 @@
   - fixed cascade builder node connector anchoring:
     - port nodes are no longer locked away from position sync;
     - rendered edges are now anchored to node out/in port nodes instead of card center.
+  - builder UX pass (in progress, shipped first wave):
+    - smoother bezier chain lines with port-endpoint anchoring;
+    - viewport-pinned virtual `Internet` node with auto egress links from terminal nodes;
+    - bounded workspace/fullscreen toggle to avoid runaway vertical canvas growth;
+    - animated flow-dash on active/egress links for packet-path readability;
+    - inline canvas error tooltip with quick fix hint for invalid connect attempts.
   - hybrid cascade feature flag moved to always-on runtime policy:
     - settings UI now shows informational always-enabled state;
     - runtime config reload forces hybrid enabled.
@@ -60,6 +66,47 @@
   - backported same-VPS agent firewall hardening (local/container subnet allow rules);
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-18 Stop-Point — Builder Internet/Egress UX + Smooth Lines + Fullscreen
+
+### What was delivered
+
+- Code patch delivered:
+  - commit: `1c09545` (`feat: refine cascade canvas flow lines and internet egress UX`);
+  - files:
+    - `public/js/cascade-builder.js`
+    - `public/css/cascade-builder.css`
+    - `views/cascade-builder.ejs`
+    - `src/locales/ru.json`
+    - `src/locales/en.json`.
+- Deployment:
+  - Coolify deployment UUID: `n4dzgdhmg8wpekxttn45gmx7`;
+  - status: `finished`;
+  - stand: `running:healthy`.
+- Builder functional upgrades shipped:
+  - links switched to smooth bezier rendering (instead of taxi turns);
+  - virtual `Internet` node added back to canvas with persistent auto-egress edges from exit nodes;
+  - `Internet` anchor decoupled from dragged nodes and pinned to viewport zone;
+  - active/egress link flow animation added (`line-dash-offset` runtime update);
+  - canvas error tooltip added (message + quick hint), not only right-panel validation;
+  - fullscreen toggle wired (`На весь экран / Отключить полный экран`);
+  - fit-view logic now ignores virtual internet decorations and focuses real topology;
+  - workspace bounded by viewport (no uncontrolled downward canvas spread).
+
+### What is pending
+
+1. Visual polish of edge routing for dense multi-hop graphs (reduce crossing/overlap noise).
+2. Add guided “connect settings” quick preset at connect-time (mode/security preset before or right after draft creation).
+3. Continue cascade diagnostics depth and staged retirement of legacy `setupJobs` in non-critical onboarding status/control paths.
+
+### Next step
+
+1. Live-check builder interaction on stand with real drag/tap scenarios:
+   - source out-port -> target in-port,
+   - verify immediate draft inspector handoff,
+   - verify internet egress links remain stable when dragging nodes.
+2. If crossings still look noisy, add route constraints (rank-aware control points / minimal crossing heuristics).
+3. Implement quick connect preset control and persist selected default into next draft-hop suggestion.
 
 ## 2026-04-18 Stop-Point — UDP Verify Hardened + 2 Live Smokes Green + Builder Port Anchors
 
