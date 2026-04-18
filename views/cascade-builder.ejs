@@ -333,5 +333,63 @@ window._cascadeBuilderI18n = {
 <script src="/vendor/cascade/cytoscape.min.js"></script>
 <script src="/vendor/cascade/dagre.min.js"></script>
 <script src="/vendor/cascade/cytoscape-dagre.js"></script>
+<script>
+(function bootstrapCascadeLodashShim() {
+    if (typeof window === 'undefined') return;
+    const root = window;
+    root._ = root._ || {};
+
+    if (typeof root._.memoize !== 'function') {
+        root._.memoize = function memoize(fn, resolver) {
+            const cache = new Map();
+            return function memoized(...args) {
+                const key = typeof resolver === 'function'
+                    ? resolver.apply(this, args)
+                    : args[0];
+                if (cache.has(key)) return cache.get(key);
+                const value = fn.apply(this, args);
+                cache.set(key, value);
+                return value;
+            };
+        };
+    }
+
+    if (typeof root._.throttle !== 'function') {
+        root._.throttle = function throttle(fn, wait) {
+            let timeout = null;
+            let lastCall = 0;
+            let lastArgs = null;
+            let lastContext = null;
+
+            const invoke = (timestamp) => {
+                lastCall = timestamp;
+                timeout = null;
+                fn.apply(lastContext, lastArgs);
+            };
+
+            return function throttled(...args) {
+                const now = Date.now();
+                const threshold = Number(wait) || 0;
+                const remaining = threshold - (now - lastCall);
+                lastArgs = args;
+                lastContext = this;
+
+                if (remaining <= 0 || remaining > threshold) {
+                    if (timeout) {
+                        clearTimeout(timeout);
+                        timeout = null;
+                    }
+                    invoke(now);
+                    return;
+                }
+
+                if (!timeout) {
+                    timeout = setTimeout(() => invoke(Date.now()), remaining);
+                }
+            };
+        };
+    }
+})();
+</script>
 <script src="/vendor/cascade/cytoscape-edgehandles.js"></script>
 <script src="/js/cascade-builder.js"></script>
