@@ -139,9 +139,9 @@ body.builder-fullscreen-active {
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr) 340px;
     gap: 0;
-    height: clamp(640px, calc(100vh - 210px), 840px);
-    min-height: 640px;
-    max-height: 840px;
+    height: min(78vh, 780px);
+    min-height: 560px;
+    max-height: 780px;
     overflow: hidden;
 }
 
@@ -156,6 +156,8 @@ body.builder-fullscreen-active {
 .builder-inspector {
     border-right: 0;
     border-left: 1px dashed rgba(5, 10, 60, 0.12);
+    overflow: auto;
+    scrollbar-gutter: stable;
 }
 
 .builder-panel-head {
@@ -317,8 +319,8 @@ body.builder-fullscreen-active {
 
 .builder-inspector-body {
     flex: 0 0 auto;
-    max-height: 280px;
-    overflow: auto;
+    max-height: none;
+    overflow: visible;
     padding: 18px;
 }
 
@@ -363,13 +365,13 @@ body.builder-fullscreen-active {
 
 .builder-workspace.is-fullscreen {
     position: fixed;
-    inset: 16px;
+    inset: 0;
     z-index: 1200;
     background: var(--surface-color, rgba(255,255,255,0.98));
     height: auto;
     max-height: none;
     min-height: 0;
-    border-radius: 18px;
+    border-radius: 0;
 }
 
 .builder-canvas-actions #builderFullscreenToggle.is-active {
@@ -649,6 +651,32 @@ body.builder-fullscreen-active {
     line-height: 1.5;
 }
 
+.builder-internet-item {
+    appearance: none;
+    width: 100%;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.64);
+    color: inherit;
+    cursor: pointer;
+    transition: border-color .18s ease, background-color .18s ease, transform .18s ease;
+}
+
+.builder-internet-item:hover {
+    border-color: rgba(8, 197, 203, 0.45);
+    background: rgba(8, 197, 203, 0.09);
+    transform: translateY(-1px);
+}
+
+.theme-dark .builder-internet-item {
+    background: rgba(10, 18, 60, 0.46);
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.theme-dark .builder-internet-item:hover {
+    border-color: rgba(68, 239, 244, 0.52);
+    background: rgba(8, 197, 203, 0.14);
+}
+
 .theme-dark .builder-validation-item {
     background: rgba(10, 18, 60, 0.46);
     border-color: rgba(221, 229, 237, 0.14);
@@ -831,7 +859,8 @@ body.builder-fullscreen-active {
 
     .builder-workspace {
         grid-template-columns: 240px minmax(0, 1fr);
-        height: clamp(620px, calc(100vh - 190px), 820px);
+        height: min(80vh, 760px);
+        min-height: 520px;
     }
 
     .builder-inspector {

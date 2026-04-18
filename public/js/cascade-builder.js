@@ -100,9 +100,15 @@
         }, 6200);
     }
 
-    function setBuilderFullscreen(enabled) {
-        const shouldEnable = Boolean(enabled);
-        state.isFullscreen = shouldEnable;
+    function isNativeFullscreenActive() {
+        return Boolean(
+            document.fullscreenElement
+            || document.webkitFullscreenElement
+            || document.msFullscreenElement,
+        );
+    }
+
+    function syncFullscreenToggleUi(shouldEnable) {
         const workspace = getBuilderWorkspaceElement();
         const toggleButton = document.getElementById('builderFullscreenToggle');
         if (workspace) {
@@ -122,6 +128,9 @@
                     : (i18n.fullscreenEnable || 'Full screen');
             }
         }
+    }
+
+    function resizeBuilderCanvas() {
         requestAnimationFrame(() => {
             if (!state.cy) return;
             state.cy.resize();
@@ -129,6 +138,33 @@
             syncInternetNodePosition();
             syncAllNodePorts();
         });
+    }
+
+    async function setBuilderFullscreen(enabled) {
+        const shouldEnable = Boolean(enabled);
+        const workspace = getBuilderWorkspaceElement();
+        if (!workspace) return;
+
+        state.isFullscreen = shouldEnable;
+        syncFullscreenToggleUi(shouldEnable);
+
+        if (shouldEnable) {
+            if (!isNativeFullscreenActive() && typeof workspace.requestFullscreen === 'function') {
+                try {
+                    await workspace.requestFullscreen();
+                } catch (_) {
+                    // Browser denied fullscreen. Keep scoped fallback mode.
+                }
+            }
+        } else if (isNativeFullscreenActive() && typeof document.exitFullscreen === 'function') {
+            try {
+                await document.exitFullscreen();
+            } catch (_) {
+                // Fallback layout toggle is still applied above.
+            }
+        }
+
+        resizeBuilderCanvas();
     }
 
     function t(key, fallback) {
@@ -492,9 +528,9 @@
                 selector: 'edge',
                 style: {
                     'curve-style': 'bezier',
-                    'source-endpoint': 'outside-to-node',
-                    'target-endpoint': 'outside-to-node',
-                    'control-point-step-size': 54,
+                    'source-endpoint': 'center',
+                    'target-endpoint': 'center',
+                    'control-point-step-size': 40,
                     'width': 3,
                     'line-color': palette.edgeColor,
                     'target-arrow-color': palette.edgeColor,
@@ -514,10 +550,29 @@
                 },
             },
             {
-                selector: 'edge[status = "online"]',
+                selector: 'edge[status = "online"], edge[status = "active"], edge[status = "deployed"]',
                 style: {
                     'line-color': '#08C5CB',
                     'target-arrow-color': '#08C5CB',
+                },
+            },
+            {
+                selector: 'edge[status = "pending"]',
+                style: {
+                    'line-color': '#7c8db4',
+                    'target-arrow-color': '#7c8db4',
+                    'line-style': 'dashed',
+                    'line-dash-pattern': [9, 8],
+                },
+            },
+            {
+                selector: 'edge[status = "offline"], edge[status = "failed"], edge[status = "error"]',
+                style: {
+                    'line-color': '#ef4444',
+                    'target-arrow-color': '#ef4444',
+                    'line-style': 'dashed',
+                    'line-dash-pattern': [10, 8],
+                    'width': 3,
                 },
             },
             {
@@ -527,6 +582,7 @@
                     'line-color': '#08C5CB',
                     'target-arrow-color': '#08C5CB',
                     'width': 3,
+                    'line-dash-pattern': [11, 9],
                 },
             },
             {
@@ -534,9 +590,9 @@
                 style: {
                     'line-style': 'dashed',
                     'curve-style': 'bezier',
-                    'source-endpoint': 'outside-to-node',
-                    'target-endpoint': 'outside-to-node',
-                    'control-point-step-size': 68,
+                    'source-endpoint': 'center',
+                    'target-endpoint': 'center',
+                    'control-point-step-size': 44,
                     'line-color': '#02A8AD',
                     'target-arrow-color': '#02A8AD',
                     'target-arrow-shape': 'triangle',
@@ -823,7 +879,7 @@
         if (!state.cy) return;
         const animatedEdges = state.cy.edges().filter((edge) => (
             Number(edge.data('isVirtualInternet')) === 1
-            || String(edge.data('status') || '').toLowerCase() === 'online'
+            || ['online', 'active', 'deployed'].includes(String(edge.data('status') || '').toLowerCase())
         ));
         state.cy.edges().removeClass('builder-flow-animated');
         if (!animatedEdges.length) {
@@ -1040,10 +1096,10 @@
         list.innerHTML = exitNodeIds.map((nodeId) => {
             const node = nodesById.get(String(nodeId));
             return `
-                <div class="builder-validation-item">
+                <button type="button" class="builder-validation-item builder-internet-item" data-internet-exit-node="${escapeHtml(nodeId)}">
                     <strong>${escapeHtml(node?.name || nodeId)}</strong>
                     <span>${escapeHtml(i18n.internetExitPath || 'Traffic exits to Internet from this node')}</span>
-                </div>
+                </button>
             `;
         }).join('');
     }
@@ -1981,6 +2037,15 @@
         });
     }
 
+    function scrollInspectorToTop({ smooth = true } = {}) {
+        const inspector = document.querySelector('.builder-inspector');
+        if (!inspector || typeof inspector.scrollTo !== 'function') return;
+        inspector.scrollTo({
+            top: 0,
+            behavior: smooth ? 'smooth' : 'auto',
+        });
+    }
+
     function renderNodeInspector(node) {
         const root = document.getElementById('builderInspectorBody');
         if (!root) return;
@@ -1997,6 +2062,7 @@
                 </div>
             </div>
         `;
+        scrollInspectorToTop();
     }
 
     function renderInternetInspector() {
@@ -2028,6 +2094,7 @@
                 ${exitList}
             </div>
         `;
+        scrollInspectorToTop();
     }
 
     function renderInspectorEmpty() {
@@ -2114,15 +2181,8 @@
 
         if (deleteButton) {
             deleteButton.addEventListener('click', async () => {
-                try {
-                    await requestJson(`/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`, {
-                        method: 'DELETE',
-                    });
-                    toast(i18n.draftRemoved || 'Draft hop removed.', 'success');
-                    await loadState();
-                } catch (error) {
-                    toast(`${i18n.draftRemoveFailed || 'Failed to remove draft hop'}: ${error.message}`, 'error');
-                }
+                const hop = getHopById(hopId) || { id: hopId, isDraft: true };
+                await removeHopConnection(hop, { confirm: true, reload: true, showToast: true });
             });
         }
     }
@@ -2299,6 +2359,7 @@
                 </div>
             `;
             bindDraftInspectorActions(hop.id);
+            scrollInspectorToTop();
             return;
         }
 
@@ -2314,8 +2375,18 @@
                     <div class="builder-data-row"><span>${escapeHtml(i18n.security || 'Security')}</span><strong>${escapeHtml(hop.tunnelSecurity || '—')}</strong></div>
                     <div class="builder-data-row"><span>${escapeHtml(i18n.status || 'Status')}</span><strong>${escapeHtml(hop.status || '—')}</strong></div>
                 </div>
+                <div class="builder-form-actions" style="margin-top:12px;">
+                    <button class="btn btn-secondary btn-sm" type="button" id="builderLiveHopDelete">
+                        <i class="ti ti-unlink"></i>
+                        <span>${escapeHtml(i18n.removeLink || 'Disconnect link')}</span>
+                    </button>
+                </div>
             </div>
         `;
+        document.getElementById('builderLiveHopDelete')?.addEventListener('click', () => {
+            removeHopConnection(hop, { confirm: true, reload: true, showToast: true });
+        });
+        scrollInspectorToTop();
     }
 
     function renderConnectInspector(payload) {
@@ -2409,6 +2480,15 @@
             const hopId = event.target.data('hopId');
             const hop = getHopById(hopId);
             if (hop) renderHopInspector(hop);
+        });
+
+        state.cy.on('cxttap', 'edge', async (event) => {
+            const edge = event.target;
+            if (!edge || Number(edge.data('isVirtualInternet')) === 1) return;
+            const hopId = String(edge.data('hopId') || '').trim();
+            const hop = getHopById(hopId);
+            if (!hop) return;
+            await removeHopConnection(hop, { confirm: true, reload: true, showToast: true });
         });
 
         state.cy.on('tap', (event) => {
@@ -2519,6 +2599,74 @@
         state.cy.center(edgeCollection.first());
         renderHopInspector(hop);
         return true;
+    }
+
+    function getHopDisplayName(hop) {
+        if (!hop || typeof hop !== 'object') return '';
+        const hopName = String(hop.name || '').trim();
+        if (hopName) return hopName;
+        const source = String(hop.sourceNodeId || '').trim();
+        const target = String(hop.targetNodeId || '').trim();
+        if (source || target) return `${source} -> ${target}`.trim();
+        return String(hop.id || '').trim();
+    }
+
+    function isDraftHop(hop) {
+        if (!hop || typeof hop !== 'object') return false;
+        if (hop.isDraft === true || Number(hop.isDraft) === 1) return true;
+        return String(hop.id || '').startsWith('draft:');
+    }
+
+    async function removeHopConnection(hop, {
+        confirm = true,
+        reload = true,
+        showToast = true,
+    } = {}) {
+        if (!hop || typeof hop !== 'object') {
+            return { success: false, error: 'missing-hop' };
+        }
+
+        const hopId = String(hop.id || '').trim();
+        if (!hopId) {
+            return { success: false, error: 'missing-hop-id' };
+        }
+
+        const draftHop = isDraftHop(hop);
+        const hopLabel = getHopDisplayName(hop);
+        if (confirm && typeof window.confirm === 'function') {
+            const title = draftHop
+                ? (i18n.removeDraftConfirm || 'Remove this draft hop?')
+                : (i18n.removeLinkConfirm || 'Disconnect this live link?');
+            const text = hopLabel ? `${title}\n${hopLabel}` : title;
+            if (!window.confirm(text)) {
+                return { success: false, canceled: true, error: 'canceled' };
+            }
+        }
+
+        const endpoint = draftHop
+            ? `/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`
+            : `/api/cascade/links/${encodeURIComponent(hopId)}`;
+        try {
+            await requestJson(endpoint, { method: 'DELETE' });
+            if (showToast) {
+                const message = draftHop
+                    ? (i18n.draftRemoved || 'Draft hop removed.')
+                    : (i18n.linkRemoved || 'Link disconnected.');
+                toast(message, 'success');
+            }
+            if (reload) {
+                await loadState();
+            }
+            return { success: true };
+        } catch (error) {
+            if (showToast) {
+                const failedMessage = draftHop
+                    ? (i18n.draftRemoveFailed || 'Failed to remove draft hop')
+                    : (i18n.linkRemoveFailed || 'Failed to disconnect link');
+                toast(`${failedMessage}: ${error.message}`, 'error');
+            }
+            return { success: false, error: error.message };
+        }
     }
 
     async function handleDraftConnect(sourceNodeId, targetNodeId) {
@@ -2689,25 +2837,48 @@
         }
     }
 
-    function resetDrafts() {
-        requestJson('/api/cascade-builder/drafts', {
-            method: 'DELETE',
-        })
-            .then((result) => {
-                state.flow.hops = state.flow.hops.filter((hop) => !hop.isDraft);
-                state.flow.validation = result.validation || state.flow.validation;
-                state.flow.draft = result.draft || { draftHopCount: 0 };
-                state.cy.edges().filter((edge) => edge.data('isDraft') === 1).remove();
-                renderSummary(state.flow, state.flow.validation);
-                renderValidation(state.flow.validation);
-                renderExecutionResult(state.flow?.draft?.lastExecution || null);
-                renderInspectorEmpty();
-                previewCommitPlan({ silent: true });
-                toast(i18n.draftsReset || 'Drafts cleared.');
-            })
-            .catch((error) => {
-                toast(`${i18n.resetDraftsFailed || 'Draft reset failed'}: ${error.message}`, 'error');
+    async function resetDrafts() {
+        const hops = Array.isArray(state.flow?.hops) ? state.flow.hops : [];
+        if (!hops.length) {
+            toast(i18n.noLinksToReset || 'There are no links to reset right now.', 'info');
+            return;
+        }
+
+        const draftCount = hops.filter((hop) => isDraftHop(hop)).length;
+        const liveCount = Math.max(0, hops.length - draftCount);
+        const confirmText = `${i18n.resetLinksConfirm || 'Reset all current links?'}\n${i18n.summaryHops || 'Hops'}: ${hops.length} (${i18n.draftTag || 'Draft'}: ${draftCount}, ${i18n.liveTag || 'Live'}: ${liveCount})`;
+        if (typeof window.confirm === 'function' && !window.confirm(confirmText)) {
+            return;
+        }
+
+        const failures = [];
+        for (const hop of hops) {
+            const result = await removeHopConnection(hop, {
+                confirm: false,
+                reload: false,
+                showToast: false,
             });
+            if (!result.success && !result.canceled) {
+                failures.push({
+                    hop: getHopDisplayName(hop),
+                    error: result.error || 'unknown',
+                });
+            }
+        }
+
+        await loadState();
+
+        if (failures.length) {
+            const sample = failures.slice(0, 2)
+                .map((item) => `${item.hop}: ${item.error}`)
+                .join(' | ');
+            toast(
+                `${i18n.resetLinksPartial || 'Links reset completed with errors.'} ${sample}`,
+                'error',
+            );
+            return;
+        }
+        toast(i18n.resetLinksDone || 'All current links have been reset.', 'success');
     }
 
     async function loadState({ selectHopId = null, selectNodeId = null } = {}) {
@@ -2735,12 +2906,26 @@
     }
 
     function bindUi() {
+        document.getElementById('builderCy')?.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+        });
         document.getElementById('builderValidate')?.addEventListener('click', validateCurrentDraft);
         document.getElementById('builderSaveLayout')?.addEventListener('click', saveLayout);
         document.getElementById('builderCommitDrafts')?.addEventListener('click', () => commitDrafts());
         document.getElementById('builderCommitDeploy')?.addEventListener('click', () => commitDrafts({ deployAfterCommit: true }));
         document.getElementById('builderDeployPreview')?.addEventListener('click', () => previewCommitPlan());
         document.getElementById('builderResetDrafts')?.addEventListener('click', resetDrafts);
+        document.getElementById('builderInternetList')?.addEventListener('click', (event) => {
+            const item = event.target.closest('[data-internet-exit-node]');
+            if (!item) return;
+            const nodeId = String(item.getAttribute('data-internet-exit-node') || '').trim();
+            if (nodeId && focusNodeById(nodeId)) return;
+            renderInternetInspector();
+        });
+        document.getElementById('builderInternetBox')?.addEventListener('click', (event) => {
+            if (event.target.closest('[data-internet-exit-node]')) return;
+            renderInternetInspector();
+        });
         document.getElementById('builderExecutionCopyText')?.addEventListener('click', () => copyExecutionDiagnosticsText());
         document.getElementById('builderExecutionCopyFailedOnly')?.addEventListener('click', () => copyExecutionDiagnosticsFailedCompact());
         document.getElementById('builderExecutionCopyFailedJson')?.addEventListener('click', () => copyExecutionDiagnosticsFailedJson());
@@ -2812,6 +2997,15 @@
             setBuilderFullscreen(!state.isFullscreen);
         });
 
+        document.addEventListener('fullscreenchange', () => {
+            const active = isNativeFullscreenActive();
+            if (!active && state.isFullscreen) {
+                state.isFullscreen = false;
+                syncFullscreenToggleUi(false);
+                resizeBuilderCanvas();
+            }
+        });
+
         if (typeof MutationObserver !== 'undefined') {
             const observer = new MutationObserver((mutations) => {
                 if (mutations.some((mutation) => mutation.attributeName === 'data-theme')) {
@@ -2822,8 +3016,17 @@
         }
 
         document.addEventListener('keydown', (event) => {
-            if (event.key !== 'Escape' || !state.isFullscreen) return;
-            setBuilderFullscreen(false);
+            if (event.key === 'Escape' && state.isFullscreen) {
+                setBuilderFullscreen(false);
+                return;
+            }
+
+            if ((event.key === 'Delete' || event.key === 'Backspace') && state.selection?.type === 'hop') {
+                const selectedHop = getHopById(state.selection.id);
+                if (!selectedHop) return;
+                event.preventDefault();
+                removeHopConnection(selectedHop, { confirm: true, reload: true, showToast: true });
+            }
         });
     }
 
