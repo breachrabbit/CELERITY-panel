@@ -1414,6 +1414,18 @@ async function setupNode(node, options = {}) {
     return setupHysteriaNode(node, options);
 }
 
+function parseSystemdActiveState(rawOutput = '') {
+    const lines = String(rawOutput || '')
+        .split('\n')
+        .map((line) => line.trim().toLowerCase())
+        .filter(Boolean);
+    const knownStates = new Set(['active', 'inactive', 'failed', 'activating', 'deactivating', 'reloading', 'unknown']);
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+        if (knownStates.has(lines[i])) return lines[i];
+    }
+    return 'unknown';
+}
+
 async function checkNodeStatus(node) {
     try {
         const conn = await connectSSH(node);
@@ -1432,12 +1444,21 @@ else
     echo unknown
 fi
             `);
-            return result.output.trim() === 'active' ? 'online' : 'offline';
+            const state = parseSystemdActiveState(result.output);
+            return {
+                online: state === 'active',
+                status: state,
+                error: state === 'unknown' ? 'unknown-state' : '',
+            };
         } finally {
             conn.end();
         }
     } catch (error) {
-        return 'error';
+        return {
+            online: false,
+            status: 'error',
+            error: error.message || 'status-check-failed',
+        };
     }
 }
 
@@ -1690,8 +1711,11 @@ fi
 
 mkdir -p /usr/local/etc/xray /var/log/xray
 touch /var/log/xray/access.log /var/log/xray/error.log
-chown -R nobody:nogroup /var/log/xray 2>/dev/null || chown -R nobody:nobody /var/log/xray 2>/dev/null || true
-chmod 750 /var/log/xray
+XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"
+[ -z "$XRAY_USER" ] && XRAY_USER="nobody"
+XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"
+chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true
+chmod 755 /var/log/xray
 chmod 640 /var/log/xray/access.log /var/log/xray/error.log
 echo "Done: Xray directories ready"
 `;
@@ -1956,11 +1980,14 @@ async function setupXrayNode(node, options = {}) {
         logs.push(configContent.substring(0, 500) + (configContent.length > 500 ? '\n...' : ''));
         logs.push('--- End config preview ---');
 
-        const fixLogPermsResult = await execRemote(`
+const fixLogPermsResult = await execRemote(`
 mkdir -p /var/log/xray
 touch /var/log/xray/access.log /var/log/xray/error.log
-chown -R nobody:nogroup /var/log/xray 2>/dev/null || chown -R nobody:nobody /var/log/xray 2>/dev/null || true
-chmod 750 /var/log/xray
+XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"
+[ -z "$XRAY_USER" ] && XRAY_USER="nobody"
+XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"
+chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true
+chmod 755 /var/log/xray
 chmod 640 /var/log/xray/access.log /var/log/xray/error.log
         `);
         if (!onLogLine && fixLogPermsResult.output) logs.push(fixLogPermsResult.output);
@@ -2237,13 +2264,22 @@ async function checkXrayNodeStatus(node) {
     try {
         const conn = await connectSSH(node);
         try {
-            const result = await execSSH(conn, 'systemctl is-active xray');
-            return result.output.trim() === 'active' ? 'online' : 'offline';
+            const result = await execSSH(conn, 'systemctl is-active xray 2>/dev/null || true');
+            const state = parseSystemdActiveState(result.output);
+            return {
+                online: state === 'active',
+                status: state,
+                error: state === 'unknown' ? 'unknown-state' : '',
+            };
         } finally {
             conn.end();
         }
     } catch (error) {
-        return 'error';
+        return {
+            online: false,
+            status: 'error',
+            error: error.message || 'status-check-failed',
+        };
     }
 }
 
@@ -2251,13 +2287,22 @@ async function checkSingboxNodeStatus(node) {
     try {
         const conn = await connectSSH(node);
         try {
-            const result = await execSSH(conn, 'systemctl is-active sing-box');
-            return result.output.trim() === 'active' ? 'online' : 'offline';
+            const result = await execSSH(conn, 'systemctl is-active sing-box 2>/dev/null || true');
+            const state = parseSystemdActiveState(result.output);
+            return {
+                online: state === 'active',
+                status: state,
+                error: state === 'unknown' ? 'unknown-state' : '',
+            };
         } finally {
             conn.end();
         }
     } catch (error) {
-        return 'error';
+        return {
+            online: false,
+            status: 'error',
+            error: error.message || 'status-check-failed',
+        };
     }
 }
 
@@ -2409,8 +2454,11 @@ fi
 echo "=== [2/5] Creating directories ==="
 mkdir -p /etc/cc-agent /var/lib/cc-agent /var/log/xray
 touch /var/log/xray/access.log /var/log/xray/error.log
-chown -R nobody:nogroup /var/log/xray 2>/dev/null || chown -R nobody:nobody /var/log/xray 2>/dev/null || true
-chmod 750 /var/log/xray
+XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"
+[ -z "$XRAY_USER" ] && XRAY_USER="nobody"
+XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"
+chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true
+chmod 755 /var/log/xray
 chmod 640 /var/log/xray/access.log /var/log/xray/error.log
 
 echo "=== [3/5] Writing config ==="

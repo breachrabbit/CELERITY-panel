@@ -1259,7 +1259,7 @@ async function restoreBackup(input) {
     if (!file) return;
     
     const confirmMsg = i18n.restoreConfirm.replace('{filename}', file.name);
-    if (!confirm(confirmMsg)) {
+    if (!await window.hrConfirm(confirmMsg)) {
         input.value = '';
         return;
     }

@@ -136,7 +136,14 @@
         const { overlay, title: titleNode, text: textNode, ok, cancel } = getBuilderConfirmElements();
         if (!overlay || !ok || !cancel || !titleNode || !textNode) {
             const fallbackMessage = [title, text].filter(Boolean).join('\n');
-            return Promise.resolve(window.confirm(fallbackMessage || (i18n.confirmDefaultText || 'Proceed?')));
+            if (window.hrConfirm) {
+                return window.hrConfirm(fallbackMessage || (i18n.confirmDefaultText || 'Proceed?'), {
+                    title: title || (i18n.confirmDefaultTitle || 'Confirm action'),
+                    confirmText: confirmLabel || (i18n.confirmOk || 'Confirm'),
+                    cancelText: cancelLabel || (i18n.confirmCancel || 'Cancel'),
+                });
+            }
+            return Promise.resolve(false);
         }
 
         titleNode.textContent = String(title || i18n.confirmDefaultTitle || 'Confirm action');

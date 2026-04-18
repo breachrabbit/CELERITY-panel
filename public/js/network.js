@@ -1095,7 +1095,11 @@
         }
 
         if (!data.name || !data.portalNodeId || !data.bridgeNodeId) {
-            alert(i18n.fillRequired || 'Please fill in all required fields');
+            if (window.hrAlert) {
+                await window.hrAlert(i18n.fillRequired || 'Please fill in all required fields', {
+                    title: i18n.networkError || 'Error',
+                });
+            }
             return;
         }
 
@@ -1161,7 +1165,10 @@
     }
 
     window._cascadeDeploy = async function (linkId) {
-        if (!confirm(i18n.confirmDeploy || 'Deploy this cascade link?')) return;
+        const confirmed = window.hrConfirm
+            ? await window.hrConfirm(i18n.confirmDeploy || 'Deploy this cascade link?')
+            : true;
+        if (!confirmed) return;
         setActionLoading(i18n.deploying || 'Deploying...');
 
         const edge = cy.edges().filter(e => e.data('linkId') === linkId);
@@ -1186,7 +1193,10 @@
     };
 
     window._cascadeDeployChain = async function (linkId) {
-        if (!confirm(i18n.confirmDeployChain || 'Deploy entire chain? This will sync all connected nodes in the correct order.')) return;
+        const confirmed = window.hrConfirm
+            ? await window.hrConfirm(i18n.confirmDeployChain || 'Deploy entire chain? This will sync all connected nodes in the correct order.')
+            : true;
+        if (!confirmed) return;
         setActionLoading(i18n.syncingChain || 'Syncing chain...');
 
         cy.edges().forEach(function (e) { e.data('status', 'syncing'); });
@@ -1213,7 +1223,10 @@
     };
 
     window._cascadeUndeploy = async function (linkId) {
-        if (!confirm(i18n.confirmUndeploy || 'Undeploy this cascade link?')) return;
+        const confirmed = window.hrConfirm
+            ? await window.hrConfirm(i18n.confirmUndeploy || 'Undeploy this cascade link?')
+            : true;
+        if (!confirmed) return;
         setActionLoading(i18n.undeploying || 'Undeploying...');
 
         const edge = cy.edges().filter(e => e.data('linkId') === linkId);
@@ -1230,7 +1243,10 @@
     };
 
     window._cascadeDelete = async function (linkId) {
-        if (!confirm(i18n.confirmDeleteLink || 'Delete this cascade link?')) return;
+        const confirmed = window.hrConfirm
+            ? await window.hrConfirm(i18n.confirmDeleteLink || 'Delete this cascade link?')
+            : true;
+        if (!confirmed) return;
         setActionLoading(i18n.deleting || 'Deleting...');
 
         try {
@@ -1464,7 +1480,11 @@
             autoDeploy: document.getElementById('quickAutoDeploy')?.checked || false,
         };
         if (!data.name || !data.portalNodeId || !data.bridgeNodeId) {
-            alert(i18n.fillRequired || 'Please fill in all required fields');
+            if (window.hrAlert) {
+                await window.hrAlert(i18n.fillRequired || 'Please fill in all required fields', {
+                    title: i18n.networkError || 'Error',
+                });
+            }
             return;
         }
         var quickPortalType = _nodesById.get(String(data.portalNodeId))?.type ||

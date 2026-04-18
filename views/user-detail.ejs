@@ -534,12 +534,12 @@ async function toggleUser(enabled) {
     if (res.ok) location.reload();
     else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || i18n.error);
+        await window.hrAlert(data.error || i18n.error, { title: i18n.error });
     }
 }
 
 async function deleteUser() {
-    if (!confirm(i18n.confirmDelete)) return;
+    if (!await window.hrConfirm(i18n.confirmDelete)) return;
 
     const res = await fetch(`/api/users/${userId}`, {
         method: 'DELETE',
@@ -548,18 +548,18 @@ async function deleteUser() {
     if (res.ok) location.href = '/panel/users';
     else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || i18n.error);
+        await window.hrAlert(data.error || i18n.error, { title: i18n.error });
     }
 }
 
 function copySubscription() {
     const link = document.getElementById('subLink').value;
     navigator.clipboard.writeText(link).then(() => {
-        alert(i18n.linkCopied);
+        window.hrAlert(i18n.linkCopied, { title: 'Info' });
     }).catch(() => {
         document.getElementById('subLink').select();
         document.execCommand('copy');
-        alert(i18n.linkCopied);
+        window.hrAlert(i18n.linkCopied, { title: 'Info' });
     });
 }
 

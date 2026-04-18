@@ -72,8 +72,13 @@
                             </div>
                         </form>
                         
-                        <form method="POST" action="/panel/groups/<%= group._id %>/delete" class="delete-form" onsubmit="return confirm('<%= t('groups.confirmDelete').replace('{name}', group.name) %>')">
-                            <button type="submit" class="btn btn-sm btn-danger"><i class="ti ti-trash"></i></button>
+                        <form method="POST" action="/panel/groups/<%= group._id %>/delete" class="delete-form">
+                            <button
+                                type="submit"
+                                class="btn btn-sm btn-danger"
+                                data-confirm="<%= t('groups.confirmDelete').replace('{name}', group.name).replace(/\"/g, '&quot;') %>">
+                                <i class="ti ti-trash"></i>
+                            </button>
                         </form>
                     </div>
                 <% }); %>

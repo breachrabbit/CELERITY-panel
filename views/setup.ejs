@@ -55,6 +55,7 @@
                 <div class="alert alert-info" style="margin-bottom: 1rem;">
                     <i class="ti ti-alert-triangle"></i> <%= typeof t !== 'undefined' ? t('setup.noRecoveryWarning') : 'Version 1 has no self-service recovery. Save the secret in a safe place.' %>
                 </div>
+                <div id="setupInlineError" class="alert alert-error" style="display:none; margin-bottom: 1rem;"></div>
                 <button type="submit" class="btn btn-primary btn-block"><%= typeof t !== 'undefined' ? t('setup.createAccount') : 'Create Account' %></button>
             </form>
             
@@ -70,9 +71,17 @@
     document.querySelector('form').addEventListener('submit', function(e) {
         const pass = document.getElementById('password').value;
         const confirm = document.getElementById('passwordConfirm').value;
+        const inlineError = document.getElementById('setupInlineError');
+        if (inlineError) {
+            inlineError.style.display = 'none';
+            inlineError.textContent = '';
+        }
         if (pass !== confirm) {
             e.preventDefault();
-            alert(passwordsMismatch);
+            if (inlineError) {
+                inlineError.textContent = passwordsMismatch;
+                inlineError.style.display = '';
+            }
         }
     });
     </script>

@@ -179,12 +179,145 @@ window.showToast = function showToast(message, type = 'success') {
     setTimeout(() => { toast.className = 'toast'; }, 3000);
 };
 
-// Confirm before dangerous actions
-document.querySelectorAll('[data-confirm]').forEach(el => {
-    el.addEventListener('click', (e) => {
-        if (!confirm(el.dataset.confirm)) {
-            e.preventDefault();
+function getUiConfirmLocale() {
+    const lang = String(document.documentElement.getAttribute('lang') || '').toLowerCase();
+    const isRu = lang.startsWith('ru');
+    return {
+        title: isRu ? 'Подтверждение действия' : 'Confirm action',
+        confirm: isRu ? 'Подтвердить' : 'Confirm',
+        cancel: isRu ? 'Отмена' : 'Cancel',
+        ok: isRu ? 'ОК' : 'OK',
+    };
+}
+
+function ensureUiConfirmModal() {
+    if (document.getElementById('hrUiConfirmModal')) return;
+    const i18n = getUiConfirmLocale();
+    const modal = document.createElement('div');
+    modal.id = 'hrUiConfirmModal';
+    modal.className = 'hr-confirm-modal';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `
+        <div class="hr-confirm-backdrop" data-confirm-close></div>
+        <div class="hr-confirm-card" role="dialog" aria-modal="true" aria-labelledby="hrConfirmTitle">
+            <div class="hr-confirm-head">
+                <h3 id="hrConfirmTitle">${i18n.title}</h3>
+                <button type="button" class="hr-confirm-close" data-confirm-close aria-label="${i18n.cancel}">
+                    <i class="ti ti-x"></i>
+                </button>
+            </div>
+            <div class="hr-confirm-body" id="hrConfirmMessage"></div>
+            <div class="hr-confirm-actions">
+                <button type="button" class="btn" id="hrConfirmCancel">${i18n.cancel}</button>
+                <button type="button" class="btn btn-primary" id="hrConfirmAccept">${i18n.confirm}</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+window.hrConfirm = function hrConfirm(message, options = {}) {
+    ensureUiConfirmModal();
+    const modal = document.getElementById('hrUiConfirmModal');
+    const titleEl = document.getElementById('hrConfirmTitle');
+    const msgEl = document.getElementById('hrConfirmMessage');
+    const cancelBtn = document.getElementById('hrConfirmCancel');
+    const acceptBtn = document.getElementById('hrConfirmAccept');
+    const closeEls = modal.querySelectorAll('[data-confirm-close]');
+    const i18n = getUiConfirmLocale();
+    const title = String(options.title || i18n.title);
+    const confirmText = String(options.confirmText || i18n.confirm);
+    const cancelText = String(options.cancelText || i18n.cancel);
+    const hideCancel = options.hideCancel === true;
+
+    titleEl.textContent = title;
+    msgEl.textContent = String(message || '');
+    acceptBtn.textContent = confirmText;
+    cancelBtn.textContent = cancelText;
+    cancelBtn.style.display = hideCancel ? 'none' : '';
+    closeEls.forEach((el) => {
+        el.style.display = hideCancel ? 'none' : '';
+    });
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('has-ui-confirm-open');
+
+    return new Promise((resolve) => {
+        let finished = false;
+
+        const cleanup = (result) => {
+            if (finished) return;
+            finished = true;
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('has-ui-confirm-open');
+            acceptBtn.removeEventListener('click', onAccept);
+            cancelBtn.removeEventListener('click', onCancel);
+            closeEls.forEach((el) => el.removeEventListener('click', onCancel));
+            document.removeEventListener('keydown', onKeydown);
+            resolve(result);
+        };
+
+        const onAccept = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        const onKeydown = (event) => {
+            if (event.key === 'Escape' && !hideCancel) onCancel();
+            if (event.key === 'Enter') onAccept();
+        };
+
+        acceptBtn.addEventListener('click', onAccept);
+        cancelBtn.addEventListener('click', onCancel);
+        closeEls.forEach((el) => el.addEventListener('click', onCancel));
+        document.addEventListener('keydown', onKeydown);
+
+        setTimeout(() => {
+            acceptBtn.focus();
+        }, 0);
+    });
+};
+
+window.hrAlert = function hrAlert(message, options = {}) {
+    const i18n = getUiConfirmLocale();
+    return window.hrConfirm(message, {
+        ...options,
+        confirmText: options.confirmText || i18n.ok,
+        hideCancel: true,
+    });
+};
+
+// Confirm before dangerous actions (in-app modal, not native browser confirm)
+document.querySelectorAll('[data-confirm]').forEach((el) => {
+    el.addEventListener('click', async (e) => {
+        if (el.dataset.hrConfirmBypass === '1') {
+            delete el.dataset.hrConfirmBypass;
+            return;
         }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const ok = await window.hrConfirm(el.dataset.confirm || '');
+        if (!ok) return;
+
+        const tag = String(el.tagName || '').toLowerCase();
+        const type = String(el.getAttribute('type') || '').toLowerCase();
+
+        if (tag === 'a' && el.href) {
+            window.location.href = el.href;
+            return;
+        }
+
+        if ((tag === 'button' || tag === 'input') && type === 'submit' && el.form) {
+            if (typeof el.form.requestSubmit === 'function') {
+                el.form.requestSubmit(el);
+            } else {
+                el.form.submit();
+            }
+            return;
+        }
+
+        el.dataset.hrConfirmBypass = '1';
+        el.click();
     });
 });
 

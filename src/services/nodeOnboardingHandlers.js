@@ -165,8 +165,11 @@ async function runPrepareHost({ job, context = {} }) {
             '  mkdir -p "$p"',
             'done',
             'touch /var/log/xray/access.log /var/log/xray/error.log',
-            'chown -R nobody:nogroup /var/log/xray 2>/dev/null || chown -R nobody:nobody /var/log/xray 2>/dev/null || true',
-            'chmod 750 /var/log/xray || true',
+            'XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"',
+            '[ -z "$XRAY_USER" ] && XRAY_USER="nobody"',
+            'XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"',
+            'chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true',
+            'chmod 755 /var/log/xray || true',
             'chmod 640 /var/log/xray/access.log /var/log/xray/error.log || true',
             'echo "__prepared__=1"',
         ].join('\n');
@@ -208,6 +211,55 @@ async function runPrepareHost({ job, context = {} }) {
     });
 }
 
+async function tryRecoverXrayAccessLogPermission(nodeId, onLogLine = null) {
+    return withNodeSsh(nodeId, async ({ conn }) => {
+        const repairCmd = [
+            'set +e',
+            'STATE_BEFORE="$(systemctl is-active xray 2>/dev/null || true)"',
+            'JOURNAL="$(journalctl -u xray -n 80 --no-pager 2>/dev/null || true)"',
+            'if echo "$JOURNAL" | grep -qiE "failed to initialize access logger|open /var/log/xray/access.log: permission denied"; then',
+            '  NEED_FIX=1',
+            'elif [ "$STATE_BEFORE" != "active" ]; then',
+            '  NEED_FIX=1',
+            'else',
+            '  NEED_FIX=0',
+            'fi',
+            'if [ "$NEED_FIX" = "1" ]; then',
+            '  mkdir -p /var/log/xray',
+            '  touch /var/log/xray/access.log /var/log/xray/error.log',
+            '  XRAY_USER="$(systemctl show -p User --value xray 2>/dev/null || true)"',
+            '  [ -z "$XRAY_USER" ] && XRAY_USER="nobody"',
+            '  XRAY_GROUP="$(id -gn "$XRAY_USER" 2>/dev/null || echo "$XRAY_USER")"',
+            '  chown -R "$XRAY_USER:$XRAY_GROUP" /var/log/xray 2>/dev/null || true',
+            '  chmod 755 /var/log/xray || true',
+            '  chmod 640 /var/log/xray/access.log /var/log/xray/error.log || true',
+            '  systemctl restart xray 2>/dev/null || true',
+            '  sleep 2',
+            'fi',
+            'STATE="$(systemctl is-active xray 2>/dev/null || true)"',
+            'echo "__need_fix__=${NEED_FIX}"',
+            'echo "__before__=${STATE_BEFORE}"',
+            'echo "__state__=${STATE}"',
+        ].join('\n');
+
+        const result = await nodeSetup.execSSH(conn, buildNonLoginShCommand(repairCmd), {
+            onStdoutLine: onLogLine ? (line) => onLogLine(`[verify-runtime-local] ${line}`) : null,
+            onStderrLine: onLogLine ? (line) => onLogLine(`[verify-runtime-local][stderr] ${line}`) : null,
+        });
+        const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+        const needFix = Number((output.match(/__need_fix__=(\d+)/) || [])[1] || 0) === 1;
+        const before = String((output.match(/__before__=(.+)/) || [])[1] || '').trim().toLowerCase();
+        const state = String((output.match(/__state__=(.+)/) || [])[1] || '').trim().toLowerCase();
+        return {
+            recovered: ['active', 'online', 'running'].includes(state),
+            attempted: needFix,
+            before: before || 'unknown',
+            state: state || 'unknown',
+            output: tailText(output),
+        };
+    });
+}
+
 async function runInstallRuntime({ job, context = {} }) {
     const node = await HyNode.findById(job.nodeId);
     if (!node) {
@@ -244,20 +296,39 @@ async function runInstallRuntime({ job, context = {} }) {
     };
 }
 
-async function runVerifyRuntimeLocal({ job }) {
+async function runVerifyRuntimeLocal({ job, context = {} }) {
     const node = await HyNode.findById(job.nodeId);
     if (!node) {
         throw new Error('Onboarding node not found for runtime verify');
     }
 
+    const onLogLine = typeof context?.onLogLine === 'function' ? context.onLogLine : null;
     let resolvedStatus = { online: false, status: 'unknown', error: 'no status' };
-    const attempts = 8;
+    let recoveryMeta = null;
+    const attempts = 12;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
         const runtimeStatus = node.type === 'xray'
             ? await nodeSetup.checkXrayNodeStatus(node)
             : await nodeSetup.checkNodeStatus(node);
         resolvedStatus = normalizeRuntimeStatus(runtimeStatus);
         if (resolvedStatus.online) break;
+
+        if (node.type === 'xray' && attempt === 2) {
+            recoveryMeta = await tryRecoverXrayAccessLogPermission(job.nodeId, onLogLine);
+            if (recoveryMeta) {
+                const note = recoveryMeta.attempted
+                    ? (recoveryMeta.recovered
+                        ? 'Recovered Xray runtime after log-permission repair and service restart.'
+                        : `Xray log-permission recovery attempted, state before=${recoveryMeta.before}, after=${recoveryMeta.state}.`)
+                    : `Xray recovery probe: state before=${recoveryMeta.before}, after=${recoveryMeta.state}.`;
+                if (onLogLine) onLogLine(`[verify-runtime-local] ${note}`);
+                if (recoveryMeta.recovered) {
+                    resolvedStatus = { online: true, status: 'active', error: '' };
+                    break;
+                }
+            }
+        }
+
         if (attempt < attempts) {
             await delay(1500);
         }
@@ -273,6 +344,7 @@ async function runVerifyRuntimeLocal({ job }) {
         nodeType: node.type || 'hysteria',
         serviceState: resolvedStatus.status || 'unknown',
         online: true,
+        recovery: recoveryMeta,
     };
 }
 

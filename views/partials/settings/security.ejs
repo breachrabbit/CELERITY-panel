@@ -520,7 +520,7 @@ async function submitApiKey(e) {
         document.getElementById('revealKeyInput').value = data.key;
         document.getElementById('apiKeyRevealModal').style.display = 'flex';
     } catch (err) {
-        alert(err.message);
+        await window.hrAlert(err.message, { title: '<%= t("common.error") || "Error" %>' });
     } finally {
         btn.disabled = false;
         btn.textContent = '<%= t("apiKeys.create") || "Create" %>';
@@ -528,26 +528,26 @@ async function submitApiKey(e) {
 }
 
 async function toggleApiKey(id, currentActive) {
-    if (!confirm(currentActive ? '<%= t("apiKeys.confirmDisable") || "Disable this key?" %>' : '<%= t("apiKeys.confirmEnable") || "Enable this key?" %>')) return;
+    if (!await window.hrConfirm(currentActive ? '<%= t("apiKeys.confirmDisable") || "Disable this key?" %>' : '<%= t("apiKeys.confirmEnable") || "Enable this key?" %>')) return;
     try {
         const res = await fetch(`/panel/api-keys/${id}/toggle`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         window.location.reload();
     } catch (err) {
-        alert(err.message);
+        await window.hrAlert(err.message, { title: '<%= t("common.error") || "Error" %>' });
     }
 }
 
 async function deleteApiKey(id, name) {
-    if (!confirm(`<%= t("apiKeys.confirmDelete") || "Delete key" %> "${name}"?`)) return;
+    if (!await window.hrConfirm(`<%= t("apiKeys.confirmDelete") || "Delete key" %> "${name}"?`)) return;
     try {
         const res = await fetch(`/panel/api-keys/${id}/delete`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         document.getElementById(`apikey-row-${id}`)?.remove();
     } catch (err) {
-        alert(err.message);
+        await window.hrAlert(err.message, { title: '<%= t("common.error") || "Error" %>' });
     }
 }
 
@@ -577,7 +577,12 @@ document.getElementById('webhookEnabled')?.addEventListener('change', function()
 async function testWebhook() {
     const url = document.getElementById('webhookUrl').value.trim();
     const secret = document.querySelector('[name="webhook.secret"]')?.value || '';
-    if (!url) { alert('<%= t("webhooks.urlRequired") || "Enter a URL first" %>'); return; }
+    if (!url) {
+        await window.hrAlert('<%= t("webhooks.urlRequired") || "Enter a URL first" %>', {
+            title: '<%= t("common.error") || "Error" %>',
+        });
+        return;
+    }
 
     const btn = event.target;
     btn.disabled = true;

@@ -903,7 +903,7 @@ async function restartNode(id) {
 }
 
 async function deleteNode(id) {
-    if (!confirm(i18n.confirmDelete)) return;
+    if (!await window.hrConfirm(i18n.confirmDelete)) return;
     
     const res = await fetch(`/api/nodes/${id}`, {
         method: 'DELETE',

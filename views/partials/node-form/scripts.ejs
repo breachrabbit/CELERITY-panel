@@ -894,27 +894,27 @@ async function generateConfig() {
         }
         output.value = data.config || '';
     } catch (err) {
-        alert(i18nConfig.error + ': ' + err.message);
+        await window.hrAlert(i18nConfig.error + ': ' + err.message, { title: i18nConfig.error });
     }
 }
 
 async function loadCurrentConfig() {
     <% if (node) { %>
-    if (!confirm(i18nConfig.loadConfigConfirm)) return;
+    if (!await window.hrConfirm(i18nConfig.loadConfigConfirm)) return;
     try {
         const res = await fetch('/panel/nodes/<%= node._id %>/get-config');
         const data = await res.json();
         if (data.success) {
             document.getElementById('customConfig').value = data.config;
-            alert(i18nConfig.configLoaded);
+            await window.hrAlert(i18nConfig.configLoaded, { title: i18nConfig.info || 'Info' });
         } else {
-            alert(i18nConfig.error + ': ' + data.error);
+            await window.hrAlert(i18nConfig.error + ': ' + data.error, { title: i18nConfig.error });
         }
     } catch (err) {
-        alert(i18nConfig.error + ': ' + err.message);
+        await window.hrAlert(i18nConfig.error + ': ' + err.message, { title: i18nConfig.error });
     }
     <% } else { %>
-    alert(i18nConfig.saveFirst);
+    await window.hrAlert(i18nConfig.saveFirst, { title: i18nConfig.info || 'Info' });
     <% } %>
 }
 
@@ -1280,7 +1280,7 @@ function useOnboardingJobStep(jobId) {
 async function resumeOnboardingJob(jobId) {
     const target = onboardingJobsCache.find((job) => String(job?.id || '') === String(jobId || ''));
     if (!target) return;
-    if (!confirm(i18n.onboardingResumeConfirm || 'Resume onboarding?')) return;
+    if (!await window.hrConfirm(i18n.onboardingResumeConfirm || 'Resume onboarding?')) return;
     if (isLegacyBridgeJob(target)) {
         document.getElementById('setupResult').innerHTML = '<div class="alert alert-error"><i class="ti ti-x"></i> ' + escapeHtml(i18n.onboardingLegacyBridgeHint || 'Legacy bridge job cannot be resumed via onboarding-full') + '</div>';
         return;
@@ -1324,7 +1324,7 @@ async function rerunOnboardingStep(jobId) {
         return;
     }
 
-    if (!confirm((i18n.onboardingRerunStepConfirm || 'Rerun selected onboarding step?') + '\n\n' + step)) return;
+    if (!await window.hrConfirm((i18n.onboardingRerunStepConfirm || 'Rerun selected onboarding step?') + '\n\n' + step)) return;
     const btn = document.getElementById('btnResumeOnboarding');
     setActionButtonBusy(btn, true, 'ti ti-player-play', i18n.onboardingResume);
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + escapeHtml((i18n.onboardingRerunRunning || 'Running onboarding step rerun...') + ' ' + step) + '</div>';
@@ -1434,11 +1434,11 @@ async function loadOnboardingJobs() {
 
 async function setupNode() {
     const confirmMsg = nodeType === 'xray' ? i18n.autoSetupConfirmXray : i18n.autoSetupConfirm;
-    if (!confirm(confirmMsg)) return;
+    if (!await window.hrConfirm(confirmMsg)) return;
     const btn = document.getElementById('btnSetup');
     setActionButtonBusy(btn, true, 'ti ti-settings', i18n.autoSetup);
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.setupRunning + '</div>';
-    const setupMode = nodeType === 'xray' ? 'onboarding-full' : 'legacy';
+    const setupMode = 'onboarding-full';
 
     try {
         await startOnboardingAction({
@@ -1455,7 +1455,7 @@ async function setupNode() {
 }
 
 async function resumeOnboarding() {
-    if (!confirm(i18n.onboardingResumeConfirm || 'Resume onboarding?')) return;
+    if (!await window.hrConfirm(i18n.onboardingResumeConfirm || 'Resume onboarding?')) return;
     const btn = document.getElementById('btnResumeOnboarding');
     setActionButtonBusy(btn, true, 'ti ti-player-play', i18n.onboardingResume);
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.onboardingResumeRunning + '</div>';
@@ -1475,7 +1475,7 @@ async function resumeOnboarding() {
 }
 
 async function repairOnboarding() {
-    if (!confirm(i18n.onboardingRepairConfirm || 'Run onboarding repair?')) return;
+    if (!await window.hrConfirm(i18n.onboardingRepairConfirm || 'Run onboarding repair?')) return;
     const btn = document.getElementById('btnRepairOnboarding');
     setActionButtonBusy(btn, true, 'ti ti-bolt', i18n.onboardingRepair);
     document.getElementById('setupResult').innerHTML = '<div class="alert">' + i18n.onboardingRepairRunning + '</div>';
@@ -1612,7 +1612,7 @@ async function refreshNodeInfo() {
 
 <% if (node && node.type === 'xray') { %>
 async function generateXrayKeys() {
-    if (!confirm(i18n.xrayGenerateKeysConfirm)) return;
+    if (!await window.hrConfirm(i18n.xrayGenerateKeysConfirm)) return;
     const btn = event.target;
     btn.disabled = true;
     btn.innerHTML = '<i class="ti ti-loader-2"></i>';
@@ -1625,12 +1625,12 @@ async function generateXrayKeys() {
         if (data.success) {
             document.getElementById('xrayRealityPrivKey').value = data.privateKey;
             document.getElementById('xrayRealityPubKey').value = data.publicKey;
-            alert(i18n.xrayKeysSuccess.replace('{key}', data.publicKey));
+            await window.hrAlert(i18n.xrayKeysSuccess.replace('{key}', data.publicKey), { title: i18n.success || 'Success' });
         } else {
-            alert(i18n.error + ': ' + (data.error || 'Unknown error'));
+            await window.hrAlert(i18n.error + ': ' + (data.error || 'Unknown error'), { title: i18n.error || 'Error' });
         }
     } catch (err) {
-        alert(i18n.error + ': ' + err.message);
+        await window.hrAlert(i18n.error + ': ' + err.message, { title: i18n.error || 'Error' });
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="ti ti-refresh"></i>';
@@ -1692,7 +1692,7 @@ document.getElementById('sshPrivateKey')?.addEventListener('input', function() {
 // Generate & Install SSH Key
 document.getElementById('generateSshKeyBtn')?.addEventListener('click', async function() {
     const warning = '<%= t('nodes.generateSshKeyWarning').replace(/\n/g, '\\n').replace(/'/g, "\\'") %>';
-    if (!confirm(warning)) return;
+    if (!await window.hrConfirm(warning)) return;
 
     const btn = this;
     const statusEl = document.getElementById('generateSshKeyStatus');
@@ -1752,7 +1752,7 @@ document.getElementById('generateSshKeyBtn')?.addEventListener('click', async fu
 
 async function cascadeAction(linkId, action, btn) {
     const confirmMsg = action === 'deploy' ? i18n.confirmDeployCascade : i18n.confirmUndeployCascade;
-    if (!confirm(confirmMsg)) return;
+    if (!await window.hrConfirm(confirmMsg)) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 0.7s linear infinite;display:inline-block"></i>'; }
     try {
         const res = await fetch('/api/cascade/links/' + linkId + '/' + action, { method: 'POST' });
@@ -1760,28 +1760,28 @@ async function cascadeAction(linkId, action, btn) {
             location.reload();
         } else {
             const data = await res.json().catch(() => ({}));
-            alert(i18n.error + ': ' + (data.error || 'Unknown error'));
+            await window.hrAlert(i18n.error + ': ' + (data.error || 'Unknown error'), { title: i18n.error || 'Error' });
             if (btn) { btn.disabled = false; btn.innerHTML = action === 'deploy' ? '<i class="ti ti-upload"></i>' : '<i class="ti ti-upload-off"></i>'; }
         }
     } catch (err) {
-        alert(i18n.error + ': ' + err.message);
+        await window.hrAlert(i18n.error + ': ' + err.message, { title: i18n.error || 'Error' });
         if (btn) { btn.disabled = false; }
     }
 }
 
 async function cascadeDelete(linkId, name) {
     const confirmMsg = i18n.confirmDeleteCascade.replace('{name}', name);
-    if (!confirm(confirmMsg)) return;
+    if (!await window.hrConfirm(confirmMsg)) return;
     try {
         const res = await fetch('/api/cascade/links/' + linkId, { method: 'DELETE' });
         if (res.ok) {
             location.reload();
         } else {
             const data = await res.json().catch(() => ({}));
-            alert(i18n.error + ': ' + (data.error || 'Unknown error'));
+            await window.hrAlert(i18n.error + ': ' + (data.error || 'Unknown error'), { title: i18n.error || 'Error' });
         }
     } catch (err) {
-        alert(i18n.error + ': ' + err.message);
+        await window.hrAlert(i18n.error + ': ' + err.message, { title: i18n.error || 'Error' });
     }
 }
 

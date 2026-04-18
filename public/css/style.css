@@ -1720,9 +1720,22 @@ html.layout-stabilizing * {
     min-width: 0;
 }
 
-.table {
+.users-table-card .table {
     width: max-content;
     min-width: 100%;
+}
+
+#nodesTable {
+    width: 100%;
+    min-width: 860px;
+    table-layout: auto;
+}
+
+.nodes-table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .user-row {
@@ -2212,6 +2225,103 @@ html.layout-stabilizing * {
     border-color: var(--success);
     background: var(--success-bg);
     color: var(--success);
+}
+
+/* In-app confirm modal */
+.hr-confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.hr-confirm-modal.is-open {
+    display: flex;
+}
+
+.hr-confirm-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 10, 60, 0.42);
+    backdrop-filter: blur(2px);
+}
+
+.hr-confirm-card {
+    position: relative;
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-lg);
+    overflow: auto;
+    z-index: 1;
+}
+
+.hr-confirm-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px dashed var(--border);
+}
+
+.hr-confirm-head h3 {
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.hr-confirm-close {
+    width: 34px;
+    height: 34px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.hr-confirm-close:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.hr-confirm-body {
+    padding: 16px;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+.hr-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 16px 16px;
+}
+
+body.has-ui-confirm-open {
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .hr-confirm-actions {
+        flex-wrap: wrap;
+    }
+
+    .hr-confirm-actions .btn {
+        flex: 1 1 calc(50% - 5px);
+    }
 }
 
 /* Forms */

@@ -292,13 +292,13 @@ const PRESETS = {
     'clear': [],
 };
 
-function applyPreset(key, el) {
+async function applyPreset(key, el) {
     if (!ACL_EDITOR_EDITABLE) return;
     const rules = PRESETS[key];
     if (rules === undefined) return;
 
     const ta = document.getElementById('aclRulesEditor');
-    if (key !== 'clear' && ta.value.trim() && !confirm(I18N.replaceRules)) return;
+    if (key !== 'clear' && ta.value.trim() && !await window.hrConfirm(I18N.replaceRules)) return;
 
     ta.value = rules.join('\n');
     checkProxyWarning();
@@ -361,7 +361,12 @@ function addProxy() {
 
     if (!name) { document.getElementById('newObName').focus(); return; }
     if (!addr)  { document.getElementById('newObAddr').focus(); return; }
-    if (pendingOutbounds.some(o => o.name === name)) { alert(I18N.proxyExists + ': ' + name); return; }
+    if (pendingOutbounds.some(o => o.name === name)) {
+        if (window.hrAlert) {
+            window.hrAlert(I18N.proxyExists + ': ' + name, { title: I18N.applyError || 'Error' });
+        }
+        return;
+    }
 
     pendingOutbounds.push({ name, type, addr, username, password });
     renderProxies();
@@ -471,11 +476,15 @@ async function saveAndApply() {
             btn.innerHTML = '<i class="ti ti-check"></i> ' + I18N.applied;
             setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 3000);
         } else {
-            alert(I18N.applyError + ': ' + (data.error || 'Unknown'));
+            await window.hrAlert(I18N.applyError + ': ' + (data.error || 'Unknown'), {
+                title: I18N.applyError || 'Error',
+            });
             btn.innerHTML = orig; btn.disabled = false;
         }
     } catch (e) {
-        alert(I18N.applyError + ': ' + e.message);
+        await window.hrAlert(I18N.applyError + ': ' + e.message, {
+            title: I18N.applyError || 'Error',
+        });
         btn.innerHTML = orig; btn.disabled = false;
     }
 }

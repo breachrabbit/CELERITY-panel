@@ -265,7 +265,7 @@ async function loadBackupsList() {
 }
 
 async function restoreBackup(source, identifier) {
-    if (!confirm(i18n.restoreConfirm)) return;
+    if (!await window.hrConfirm(i18n.restoreConfirm)) return;
     
     showToast(i18n.restoring, 'info');
     
@@ -292,7 +292,7 @@ async function restoreBackup(source, identifier) {
 
 // ==================== MAINTENANCE ====================
 async function resetStats() {
-    if (!confirm(i18n.resetStatsConfirm)) return;
+    if (!await window.hrConfirm(i18n.resetStatsConfirm)) return;
     
     const btn = event.target;
     btn.disabled = true;
@@ -316,7 +316,7 @@ async function resetStats() {
 }
 
 async function flushCache() {
-    if (!confirm(i18n.flushCacheConfirm)) return;
+    if (!await window.hrConfirm(i18n.flushCacheConfirm)) return;
     
     const btn = event.target;
     btn.disabled = true;
@@ -340,8 +340,8 @@ async function flushCache() {
 }
 
 async function resetTraffic() {
-    if (!confirm(i18n.resetConfirm)) return;
-    if (!confirm(i18n.resetConfirmFinal)) return;
+    if (!await window.hrConfirm(i18n.resetConfirm)) return;
+    if (!await window.hrConfirm(i18n.resetConfirmFinal)) return;
     
     const btn = event.target;
     btn.disabled = true;
@@ -472,7 +472,7 @@ async function submitMcpKey(e) {
         document.getElementById('revealKeyInput').value = data.key;
         document.getElementById('apiKeyRevealModal').style.display = 'flex';
     } catch (err) {
-        alert(err.message);
+        await window.hrAlert(err.message, { title: i18n.error || 'Error' });
     } finally {
         btn.disabled = false;
         btn.textContent = '<%= t("mcp.createKeyBtn") || "Create Key" %>';
