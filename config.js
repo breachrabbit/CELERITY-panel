@@ -1,5 +1,23 @@
 require('dotenv').config();
 
+const DEFAULT_CC_AGENT_RELEASE_BASE = 'https://github.com/breachrabbit/CELERITY-panel/releases';
+
+function normalizeCcAgentReleaseBase(rawValue) {
+    const value = String(rawValue || '').trim();
+    if (!value) return DEFAULT_CC_AGENT_RELEASE_BASE;
+
+    const lowered = value.toLowerCase();
+    if (
+        lowered.includes('github.com/clickdevtech/celerity-panel/releases')
+        || lowered.includes('github.com/clickdevtech/hysteria-panel/releases')
+    ) {
+        console.warn('[Config] CC_AGENT_RELEASE_BASE points to legacy ClickDevTech repo, overriding to Hidden Rabbit fork releases');
+        return DEFAULT_CC_AGENT_RELEASE_BASE;
+    }
+
+    return value.replace(/\/+$/, '');
+}
+
 // Required environment variables check
 const requiredEnv = ['PANEL_DOMAIN', 'ACME_EMAIL', 'ENCRYPTION_KEY', 'SESSION_SECRET'];
 for (const key of requiredEnv) {
@@ -27,7 +45,7 @@ module.exports = {
     API_DOCS_ENABLED: process.env.API_DOCS_ENABLED === 'true',
     FEATURE_CASCADE_HYBRID: process.env.FEATURE_CASCADE_HYBRID !== 'false',
     HYSTERIA_VERSION: String(process.env.HYSTERIA_VERSION || '').trim(),
-    CC_AGENT_RELEASE_BASE: String(process.env.CC_AGENT_RELEASE_BASE || 'https://github.com/breachrabbit/CELERITY-panel/releases').trim(),
+    CC_AGENT_RELEASE_BASE: normalizeCcAgentReleaseBase(process.env.CC_AGENT_RELEASE_BASE),
     CC_AGENT_RELEASE_TAG: String(process.env.CC_AGENT_RELEASE_TAG || 'latest').trim(),
     DEFAULT_NODE_CONFIG: {
         portRange: '20000-50000',
