@@ -560,6 +560,7 @@ const render = (res, template, data = {}) => {
     const content = compiledTemplate({
         ...data,
         ...i18nVars,
+        assetVersion: res.locals.assetVersion,
         baseUrl: config.BASE_URL,
         config
     });
