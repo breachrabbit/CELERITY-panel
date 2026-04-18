@@ -1,5 +1,31 @@
 # Development Log
 
+## 2026-04-18 Live Smoke Verification (Xray + Hysteria) and Deploy Source Check
+
+- Revalidated stand asset versioning on live endpoints:
+  - `/panel/login` and `/panel/nodes` both serve versioned assets:
+    - `/css/style.css?v=1776518691049`
+    - `/js/app.js?v=1776518691049`
+- Forced Coolify deployment trigger path rechecked:
+  - direct API checks to `http://89.125.188.83:8000/api/v1/version` with available tokens returned `Unauthenticated`;
+  - operational note: forced redeploy is currently token-blocked, not runtime-blocked.
+- Executed fresh durable onboarding smoke via API (Xray):
+  - node: `69e205b5ab80ea2b34cdf1c5`;
+  - created job: `69e38b4802ba24c7ddbbefee`;
+  - `run-full` result: `completed`, `ready`;
+  - `verify-runtime-local`: `completed`, attempt `1`, no offline loop.
+- Executed fresh durable onboarding smoke via API (Hysteria/problem node):
+  - node: `69e013bee8728d388e89c4df`;
+  - created job: `69e38adc02ba24c7ddbbef49`;
+  - `run-full` result: `completed`, `ready`;
+  - `verify-runtime-local`: `completed`, attempt `1`, no step hang.
+- Verified panel setup-status now returns success for the previously problematic node after rerun.
+
+Change types:
+
+- `validation` — live Xray/Hysteria onboarding parity recheck
+- `ops` — deploy trigger auth-path verification
+
 ## 2026-04-18 Onboarding UX + Runtime Offline Hardening (Wave 2, local patch prepared)
 
 - Removed accidental form-submit behavior from node management actions:

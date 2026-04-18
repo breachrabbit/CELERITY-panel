@@ -2,6 +2,26 @@
 
 ## 2026-04-18
 
+- Worked on: live verification cycle requested for onboarding stability and stand deploy source.
+- Finished with:
+  - confirmed live stand serves versioned assets on `/panel/login` and `/panel/nodes` (`?v=1776518691049`);
+  - checked forced Coolify trigger path and recorded token auth blocker (`Unauthenticated` for currently available API tokens);
+  - executed fresh durable Xray onboarding smoke via API:
+    - node `69e205b5ab80ea2b34cdf1c5`,
+    - job `69e38b4802ba24c7ddbbefee`,
+    - final `completed/ready`,
+    - `verify-runtime-local` completed without offline loop;
+  - executed fresh durable Hysteria onboarding smoke via API:
+    - node `69e013bee8728d388e89c4df`,
+    - job `69e38adc02ba24c7ddbbef49`,
+    - final `completed/ready`,
+    - `verify-runtime-local` completed without hanging;
+  - confirmed panel setup-status for the problematic node now returns `success`.
+- Next step:
+  - obtain valid Coolify API token for explicit forced redeploys (or continue git-triggered deploy path);
+  - run visual Nodes fit/overflow QA in real desktop/mobile browser viewports and patch only if reproduced;
+  - continue cascade/onboarding parity track from current green smoke baseline.
+
 - Worked on: node onboarding UX/behavior issues reported from live stand (`auto-setup confirm`, repeated `Runtime is offline`, node page fit, hysteria run stability visibility).
 - Finished with:
   - converted management action buttons in node edit to explicit non-submit buttons (`type="button"`);

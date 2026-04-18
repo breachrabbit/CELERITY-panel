@@ -86,6 +86,40 @@
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-18 Stop-Point — Live Xray/Hysteria Smokes Rechecked + Asset Version Confirmed
+
+### What was delivered
+
+- Stand recheck:
+  - `https://tunnel.hiddenrabbit.net.ru/panel/login` is healthy;
+  - versioned assets are served on live pages:
+    - `/css/style.css?v=1776518691049`,
+    - `/js/app.js?v=1776518691049`.
+- Forced Coolify deploy trigger check attempted via API:
+  - token candidates currently available in session (`5|...`, `6|...`, `7|...`) return `Unauthenticated`;
+  - forced deploy endpoint is therefore currently blocked by token auth, not by app runtime.
+- Live onboarding smoke reruns completed via durable onboarding API:
+  1. Xray smoke (node `69e205b5ab80ea2b34cdf1c5`):
+     - job `69e38b4802ba24c7ddbbefee` -> `completed`, `currentStep=ready`;
+     - `verify-runtime-local` -> `completed` on first attempt, no repair loop.
+  2. Hysteria smoke (problem node `69e013bee8728d388e89c4df`):
+     - job `69e38adc02ba24c7ddbbef49` -> `completed`, `currentStep=ready`;
+     - `verify-runtime-local` -> `completed` on first attempt, no step hang.
+- Additional status check:
+  - panel setup-status for the problematic node now reports `state=success` in onboarding mode after rerun.
+
+### What is pending
+
+1. Acquire a valid Coolify API token for explicit forced deploy actions (optional if git-triggered deploy path remains healthy).
+2. Run visual Nodes-page fit/overflow QA in real browser viewports (desktop + mobile) to confirm no residual UI drift.
+3. Keep code/docs commit split strict while moving to next cascade/onboarding tasks.
+
+### Next step
+
+1. If user reports fresh overflow on `/panel/nodes`, capture viewport + reproduce and patch only the failing layout slice.
+2. Continue cascade builder UX/logic stabilization and onboarding parity work from current green smoke baseline.
+3. Preserve durable onboarding as primary status/control source and keep retiring legacy `setupJobs` in safe slices.
+
 ## 2026-04-18 Stop-Point — In-App Confirms + Xray Runtime Verify Hardening
 
 ### What was delivered
