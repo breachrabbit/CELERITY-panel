@@ -111,6 +111,16 @@
                     <p class="builder-validation-empty"><%= t('cascades.validationEmpty') %></p>
                 </div>
             </div>
+            <div class="builder-validation-box builder-internet-box" id="builderInternetBox">
+                <div class="builder-validation-head">
+                    <h4><%= t('cascades.internetTitle') %></h4>
+                    <span class="builder-validation-badge" id="builderInternetBadge">0</span>
+                </div>
+                <p class="builder-validation-empty"><%= t('cascades.internetHint') %></p>
+                <div class="builder-validation-list" id="builderInternetList">
+                    <p class="builder-validation-empty"><%= t('cascades.internetNoExits') %></p>
+                </div>
+            </div>
             <div class="builder-validation-box builder-plan-box" id="builderPlanBox">
                 <div class="builder-validation-head">
                     <h4><%= t('cascades.deployPreviewTitle') %></h4>
@@ -328,6 +338,11 @@ window._cascadeBuilderI18n = {
     draftRemoved: <%- JSON.stringify(t('cascades.draftRemoved')) %>,
     draftRemoveFailed: <%- JSON.stringify(t('cascades.draftRemoveFailed')) %>,
     cyUnavailable: <%- JSON.stringify(t('cascades.cyUnavailable')) %>,
+    internetTitle: <%- JSON.stringify(t('cascades.internetTitle')) %>,
+    internetHint: <%- JSON.stringify(t('cascades.internetHint')) %>,
+    internetNoExits: <%- JSON.stringify(t('cascades.internetNoExits')) %>,
+    internetNodeLabel: <%- JSON.stringify(t('cascades.internetNodeLabel')) %>,
+    internetExitPath: <%- JSON.stringify(t('cascades.internetExitPath')) %>,
 };
 </script>
 <script src="/vendor/cascade/cytoscape.min.js"></script>

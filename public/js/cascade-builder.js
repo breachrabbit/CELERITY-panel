@@ -30,6 +30,8 @@
         executionReruns: {},
         executionFilter: 'all',
         connectIntent: null,
+        connectInFlight: false,
+        connectFallbackEnabled: false,
         selection: { type: null, id: null },
     };
     const HOP_MODE_OPTIONS = ['reverse', 'forward'];
@@ -37,8 +39,9 @@
     const HOP_TRANSPORT_OPTIONS = ['tcp', 'ws', 'grpc', 'xhttp', 'splithttp'];
     const HOP_SECURITY_OPTIONS = ['none', 'tls', 'reality'];
     const REALITY_FINGERPRINT_OPTIONS = ['chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'randomized'];
+    const INTERNET_NODE_ID = '__internet__';
     const BUILDER_NODE_WIDTH = 156;
-    const BUILDER_PORT_OFFSET = 10;
+    const BUILDER_PORT_OFFSET = 0;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -324,6 +327,22 @@
                 },
             },
             {
+                selector: 'node[isPort != 1][isVirtualInternet = 1]',
+                style: {
+                    'shape': 'round-octagon',
+                    'width': 132,
+                    'height': 132,
+                    'background-color': isDarkTheme() ? '#0f183f' : '#ffffff',
+                    'border-color': '#02A8AD',
+                    'border-style': 'dashed',
+                    'border-width': 2,
+                    'font-size': 13,
+                    'font-weight': 700,
+                    'text-max-width': '100px',
+                    'padding': '8px',
+                },
+            },
+            {
                 selector: 'node[isPort != 1][status = "online"]',
                 style: {
                     'border-width': 2,
@@ -346,8 +365,8 @@
                 selector: 'node[isPort = 1]',
                 style: {
                     'shape': 'ellipse',
-                    'width': 14,
-                    'height': 14,
+                    'width': 16,
+                    'height': 16,
                     'background-color': palette.portBackground,
                     'border-width': 2,
                     'border-style': 'solid',
@@ -380,12 +399,14 @@
             {
                 selector: 'edge',
                 style: {
-                    'curve-style': 'bezier',
+                    'curve-style': 'taxi',
+                    'taxi-direction': 'horizontal',
+                    'taxi-turn': 52,
                     'width': 3,
                     'line-color': palette.edgeColor,
                     'target-arrow-color': palette.edgeColor,
                     'target-arrow-shape': 'triangle',
-                    'arrow-scale': 0.9,
+                    'arrow-scale': 0.82,
                     'line-style': 'solid',
                     'overlay-opacity': 0,
                     'label': 'data(label)',
@@ -413,6 +434,23 @@
                     'line-color': '#08C5CB',
                     'target-arrow-color': '#08C5CB',
                     'width': 3,
+                },
+            },
+            {
+                selector: 'edge[isVirtualInternet = 1]',
+                style: {
+                    'line-style': 'dashed',
+                    'curve-style': 'taxi',
+                    'taxi-direction': 'horizontal',
+                    'taxi-turn': 36,
+                    'line-color': '#02A8AD',
+                    'target-arrow-color': '#02A8AD',
+                    'target-arrow-shape': 'triangle',
+                    'arrow-scale': 0.72,
+                    'width': 2,
+                    'label': '',
+                    'text-opacity': 0,
+                    'z-index': 2,
                 },
             },
             {
@@ -472,6 +510,66 @@
         };
     }
 
+    function getFlowDegreeMap(flow) {
+        const degreeByNodeId = new Map();
+        (flow?.nodes || []).forEach((node) => {
+            degreeByNodeId.set(String(node.id), { incoming: 0, outgoing: 0 });
+        });
+
+        (flow?.hops || []).forEach((hop) => {
+            const sourceId = String(hop.sourceNodeId || '');
+            const targetId = String(hop.targetNodeId || '');
+            if (degreeByNodeId.has(sourceId)) {
+                const stats = degreeByNodeId.get(sourceId);
+                stats.outgoing += 1;
+            }
+            if (degreeByNodeId.has(targetId)) {
+                const stats = degreeByNodeId.get(targetId);
+                stats.incoming += 1;
+            }
+        });
+
+        return degreeByNodeId;
+    }
+
+    function getFlowExitNodeIds(flow) {
+        const degreeByNodeId = getFlowDegreeMap(flow);
+        return (flow?.nodes || [])
+            .filter((node) => {
+                const stats = degreeByNodeId.get(String(node.id));
+                if (!stats) return false;
+                const connected = (stats.incoming + stats.outgoing) > 0;
+                return connected && stats.outgoing === 0;
+            })
+            .map((node) => String(node.id));
+    }
+
+    function getFlowInternetNodeData(flow) {
+        const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
+        if (!nodes.length) return null;
+        const exitNodeIds = getFlowExitNodeIds(flow);
+        const realNodesWithPosition = nodes.filter((node) => node?.position && Number.isFinite(Number(node.position.x)) && Number.isFinite(Number(node.position.y)));
+        const ySourceNodes = exitNodeIds.length
+            ? nodes.filter((node) => exitNodeIds.includes(String(node.id)))
+            : (realNodesWithPosition.length ? realNodesWithPosition : nodes);
+        const maxX = realNodesWithPosition.length
+            ? Math.max(...realNodesWithPosition.map((node) => Number(node.position?.x || 0)))
+            : 0;
+        const avgY = ySourceNodes.length
+            ? ySourceNodes.reduce((sum, node) => sum + Number(node.position?.y || 0), 0) / ySourceNodes.length
+            : 0;
+
+        return {
+            id: INTERNET_NODE_ID,
+            label: t('internetNodeLabel', 'Internet'),
+            position: {
+                x: maxX + 240,
+                y: avgY,
+            },
+            exitNodeIds,
+        };
+    }
+
     function isPortElement(element) {
         if (!element || !element.length) return false;
         return Number(element.data('isPort')) === 1;
@@ -483,6 +581,7 @@
                 ownerNodeId: '',
                 isPort: false,
                 portType: '',
+                isVirtualInternet: false,
             };
         }
         const isPort = Number(element.data('isPort')) === 1;
@@ -491,12 +590,14 @@
                 ownerNodeId: String(element.data('ownerNodeId') || '').trim(),
                 isPort: true,
                 portType: String(element.data('portType') || '').trim().toLowerCase(),
+                isVirtualInternet: false,
             };
         }
         return {
             ownerNodeId: String(element.id() || '').trim(),
             isPort: false,
             portType: '',
+            isVirtualInternet: Number(element.data('isVirtualInternet')) === 1,
         };
     }
 
@@ -557,11 +658,34 @@
         state.cy.nodes('[isPort != 1]').forEach((node) => syncNodePorts(node.id()));
     }
 
+    function syncInternetNodePosition() {
+        if (!state.cy || !state.flow) return;
+        const internetNode = state.cy.getElementById(INTERNET_NODE_ID);
+        if (!internetNode.length) return;
+
+        const realNodes = state.cy.nodes('[isPort != 1][isVirtualInternet != 1]');
+        if (!realNodes.length) return;
+
+        const exitNodeIds = getFlowExitNodeIds(state.flow);
+        const exitNodes = realNodes.filter((node) => exitNodeIds.includes(String(node.id())));
+        const yReferenceNodes = exitNodes.length ? exitNodes : realNodes;
+        const maxX = Math.max(...realNodes.map((node) => Number(node.position('x') || 0)));
+        const avgY = yReferenceNodes.reduce((sum, node) => sum + Number(node.position('y') || 0), 0) / yReferenceNodes.length;
+        internetNode.position({
+            x: maxX + 240,
+            y: avgY,
+        });
+    }
+
     function runAutoLayout({ animate = true } = {}) {
         if (!state.cy) return;
-        const layoutCollection = state.cy.elements().filter((element) => element.isEdge() || Number(element.data('isPort')) !== 1);
+        const layoutCollection = state.cy.elements().filter((element) => (
+            (element.isEdge() && Number(element.data('isVirtualInternet')) !== 1)
+            || (Number(element.data('isPort')) !== 1 && Number(element.data('isVirtualInternet')) !== 1)
+        ));
         state.cy.one('layoutstop', () => {
             syncAllNodePorts();
+            syncInternetNodePosition();
             state.cy.fit(undefined, 48);
         });
         layoutCollection.layout({
@@ -576,6 +700,9 @@
 
     function flowToElements(flow) {
         const elements = [];
+        const internetNode = getFlowInternetNodeData(flow);
+        const exitNodeIds = internetNode?.exitNodeIds || [];
+
         for (const node of flow.nodes) {
             elements.push({
                 group: 'nodes',
@@ -616,6 +743,22 @@
             });
         }
 
+        if (internetNode) {
+            elements.push({
+                group: 'nodes',
+                data: {
+                    id: internetNode.id,
+                    label: internetNode.label,
+                    nodeType: 'internet',
+                    status: exitNodeIds.length ? 'online' : 'pending',
+                    isPort: 0,
+                    isVirtualInternet: 1,
+                },
+                position: internetNode.position,
+                grabbable: false,
+            });
+        }
+
         for (const hop of flow.hops) {
             elements.push({
                 group: 'edges',
@@ -628,6 +771,23 @@
                     status: hop.status,
                     isDraft: hop.isDraft ? 1 : 0,
                 },
+            });
+        }
+
+        if (internetNode) {
+            exitNodeIds.forEach((exitNodeId) => {
+                elements.push({
+                    group: 'edges',
+                    data: {
+                        id: `internet-edge:${String(exitNodeId)}`,
+                        source: buildPortId(exitNodeId, 'out'),
+                        target: internetNode.id,
+                        status: 'online',
+                        isDraft: 0,
+                        isVirtualInternet: 1,
+                    },
+                    selectable: false,
+                });
             });
         }
 
@@ -664,6 +824,31 @@
             });
             root.appendChild(el);
         });
+    }
+
+    function renderInternetSection(flow) {
+        const list = document.getElementById('builderInternetList');
+        const badge = document.getElementById('builderInternetBadge');
+        if (!list || !badge) return;
+
+        const nodesById = new Map((flow?.nodes || []).map((node) => [String(node.id), node]));
+        const exitNodeIds = getFlowExitNodeIds(flow);
+        badge.textContent = String(exitNodeIds.length || 0);
+
+        if (!exitNodeIds.length) {
+            list.innerHTML = `<p class="builder-validation-empty">${escapeHtml(i18n.internetNoExits || 'No Internet exit nodes yet. Build at least one chain first.')}</p>`;
+            return;
+        }
+
+        list.innerHTML = exitNodeIds.map((nodeId) => {
+            const node = nodesById.get(String(nodeId));
+            return `
+                <div class="builder-validation-item">
+                    <strong>${escapeHtml(node?.name || nodeId)}</strong>
+                    <span>${escapeHtml(i18n.internetExitPath || 'Traffic exits to Internet from this node')}</span>
+                </div>
+            `;
+        }).join('');
     }
 
     function renderSummary(flow, validation) {
@@ -1617,6 +1802,37 @@
         `;
     }
 
+    function renderInternetInspector() {
+        const root = document.getElementById('builderInspectorBody');
+        if (!root) return;
+        setSelection('node', INTERNET_NODE_ID);
+        const exitNodeIds = getFlowExitNodeIds(state.flow);
+        const nodesById = new Map((state.flow?.nodes || []).map((node) => [String(node.id), node]));
+        const exitList = exitNodeIds.length
+            ? `
+                <div class="builder-plan-message-list">
+                    ${exitNodeIds.map((nodeId) => `
+                        <div class="builder-validation-item">
+                            <strong>${escapeHtml(nodesById.get(String(nodeId))?.name || nodeId)}</strong>
+                            <span>${escapeHtml(i18n.internetExitPath || 'Traffic exits to Internet from this node')}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `
+            : `<p class="builder-validation-empty">${escapeHtml(i18n.internetNoExits || 'No Internet exit nodes yet. Build at least one chain first.')}</p>`;
+
+        root.innerHTML = `
+            <div class="builder-inspector-card">
+                <div class="builder-inspector-head">
+                    <strong>${escapeHtml(i18n.internetNodeLabel || 'Internet')}</strong>
+                    <span class="builder-validation-badge">${escapeHtml(String(exitNodeIds.length || 0))}</span>
+                </div>
+                <p class="builder-validation-empty">${escapeHtml(i18n.internetHint || 'Internet block shows where chain traffic leaves the tunnel.')}</p>
+                ${exitList}
+            </div>
+        `;
+    }
+
     function renderInspectorEmpty() {
         const root = document.getElementById('builderInspectorBody');
         if (!root) return;
@@ -1933,6 +2149,7 @@
             state.cy = null;
             state.edgehandles = null;
         }
+        state.connectInFlight = false;
 
         state.cy = cytoscape({
             container: document.getElementById('builderCy'),
@@ -1949,17 +2166,23 @@
             portNodes.ungrabify();
         }
         syncAllNodePorts();
+        syncInternetNodePosition();
 
         const hasPositions = flow.nodes.some((node) => node.position && typeof node.position.x === 'number');
         if (!hasPositions) {
             runAutoLayout({ animate: true });
         } else {
+            syncInternetNodePosition();
             state.cy.fit(undefined, 48);
         }
 
         state.cy.on('select', 'node', (event) => {
             if (isPortElement(event.target)) return;
             const nodeId = event.target.id();
+            if (nodeId === INTERNET_NODE_ID) {
+                renderInternetInspector();
+                return;
+            }
             const node = getNodeById(nodeId);
             if (node) renderNodeInspector(node);
         });
@@ -1979,12 +2202,15 @@
 
         state.cy.on('position', 'node[isPort != 1]', (event) => {
             syncNodePorts(event.target.id());
+            if (Number(event.target.data('isVirtualInternet')) !== 1) {
+                syncInternetNodePosition();
+            }
         });
 
         if (typeof state.cy.edgehandles === 'function') {
             state.edgehandles = state.cy.edgehandles({
                 handleNodes: 'node[isPort = 1][portType = "out"]',
-                preview: true,
+                preview: false,
                 hoverDelay: 80,
                 canConnect: (sourceNode, targetNode) => {
                     const sourceEndpoint = resolveConnectEndpoint(sourceNode);
@@ -1993,6 +2219,7 @@
                     if (!sourceEndpoint.isPort || sourceEndpoint.portType !== 'out') return false;
                     if (!targetEndpoint.ownerNodeId) return false;
                     if (targetEndpoint.isPort && targetEndpoint.portType !== 'in') return false;
+                    if (targetEndpoint.isVirtualInternet) return false;
 
                     const sourceOwner = sourceEndpoint.ownerNodeId;
                     const targetOwner = targetEndpoint.ownerNodeId;
@@ -2003,6 +2230,7 @@
                 disableBrowserGestures: true,
                 complete: async (sourceNode, targetNode, addedEles) => {
                     if (addedEles && addedEles.remove) addedEles.remove();
+                    clearConnectIntent();
                     const sourceEndpoint = resolveConnectEndpoint(sourceNode);
                     const targetEndpoint = resolveConnectEndpoint(targetNode);
                     const sourceNodeId = sourceEndpoint.ownerNodeId;
@@ -2022,25 +2250,31 @@
             state.edgehandles.start(sourcePort);
         });
 
-        // Fallback connect mode: tap OUT port -> tap target node/IN port.
-        state.cy.on('tap', 'node[isPort = 1][portType = "out"]', (event) => {
-            const sourceEndpoint = resolveConnectEndpoint(event.target);
-            if (!sourceEndpoint.ownerNodeId) return;
-            setConnectIntent(sourceEndpoint.ownerNodeId, event.target.id());
-        });
+        const isCoarsePointer = typeof window.matchMedia === 'function'
+            ? window.matchMedia('(pointer: coarse)').matches
+            : false;
+        state.connectFallbackEnabled = !state.edgehandles || isCoarsePointer;
+        if (state.connectFallbackEnabled) {
+            // Fallback connect mode: tap OUT port -> tap target node/IN port.
+            state.cy.on('tap', 'node[isPort = 1][portType = "out"]', (event) => {
+                const sourceEndpoint = resolveConnectEndpoint(event.target);
+                if (!sourceEndpoint.ownerNodeId) return;
+                setConnectIntent(sourceEndpoint.ownerNodeId, event.target.id());
+            });
 
-        state.cy.on('tap', 'node[isPort = 1][portType = "in"], node[isPort != 1]', async (event) => {
-            const pending = state.connectIntent;
-            if (!pending?.sourceNodeId) return;
-            const targetEndpoint = resolveConnectEndpoint(event.target);
-            const targetNodeId = targetEndpoint.ownerNodeId;
-            if (!targetNodeId) return;
+            state.cy.on('tap', 'node[isPort = 1][portType = "in"], node[isPort != 1][isVirtualInternet != 1]', async (event) => {
+                const pending = state.connectIntent;
+                if (!pending?.sourceNodeId) return;
+                const targetEndpoint = resolveConnectEndpoint(event.target);
+                const targetNodeId = targetEndpoint.ownerNodeId;
+                if (!targetNodeId) return;
 
-            const sourceNodeId = String(pending.sourceNodeId || '').trim();
-            clearConnectIntent();
-            if (!sourceNodeId || sourceNodeId === targetNodeId) return;
-            await handleDraftConnect(sourceNodeId, targetNodeId);
-        });
+                const sourceNodeId = String(pending.sourceNodeId || '').trim();
+                clearConnectIntent();
+                if (!sourceNodeId || sourceNodeId === targetNodeId) return;
+                await handleDraftConnect(sourceNodeId, targetNodeId);
+            });
+        }
     }
 
     function focusNodeById(nodeId) {
@@ -2070,44 +2304,34 @@
     }
 
     async function handleDraftConnect(sourceNodeId, targetNodeId) {
+        const sourceId = String(sourceNodeId || '').trim();
+        const targetId = String(targetNodeId || '').trim();
+        if (!sourceId || !targetId || sourceId === targetId) return;
+        if (sourceId === INTERNET_NODE_ID || targetId === INTERNET_NODE_ID) return;
+        if (state.connectInFlight) return;
+        state.connectInFlight = true;
         try {
             const payload = await requestJson('/api/cascade-builder/connect', {
                 method: 'POST',
-                body: JSON.stringify({ sourceNodeId, targetNodeId }),
+                body: JSON.stringify({ sourceNodeId: sourceId, targetNodeId: targetId }),
             });
 
             renderConnectInspector(payload);
             if (!payload.accepted) {
-                toast(i18n.rejectedDraft || 'Draft connection is invalid.', 'error');
+                const firstValidationMessage = payload?.validation?.errors?.[0]?.message
+                    || payload?.validation?.warnings?.[0]?.message
+                    || '';
+                toast(firstValidationMessage || (i18n.rejectedDraft || 'Draft connection is invalid.'), 'error');
                 return;
             }
 
             const draftHop = payload.draftHop;
-            state.flow.hops.push(draftHop);
-            state.flow.validation = payload.validation;
-            state.flow.draft = {
-                ...(state.flow.draft || {}),
-                draftHopCount: (state.flow.draft?.draftHopCount || 0) + 1,
-            };
-            state.cy.add({
-                group: 'edges',
-                data: {
-                    id: draftHop.edgeId,
-                    hopId: draftHop.id,
-                    source: buildPortId(draftHop.sourceNodeId, 'out'),
-                    target: buildPortId(draftHop.targetNodeId, 'in'),
-                    label: i18n.draftTag || 'Draft',
-                    status: 'draft',
-                    isDraft: 1,
-                },
-            });
-            renderSummary(state.flow, state.flow.validation);
-            renderValidation(state.flow.validation);
-            focusHopById(draftHop.id);
-            previewCommitPlan({ silent: true });
+            await loadState({ selectHopId: draftHop.id });
             toast(i18n.acceptedDraft || 'Draft hop added.');
         } catch (error) {
             toast(`${i18n.connectFailed || 'Connect failed'}: ${error.message}`, 'error');
+        } finally {
+            state.connectInFlight = false;
         }
     }
 
@@ -2263,6 +2487,7 @@
             renderLibrary(flow);
             renderSummary(flow, flow.validation);
             renderValidation(flow.validation);
+            renderInternetSection(flow);
             renderExecutionResult(flow?.draft?.lastExecution || null);
             initCy(flow);
             const targetHopId = selectHopId || (state.selection.type === 'hop' ? state.selection.id : null);

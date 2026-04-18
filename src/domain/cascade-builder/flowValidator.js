@@ -63,19 +63,61 @@ function detectCycles(nodes, hops) {
     return cycles;
 }
 
+function buildUndirectedComponents(nodes, hops) {
+    const nodeIds = nodes.map((node) => String(node.id));
+    const adjacency = new Map(nodeIds.map((id) => [id, new Set()]));
+
+    for (const hop of hops) {
+        const sourceId = String(hop.sourceNodeId);
+        const targetId = String(hop.targetNodeId);
+        if (!adjacency.has(sourceId)) adjacency.set(sourceId, new Set());
+        if (!adjacency.has(targetId)) adjacency.set(targetId, new Set());
+        adjacency.get(sourceId).add(targetId);
+        adjacency.get(targetId).add(sourceId);
+    }
+
+    const visited = new Set();
+    const components = [];
+
+    for (const nodeId of nodeIds) {
+        if (visited.has(nodeId)) continue;
+        const queue = [nodeId];
+        const componentNodeIds = [];
+        visited.add(nodeId);
+
+        while (queue.length) {
+            const current = queue.shift();
+            componentNodeIds.push(current);
+            for (const next of adjacency.get(current) || []) {
+                if (visited.has(next)) continue;
+                visited.add(next);
+                queue.push(next);
+            }
+        }
+
+        components.push(componentNodeIds);
+    }
+
+    return components;
+}
+
 function validateBuilderState(flowState) {
     const nodes = Array.isArray(flowState?.nodes) ? flowState.nodes : [];
     const hops = Array.isArray(flowState?.hops) ? flowState.hops : [];
     const nodeById = new Map(nodes.map((node) => [String(node.id), node]));
+    const incomingByNodeId = new Map(nodes.map((node) => [String(node.id), 0]));
+    const outgoingByNodeId = new Map(nodes.map((node) => [String(node.id), 0]));
 
     const errors = [];
     const warnings = [];
 
     const seenPairs = new Set();
+    const seenBidirectionalPairs = new Set();
     for (const hop of hops) {
         const sourceId = String(hop.sourceNodeId);
         const targetId = String(hop.targetNodeId);
-        const pairKey = `${sourceId}:${targetId}:${hop.mode || 'reverse'}`;
+        const mode = String(hop.mode || 'reverse');
+        const pairKey = `${sourceId}:${targetId}:${mode}`;
 
         if (!nodeById.has(sourceId) || !nodeById.has(targetId)) {
             errors.push({
@@ -104,8 +146,26 @@ function validateBuilderState(flowState) {
             seenPairs.add(pairKey);
         }
 
+        const reversePairKey = `${targetId}:${sourceId}:${mode}`;
+        if (seenPairs.has(reversePairKey)) {
+            const canonicalPair = [sourceId, targetId].sort().join(':');
+            const bidirectionalKey = `${mode}:${canonicalPair}`;
+            if (!seenBidirectionalPairs.has(bidirectionalKey)) {
+                seenBidirectionalPairs.add(bidirectionalKey);
+                errors.push({
+                    code: 'bidirectional-hop',
+                    hopId: hop.id,
+                    message: `Bidirectional hop detected between ${nodeById.get(sourceId).name} and ${nodeById.get(targetId).name}. Choose one direction only for this chain.`,
+                });
+            }
+        }
+
         const sourceNode = nodeById.get(sourceId);
         const targetNode = nodeById.get(targetId);
+
+        outgoingByNodeId.set(sourceId, Number(outgoingByNodeId.get(sourceId) || 0) + 1);
+        incomingByNodeId.set(targetId, Number(incomingByNodeId.get(targetId) || 0) + 1);
+
         const stack = resolveStack(sourceNode.type, targetNode.type);
         if (stack === 'hybrid' && !config.FEATURE_CASCADE_HYBRID) {
             errors.push({
@@ -148,24 +208,66 @@ function validateBuilderState(flowState) {
         });
     }
 
+    const components = buildUndirectedComponents(nodes, hops);
+    for (const componentNodeIds of components) {
+        const componentNodeSet = new Set(componentNodeIds);
+        const componentHops = hops.filter((hop) => (
+            componentNodeSet.has(String(hop.sourceNodeId))
+            && componentNodeSet.has(String(hop.targetNodeId))
+        ));
+        if (!componentHops.length) continue;
+
+        const modeSet = new Set(componentHops.map((hop) => String(hop.mode || 'reverse')));
+        if (modeSet.size > 1) {
+            const componentNodeNames = componentNodeIds
+                .map((id) => nodeById.get(id)?.name || id)
+                .slice(0, 5)
+                .join(' -> ');
+            errors.push({
+                code: 'mixed-mode-component',
+                message: `Mixed reverse/forward modes detected in one chain segment (${componentNodeNames}). Split it into separate chains.`,
+            });
+        }
+
+        const connectedNodeIds = componentNodeIds.filter((nodeId) => (
+            Number(outgoingByNodeId.get(nodeId) || 0) > 0
+            || Number(incomingByNodeId.get(nodeId) || 0) > 0
+        ));
+        const exitNodeIds = connectedNodeIds.filter((nodeId) => Number(outgoingByNodeId.get(nodeId) || 0) === 0);
+        const exitNodeNames = exitNodeIds.map((id) => nodeById.get(id)?.name || id);
+
+        if (connectedNodeIds.length > 0 && exitNodeIds.length === 0) {
+            errors.push({
+                code: 'no-internet-egress',
+                message: 'Chain has no Internet egress node. At least one terminal node without downstream hops is required.',
+            });
+        } else if (exitNodeIds.length > 1) {
+            warnings.push({
+                code: 'multiple-internet-egress',
+                message: `Chain has multiple Internet exits (${exitNodeNames.join(', ')}). Traffic can leave from different nodes.`,
+            });
+        }
+    }
+
     for (const node of nodes) {
         const role = inferRole(node.id, hops);
-        const outgoing = hops.filter((hop) => String(hop.sourceNodeId) === String(node.id)).length;
-        const incoming = hops.filter((hop) => String(hop.targetNodeId) === String(node.id)).length;
+        const nodeId = String(node.id);
+        const outgoing = Number(outgoingByNodeId.get(nodeId) || 0);
+        const incoming = Number(incomingByNodeId.get(nodeId) || 0);
 
         if (incoming > 1) {
-            warnings.push({
-                code: 'multiple-upstreams',
+            errors.push({
+                code: 'multiple-upstreams-not-supported',
                 nodeId: node.id,
-                message: `${node.name} has multiple upstream hops. This may require explicit routing policy.`,
+                message: `${node.name} has multiple upstream hops. Current builder supports one upstream per node.`,
             });
         }
 
         if (outgoing > 1) {
-            warnings.push({
-                code: 'multiple-downstreams',
+            errors.push({
+                code: 'multiple-downstreams-not-supported',
                 nodeId: node.id,
-                message: `${node.name} has multiple downstream hops. Treat this as an advanced routing scenario.`,
+                message: `${node.name} has multiple downstream hops. Current builder supports one downstream per node.`,
             });
         }
 
@@ -185,6 +287,10 @@ function validateBuilderState(flowState) {
             nodes: nodes.length,
             hops: hops.length,
             draftHops: hops.filter((hop) => hop.isDraft).length,
+            internetExitNodes: nodes.filter((node) => Number(outgoingByNodeId.get(String(node.id)) || 0) === 0 && (
+                Number(incomingByNodeId.get(String(node.id)) || 0) > 0
+                || Number(outgoingByNodeId.get(String(node.id)) || 0) > 0
+            )).length,
             errors: errors.length,
             warnings: warnings.length,
         },

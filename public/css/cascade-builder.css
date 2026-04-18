@@ -515,6 +515,10 @@
     overflow: auto;
 }
 
+.builder-internet-box .builder-validation-empty {
+    margin-bottom: 10px;
+}
+
 .builder-execution-list {
     max-height: 560px;
 }

@@ -88,6 +88,11 @@ function localizeValidationMessage(res, issue, nodeById, hopById) {
             source: sourceNode?.name || '—',
             target: targetNode?.name || '—',
         });
+    case 'bidirectional-hop':
+        return tFor(res, 'cascades.validationBidirectionalHop', 'Bidirectional hop detected between {source} and {target}. Keep only one direction.', {
+            source: sourceNode?.name || '—',
+            target: targetNode?.name || '—',
+        });
     case 'hybrid-disabled':
         return tFor(res, 'cascades.validationHybridDisabledHop', 'Hybrid cascade is disabled, but hop {source} -> {target} requires it.', {
             source: sourceNode?.name || '—',
@@ -114,12 +119,20 @@ function localizeValidationMessage(res, issue, nodeById, hopById) {
             path: rawPath,
         });
     }
-    case 'multiple-upstreams':
-        return tFor(res, 'cascades.validationMultipleUpstreams', '{node} has multiple upstream hops. This already requires an explicit routing policy.', {
+    case 'mixed-mode-component':
+        return tFor(res, 'cascades.validationMixedModeComponent', 'Mixed reverse/forward modes are not supported in one chain. Split it into separate chains.', {
+            path: String(issue?.message || ''),
+        });
+    case 'no-internet-egress':
+        return tFor(res, 'cascades.validationNoInternetEgress', 'Chain has no Internet egress node. Add a terminal node without downstream hops.', {});
+    case 'multiple-internet-egress':
+        return tFor(res, 'cascades.validationMultipleInternetEgress', 'Chain has multiple Internet exits. Traffic can leave from different nodes.', {});
+    case 'multiple-upstreams-not-supported':
+        return tFor(res, 'cascades.validationMultipleUpstreamsNotSupported', '{node} has multiple upstream hops. In this builder, one upstream per node is supported.', {
             node: node?.name || '—',
         });
-    case 'multiple-downstreams':
-        return tFor(res, 'cascades.validationMultipleDownstreams', '{node} has multiple downstream hops. Treat this as an advanced routing scenario.', {
+    case 'multiple-downstreams-not-supported':
+        return tFor(res, 'cascades.validationMultipleDownstreamsNotSupported', '{node} has multiple downstream hops. In this builder, one downstream per node is supported.', {
             node: node?.name || '—',
         });
     default:
@@ -1288,10 +1301,10 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
             isDraft: true,
         };
 
-        const validation = validateBuilderState({
+        const validation = localizeValidation(res, state, validateBuilderState({
             ...state,
             hops: state.hops.concat(draftHop),
-        });
+        }));
 
         if (validation.errors.length === 0) {
             const storedDraft = await getStoredDraft(req, state.flowId);
