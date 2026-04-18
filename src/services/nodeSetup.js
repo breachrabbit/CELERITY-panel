@@ -1443,7 +1443,7 @@ elif [ -n "$H2" ]; then
 else
     echo unknown
 fi
-            `);
+            `, { timeoutMs: 12000 });
             const state = parseSystemdActiveState(result.output);
             return {
                 online: state === 'active',
@@ -2280,7 +2280,7 @@ async function checkXrayNodeStatus(node) {
     try {
         const conn = await connectSSH(node);
         try {
-            const result = await execSSH(conn, 'systemctl is-active xray 2>/dev/null || true');
+            const result = await execSSH(conn, 'systemctl is-active xray 2>/dev/null || true', { timeoutMs: 12000 });
             const state = parseSystemdActiveState(result.output);
             return {
                 online: state === 'active',
@@ -2303,7 +2303,7 @@ async function checkSingboxNodeStatus(node) {
     try {
         const conn = await connectSSH(node);
         try {
-            const result = await execSSH(conn, 'systemctl is-active sing-box 2>/dev/null || true');
+            const result = await execSSH(conn, 'systemctl is-active sing-box 2>/dev/null || true', { timeoutMs: 12000 });
             const state = parseSystemdActiveState(result.output);
             return {
                 online: state === 'active',

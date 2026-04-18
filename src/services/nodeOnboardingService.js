@@ -13,6 +13,7 @@ const {
 } = require('../domain/node-onboarding/stateMachine');
 
 const DEFAULT_LOG_LIMIT = 600;
+const STALE_RUNNING_JOB_MS = Math.max(parseInt(process.env.NODE_ONBOARDING_STALE_MS || '900000', 10) || 900000, 60000);
 
 class NodeOnboardingService {
     _assertObjectId(value, fieldName) {
@@ -146,6 +147,14 @@ class NodeOnboardingService {
         };
     }
 
+    _isStaleRunningJob(jobDoc) {
+        if (!jobDoc || String(jobDoc.status || '') !== 'running') return false;
+        if (!jobDoc.lastHeartbeatAt) return false;
+        const lastHeartbeatTs = Date.parse(jobDoc.lastHeartbeatAt);
+        if (!Number.isFinite(lastHeartbeatTs)) return false;
+        return (Date.now() - lastHeartbeatTs) > STALE_RUNNING_JOB_MS;
+    }
+
     async createJob({
         nodeId,
         type = 'fresh-install',
@@ -219,6 +228,22 @@ class NodeOnboardingService {
     async getActiveJobByNode(nodeId) {
         const validNodeId = this._assertObjectId(nodeId, 'nodeId');
         const job = await NodeOnboardingJob.findOne({ nodeId: validNodeId, isActive: true }).sort({ createdAt: -1 });
+        if (job && this._isStaleRunningJob(job)) {
+            try {
+                this._setJobStatus(job, 'repairable');
+                job.lastHeartbeatAt = new Date();
+                this._appendLog(job, {
+                    step: job.currentStep || ONBOARDING_STEPS[0],
+                    level: 'warn',
+                    message: 'Runner heartbeat stale; auto-marked as repairable for safe resume.',
+                    meta: { staleMs: STALE_RUNNING_JOB_MS },
+                });
+                await job.save();
+                logger.warn(`[Onboarding] Auto-demoted stale running job ${job._id} to repairable`);
+            } catch (staleErr) {
+                logger.warn(`[Onboarding] Failed to auto-demote stale job ${job._id}: ${staleErr.message}`);
+            }
+        }
         return this._asPublicJob(job);
     }
 

@@ -382,9 +382,28 @@ async function ensureOnboardingJobForSetup(node, actorLabel = '', setupMode = SE
         },
     });
 
+    const existingStep = String(created?.job?.currentStep || '').trim().toLowerCase();
+    const existingError = String(created?.job?.lastError?.message || '').toLowerCase();
+    const shouldForceRuntimeRerun = (
+        normalizedMode === SETUP_MODE_ONBOARDING_FULL
+        && created?.created === false
+        && ['repairable', 'blocked', 'queued'].includes(String(created?.job?.status || '').toLowerCase())
+        && existingStep === 'verify-runtime-local'
+        && existingError.includes('runtime is offline')
+    );
+
     let started = await nodeOnboardingService.startJob(created.job.id, {
         actorLabel: actorLabel || `panel:${node.name}`,
     });
+
+    if (shouldForceRuntimeRerun) {
+        try {
+            started = await nodeOnboardingService.resumeJob(started.id, { step: 'install-runtime' });
+            logger.info(`[Panel] Auto-rerun from install-runtime for stale verify-runtime-local job ${started.id} (${node.name})`);
+        } catch (resumeErr) {
+            logger.warn(`[Panel] Failed to auto-rerun install-runtime for job ${started.id}: ${resumeErr.message}`);
+        }
+    }
 
     let startedMode = resolveOnboardingJobSetupMode(started);
     if (!startedMode) {
