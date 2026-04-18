@@ -165,6 +165,8 @@ async function runPrepareHost({ job, context = {} }) {
             '  mkdir -p "$p"',
             'done',
             'touch /var/log/xray/access.log /var/log/xray/error.log',
+            'chown -R nobody:nogroup /var/log/xray 2>/dev/null || chown -R nobody:nobody /var/log/xray 2>/dev/null || true',
+            'chmod 750 /var/log/xray || true',
             'chmod 640 /var/log/xray/access.log /var/log/xray/error.log || true',
             'echo "__prepared__=1"',
         ].join('\n');

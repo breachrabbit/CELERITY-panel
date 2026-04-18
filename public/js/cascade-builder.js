@@ -1233,13 +1233,45 @@
         }
     }
 
+    function focusValidationContext(item) {
+        if (!item || typeof item !== 'object') return false;
+        const hopId = String(item.hopId || '').trim();
+        if (hopId && focusHopById(hopId)) return true;
+        const nodeId = String(item.nodeId || '').trim();
+        if (nodeId && focusNodeById(nodeId)) return true;
+        return false;
+    }
+
+    function getNodeDisplayName(nodeId) {
+        const targetId = String(nodeId || '').trim();
+        if (!targetId) return '';
+        const node = Array.isArray(state.flow?.nodes)
+            ? state.flow.nodes.find((item) => String(item.id) === targetId)
+            : null;
+        return String(node?.name || targetId);
+    }
+
     function renderValidation(validation) {
         const box = document.getElementById('builderValidationList');
         if (!box) return;
+        const errors = Array.isArray(validation?.errors) ? validation.errors : [];
+        const warnings = Array.isArray(validation?.warnings) ? validation.warnings : [];
         const items = [];
 
-        (validation.errors || []).forEach((item) => items.push({ kind: 'error', text: item.message }));
-        (validation.warnings || []).forEach((item) => items.push({ kind: 'warning', text: item.message }));
+        errors.forEach((item) => items.push({
+            kind: 'error',
+            text: item?.message || (i18n.validateError || 'Error'),
+            code: item?.code || '',
+            hopId: item?.hopId || '',
+            nodeId: item?.nodeId || '',
+        }));
+        warnings.forEach((item) => items.push({
+            kind: 'warning',
+            text: item?.message || (i18n.validateWarning || 'Warning'),
+            code: item?.code || '',
+            hopId: item?.hopId || '',
+            nodeId: item?.nodeId || '',
+        }));
 
         box.innerHTML = '';
         if (!items.length) {
@@ -1247,10 +1279,49 @@
             return;
         }
 
+        const overview = document.createElement('div');
+        overview.className = 'builder-validation-overview';
+        overview.innerHTML = `
+            <span>${escapeHtml(i18n.validationErrorsShort || 'Errors')}: <strong>${errors.length}</strong></span>
+            <span>${escapeHtml(i18n.validationWarningsShort || 'Warnings')}: <strong>${warnings.length}</strong></span>
+        `;
+        box.appendChild(overview);
+
         items.forEach((item) => {
-            const el = document.createElement('div');
-            el.className = `builder-validation-item ${item.kind}`;
-            el.textContent = item.text;
+            const hasContext = Boolean(String(item.hopId || '').trim() || String(item.nodeId || '').trim());
+            const el = document.createElement(hasContext ? 'button' : 'div');
+            el.className = `builder-validation-item ${item.kind}${hasContext ? ' builder-validation-focus-item' : ''}`;
+            if (hasContext) {
+                el.type = 'button';
+            }
+
+            const details = [];
+            if (item.code) {
+                details.push(`${i18n.validationCodePrefix || 'Code'}: ${item.code}`);
+            }
+            if (item.hopId) {
+                const hop = getHopById(item.hopId);
+                const hopLabel = getHopDisplayName(hop) || String(item.hopId);
+                details.push(`${i18n.validationHopPrefix || 'Hop'}: ${hopLabel}`);
+            } else if (item.nodeId) {
+                details.push(`${i18n.validationNodePrefix || 'Node'}: ${getNodeDisplayName(item.nodeId)}`);
+            }
+            if (details.length) {
+                details.push(i18n.validationClickHint || 'Click to focus context');
+            }
+
+            el.innerHTML = `
+                <strong>${escapeHtml(item.text)}</strong>
+                ${details.length ? `<span>${escapeHtml(details.join(' · '))}</span>` : ''}
+            `;
+            if (hasContext) {
+                el.addEventListener('click', () => {
+                    const focused = focusValidationContext(item);
+                    if (!focused) {
+                        toast(i18n.validationFocusFailed || 'Unable to focus validation context.', 'info');
+                    }
+                });
+            }
             box.appendChild(el);
         });
     }
@@ -2751,6 +2822,20 @@
         return String(hop.id || '').trim();
     }
 
+    function extractObjectIdCandidates(rawValue) {
+        const source = String(rawValue || '').trim();
+        if (!source) return [];
+        const values = new Set([source]);
+        if (source.startsWith('link-')) {
+            values.add(source.slice(5));
+        }
+        const hexMatches = source.match(/[a-fA-F0-9]{24}/g) || [];
+        hexMatches.forEach((item) => values.add(item));
+        return Array.from(values)
+            .map((item) => String(item || '').trim())
+            .filter((item) => /^[a-fA-F0-9]{24}$/.test(item));
+    }
+
     function isDraftHop(hop) {
         if (!hop || typeof hop !== 'object') return false;
         if (hop.isDraft === true || Number(hop.isDraft) === 1) return true;
@@ -2809,10 +2894,14 @@
             return { success: true };
         } catch (error) {
             if (!draftHop) {
-                const fallbackIdRaw = String(hop.edgeId || '').trim();
-                const fallbackId = fallbackIdRaw.startsWith('link-') ? fallbackIdRaw.slice(5) : fallbackIdRaw;
-                const isObjectId = /^[a-fA-F0-9]{24}$/.test(fallbackId);
-                if (isObjectId && fallbackId !== hopId) {
+                const fallbackCandidates = [
+                    ...extractObjectIdCandidates(hop.edgeId),
+                    ...extractObjectIdCandidates(hop.linkId),
+                    ...extractObjectIdCandidates(hopId),
+                ].filter((candidate, index, arr) => (
+                    candidate && arr.indexOf(candidate) === index && candidate !== hopId
+                ));
+                for (const fallbackId of fallbackCandidates) {
                     try {
                         await requestJson(`/api/cascade/links/${encodeURIComponent(fallbackId)}`, { method: 'DELETE' });
                         if (showToast) {
@@ -2823,8 +2912,7 @@
                         }
                         return { success: true };
                     } catch (fallbackError) {
-                        // keep original error path below with richer message.
-                        error.message = `${error.message}; fallback: ${fallbackError.message}`;
+                        error.message = `${error.message}; fallback(${fallbackId}): ${fallbackError.message}`;
                     }
                 }
             }

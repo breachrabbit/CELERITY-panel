@@ -1270,9 +1270,10 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
         }
 
         const draftSuggestion = buildDraftHopSuggestion({ sourceNode, targetNode, mode });
+        const draftNonce = Date.now();
         const draftHop = {
-            id: `draft:${sourceNode.id}:${targetNode.id}:${Date.now()}`,
-            edgeId: `draft:${sourceNode.id}:${targetNode.id}:${Date.now()}`,
+            id: `draft:${sourceNode.id}:${targetNode.id}:${draftNonce}`,
+            edgeId: `draft:${sourceNode.id}:${targetNode.id}:${draftNonce}`,
             sourceNodeId: sourceNode.id,
             targetNodeId: targetNode.id,
             name: `${sourceNode.name} -> ${targetNode.name}`,

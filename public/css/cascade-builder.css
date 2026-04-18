@@ -720,6 +720,65 @@ body.builder-fullscreen-active {
     line-height: 1.5;
 }
 
+.builder-validation-overview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px dashed rgba(5, 10, 60, 0.14);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.theme-dark .builder-validation-overview {
+    border-color: rgba(221, 229, 237, 0.14);
+    background: rgba(10, 18, 60, 0.5);
+}
+
+.builder-validation-overview strong {
+    color: var(--text-color, #050A3C);
+}
+
+.theme-dark .builder-validation-overview strong {
+    color: rgba(255, 255, 255, 0.94);
+}
+
+.builder-validation-item strong {
+    display: block;
+}
+
+.builder-validation-item span {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.builder-validation-focus-item {
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.66);
+    color: inherit;
+    cursor: pointer;
+    transition: transform .18s ease, border-color .18s ease, background-color .18s ease;
+}
+
+.builder-validation-focus-item:hover {
+    transform: translateY(-1px);
+    border-color: rgba(8, 197, 203, 0.4);
+    background: rgba(8, 197, 203, 0.08);
+}
+
+.builder-validation-focus-item:focus-visible {
+    outline: 2px solid rgba(8, 197, 203, 0.6);
+    outline-offset: 2px;
+}
+
 .builder-internet-item {
     appearance: none;
     width: 100%;
@@ -750,6 +809,10 @@ body.builder-fullscreen-active {
     background: rgba(10, 18, 60, 0.46);
     border-color: rgba(221, 229, 237, 0.14);
     color: rgba(255, 255, 255, 0.86);
+}
+
+.theme-dark .builder-validation-item span {
+    color: rgba(221, 229, 237, 0.72);
 }
 
 .builder-validation-item.error {
