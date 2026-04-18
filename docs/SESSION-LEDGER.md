@@ -1,5 +1,24 @@
 # Session Ledger
 
+## 2026-04-18
+
+- Worked on: eliminating false Hysteria UDP-listener onboarding failures and fixing cascade-builder connector anchoring.
+- Finished with:
+  - shipped `07ed7a7`:
+    - hardened UDP listener verification with active-service fallback and diagnostics;
+    - added explicit port-hopping decision logs;
+    - fixed builder connector anchoring by unblocking port-node position sync and binding edges to in/out ports;
+  - deployed to stand (`e4abcg0hscy1oo82it561ln8`, finished, `running:healthy`);
+  - reran required live smokes:
+    - remote Hysteria (`194.50.94.149`, `23000-23080`) -> `completed`;
+    - same-VPS Hysteria (`89.125.188.83`, `22000-22050`, auto port `8443`) -> `completed`;
+    - no `repairable` on either run;
+  - validated builder API draft connect/cleanup;
+  - removed temporary smoke nodes and re-verified baseline node list.
+- Next step:
+  - confirm UI-level connector position/interaction on `/panel/cascades/builder` visually;
+  - continue cascade diagnostics depth and staged legacy `setupJobs` retirement.
+
 ## 2026-04-17
 
 - Worked on: two live Hysteria onboarding smokes (remote portRange + same-VPS) and parser crash blocking onboarding logs.

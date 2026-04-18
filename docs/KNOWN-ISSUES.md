@@ -36,39 +36,51 @@ Still missing:
 
 Status: `pending`
 
-### 0a. Hysteria onboarding runtime verify can fail while node ends up online
+### 0a. Hysteria UDP listener verify false-negative in onboarding (patched, monitor)
 
-Live smoke status:
+Latest status:
 
-- remote and same-VPS Hysteria onboarding runs can stop on `install-runtime` with:
-  - `UDP port <port> is not listening after service start`;
-- despite this, node status may later be observed as `online`.
+- patched in `07ed7a7` (`src/services/nodeSetup.js`);
+- two live smokes after patch (`remote + same-VPS`) completed without `repairable`.
 
-Implication:
+What changed:
 
-- durable onboarding can report `repairable` even when runtime is practically up;
-- operator trust in onboarding state decreases.
+- stronger UDP socket probe matching;
+- service-active fallback with diagnostics when UDP probe is inconclusive;
+- explicit runtime/port-hopping decision logs for operator traceability.
 
-Likely area:
+Residual risk:
 
-- listener verification race/method in `setupHysteriaNode(...)` (`waitForListeningSocket` phase) and service-state timing.
+- still monitor under different provider kernels/firewall stacks to ensure no hidden regression.
 
-Status: `broken`
+Status: `pending` (monitoring)
 
-### 0b. same-VPS port-hopping explicit skip log is not consistently visible
+### 0b. same-VPS port-hopping branch visibility (patched, verify in UI logs)
 
-Expected behavior:
+Latest status:
 
-- for same-VPS Hysteria setup with non-empty `portRange`, logs should explicitly show:
+- patched in `07ed7a7` by adding explicit decision line:
+  - `Port hopping decision: enabled=..., sameVps=..., range=...`;
+- live same-VPS smoke now shows:
   - `Skipping port hopping for same-VPS node (incompatible with panel networking)`.
 
-Observed in live smoke:
+Remaining check:
 
-- same-VPS run did not show either explicit skip line or explicit apply line, while continuing with firewall/service restart steps.
+- keep watching UI log truncation cases to ensure the line is always visible to the operator.
 
-Implication:
+Status: `pending`
 
-- hard to confirm same-VPS branch selection from operator logs.
+### 0c. Builder connector dots can appear detached from node cards (UI verification pending)
+
+Latest status:
+
+- patch shipped in `07ed7a7` (`public/js/cascade-builder.js`):
+  - port nodes are no longer hard-locked;
+  - edges now render between explicit node out/in ports.
+
+What still needs confirmation:
+
+- visual alignment and drag ergonomics in the browser (desktop + mobile) after deploy.
 
 Status: `pending`
 

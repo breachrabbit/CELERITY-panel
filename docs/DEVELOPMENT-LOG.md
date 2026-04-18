@@ -1,5 +1,49 @@
 # Development Log
 
+## 2026-04-18 UDP Verify Hardening + Live Smokes to Completed + Builder Port Anchors
+
+- Hardened Hysteria UDP runtime verification in onboarding runtime setup:
+  - file: `src/services/nodeSetup.js`;
+  - strengthened UDP/TCP listener probe matching (`ss`/`netstat`);
+  - added UDP fallback path:
+    - if socket probe is inconclusive but service is `active` and no bind/listen errors are found in diagnostics, runtime step proceeds;
+  - added explicit port-hopping decision log line:
+    - `enabled/sameVps/range`;
+  - added fallback acceptance log line for easier operator diagnostics.
+- Fixed cascade builder connector anchoring/behavior:
+  - file: `public/js/cascade-builder.js`;
+  - removed lock on synthetic port nodes so they can follow node position sync;
+  - switched rendered hop edges to port endpoints:
+    - source -> `out` port,
+    - target -> `in` port.
+- Released code commit:
+  - `07ed7a7` — `fix: harden hysteria udp verify and bind builder ports to nodes`.
+- Deployed to stand:
+  - deployment UUID: `e4abcg0hscy1oo82it561ln8`;
+  - status: `finished`;
+  - app state: `running:healthy`.
+- Re-ran required live onboarding smokes (durable `onboarding-full`):
+  1. remote Hysteria smoke (`194.50.94.149`, `portRange=23000-23080`):
+     - onboarding job: `69e30aae68f673fa6df1dba3`;
+     - final status: `completed`;
+     - no `repairable`.
+  2. same-VPS Hysteria smoke (`89.125.188.83`, auto port `8443`, `portRange=22000-22050`):
+     - onboarding job: `69e30f0268f673fa6df1dca0`;
+     - final status: `completed`;
+     - no `repairable`.
+- Verified expected log behavior:
+  - remote run shows port-hopping apply path;
+  - same-VPS run shows explicit skip line;
+  - both runs can now pass runtime step without false UDP-listener fail.
+- Stand cleanup:
+  - removed temporary smoke nodes created for this run.
+
+Change types:
+
+- `stability fix` — Hysteria UDP runtime verification false-negative elimination
+- `local patch` — builder connector anchoring and edge endpoint mapping
+- `validation` — two live onboarding smokes completed without repairable status
+
 ## 2026-04-18 Live Onboarding Smokes + Parser Crash Fix
 
 - Fixed onboarding live-log parsing crash in panel setup route:

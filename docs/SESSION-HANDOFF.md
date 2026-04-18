@@ -44,6 +44,13 @@
     - durable onboarding runtime step now calls dedicated `setupHysteriaNode(...)`.
   - switched setup defaults to onboarding-full for both panel/API setup entrypoints.
   - switched Xray legacy setup path to strict agent verification (removed `strictAgent:false` success shortcut).
+  - hardened Hysteria UDP listener verify path to avoid false `repairable` when runtime service is active:
+    - stronger socket probe patterns (`ss/netstat`);
+    - active-service fallback with diagnostics for UDP-only bind checks;
+    - explicit port-hopping decision logs (`enabled/sameVps/range`).
+  - fixed cascade builder node connector anchoring:
+    - port nodes are no longer locked away from position sync;
+    - rendered edges are now anchored to node out/in port nodes instead of card center.
   - hybrid cascade feature flag moved to always-on runtime policy:
     - settings UI now shows informational always-enabled state;
     - runtime config reload forces hybrid enabled.
@@ -53,6 +60,64 @@
   - backported same-VPS agent firewall hardening (local/container subnet allow rules);
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-18 Stop-Point — UDP Verify Hardened + 2 Live Smokes Green + Builder Port Anchors
+
+### What was delivered
+
+- Code patch delivered:
+  - commit: `07ed7a7` (`fix: harden hysteria udp verify and bind builder ports to nodes`);
+  - files:
+    - `src/services/nodeSetup.js`
+    - `public/js/cascade-builder.js`.
+- Deployment:
+  - Coolify deployment UUID: `e4abcg0hscy1oo82it561ln8`;
+  - status: `finished`;
+  - stand: `running:healthy`.
+- Hysteria onboarding verification hardening:
+  - updated UDP listener check path in `waitForListeningSocket(...)`;
+  - added service-active fallback for UDP runtime verification;
+  - added explicit setup logs:
+    - `Port hopping decision: enabled=..., sameVps=..., range=...`.
+- Live onboarding smokes (durable `onboarding-full`) rerun and completed:
+  1. remote smoke:
+     - node: `SMOKE-HY-REMOTE-194` (`194.50.94.149`, `portRange=23000-23080`);
+     - onboarding job: `69e30aae68f673fa6df1dba3`;
+     - final: `completed` (no `repairable`);
+     - confirmed logs include:
+       - port-hopping apply path;
+       - UDP fallback acceptance line.
+  2. same-VPS smoke:
+     - node: `SMOKE-HY-SAMEVPS-89` (`89.125.188.83`, auto port `8443`, `portRange=22000-22050`);
+     - onboarding job: `69e30f0268f673fa6df1dca0`;
+     - final: `completed` (no `repairable`);
+     - confirmed logs include:
+       - `sameVps=yes` decision line;
+       - explicit `Skipping port hopping for same-VPS node...`;
+       - UDP fallback acceptance line.
+- Builder API smoke:
+  - draft connect accepted;
+  - drafts cleanup succeeded;
+  - no backend regression from port-anchor changes.
+- Cleanup:
+  - temporary smoke nodes removed:
+    - `69e30a8268f673fa6df1db93`,
+    - `69e30a9068f673fa6df1db96`;
+  - baseline nodes remain online.
+
+### What is pending
+
+1. User-facing visual confirmation for cascade builder point anchors:
+   - ensure handles are visibly attached to each node card in browser UI;
+   - verify drag-to-connect is ergonomic on desktop and mobile.
+2. Continue cascade execution diagnostics depth and quick repair/re-run ergonomics.
+3. Continue staged retirement of legacy `setupJobs` in non-critical paths.
+
+### Next step
+
+1. Run direct UI pass on `/panel/cascades/builder` and confirm connector positioning/interaction with the latest patch.
+2. If any visual drift remains, refine port size/offset and edgehandle hit-area without changing backend contract.
+3. Resume planned cascade diagnostics increment and next safe `setupJobs` retirement slice.
 
 ## 2026-04-18 Stop-Point — Live Hysteria Smokes Executed (remote + same-VPS)
 
