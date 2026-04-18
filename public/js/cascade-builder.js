@@ -39,6 +39,8 @@
         lastConnectAt: 0,
         connectFallbackEnabled: false,
         tooltipHideTimer: null,
+        confirmResolver: null,
+        confirmOpen: false,
         isFullscreen: false,
         selection: { type: null, id: null },
     };
@@ -99,6 +101,60 @@
         state.tooltipHideTimer = setTimeout(() => {
             hideBuilderErrorTooltip();
         }, 6200);
+    }
+
+    function getBuilderConfirmElements() {
+        return {
+            overlay: document.getElementById('builderConfirmOverlay'),
+            title: document.getElementById('builderConfirmTitle'),
+            text: document.getElementById('builderConfirmText'),
+            ok: document.getElementById('builderConfirmOk'),
+            cancel: document.getElementById('builderConfirmCancel'),
+        };
+    }
+
+    function closeBuilderConfirm(result = false) {
+        const { overlay, ok } = getBuilderConfirmElements();
+        if (overlay) {
+            overlay.classList.remove('is-visible');
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+        if (ok) ok.classList.remove('is-danger');
+        state.confirmOpen = false;
+        const resolver = state.confirmResolver;
+        state.confirmResolver = null;
+        if (typeof resolver === 'function') resolver(Boolean(result));
+    }
+
+    function openBuilderConfirm({
+        title = '',
+        text = '',
+        confirmLabel = '',
+        cancelLabel = '',
+        danger = false,
+    } = {}) {
+        const { overlay, title: titleNode, text: textNode, ok, cancel } = getBuilderConfirmElements();
+        if (!overlay || !ok || !cancel || !titleNode || !textNode) {
+            const fallbackMessage = [title, text].filter(Boolean).join('\n');
+            return Promise.resolve(window.confirm(fallbackMessage || (i18n.confirmDefaultText || 'Proceed?')));
+        }
+
+        titleNode.textContent = String(title || i18n.confirmDefaultTitle || 'Confirm action');
+        textNode.textContent = String(text || i18n.confirmDefaultText || 'Are you sure you want to continue?');
+        ok.textContent = String(confirmLabel || i18n.confirmOk || 'Confirm');
+        cancel.textContent = String(cancelLabel || i18n.confirmCancel || 'Cancel');
+        ok.classList.toggle('is-danger', Boolean(danger));
+
+        overlay.classList.add('is-visible');
+        overlay.setAttribute('aria-hidden', 'false');
+        state.confirmOpen = true;
+        setTimeout(() => {
+            ok.focus();
+        }, 10);
+
+        return new Promise((resolve) => {
+            state.confirmResolver = resolve;
+        });
     }
 
     function isNativeFullscreenActive() {
@@ -2717,12 +2773,21 @@
 
         const draftHop = isDraftHop(hop);
         const hopLabel = getHopDisplayName(hop);
-        if (confirm && typeof window.confirm === 'function') {
+        if (confirm) {
             const title = draftHop
                 ? (i18n.removeDraftConfirm || 'Remove this draft hop?')
                 : (i18n.removeLinkConfirm || 'Disconnect this live link?');
-            const text = hopLabel ? `${title}\n${hopLabel}` : title;
-            if (!window.confirm(text)) {
+            const text = hopLabel
+                ? `${hopLabel}`
+                : (draftHop ? (i18n.draftTag || 'Draft hop') : (i18n.removeLink || 'Link'));
+            const accepted = await openBuilderConfirm({
+                title,
+                text,
+                confirmLabel: i18n.confirmDisconnect || i18n.confirmOk || 'Confirm',
+                cancelLabel: i18n.confirmCancel || 'Cancel',
+                danger: true,
+            });
+            if (!accepted) {
                 return { success: false, canceled: true, error: 'canceled' };
             }
         }
@@ -2743,6 +2808,26 @@
             }
             return { success: true };
         } catch (error) {
+            if (!draftHop) {
+                const fallbackIdRaw = String(hop.edgeId || '').trim();
+                const fallbackId = fallbackIdRaw.startsWith('link-') ? fallbackIdRaw.slice(5) : fallbackIdRaw;
+                const isObjectId = /^[a-fA-F0-9]{24}$/.test(fallbackId);
+                if (isObjectId && fallbackId !== hopId) {
+                    try {
+                        await requestJson(`/api/cascade/links/${encodeURIComponent(fallbackId)}`, { method: 'DELETE' });
+                        if (showToast) {
+                            toast(i18n.linkRemoved || 'Link disconnected.', 'success');
+                        }
+                        if (reload) {
+                            await loadState();
+                        }
+                        return { success: true };
+                    } catch (fallbackError) {
+                        // keep original error path below with richer message.
+                        error.message = `${error.message}; fallback: ${fallbackError.message}`;
+                    }
+                }
+            }
             if (showToast) {
                 const failedMessage = draftHop
                     ? (i18n.draftRemoveFailed || 'Failed to remove draft hop')
@@ -2949,8 +3034,14 @@
 
         const draftCount = hops.filter((hop) => isDraftHop(hop)).length;
         const liveCount = Math.max(0, hops.length - draftCount);
-        const confirmText = `${i18n.resetLinksConfirm || 'Reset all current links?'}\n${i18n.summaryHops || 'Hops'}: ${hops.length} (${i18n.draftTag || 'Draft'}: ${draftCount}, ${i18n.liveTag || 'Live'}: ${liveCount})`;
-        if (typeof window.confirm === 'function' && !window.confirm(confirmText)) {
+        const confirmed = await openBuilderConfirm({
+            title: i18n.resetLinksConfirm || 'Reset all current links?',
+            text: `${i18n.summaryHops || 'Hops'}: ${hops.length} (${i18n.draftTag || 'Draft'}: ${draftCount}, ${i18n.liveTag || 'Live'}: ${liveCount})`,
+            confirmLabel: i18n.confirmDisconnect || i18n.confirmOk || 'Confirm',
+            cancelLabel: i18n.confirmCancel || 'Cancel',
+            danger: true,
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -3011,6 +3102,16 @@
     function bindUi() {
         document.getElementById('builderCy')?.addEventListener('contextmenu', (event) => {
             event.preventDefault();
+        });
+        document.getElementById('builderConfirmOverlay')?.addEventListener('click', (event) => {
+            if (event.target?.id !== 'builderConfirmOverlay') return;
+            closeBuilderConfirm(false);
+        });
+        document.getElementById('builderConfirmCancel')?.addEventListener('click', () => {
+            closeBuilderConfirm(false);
+        });
+        document.getElementById('builderConfirmOk')?.addEventListener('click', () => {
+            closeBuilderConfirm(true);
         });
         document.getElementById('builderValidate')?.addEventListener('click', validateCurrentDraft);
         document.getElementById('builderSaveLayout')?.addEventListener('click', saveLayout);
@@ -3119,6 +3220,11 @@
         }
 
         document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && state.confirmOpen) {
+                closeBuilderConfirm(false);
+                event.preventDefault();
+                return;
+            }
             if (event.key === 'Escape' && state.isFullscreen) {
                 setBuilderFullscreen(false);
                 return;

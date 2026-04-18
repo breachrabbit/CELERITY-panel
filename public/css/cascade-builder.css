@@ -289,10 +289,79 @@ body.builder-fullscreen-active {
     opacity: 0.92;
 }
 
+.builder-confirm-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 55;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(5, 10, 60, 0.32);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+}
+
+.builder-confirm-overlay.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.builder-confirm-card {
+    width: min(460px, 92vw);
+    border: 1px dashed rgba(5, 10, 60, 0.26);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 18px 42px rgba(5, 10, 60, 0.22);
+    padding: 16px;
+}
+
+.builder-confirm-card h4 {
+    margin: 0 0 8px;
+    font-size: 16px;
+}
+
+.builder-confirm-card p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+.builder-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.builder-confirm-actions .btn.is-danger {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #fff;
+}
+
+.builder-confirm-actions .btn.is-danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
 .theme-dark .builder-error-tooltip {
     border-color: rgba(248, 113, 113, 0.42);
     background: rgba(70, 20, 30, 0.9);
     color: rgba(254, 226, 226, 0.98);
+}
+
+.theme-dark .builder-confirm-overlay {
+    background: rgba(3, 7, 36, 0.58);
+}
+
+.theme-dark .builder-confirm-card {
+    background: rgba(14, 23, 79, 0.97);
+    border-color: rgba(221, 229, 237, 0.2);
+}
+
+.theme-dark .builder-confirm-card h4 {
+    color: rgba(255, 255, 255, 0.95);
 }
 
 .builder-canvas-fallback {
