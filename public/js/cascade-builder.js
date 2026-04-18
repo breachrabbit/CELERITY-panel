@@ -2705,14 +2705,15 @@
 
         if (typeof state.cy.edgehandles === 'function') {
             state.edgehandles = state.cy.edgehandles({
-                handleNodes: 'node[isPort = 1][portType = "out"]',
+                handleNodes: 'node[isPort != 1][isVirtualInternet != 1], node[isPort = 1][portType = "out"]',
                 preview: false,
                 hoverDelay: 80,
                 canConnect: (sourceNode, targetNode) => {
                     const sourceEndpoint = resolveConnectEndpoint(sourceNode);
                     const targetEndpoint = resolveConnectEndpoint(targetNode);
 
-                    if (!sourceEndpoint.isPort || sourceEndpoint.portType !== 'out') return false;
+                    if (!sourceEndpoint.ownerNodeId || sourceEndpoint.isVirtualInternet) return false;
+                    if (sourceEndpoint.isPort && sourceEndpoint.portType !== 'out') return false;
                     if (!targetEndpoint.ownerNodeId) return false;
                     if (targetEndpoint.isPort && targetEndpoint.portType !== 'in') return false;
                     if (targetEndpoint.isVirtualInternet) return false;
@@ -2849,6 +2850,68 @@
         return String(hop.id || '').startsWith('draft:');
     }
 
+    function findExistingHopByEndpoints(sourceNodeId, targetNodeId) {
+        const sourceId = String(sourceNodeId || '').trim();
+        const targetId = String(targetNodeId || '').trim();
+        if (!sourceId || !targetId) return null;
+        const hops = Array.isArray(state.flow?.hops) ? state.flow.hops : [];
+        return hops.find((hop) => (
+            String(hop?.sourceNodeId || '').trim() === sourceId
+            && String(hop?.targetNodeId || '').trim() === targetId
+        )) || null;
+    }
+
+    function pruneHopFromLocalState(hop, resolvedHopId = '') {
+        if (!hop || typeof hop !== 'object') return;
+        const fallbackHopId = String(resolvedHopId || '').trim();
+        const candidateSet = new Set([
+            String(hop.id || '').trim(),
+            String(hop.edgeId || '').trim(),
+            String(hop.linkId || '').trim(),
+            fallbackHopId,
+            ...extractObjectIdCandidates(hop.id),
+            ...extractObjectIdCandidates(hop.edgeId),
+            ...extractObjectIdCandidates(hop.linkId),
+            ...extractObjectIdCandidates(fallbackHopId),
+        ].filter(Boolean));
+        if (!candidateSet.size) return;
+
+        if (Array.isArray(state.flow?.hops)) {
+            state.flow.hops = state.flow.hops.filter((item) => {
+                const itemCandidateSet = new Set([
+                    String(item?.id || '').trim(),
+                    String(item?.edgeId || '').trim(),
+                    String(item?.linkId || '').trim(),
+                    ...extractObjectIdCandidates(item?.id),
+                    ...extractObjectIdCandidates(item?.edgeId),
+                    ...extractObjectIdCandidates(item?.linkId),
+                ].filter(Boolean));
+                for (const candidate of itemCandidateSet) {
+                    if (candidateSet.has(candidate)) return false;
+                }
+                return true;
+            });
+        }
+
+        if (!state.cy) return;
+        const edgeCollection = state.cy.edges().filter((edge) => {
+            const edgeCandidateSet = new Set([
+                String(edge.data('hopId') || '').trim(),
+                String(edge.id() || '').trim(),
+                ...extractObjectIdCandidates(edge.data('hopId')),
+                ...extractObjectIdCandidates(edge.id()),
+            ].filter(Boolean));
+            for (const candidate of edgeCandidateSet) {
+                if (candidateSet.has(candidate)) return true;
+            }
+            return false;
+        });
+        if (edgeCollection.length) {
+            edgeCollection.remove();
+            syncEdgeFlowAnimation();
+        }
+    }
+
     async function removeHopConnection(hop, {
         confirm = true,
         reload = true,
@@ -2900,6 +2963,8 @@
             }
             if (reload) {
                 await loadState();
+            } else {
+                pruneHopFromLocalState(hop, hopId);
             }
             return { success: true };
         } catch (error) {
@@ -2922,6 +2987,8 @@
                         }
                         if (reload) {
                             await loadState();
+                        } else {
+                            pruneHopFromLocalState(hop, fallbackId);
                         }
                         return { success: true };
                     } catch (fallbackError) {
@@ -2963,6 +3030,12 @@
         const targetId = String(targetNodeId || '').trim();
         if (!sourceId || !targetId || sourceId === targetId) return;
         if (sourceId === INTERNET_NODE_ID || targetId === INTERNET_NODE_ID) return;
+        const existingHop = findExistingHopByEndpoints(sourceId, targetId);
+        if (existingHop) {
+            focusHopById(existingHop.id);
+            toast(i18n.connectHintFallback || 'This link already exists. Edit existing draft hop settings instead.', 'info');
+            return;
+        }
         if (state.connectInFlight) return;
         const connectSignature = `${sourceId}->${targetId}`;
         const now = Date.now();
