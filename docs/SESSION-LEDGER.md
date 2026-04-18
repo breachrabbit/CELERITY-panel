@@ -2,6 +2,16 @@
 
 ## 2026-04-18
 
+- Worked on: report that Hysteria/Xray agent source still appears as original upstream in setup logs.
+- Finished with:
+  - shipped hard runtime guardrail in installer path (`src/services/nodeSetup.js`);
+  - if agent release URL resolves to legacy `ClickDevTech` path, it is auto-rewritten to Hidden Rabbit fork releases;
+  - mirror URLs now derive from final resolved source URL (prevents mixed legacy/fork mirror set);
+  - isolated code commit completed: `6c10ce5`.
+- Next step:
+  - deploy `main` to stand and run one fresh setup on a Hysteria node and one on an Xray node;
+  - confirm logs no longer show `ClickDevTech/.../releases` and only show fork source (or panel bundle source).
+
 - Worked on: mismatch between onboarding UX messages and actual node state (Hysteria/Xray operator feedback).
 - Finished with:
   - switched `cc-agent` installer source from hardcoded upstream release URL to fork-controlled configurable channel:

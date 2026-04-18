@@ -1,5 +1,25 @@
 # Development Log
 
+## 2026-04-18 Agent Source Guardrail (Legacy URL Auto-Rewrite)
+
+- Closed ambiguity where installer logs could still show legacy ClickDevTech release URL in some runs.
+- Hardened `cc-agent` install script generation in:
+  - `src/services/nodeSetup.js`
+- Added second-layer safety net directly in generated shell script:
+  - if resolved `GITHUB_URL` matches legacy source
+    (`github.com/ClickDevTech/(CELERITY-panel|hysteria-panel)/releases`),
+    it is force-rewritten to Hidden Rabbit fork release URL.
+- Added deterministic mirror URL generation from the final resolved `GITHUB_URL`
+  (so mirrors cannot remain pointed to legacy source if primary URL gets rewritten).
+- Kept this as isolated code-only patch for quick rollout and verification.
+- Code commit:
+  - `6c10ce5` — `fix: enforce hidden rabbit fallback for legacy agent release urls`
+
+Change types:
+
+- `stability fix` — remove legacy source leakage at runtime
+- `local patch` — installer-side URL sanitization and mirror regeneration
+
 ## 2026-04-18 Agent Source Fix + Onboarding Completed-State Cleanup
 
 - Fixed cc-agent install source to use Hidden Rabbit fork release channel by default:

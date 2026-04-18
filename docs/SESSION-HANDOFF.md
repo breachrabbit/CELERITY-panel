@@ -86,6 +86,34 @@
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-18 Stop-Point — Legacy Agent URL Runtime Rewrite
+
+### What was delivered
+
+- Isolated code patch to remove remaining legacy source leakage in runtime installer behavior:
+  - file: `src/services/nodeSetup.js`;
+  - commit: `6c10ce5` (`fix: enforce hidden rabbit fallback for legacy agent release urls`).
+- Installer hardening details:
+  - generated `cc-agent` install script now applies explicit legacy-source rewrite:
+    - any `github.com/ClickDevTech/(CELERITY-panel|hysteria-panel)/releases` source is auto-switched to Hidden Rabbit fork release URL;
+  - mirror URLs are now regenerated from the final resolved primary URL, so they cannot remain on legacy source after rewrite.
+
+### What is pending
+
+1. Deploy latest `main` to stand.
+2. Run one fresh Xray setup and one fresh Hysteria setup.
+3. Confirm setup logs do not contain `ClickDevTech/.../releases` anymore.
+
+### Next step
+
+1. Force deploy latest `main` to `https://tunnel.hiddenrabbit.net.ru/panel`.
+2. Trigger live onboarding/setup smoke:
+  - Xray node,
+  - Hysteria node.
+3. Capture setup log excerpt with agent source lines and verify only:
+  - panel bundle source (`source=panel-image`) or
+  - Hidden Rabbit fork release source.
+
 ## 2026-04-18 Stop-Point — Agent Source Repoint + Completed-Job Error Cleanup
 
 ### What was delivered
