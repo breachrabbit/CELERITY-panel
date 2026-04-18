@@ -1649,6 +1649,7 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
                     hopId,
                     linkId: String(link._id),
                     portalNodeId: String(link.portalNode || ''),
+                    bridgeNodeId: String(link.bridgeNode || ''),
                     componentId: String(planHop?.componentId || ''),
                 });
                 results.push({
@@ -1778,12 +1779,35 @@ router.post('/commit-drafts', requireScope('nodes:write'), async (req, res) => {
 
         const nextState = await buildState(req);
         const deploymentFailed = Number(deployment?.failedChains || 0) > 0;
+        const reconcileNodeIds = [...new Set(
+            committedLinks
+                .flatMap((item) => [item.portalNodeId, item.bridgeNodeId])
+                .filter(Boolean),
+        )];
+        let topologySync = null;
+        if (reconcileNodeIds.length > 0) {
+            topologySync = {
+                queued: true,
+                trigger: 'builder-commit',
+                nodes: reconcileNodeIds.length,
+            };
+            cascadeService.reconcileTopologyTransition(reconcileNodeIds, { trigger: 'builder-commit' })
+                .then((summary) => {
+                    logger.info(
+                        `[Cascade Builder API] Topology reconcile done (builder-commit): nodes=${summary.changedNodes}, standalone=${summary.standaloneReconciled}, chains=${summary.chainsQueued}, errors=${summary.errors.length}`,
+                    );
+                })
+                .catch((error) => {
+                    logger.warn(`[Cascade Builder API] Topology reconcile failed (builder-commit): ${error.message}`);
+                });
+        }
         res.json({
             success: committedIds.length > 0 && !deploymentFailed,
             committed: committedIds.length,
             failed: results.filter((item) => !item.success).length,
             results,
             deployment,
+            topologySync,
             execution: executionSnapshot,
             validation: nextState.validation,
             summary: nextState.validation.summary,

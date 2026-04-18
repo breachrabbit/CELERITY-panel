@@ -19,6 +19,25 @@ async function invalidateCascadeCache() {
     await cache.invalidateAllSubscriptions();
 }
 
+function queueTopologyReconcile(nodeIds, trigger = 'topology-change') {
+    const normalizedNodeIds = [...new Set(
+        (Array.isArray(nodeIds) ? nodeIds : [nodeIds])
+            .map((id) => String(id || '').trim())
+            .filter(Boolean),
+    )];
+    if (!normalizedNodeIds.length) return;
+
+    cascadeService.reconcileTopologyTransition(normalizedNodeIds, { trigger })
+        .then((summary) => {
+            logger.info(
+                `[Cascade API] Topology reconcile done (${trigger}): nodes=${summary.changedNodes}, standalone=${summary.standaloneReconciled}, chains=${summary.chainsQueued}, errors=${summary.errors.length}`,
+            );
+        })
+        .catch((error) => {
+            logger.warn(`[Cascade API] Topology reconcile failed (${trigger}): ${error.message}`);
+        });
+}
+
 const deployLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 10,
@@ -314,30 +333,15 @@ router.post('/links', requireScope('nodes:write'), async (req, res) => {
 
         await invalidateCascadeCache();
 
-        const connectedLinksCount = await CascadeLink.countDocuments({
-            active: true,
-            _id: { $ne: link._id },
-            $or: [
-                { portalNode: portalNodeId },
-                { bridgeNode: portalNodeId },
-                { portalNode: bridgeNodeId },
-                { bridgeNode: bridgeNodeId },
-            ],
+        queueTopologyReconcile([portalNodeId, bridgeNodeId], 'link-create');
+
+        res.status(201).json({
+            ...enrichLinkWithStack(populated),
+            topologySync: {
+                queued: true,
+                trigger: 'link-create',
+            },
         });
-
-        const autoDeployRequested = req.body.autoDeploy === true || req.body.autoDeploy === 'true';
-        const autoDeploySuppressed = req.body.autoDeploy === false || req.body.autoDeploy === 'false';
-
-        // Auto-sync the full chain either when explicitly requested or when
-        // this new link extends an already existing chain, unless the caller
-        // explicitly disabled auto-deploy for batch link creation.
-        if (autoDeployRequested || (!autoDeploySuppressed && connectedLinksCount > 0)) {
-            cascadeService.deployChain(portalNodeId).catch(err => {
-                logger.warn(`[Cascade API] Auto chain sync failed: ${err.message}`);
-            });
-        }
-
-        res.status(201).json(enrichLinkWithStack(populated));
     } catch (error) {
         logger.error(`[Cascade API] Create error: ${error.message}`);
         res.status(500).json({ error: error.message });
@@ -503,6 +507,8 @@ router.patch('/links/:id/reconnect', requireScope('nodes:write'), async (req, re
 
         const link = await CascadeLink.findById(req.params.id);
         if (!link) return res.status(404).json({ error: 'Cascade link not found' });
+        const oldPortalNodeId = String(link.portalNode || '');
+        const oldBridgeNodeId = String(link.bridgeNode || '');
 
         // Validate new nodes exist
         const [newPortal, newBridge] = await Promise.all([
@@ -549,7 +555,18 @@ router.patch('/links/:id/reconnect', requireScope('nodes:write'), async (req, re
         // Invalidate subscription cache
         await invalidateCascadeCache();
 
-        res.json(enrichLinkWithStack(updated));
+        queueTopologyReconcile(
+            [oldPortalNodeId, oldBridgeNodeId, effectivePortalId, effectiveBridgeId],
+            'link-reconnect',
+        );
+
+        res.json({
+            ...enrichLinkWithStack(updated),
+            topologySync: {
+                queued: true,
+                trigger: 'link-reconnect',
+            },
+        });
     } catch (error) {
         logger.error(`[Cascade API] Reconnect error: ${error.message}`);
         res.status(500).json({ error: error.message });
@@ -576,8 +593,16 @@ router.delete('/links/:id', requireScope('nodes:write'), async (req, res) => {
 
         // Invalidate subscription cache
         await invalidateCascadeCache();
+        queueTopologyReconcile([String(link.portalNode || ''), String(link.bridgeNode || '')], 'link-delete');
         logger.info(`[Cascade API] Deleted link ${link.name}`);
-        res.json({ success: true, message: 'Cascade link deleted' });
+        res.json({
+            success: true,
+            message: 'Cascade link deleted',
+            topologySync: {
+                queued: true,
+                trigger: 'link-delete',
+            },
+        });
     } catch (error) {
         logger.error(`[Cascade API] Delete error: ${error.message}`);
         res.status(500).json({ error: error.message });

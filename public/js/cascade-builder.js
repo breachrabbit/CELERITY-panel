@@ -2888,12 +2888,15 @@
             ? `/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`
             : `/api/cascade/links/${encodeURIComponent(hopId)}`;
         try {
-            await requestJson(endpoint, { method: 'DELETE' });
+            const result = await requestJson(endpoint, { method: 'DELETE' });
             if (showToast) {
                 const message = draftHop
                     ? (i18n.draftRemoved || 'Draft hop removed.')
                     : (i18n.linkRemoved || 'Link disconnected.');
                 toast(message, 'success');
+                if (result?.topologySync?.queued) {
+                    toast(i18n.topologySyncQueued || 'Topology update and runtime reconcile are running in background.', 'info');
+                }
             }
             if (reload) {
                 await loadState();
@@ -2910,9 +2913,12 @@
                 ));
                 for (const fallbackId of fallbackCandidates) {
                     try {
-                        await requestJson(`/api/cascade/links/${encodeURIComponent(fallbackId)}`, { method: 'DELETE' });
+                        const result = await requestJson(`/api/cascade/links/${encodeURIComponent(fallbackId)}`, { method: 'DELETE' });
                         if (showToast) {
                             toast(i18n.linkRemoved || 'Link disconnected.', 'success');
+                            if (result?.topologySync?.queued) {
+                                toast(i18n.topologySyncQueued || 'Topology update and runtime reconcile are running in background.', 'info');
+                            }
                         }
                         if (reload) {
                             await loadState();
@@ -3090,6 +3096,9 @@
                 } else {
                     toast(`${i18n.commitDraftsDone || 'Drafts committed'}: ${result.committed}`, 'success');
                 }
+            }
+            if (result?.topologySync?.queued) {
+                toast(i18n.topologySyncQueued || 'Topology update and runtime reconcile are running in background.', 'info');
             }
 
             await loadState();

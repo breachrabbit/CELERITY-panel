@@ -145,6 +145,9 @@
                             <a href="/panel/users/<%= user.userId %>" class="btn-icon" title="<%= t('users.details') %>">
                                 <i class="ti ti-eye"></i>
                             </a>
+                            <button class="btn-icon btn-icon-danger" onclick="deleteUserFromList('<%= user.userId %>')" title="<%= t('users.deleteUser') %>">
+                                <i class="ti ti-trash"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -244,6 +247,9 @@
                     <a href="/panel/users/<%= user.userId %>" class="btn btn-sm" style="flex: 1;">
                         <i class="ti ti-eye"></i> <%= t('users.details') %>
                     </a>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUserFromList('<%= user.userId %>')" style="flex: 1;">
+                        <i class="ti ti-trash"></i> <%= t('users.deleteUser') %>
+                    </button>
                 </div>
             </div>
         <% }); %>
@@ -306,7 +312,11 @@ const i18n = {
     turnedOff: <%- JSON.stringify(t("users.turnedOff")) %>,
     error: <%- JSON.stringify(t("common.error")) %>,
     linkCopied: <%- JSON.stringify(t("users.linkCopied")) %>,
-    copyError: <%- JSON.stringify(t("users.copyError")) %>
+    copyError: <%- JSON.stringify(t("users.copyError")) %>,
+    deleteUser: <%- JSON.stringify(t("users.deleteUser")) %>,
+    confirmDelete: <%- JSON.stringify(t("users.confirmDeleteFull")) %>,
+    deleteDone: <%- JSON.stringify(t("users.deleteDone")) %>,
+    deleteError: <%- JSON.stringify(t("users.deleteError")) %>
 };
 
 // Debounced search
@@ -371,6 +381,38 @@ function copySubscription(token) {
     }).catch(() => {
         showToast(i18n.copyError, 'error');
     });
+}
+
+async function deleteUserFromList(userId) {
+    if (!userId) return;
+    const escapedUserId = (typeof CSS !== 'undefined' && typeof CSS.escape === 'function')
+        ? CSS.escape(userId)
+        : String(userId).replace(/"/g, '\\"');
+    const ok = await window.hrConfirm(`${i18n.confirmDelete} (${userId})?`, {
+        title: i18n.confirmDelete,
+        confirmText: i18n.deleteUser || 'Delete',
+        cancelText: 'Cancel',
+    });
+    if (!ok) return;
+
+    try {
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data?.error || i18n.deleteError);
+        }
+
+        const tableRow = document.querySelector(`tr[data-userid="${escapedUserId}"]`);
+        if (tableRow) tableRow.remove();
+        const mobileCard = document.querySelector(`.mobile-user-card[data-userid="${escapedUserId}"]`);
+        if (mobileCard) mobileCard.remove();
+        showToast(i18n.deleteDone || 'User deleted');
+    } catch (error) {
+        showToast(`${i18n.deleteError || i18n.error}: ${error.message}`, 'error');
+    }
 }
 
 

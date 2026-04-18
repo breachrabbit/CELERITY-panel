@@ -715,7 +715,9 @@
     "subscription": "Подписка",
     "details": "Подробнее",
     "turnedOn": "Включён",
-    "turnedOff": "○ Отключён"
+    "turnedOff": "○ Отключён",
+    "deleteDone": "Пользователь удалён",
+    "deleteError": "Ошибка удаления пользователя"
   },
   "groups": {
     "title": "Группы серверов",
@@ -1513,6 +1515,7 @@
     "resetLinksConfirm": "Сбросить все текущие связи?",
     "resetLinksDone": "Все текущие связи сброшены.",
     "resetLinksPartial": "Часть связей не удалось сбросить.",
+    "topologySyncQueued": "Автопереконфигурация каскада запущена в фоне. Ноды могут быть временно недоступны.",
     "confirmDefaultTitle": "Подтвердите действие",
     "confirmDefaultText": "Вы уверены, что хотите продолжить?",
     "confirmCancel": "Отмена",

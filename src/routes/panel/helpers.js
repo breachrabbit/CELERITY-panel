@@ -246,7 +246,7 @@ function parseHysteriaFormFields(body) {
     };
 
     const cascadeSidecar = {
-        enabled: parseBool(body, 'cascadeSidecar.enabled', true),
+        enabled: true,
         socksPort: parseIntegerOrDefault(body['cascadeSidecar.socksPort'], 11080),
         serviceName: (body['cascadeSidecar.serviceName'] || 'xray-cascade').trim() || 'xray-cascade',
         configPath: (body['cascadeSidecar.configPath'] || '/usr/local/etc/xray-cascade/config.json').trim() || '/usr/local/etc/xray-cascade/config.json',

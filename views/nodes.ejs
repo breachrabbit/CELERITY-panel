@@ -88,7 +88,6 @@
                     <% } %>
                     <% nodes.forEach(node => { 
                         const groupIds = (node.groups || []).map(g => g._id?.toString() || g.toString()).join(',');
-                        const sidecarEnabled = node.type !== 'xray' ? (node.cascadeSidecar?.enabled ?? true) : false;
                         const displayStatus = node.displayStatus || node.status;
                     %>
                     <tr class="node-row"
@@ -114,9 +113,9 @@
                                     <span class="badge-cascade <%= node.cascadeRole %>"><%= node.cascadeRole.toUpperCase() %></span>
                                     <% } %>
                                     <% if (node.type !== 'xray' && config.FEATURE_CASCADE_HYBRID) { %>
-                                    <span class="badge-sidecar <%= sidecarEnabled ? 'sidecar-on' : 'sidecar-off' %>"
+                                    <span class="badge-sidecar sidecar-on"
                                           title="<%= t('nodes.hybridSidecarBadgeTitle') %>">
-                                        <%= sidecarEnabled ? t('nodes.hybridSidecarBadgeOn') : t('nodes.hybridSidecarBadgeOff') %>
+                                        <%= t('nodes.hybridSidecarBadgeOn') %>
                                     </span>
                                     <% } %>
                                     <% if (node.domain) { %>
@@ -203,7 +202,6 @@
             <% } %>
             <% nodes.forEach(node => { 
                 const groupIds = (node.groups || []).map(g => g._id?.toString() || g.toString()).join(',');
-                const sidecarEnabled = node.type !== 'xray' ? (node.cascadeSidecar?.enabled ?? true) : false;
                 const displayStatus = node.displayStatus || node.status;
             %>
                 <div class="mobile-node-card node-row-mobile"
@@ -223,9 +221,9 @@
                             <% } %>
                             <code style="font-size: 11px;"><%= node.ip %></code>
                             <% if (node.type !== 'xray' && config.FEATURE_CASCADE_HYBRID) { %>
-                            <span class="badge-sidecar <%= sidecarEnabled ? 'sidecar-on' : 'sidecar-off' %>"
+                            <span class="badge-sidecar sidecar-on"
                                   title="<%= t('nodes.hybridSidecarBadgeTitle') %>">
-                                <%= sidecarEnabled ? t('nodes.hybridSidecarBadgeOn') : t('nodes.hybridSidecarBadgeOff') %>
+                                <%= t('nodes.hybridSidecarBadgeOn') %>
                             </span>
                             <% } %>
                         </div>

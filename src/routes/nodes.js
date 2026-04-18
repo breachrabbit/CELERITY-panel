@@ -6,9 +6,11 @@ const express = require('express');
 const router = express.Router();
 const HyNode = require('../models/hyNodeModel');
 const HyUser = require('../models/hyUserModel');
+const CascadeLink = require('../models/cascadeLinkModel');
 const ServerGroup = require('../models/serverGroupModel');
 const cryptoService = require('../services/cryptoService');
 const cache = require('../services/cacheService');
+const cascadeService = require('../services/cascadeService');
 const nodeSetup = require('../services/nodeSetup');
 const nodeOnboardingService = require('../services/nodeOnboardingService');
 const nodeOnboardingPipeline = require('../services/nodeOnboardingPipeline');
@@ -109,11 +111,8 @@ function parseCascadeSidecar(value) {
 
     const out = {};
 
-    if (value.enabled !== undefined) {
-        out.enabled = typeof value.enabled === 'string'
-            ? ['true', '1', 'on', 'yes'].includes(value.enabled.toLowerCase())
-            : !!value.enabled;
-    }
+    // Hidden Rabbit fork: hybrid sidecar is always enabled for Hysteria runtime.
+    out.enabled = true;
 
     if (value.socksPort !== undefined) {
         const socksPort = parseInt(value.socksPort, 10);
@@ -417,23 +416,63 @@ router.put('/:id', requireScope('nodes:write'), async (req, res) => {
  */
 router.delete('/:id', requireScope('nodes:write'), async (req, res) => {
     try {
-        const node = await HyNode.findByIdAndDelete(req.params.id);
-        
+        const node = await HyNode.findById(req.params.id);
         if (!node) {
             return res.status(404).json({ error: 'Нода не найдена' });
         }
-        
+
+        const cleanupResult = await nodeSetup.cleanupNodePanelArtifacts(node, {
+            log: (line) => logger.info(`[Nodes API] ${line}`),
+        });
+
+        const relatedLinks = await CascadeLink.find({
+            $or: [{ portalNode: node._id }, { bridgeNode: node._id }],
+            active: true,
+        }).select('_id portalNode bridgeNode status').lean();
+
+        for (const link of relatedLinks) {
+            const status = String(link?.status || '').toLowerCase();
+            if (!['pending', 'deployed', 'online', 'offline'].includes(status)) continue;
+            try {
+                await cascadeService.undeployLink(link);
+            } catch (error) {
+                logger.warn(`[Nodes API] Cascade undeploy before node delete failed (${link._id}): ${error.message}`);
+            }
+        }
+
+        await CascadeLink.deleteMany({
+            $or: [{ portalNode: node._id }, { bridgeNode: node._id }],
+        });
+
+        await HyNode.findByIdAndDelete(node._id);
+
         // Удаляем ноду из списка пользователей
         await HyUser.updateMany(
             { nodes: node._id },
             { $pull: { nodes: node._id } }
         );
+
+        const affectedNodeIds = [...new Set(
+            relatedLinks.flatMap((link) => [String(link.portalNode || ''), String(link.bridgeNode || '')])
+                .filter((id) => id && id !== String(node._id)),
+        )];
+        if (affectedNodeIds.length > 0) {
+            cascadeService.reconcileTopologyTransition(affectedNodeIds, { trigger: 'node-delete' })
+                .catch((error) => logger.warn(`[Nodes API] Post-delete topology reconcile failed: ${error.message}`));
+        }
         
         // Инвалидируем кэш
         await invalidateNodesCache();
         
         logger.info(`[Nodes API] Deleted node ${node.name}`);
-        
+
+        if (!cleanupResult.success && !cleanupResult.skipped) {
+            return res.json({
+                success: true,
+                message: 'Нода удалена, но удалённая очистка агента завершилась с предупреждением',
+                cleanupWarning: cleanupResult.error || 'remote-cleanup-warning',
+            });
+        }
         res.json({ success: true, message: 'Нода удалена' });
     } catch (error) {
         logger.error(`[Nodes API] Delete error: ${error.message}`);

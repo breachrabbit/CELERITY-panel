@@ -182,19 +182,14 @@ Object.assign(locals, {
                 <% } %>
 
                 <div class="form-group" style="margin-top:8px;">
-                    <label class="checkbox-label">
-                        <input type="hidden" name="cascadeSidecar.enabled" value="0">
-                        <input type="checkbox"
-                               id="cascadeSidecarEnabled"
-                               name="cascadeSidecar.enabled"
-                               value="1"
-                               <%= (node?.cascadeSidecar?.enabled ?? true) ? 'checked' : '' %>
-                               onchange="toggleCascadeSidecarFields()">
-                        <span class="checkbox-text"><%= t('nodes.hybridCascadeSidecarEnabled') %></span>
-                    </label>
+                    <div class="setting-item">
+                        <label><%= t('nodes.hybridCascadeSidecarEnabled') %></label>
+                        <span class="status-badge status-online"><%= t('common.enabled') %></span>
+                    </div>
+                    <input type="hidden" name="cascadeSidecar.enabled" value="1">
                 </div>
 
-                <div class="optional-fields-wrap" id="cascadeSidecarFieldsWrap" style="<%= (node?.cascadeSidecar?.enabled ?? true) ? '' : 'display:none' %>">
+                <div class="optional-fields-wrap" id="cascadeSidecarFieldsWrap">
                     <div class="form-row">
                         <div class="form-group">
                             <label for="cascadeSidecarSocksPort"><%= t('nodes.hybridCascadeSocksPort') %></label>

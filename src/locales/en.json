@@ -709,7 +709,9 @@
     "subscription": "Subscription",
     "details": "Details",
     "turnedOn": "Enabled",
-    "turnedOff": "○ Disabled"
+    "turnedOff": "○ Disabled",
+    "deleteDone": "User deleted",
+    "deleteError": "Failed to delete user"
   },
   "groups": {
     "title": "Server Groups",
@@ -1507,6 +1509,7 @@
     "resetLinksConfirm": "Reset all current links?",
     "resetLinksDone": "All current links have been reset.",
     "resetLinksPartial": "Some links could not be reset.",
+    "topologySyncQueued": "Cascade auto-reconfigure started in background. Nodes may be temporarily unavailable.",
     "confirmDefaultTitle": "Confirm action",
     "confirmDefaultText": "Are you sure you want to continue?",
     "confirmCancel": "Cancel",

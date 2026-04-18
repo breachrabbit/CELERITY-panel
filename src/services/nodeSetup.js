@@ -842,7 +842,7 @@ function buildStandaloneHysteriaConfigNode(node) {
 }
 
 async function resolveHybridSidecarSetupState(node) {
-    const sidecarConfigured = config.FEATURE_CASCADE_HYBRID && (node?.cascadeSidecar?.enabled !== false);
+    const sidecarConfigured = config.FEATURE_CASCADE_HYBRID;
     if (!sidecarConfigured) {
         return { sidecarConfigured, sidecarRequired: false, reason: 'disabled' };
     }
@@ -2909,6 +2909,68 @@ async function setupXrayNodeWithAgent(node, options = {}) {
     return result;
 }
 
+async function cleanupNodePanelArtifacts(node, options = {}) {
+    const log = typeof options.log === 'function' ? options.log : () => {};
+    if (!node) {
+        return { success: false, skipped: true, error: 'node-missing' };
+    }
+    if (!node.ssh?.password && !node.ssh?.privateKey) {
+        log(`Remote cleanup skipped for ${node.name || node._id}: SSH credentials are not configured.`);
+        return { success: false, skipped: true, error: 'ssh-not-configured' };
+    }
+
+    const sidecarRawName = String(node?.cascadeSidecar?.serviceName || 'xray-cascade').trim() || 'xray-cascade';
+    const sidecarServiceName = sidecarRawName.endsWith('.service')
+        ? sidecarRawName.slice(0, -8)
+        : sidecarRawName;
+    const agentPort = Number(node?.xray?.agentPort) > 0 ? Number(node.xray.agentPort) : 62080;
+
+    let conn;
+    try {
+        conn = await connectSSH(node);
+        const cleanupScript = `
+set +e
+for svc in cc-agent xray-bridge ${shellQuote(sidecarServiceName)}; do
+  systemctl stop "$svc" 2>/dev/null || true
+  systemctl disable "$svc" 2>/dev/null || true
+done
+
+rm -f /etc/systemd/system/cc-agent.service
+rm -f /etc/systemd/system/xray-bridge.service
+rm -f /etc/systemd/system/${sidecarServiceName}.service
+
+rm -f /usr/local/bin/cc-agent
+rm -rf /etc/cc-agent
+rm -rf /var/lib/cc-agent
+
+rm -rf /usr/local/etc/xray-bridge
+rm -rf /usr/local/etc/xray-cascade
+
+if command -v iptables >/dev/null 2>&1; then
+  iptables -D INPUT -p tcp --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+  iptables -D INPUT -p udp --dport ${agentPort} -j ACCEPT 2>/dev/null || true
+fi
+
+systemctl daemon-reload 2>/dev/null || true
+echo "__panel_cleanup__=ok"
+`;
+        const result = await execSSH(conn, cleanupScript, { timeoutMs: 90 * 1000 });
+        const output = String(result?.output || '');
+        if (output) {
+            log(`[cleanup:${node.name || node._id}] ${output.trim()}`);
+        }
+        const ok = output.includes('__panel_cleanup__=ok');
+        if (!ok) {
+            return { success: false, skipped: false, error: 'cleanup-marker-missing', output };
+        }
+        return { success: true, skipped: false, output };
+    } catch (error) {
+        return { success: false, skipped: false, error: error.message || 'cleanup-failed' };
+    } finally {
+        if (conn) conn.end();
+    }
+}
+
 module.exports = {
     setupHysteriaNode,
     setupNode,
@@ -2932,4 +2994,5 @@ module.exports = {
     getPanelCertificates,
     isSameVpsAsPanel,
     pickSameHostNodePort,
+    cleanupNodePanelArtifacts,
 };

@@ -797,15 +797,13 @@ function toggleCascadeSidecarCustomHint() {
     const hint = document.getElementById('sidecarCustomConfigHint');
     if (!hint) return;
     const customConfigEnabled = !!document.getElementById('useCustomConfig')?.checked;
-    const sidecarEnabled = !!document.getElementById('cascadeSidecarEnabled')?.checked;
-    hint.style.display = (customConfigEnabled && sidecarEnabled) ? '' : 'none';
+    hint.style.display = customConfigEnabled ? '' : 'none';
 }
 
 function toggleCascadeSidecarFields() {
     const wrap = document.getElementById('cascadeSidecarFieldsWrap');
     if (!wrap) return;
-    const enabled = !!document.getElementById('cascadeSidecarEnabled')?.checked;
-    wrap.style.display = enabled ? '' : 'none';
+    wrap.style.display = '';
     toggleCascadeSidecarCustomHint();
 }
 

@@ -977,7 +977,7 @@ class CascadeService {
             ? raw.configPath.trim()
             : '/usr/local/etc/xray-cascade/config.json';
         return {
-            enabled: raw.enabled !== false,
+            enabled: true,
             socksPort,
             serviceName,
             configPath,
@@ -1320,9 +1320,6 @@ command -v xray >/dev/null 2>&1
         }
 
         if (needsSidecar) {
-            if (!sidecar.enabled) {
-                throw new Error(`Cascade sidecar is disabled on node "${portalNode.name}". Enable node.cascadeSidecar.enabled to use hybrid cascade.`);
-            }
             const sidecarOutbound = {
                 name: CASCADE_SIDECAR_OUTBOUND,
                 type: 'socks5',
@@ -1644,6 +1641,143 @@ command -v xray >/dev/null 2>&1
         if (bulkOps.length > 0) {
             await HyNode.bulkWrite(bulkOps, { ordered: false });
         }
+    }
+
+    async _cleanupStandaloneCascadeArtifacts(node) {
+        if (!node?.ssh?.password && !node?.ssh?.privateKey) return;
+
+        const rawServiceName = String(node?.cascadeSidecar?.serviceName || 'xray-cascade').trim() || 'xray-cascade';
+        const sidecarServiceName = rawServiceName.endsWith('.service')
+            ? rawServiceName.slice(0, -8)
+            : rawServiceName;
+
+        const ssh = new NodeSSH(node);
+        try {
+            await ssh.connect();
+            const cleanupScript = `
+set +e
+for svc in xray-bridge ${shellQuote(sidecarServiceName)}; do
+  systemctl stop "$svc" 2>/dev/null || true
+  systemctl disable "$svc" 2>/dev/null || true
+done
+rm -f /etc/systemd/system/xray-bridge.service
+rm -f /etc/systemd/system/${sidecarServiceName}.service
+rm -rf /usr/local/etc/xray-bridge
+rm -rf /usr/local/etc/xray-cascade
+systemctl daemon-reload 2>/dev/null || true
+`;
+            await ssh.exec(cleanupScript);
+        } finally {
+            ssh.disconnect();
+        }
+    }
+
+    async _ensureStandaloneNodeRuntime(node) {
+        if (!node) return;
+        if (!['xray', 'hysteria'].includes(String(node.type || '').toLowerCase())) return;
+
+        await this._deployPortalConfig(node);
+        await this._cleanupStandaloneCascadeArtifacts(node);
+        logger.info(`[Cascade] Standalone runtime reconciled for ${node.name} (${node.type})`);
+    }
+
+    async reconcileTopologyTransition(changedNodeIds = [], options = {}) {
+        const trigger = String(options?.trigger || 'topology-change').trim() || 'topology-change';
+        const changedIds = [...new Set(
+            (Array.isArray(changedNodeIds) ? changedNodeIds : [changedNodeIds])
+                .map((id) => String(id || '').trim())
+                .filter(Boolean),
+        )];
+
+        await this._updateNodeRoles();
+        await this._invalidateTopologyCache();
+
+        if (!changedIds.length) {
+            return {
+                success: true,
+                trigger,
+                changedNodes: 0,
+                standaloneReconciled: 0,
+                chainsQueued: 0,
+                errors: [],
+            };
+        }
+
+        const [nodes, touchedLinks] = await Promise.all([
+            HyNode.find({ _id: { $in: changedIds }, active: true })
+                .select('name type status active cascadeRole ip domain port ssh xray useTlsFiles outbounds aclRules cascadeSidecar')
+                .lean(),
+            CascadeLink.find({
+                active: true,
+                $or: [{ portalNode: { $in: changedIds } }, { bridgeNode: { $in: changedIds } }],
+            }).select('_id portalNode bridgeNode').lean(),
+        ]);
+
+        const linksByNode = new Map();
+        touchedLinks.forEach((link) => {
+            const portalId = String(link.portalNode || '');
+            const bridgeId = String(link.bridgeNode || '');
+            if (portalId) {
+                if (!linksByNode.has(portalId)) linksByNode.set(portalId, 0);
+                linksByNode.set(portalId, linksByNode.get(portalId) + 1);
+            }
+            if (bridgeId) {
+                if (!linksByNode.has(bridgeId)) linksByNode.set(bridgeId, 0);
+                linksByNode.set(bridgeId, linksByNode.get(bridgeId) + 1);
+            }
+        });
+
+        const errors = [];
+        let standaloneReconciled = 0;
+        for (const node of nodes) {
+            const nodeId = String(node._id || '');
+            const hasActiveLinks = Number(linksByNode.get(nodeId) || 0) > 0;
+            if (hasActiveLinks) continue;
+            try {
+                await this._ensureStandaloneNodeRuntime(node);
+                standaloneReconciled += 1;
+            } catch (error) {
+                errors.push(`standalone:${node.name}:${error.message}`);
+                logger.warn(`[Cascade] Standalone reconcile failed for ${node.name}: ${error.message}`);
+            }
+        }
+
+        const chainTargets = [];
+        const seenChainKeys = new Set();
+        for (const node of nodes) {
+            const nodeId = String(node._id || '');
+            const hasActiveLinks = Number(linksByNode.get(nodeId) || 0) > 0;
+            if (!hasActiveLinks) continue;
+            try {
+                const { orderedLinks } = await this._buildChainOrder(nodeId);
+                if (!orderedLinks.length) continue;
+                const chainKey = this._getChainLockKey(nodeId, orderedLinks);
+                if (seenChainKeys.has(chainKey)) continue;
+                seenChainKeys.add(chainKey);
+                chainTargets.push(nodeId);
+            } catch (error) {
+                errors.push(`build-chain:${node.name}:${error.message}`);
+                logger.warn(`[Cascade] Chain target resolution failed for ${node.name}: ${error.message}`);
+            }
+        }
+
+        for (const startNodeId of chainTargets) {
+            try {
+                await this.deployChain(startNodeId);
+            } catch (error) {
+                errors.push(`deploy-chain:${startNodeId}:${error.message}`);
+                logger.warn(`[Cascade] Chain deploy failed for ${startNodeId}: ${error.message}`);
+            }
+        }
+
+        return {
+            success: errors.length === 0,
+            trigger,
+            changedNodes: changedIds.length,
+            standaloneReconciled,
+            chainsQueued: chainTargets.length,
+            errors,
+        };
     }
 
     async _invalidateTopologyCache() {
