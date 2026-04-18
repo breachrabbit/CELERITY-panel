@@ -1939,3 +1939,46 @@ Change type:
 
 - `local patch` — cascade builder diagnostics + unlink controls
 - `stability fix` — durable onboarding Xray runtime startup permissions
+
+## 2026-04-18 Onboarding Reports UX + Hybrid Sidecar Requirement Gate (shipped)
+
+- Finished onboarding jobs UX wave:
+  - added backend API to clear onboarding jobs by scope:
+    - `DELETE /api/nodes/:id/onboarding/jobs?scope=completed|terminal&keepLatest=N`;
+  - node management now has:
+    - `Hide completed` checkbox;
+    - `Clear completed` action;
+    - collapsible onboarding job cards with expand/collapse state.
+- Files shipped:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/src/services/nodeOnboardingService.js`
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/src/routes/nodes.js`
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/views/partials/node-form/management.ejs`
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/views/partials/node-form/scripts.ejs`
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/src/locales/ru.json`
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/src/locales/en.json`
+
+- Finished Hysteria sidecar stabilization pass for standalone/no-active-overlay topology:
+  - sidecar is now treated as required only when active cascade links need overlay on node;
+  - standalone config path strips reserved `__cascade_sidecar__` outbound + ACL rules;
+  - hybrid smoke-check no longer fails when sidecar is configured but topology does not require overlay.
+- Files shipped:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/src/services/nodeSetup.js`
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/src/routes/panel/nodes.js`
+
+- Code commit:
+  - `8854c80` — `feat: improve onboarding jobs UX and sidecar standalone gating`
+- Deployment:
+  - forced Coolify deploy UUID: `baw9e7yrm7a6ofi5y8lp1jar`
+  - status: `finished`, app `running:healthy`
+  - built commit SHA: `8854c80e36128a2077bd74342a9c8ea1765c16e1`
+
+- Live checks after deploy:
+  - `/panel/login` serves fresh versioned assets (`/css/style.css?v=1776529314038`);
+  - `DELETE /api/nodes/:id/onboarding/jobs?scope=completed` returns `success: true` on stand;
+  - Hysteria smoke-check with `sidecar=true` and no active relevant links now returns `success: true`
+    (checks are marked `not required (overlay disabled for current topology)` instead of false-fail).
+
+Change type:
+- `local patch` — onboarding jobs lifecycle UX
+- `stability fix` — sidecar activation gate for standalone hysteria
+- `deployment` — forced stand redeploy + live smoke verification

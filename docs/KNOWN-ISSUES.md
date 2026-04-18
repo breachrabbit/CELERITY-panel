@@ -416,6 +416,51 @@ What is still pending:
 
 Status: `pending verification`
 
+### 15. Onboarding reports list is hard to operate (no collapse/clear-completed flow finalized)
+
+Issue history:
+
+- in node management, onboarding jobs accumulate and create a very long reports list;
+- user feedback: reports should collapse and be removable directly from UI.
+
+Current state:
+
+- backend deletion API exists for per-node onboarding jobs clear by scope;
+- UI controls shipped on stand:
+  - `Hide completed`,
+  - `Clear completed`,
+  - collapsible onboarding job cards.
+- regression check passed on `/panel/nodes/:id` (controls and JS handlers are present in deployed HTML/JS payload).
+
+What is still pending:
+
+- collect user feedback on card density / default collapse behavior;
+- optionally add pagination if jobs history grows significantly after long operations.
+
+Status: `monitoring`
+
+### 16. Hysteria may work only with sidecar disabled in some standalone-like scenarios
+
+Issue history:
+
+- user reports: Hysteria fails with sidecar checkbox enabled; works when disabled.
+
+Current state:
+
+- sidecar requirement gate was introduced in setup/smoke-check logic and shipped:
+  - sidecar is treated as required only when active cascade links need overlay for node;
+  - standalone config path strips reserved `__cascade_sidecar__` outbound/ACL marker.
+- live stand check (`tunnel.hiddenrabbit.net.ru`) now confirms:
+  - with `sidecar=true` and no active relevant links, hybrid smoke-check returns `success: true`;
+  - sidecar checks are marked as `not required (overlay disabled for current topology)` instead of false-fail.
+
+What is still pending:
+
+- run a second live check where active cascade links *do* require overlay and verify sidecar service/listener are active;
+- if overlay-required scenario fails, patch only failing step and keep standalone behavior unchanged.
+
+Status: `in progress (partially resolved)`
+
 ### 14. Runtime offline after role/cascade transitions due Xray log permission drift
 
 Issue history:

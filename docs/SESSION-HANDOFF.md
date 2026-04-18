@@ -2516,6 +2516,84 @@ Next step:
   - docs/SESSION-LEDGER.md
 ```
 
+## 2026-04-18 Update — Onboarding Jobs UX + Hybrid Sidecar Standalone Gate (shipped)
+
+Что завершено:
+
+1) Onboarding jobs UX:
+- добавлен endpoint очистки jobs:
+  - `DELETE /api/nodes/:id/onboarding/jobs?scope=completed|terminal&keepLatest=N`;
+- в `/panel/nodes/:id` добавлены:
+  - `Скрывать завершённые`,
+  - `Очистить завершённые`,
+  - collapsible карточки onboarding jobs,
+  - expand/collapse state и ререндер при переключении hide-completed.
+
+2) Hybrid sidecar стабилизация для Hysteria standalone:
+- sidecar считается обязательным только когда активная топология реально требует overlay;
+- standalone Hysteria config очищается от `__cascade_sidecar__` outbound/ACL markers;
+- hybrid smoke-check больше не фейлит standalone-кейс при `sidecar=true` и отсутствии активных relevant links.
+
+3) Локальная и live верификация:
+- syntax checks:
+  - `node --check` для `src/routes/nodes.js`, `src/routes/panel/nodes.js`, `src/services/nodeOnboardingService.js`, `src/services/nodeSetup.js`;
+  - JSON parse check для `src/locales/ru.json` и `src/locales/en.json`.
+- code commit:
+  - `8854c80` — `feat: improve onboarding jobs UX and sidecar standalone gating`
+- forced deploy:
+  - app uuid: `ymi9vwwf438y5ozeh0kwhklf`
+  - deployment uuid: `baw9e7yrm7a6ofi5y8lp1jar`
+  - status: `finished`, stand `running:healthy`
+  - built commit SHA: `8854c80e36128a2077bd74342a9c8ea1765c16e1`
+- regression checks after deploy:
+  - `/panel/login` returned versioned assets (`/css/style.css?v=1776529314038`);
+  - `DELETE /api/nodes/:id/onboarding/jobs?scope=completed` returned `success:true` on stand;
+  - Hysteria node `69e205b5ab80ea2b34cdf1c5` smoke-check with `sidecar=true` and no active links returned `success:true`.
+
+Текущее состояние: `stable (for shipped scope)`  
+Рабочее дерево: `dirty` only by docs update (code already committed + pushed).
+
+### Prompt For Next Session (fresh)
+
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+7. docs/node-onboarding-rewrite-blueprint.ru.md
+
+Потом сразу продолжай без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связан с Rabbit Platform;
+- continuity docs — source of truth;
+- onboarding jobs UX (collapse/hide/clear) уже задеплоен;
+- sidecar standalone gate для Hysteria уже задеплоен и прошёл live smoke в сценарии без активных links;
+- стенд: https://tunnel.hiddenrabbit.net.ru/panel.
+
+Приоритет:
+1) добить next-sidecar verification:
+   - собрать сценарий с активными relevant cascade links и проверить overlay-required путь на Hysteria (`sidecar service/listener/config`);
+   - если fail — патчить только failing step, без регрессии standalone.
+2) UX cleanup onboarding jobs:
+   - добавить optional pagination/limit UX, если карточек слишком много;
+   - при необходимости добавить массовое действие `clear terminal except latest`.
+3) regression:
+   - /panel/nodes (desktop/mobile fit),
+   - onboarding jobs cards (expand/hide/clear),
+   - smoke-check hybrid на Hysteria/Xray.
+
+Важно:
+- не смешивать код-коммит и docs-коммит;
+- после существенного шага обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```
+
 ## 2026-04-18 Update — Runtime Offline Root Cause + Builder Clarification Wave
 
 What was done:

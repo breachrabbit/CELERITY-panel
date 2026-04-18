@@ -924,3 +924,22 @@
   - run live onboarding retry on affected node(s) to confirm no more `permission denied` / `Runtime is offline`;
   - verify reset links and validation focus behavior in builder UI under real topology;
   - continue automation wave: role transitions (standalone/portal/relay/bridge) + background reconfigure orchestration.
+
+## 2026-04-18 Session — Onboarding Jobs UX + Sidecar Standalone Gate Shipped
+
+- Worked on:
+  - onboarding jobs UX (collapse/hide/clear completed) for long reports list;
+  - Hysteria sidecar behavior when toggle is ON but topology is effectively standalone.
+- Finished with:
+  - backend clear-jobs API shipped (`DELETE /api/nodes/:id/onboarding/jobs`);
+  - node management UI shipped (`Hide completed`, `Clear completed`, collapsible job cards);
+  - locale keys shipped (`ru/en`) for onboarding jobs controls;
+  - sidecar requirement gate shipped:
+    - overlay required only with active relevant links,
+    - standalone path strips `__cascade_sidecar__` rules;
+  - code commit: `8854c80`;
+  - forced deploy: `baw9e7yrm7a6ofi5y8lp1jar` (finished, healthy);
+  - live smoke-check on Hysteria (`sidecar=true`, no active links) is green.
+- Next step:
+  - verify overlay-required scenario (active links) for Hysteria sidecar path;
+  - continue node/cascade automation track (role transitions + background reconfigure).
