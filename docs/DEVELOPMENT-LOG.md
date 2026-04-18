@@ -2029,3 +2029,23 @@ Change type:
 - `local patch` — onboarding jobs lifecycle UX
 - `stability fix` — sidecar activation gate for standalone hysteria
 - `deployment` — forced stand redeploy + live smoke verification
+
+## 2026-04-18 Cascade Builder Realtime Link/Dedupe Hardening (shipped)
+
+- Fixed cascade-builder instability reported in live UX pass:
+  - duplicate/extra links after connect attempts;
+  - reset/unlink not feeling realtime until full page refresh;
+  - need to support connect drag from node card body (not only tiny port circles).
+- Code changes in:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/public/js/cascade-builder.js`
+    - edgehandles now accept both node cards and out-port handles as source;
+    - connect validator now accepts node-body source endpoints safely;
+    - client-side duplicate guard (`source->target`) before connect request;
+    - optimistic local prune of removed hop/edge for realtime reset feedback.
+- Code commit:
+  - `3e895f9` — `fix: harden cascade connect dedupe and realtime link reset`
+- Deployment:
+  - pushed to `main`; stand auto-deploy expected from Coolify webhook.
+
+Change type:
+- `stability fix` — cascade connect/reset behavior under real operator flow

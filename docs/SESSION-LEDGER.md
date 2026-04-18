@@ -968,3 +968,19 @@
 - Next step:
   - verify overlay-required scenario (active links) for Hysteria sidecar path;
   - continue node/cascade automation track (role transitions + background reconfigure).
+
+## 2026-04-18 Session — Cascade Builder Link Realtime Hardening
+
+- Worked on:
+  - user-reported extra links appearing after create/refresh;
+  - reset/unlink requiring manual page refresh to feel applied;
+  - need to connect from node card drag, not only tiny out-port target.
+- Finished with:
+  - code commit `3e895f9` in `main`;
+  - `edgehandles` source extended to node cards + out ports;
+  - duplicate `source->target` guard before new draft connect;
+  - optimistic local hop/edge prune on unlink/reset for faster UI consistency.
+- Next step:
+  - verify live on stand with same user scenario (xray-relay-xray);
+  - if any ghost link remains, add server-side dedupe guard in `/api/cascade-builder/connect`;
+  - continue automation path (role transitions + background reconcile notifications).

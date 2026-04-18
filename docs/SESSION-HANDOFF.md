@@ -3240,6 +3240,38 @@ Pending immediate next step:
    - deepen chain/hop/node diagnostics precision and operator repair/re-run convenience.
 4. Keep staged retirement of legacy onboarding path incremental (no fallback breakage).
 
+## 2026-04-18 Update — Cascade Builder Connect/Reset Realtime Stability
+
+What was done:
+- Fixed cascade builder connect/reset UX regressions reported after live xray-relay-xray run:
+  - extra/duplicate links appearing during connect flow;
+  - non-realtime link reset perception (needed hard refresh);
+  - need to start connect from node card drag path.
+- Shipped in code commit:
+  - `3e895f9` — `fix: harden cascade connect dedupe and realtime link reset`
+- File touched:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/public/js/cascade-builder.js`
+- Core changes:
+  - `edgehandles` source widened to node cards + out ports;
+  - pre-connect pair guard (`source->target`) prevents duplicate hop creation from double events;
+  - optimistic local prune after unlink/reset removes hops/edges from UI immediately while background reconcile continues.
+
+Current state:
+- `main` is updated and pushed.
+- Stand responds for cascades page (`/panel/cascades/builder` returns 200).
+- Requires immediate live user regression on same scenario to validate final UX feel.
+
+Immediate next step:
+1. Re-run on stand:
+   - connect node->node by drag,
+   - reset/disconnect without page refresh,
+   - verify no phantom links appear after state reload.
+2. If ghost links still appear:
+   - add server-side idempotency/dedupe guard to `/api/cascade-builder/connect` (pair-based).
+3. Continue node lifecycle automation track:
+   - auto standalone restore on cascade detach,
+   - auto role transition + reconcile notifications.
+
 ## Prompt For Next Session (Latest, supersedes older prompts)
 
 ```text
