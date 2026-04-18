@@ -1,5 +1,5 @@
 # Hysteria Backend - Docker Image
-FROM public.ecr.aws/docker/library/golang:1.24-alpine AS cc-agent-builder
+FROM public.ecr.aws/docker/library/golang:1.25-alpine AS cc-agent-builder
 
 WORKDIR /src/cc-agent
 
