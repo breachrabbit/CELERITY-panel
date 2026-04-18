@@ -774,3 +774,19 @@
   - continue chain/hop/node diagnostics precision for ambiguous failures;
   - add one more compact repair/re-run operator convenience action;
   - keep staged retirement of non-critical legacy `setupJobs` reads incremental.
+
+## 2026-04-18 Session — Builder Link Stability + Internet Section
+
+- Worked on:
+  - cascade builder connect UX instability (extra lines before refresh),
+  - explicit Internet egress visibility inside builder,
+  - clearer validation reasons for invalid topologies.
+- Finished with:
+  - code commit `96e70b1` in `main`;
+  - in-flight connect guard + authoritative reload on draft create;
+  - virtual Internet node/edges + right-side Internet section;
+  - stricter validation and localized human-readable errors.
+- Next step:
+  - deploy and run live manual drag test on stand;
+  - verify no transient extra lines appear during connect;
+  - tune visual routing/edge spacing after real user pass.

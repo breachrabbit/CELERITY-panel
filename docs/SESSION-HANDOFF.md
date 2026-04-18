@@ -2215,6 +2215,89 @@ After deploy, verify on Android / mobile browser:
 - после существенного шага снова обнови SESSION-HANDOFF, DEVELOPMENT-LOG и SESSION-LEDGER.
 ```
 
+## 2026-04-18 Stop-Point — Builder Connect Stabilized + Internet Context
+
+Done:
+- Code commit in `main`:
+  - `96e70b1` — `fix: stabilize builder links and add internet egress context`.
+- Builder connect flow stabilized:
+  - removed optimistic local edge insertion after `POST /api/cascade-builder/connect`;
+  - now reloads canonical state immediately (`loadState`) and focuses created hop;
+  - added `connectInFlight` guard to block duplicate connect submissions.
+- Reduced source of temporary “extra lines” artifacts:
+  - edgehandles preview disabled (`preview: false`);
+  - desktop fallback tap-connect disabled when edgehandles is available;
+  - fallback remains for coarse-pointer/no-edgehandles path.
+- Added explicit Internet context:
+  - virtual Internet node on canvas;
+  - virtual egress edges from detected exit nodes;
+  - right-side `Internet` section with exit-node list and badge.
+- Improved “why it won't work” validation semantics:
+  - `bidirectional-hop`,
+  - `mixed-mode-component`,
+  - `no-internet-egress`,
+  - `multiple-upstreams-not-supported`,
+  - `multiple-downstreams-not-supported`.
+- Updated localization (`ru`/`en`) for new builder Internet/validation copy.
+
+Pending verification:
+1) live smoke on stand to confirm no transient extra lines during drag-connect;
+2) verify Internet node/section readability on real topology edits;
+3) verify new validation messages are clear and actionable in UI.
+
+Next step:
+1. Deploy `96e70b1` and run manual builder smoke:
+   - build 2-3 hops by mouse drag,
+   - confirm no phantom lines before refresh,
+   - confirm Internet egress mapping is shown.
+2. If visual routing is still noisy:
+   - tune edge routing offsets/turns for better readability.
+3. Then continue planned tracks:
+   - Hysteria onboarding parity rewrite,
+   - cascade execution diagnostics depth,
+   - staged legacy `setupJobs` retirement.
+
+Prompt for next session:
+```text
+Прочитай по порядку:
+1. docs/PROJECT-BASELINE.md
+2. docs/ROADMAP.md
+3. docs/SESSION-HANDOFF.md
+4. docs/KNOWN-ISSUES.md
+5. docs/DEVELOPMENT-LOG.md
+6. docs/SESSION-LEDGER.md
+7. docs/node-onboarding-rewrite-blueprint.ru.md
+
+Потом сразу продолжай без лишнего планирования.
+
+Контекст:
+- это изолированный форк панели, не связан с Rabbit Platform;
+- continuity docs — source of truth;
+- последний код-коммит в main: 96e70b1;
+- в cascade builder добавлено:
+  - устранение лишних линий через canonical reload + connectInFlight;
+  - Internet node + Internet section;
+  - более строгая и объяснимая валидация для нерабочих схем.
+
+Приоритет:
+1) выкатить/проверить 96e70b1 на стенде и прогнать живой builder smoke:
+   - drag-connect без фантомных линий;
+   - Internet egress читается понятно;
+   - новые validation причины появляются в нужных сценариях.
+2) при необходимости подтюнить визуальный роутинг edge-линий (spacing/turns).
+3) после этого продолжить:
+   - Hysteria onboarding rewrite parity,
+   - cascade diagnostics depth,
+   - staged retirement legacy setupJobs (без ломки fallback).
+
+Важно:
+- не смешивать код-коммит и docs-коммит;
+- после существенного шага обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```
+
 ## 2026-04-17 Stop-Point — Stand Cleanup Completed + Hop Endpoint Status Diagnostics
 
 Done:

@@ -1629,6 +1629,31 @@ Change type:
 Change type:
 
 - `local patch` — cascade execution diagnostics depth
+
+## 2026-04-18 Cascade Builder UX Stabilization + Internet Egress Layer
+
+- Fixed builder connect instability that produced temporary extra/ghost lines before page refresh:
+  - removed local optimistic edge insert on connect accept and switched to authoritative `loadState()` refresh;
+  - added in-flight guard to block duplicate connect submissions;
+  - disabled edgehandles preview artifacts in current bundle (`preview: false`);
+  - disabled tap-fallback on desktop when edgehandles is available (kept fallback for coarse pointers / no edgehandles).
+- Added explicit Internet context directly in builder:
+  - virtual `Internet` node on canvas;
+  - virtual egress edges from detected exit nodes (nodes with no downstream hops);
+  - right-side `Internet` section showing current egress nodes.
+- Improved cascade validation clarity (`why this won't work`):
+  - bidirectional hop conflict detection;
+  - mixed reverse/forward mode in one connected chain marked as invalid;
+  - no-Internet-egress validation;
+  - strict single-upstream/single-downstream constraints for current builder iteration.
+- Localized new validation and Internet UI copy for `ru` + `en`.
+- Code commit:
+  - `96e70b1` — `fix: stabilize builder links and add internet egress context`.
+
+Change type:
+
+- `local patch` — builder UX/logic hardening
+- `stability fix` — connect flow dedupe + ghost-line prevention
 - `stability fix` — onboarding status-path legacy read minimization
 
 ## 2026-04-17 Live Mixed-Run Verification (Operational)

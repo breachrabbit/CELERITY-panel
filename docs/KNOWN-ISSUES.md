@@ -390,6 +390,27 @@ What is still pending:
 
 Status: `pending verification`
 
+### 13. Cascade builder could show temporary extra lines before refresh (drag-connect UX race)
+
+Issue history:
+
+- during interactive connect on builder canvas, users could see temporary extra/ghost lines;
+- after page refresh, only persisted hops remained, which made behavior confusing.
+
+Current state after patch (`96e70b1`):
+
+- draft connect now reloads canonical builder state immediately instead of optimistic local edge insert;
+- duplicate connect submissions are guarded via `connectInFlight`;
+- edgehandles preview artifacts reduced by disabling preview in current bundle;
+- desktop tap fallback is disabled when edgehandles is available (fallback kept for coarse pointers).
+
+What is still pending:
+
+- live visual verification on stand with repeated drag-connect attempts;
+- if residual artifacts remain, route spacing/turn offsets should be tuned further.
+
+Status: `pending verification`
+
 ### 12. Stand topology still contains temporary mixed-run artifacts
 
 Issue history:
