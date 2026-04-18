@@ -2533,7 +2533,6 @@ MIRROR_URL_2="${proxyBase ? `https://mirror.ghproxy.com/${proxyBase}` : ''}"
 MIRROR_URL_3="${proxyBase ? `https://ghproxy.net/${proxyBase}` : ''}"
 PRELOADED_AMD64=${shellQuote(preloadedAmd64)}
 PRELOADED_ARM64=${shellQuote(preloadedArm64)}
-echo "Agent release source: $GITHUB_URL"
 
 # Clean up any previous broken/stale binary before downloading
 rm -f /usr/local/bin/cc-agent
@@ -2543,16 +2542,17 @@ DOWNLOADED=0
 if [ "$BIN_NAME" = "cc-agent-linux-arm64" ] && [ -n "$PRELOADED_ARM64" ] && [ -s "$PRELOADED_ARM64" ]; then
     cp "$PRELOADED_ARM64" /usr/local/bin/cc-agent
     chmod +x /usr/local/bin/cc-agent
-    echo "Done: cc-agent installed from panel bundle ($BIN_NAME)"
+    echo "Done: cc-agent installed from panel bundle ($BIN_NAME, source=panel-image)"
     DOWNLOADED=1
 elif [ "$BIN_NAME" = "cc-agent-linux-amd64" ] && [ -n "$PRELOADED_AMD64" ] && [ -s "$PRELOADED_AMD64" ]; then
     cp "$PRELOADED_AMD64" /usr/local/bin/cc-agent
     chmod +x /usr/local/bin/cc-agent
-    echo "Done: cc-agent installed from panel bundle ($BIN_NAME)"
+    echo "Done: cc-agent installed from panel bundle ($BIN_NAME, source=panel-image)"
     DOWNLOADED=1
 fi
 
 if [ "$DOWNLOADED" = "0" ]; then
+    echo "Agent bundle is unavailable, falling back to release download source: $GITHUB_URL"
     for ATTEMPT in 1 2 3; do
         echo "Download attempt $ATTEMPT/3..."
         for URL in "$GITHUB_URL" "$MIRROR_URL_1" "$MIRROR_URL_2" "$MIRROR_URL_3"; do
