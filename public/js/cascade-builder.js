@@ -68,7 +68,10 @@
     const REALITY_FINGERPRINT_OPTIONS = ['chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'randomized'];
     const INTERNET_NODE_ID = '__internet__';
     const BUILDER_NODE_WIDTH = 156;
+    const BUILDER_NODE_HEIGHT = 58;
     const BUILDER_PORT_OFFSET = 0;
+    const BUILDER_NODE_COLLISION_PADDING = 26;
+    const INTERNET_NODE_COLLISION_PADDING = 34;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -86,6 +89,10 @@
 
     function sleep(ms = 0) {
         return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+    }
+
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, Number(value) || 0));
     }
 
     function getBuilderWorkspaceElement() {
@@ -734,8 +741,8 @@
                 style: {
                     'line-style': 'dashed',
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'center',
-                    'target-endpoint': 'center',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -1321,6 +1328,190 @@
         state.cy.nodes('[isPort != 1]').forEach((node) => syncNodePorts(node.id()));
     }
 
+    function getNodeCollisionRadius(node) {
+        if (!node) return 0;
+        const resolvedNode = (typeof node.first === 'function' && typeof node.width !== 'function')
+            ? node.first()
+            : node;
+        if (!resolvedNode || typeof resolvedNode.width !== 'function') return 0;
+        const width = Number(resolvedNode.width()) || BUILDER_NODE_WIDTH;
+        const height = Number(resolvedNode.height()) || BUILDER_NODE_HEIGHT;
+        return (Math.max(width, height) / 2) + BUILDER_NODE_COLLISION_PADDING;
+    }
+
+    function getNodePosition(node) {
+        const resolvedNode = (typeof node?.first === 'function' && typeof node?.position !== 'function')
+            ? node.first()
+            : node;
+        const position = resolvedNode?.position?.() || {};
+        return {
+            x: Number(position.x) || 0,
+            y: Number(position.y) || 0,
+        };
+    }
+
+    function resolveNodeCollisions({
+        preserveNodeId = '',
+        includeInternet = true,
+        maxIterations = 8,
+    } = {}) {
+        if (!state.cy) return;
+        const nodes = state.cy.nodes('[isPort != 1][isVirtualInternet != 1]').toArray();
+        if (nodes.length <= 1 && !includeInternet) return;
+
+        const lockedNodeId = String(preserveNodeId || '').trim();
+        const internetNode = includeInternet ? state.cy.getElementById(INTERNET_NODE_ID) : null;
+        const hasInternet = Boolean(internetNode && internetNode.length);
+
+        let movedAny = false;
+        for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+            let movedThisIteration = false;
+
+            for (let i = 0; i < nodes.length; i += 1) {
+                const firstNode = nodes[i];
+                if (!firstNode || typeof firstNode.position !== 'function') continue;
+                for (let j = i + 1; j < nodes.length; j += 1) {
+                    const secondNode = nodes[j];
+                    if (!secondNode || typeof secondNode.position !== 'function') continue;
+
+                    const firstPos = getNodePosition(firstNode);
+                    const secondPos = getNodePosition(secondNode);
+                    const dx = secondPos.x - firstPos.x;
+                    const dy = secondPos.y - firstPos.y;
+                    const distance = Math.hypot(dx, dy) || 0;
+                    const minDistance = getNodeCollisionRadius(firstNode) + getNodeCollisionRadius(secondNode);
+                    if (!Number.isFinite(minDistance) || distance >= minDistance) continue;
+
+                    const overlap = minDistance - Math.max(distance, 0.001);
+                    const nx = distance > 0.001 ? (dx / distance) : 1;
+                    const ny = distance > 0.001 ? (dy / distance) : 0;
+
+                    const firstLocked = lockedNodeId && String(firstNode.id()) === lockedNodeId;
+                    const secondLocked = lockedNodeId && String(secondNode.id()) === lockedNodeId;
+
+                    let firstShift = overlap / 2;
+                    let secondShift = overlap / 2;
+                    if (firstLocked && !secondLocked) {
+                        firstShift = 0;
+                        secondShift = overlap;
+                    } else if (!firstLocked && secondLocked) {
+                        firstShift = overlap;
+                        secondShift = 0;
+                    }
+
+                    if (firstShift > 0) {
+                        firstNode.position({
+                            x: firstPos.x - (nx * firstShift),
+                            y: firstPos.y - (ny * firstShift),
+                        });
+                    }
+                    if (secondShift > 0) {
+                        secondNode.position({
+                            x: secondPos.x + (nx * secondShift),
+                            y: secondPos.y + (ny * secondShift),
+                        });
+                    }
+                    movedThisIteration = true;
+                    movedAny = true;
+                }
+            }
+
+            if (hasInternet) {
+                const internetPos = getNodePosition(internetNode);
+                const internetRadius = getNodeCollisionRadius(internetNode) + INTERNET_NODE_COLLISION_PADDING;
+                nodes.forEach((node) => {
+                    if (!node || typeof node.position !== 'function') return;
+                    if (lockedNodeId && String(node.id()) === lockedNodeId) return;
+                    const nodePos = getNodePosition(node);
+                    const dx = nodePos.x - internetPos.x;
+                    const dy = nodePos.y - internetPos.y;
+                    const distance = Math.hypot(dx, dy) || 0;
+                    const minDistance = internetRadius + getNodeCollisionRadius(node);
+                    if (!Number.isFinite(minDistance) || distance >= minDistance) return;
+
+                    const overlap = minDistance - Math.max(distance, 0.001);
+                    const nx = distance > 0.001 ? (dx / distance) : -1;
+                    const ny = distance > 0.001 ? (dy / distance) : 0;
+                    node.position({
+                        x: nodePos.x + (nx * overlap),
+                        y: nodePos.y + (ny * overlap),
+                    });
+                    movedThisIteration = true;
+                    movedAny = true;
+                });
+            }
+
+            if (!movedThisIteration) break;
+        }
+
+        if (movedAny) {
+            syncAllNodePorts();
+            syncEdgeRoutingGeometry();
+        }
+    }
+
+    function syncEdgeRoutingGeometry() {
+        if (!state.cy) return;
+        const edges = state.cy.edges();
+        if (!edges.length) return;
+
+        const pairBucket = new Map();
+        const reverseCount = new Map();
+        edges.forEach((edge) => {
+            const source = String(edge.data('source') || '').trim();
+            const target = String(edge.data('target') || '').trim();
+            if (!source || !target) return;
+            const key = `${source}->${target}`;
+            if (!pairBucket.has(key)) pairBucket.set(key, []);
+            pairBucket.get(key).push(edge);
+        });
+
+        pairBucket.forEach((_, key) => {
+            const [sourceId, targetId] = key.split('->');
+            const reverseKey = `${targetId}->${sourceId}`;
+            reverseCount.set(key, (pairBucket.get(reverseKey) || []).length);
+        });
+
+        state.cy.batch(() => {
+            pairBucket.forEach((bucket, key) => {
+                const reverseBucketSize = Number(reverseCount.get(key) || 0);
+                const centerIndex = (bucket.length - 1) / 2;
+                bucket.forEach((edge, index) => {
+                    const sourceNode = state.cy.getElementById(String(edge.data('source') || '').trim());
+                    const targetNode = state.cy.getElementById(String(edge.data('target') || '').trim());
+                    if (!sourceNode.length || !targetNode.length) return;
+                    const sourcePos = getNodePosition(sourceNode);
+                    const targetPos = getNodePosition(targetNode);
+                    const dx = targetPos.x - sourcePos.x;
+                    const dy = targetPos.y - sourcePos.y;
+                    const distance = Math.max(Math.hypot(dx, dy), 1);
+
+                    const verticalBias = clamp(Math.abs(dy) * 0.42, 14, 140);
+                    const horizontalBias = clamp(Math.abs(dx) * 0.08, 0, 42);
+                    let curveDistance = (dy >= 0 ? 1 : -1) * (verticalBias + horizontalBias);
+
+                    if (Math.abs(dy) < 18 && Math.abs(dx) > 180) {
+                        curveDistance = 0;
+                    }
+
+                    if (reverseBucketSize > 0) {
+                        curveDistance += ((sourcePos.y <= targetPos.y) ? -24 : 24);
+                    }
+
+                    const fanOffset = (index - centerIndex) * 28;
+                    curveDistance += fanOffset;
+                    curveDistance = clamp(curveDistance, -180, 180);
+
+                    const weightBias = clamp((Math.abs(dx) / distance) * 0.14, 0, 0.14);
+                    const curveWeight = clamp(0.5 + ((dy >= 0 ? -1 : 1) * weightBias), 0.25, 0.75);
+
+                    edge.data('curveDistance', Math.round(curveDistance));
+                    edge.data('curveWeight', Number(curveWeight.toFixed(2)));
+                });
+            });
+        });
+    }
+
     function cleanupTransientBuilderEdges() {
         if (!state.cy) return;
         const staleEdges = state.cy.edges().filter((edge) => {
@@ -1403,6 +1594,7 @@
             y: modelY,
         });
         syncNodePorts(INTERNET_NODE_ID);
+        syncEdgeRoutingGeometry();
     }
 
     function fitRealGraphView(padding = 48) {
@@ -1466,6 +1658,8 @@
         state.cy.one('layoutstop', () => {
             syncAllNodePorts();
             syncInternetNodePosition();
+            resolveNodeCollisions({ includeInternet: true });
+            syncEdgeRoutingGeometry();
             fitRealGraphView(48);
         });
         layoutCollection.layout({
@@ -1703,7 +1897,7 @@
                         status: 'online',
                         flowOffset: 0,
                         curveDistance: 18,
-                        curveWeight: 0.48,
+                        curveWeight: 0.56,
                     },
                     selectable: false,
                 });
@@ -3183,15 +3377,22 @@
         state.connectInFlight = false;
         state.edgeDrawSession = null;
 
-        state.cy = cytoscape({
-            container: document.getElementById('builderCy'),
-            style: getBuilderStyle(),
-            elements: flowToElements(flow),
-            layout: { name: 'preset' },
-            minZoom: 0.2,
-            maxZoom: 4,
-            wheelSensitivity: 0.25,
-        });
+        try {
+            state.cy = cytoscape({
+                container: document.getElementById('builderCy'),
+                style: getBuilderStyle(),
+                elements: flowToElements(flow),
+                layout: { name: 'preset' },
+                minZoom: 0.2,
+                maxZoom: 4,
+                wheelSensitivity: 0.25,
+            });
+        } catch (error) {
+            console.error('[CascadeBuilder] Failed to init Cytoscape:', error);
+            showCanvasFallback(`${i18n.cyUnavailable || 'Builder canvas is unavailable right now.'} ${error.message || ''}`.trim());
+            state.cy = null;
+            return;
+        }
 
         const portNodes = state.cy.nodes('[isPort = 1]');
         if (portNodes.length) {
@@ -3201,11 +3402,14 @@
         scheduleTransientEdgeCleanup();
         startTransientCleanupTicker();
         syncAllNodePorts();
+        syncEdgeRoutingGeometry();
 
         const hasPositions = flow.nodes.some((node) => node.position && typeof node.position.x === 'number');
         if (!hasPositions) {
             runAutoLayout({ animate: true });
         } else {
+            resolveNodeCollisions({ includeInternet: true });
+            syncEdgeRoutingGeometry();
             fitRealGraphView(48);
         }
         syncInternetNodePosition();
@@ -3250,6 +3454,14 @@
         state.cy.on('position', 'node[isPort != 1]', (event) => {
             if (String(event.target.id() || '') === INTERNET_NODE_ID) return;
             syncNodePorts(event.target.id());
+            syncEdgeRoutingGeometry();
+        });
+        state.cy.on('dragfree', 'node[isPort != 1][isVirtualInternet != 1]', (event) => {
+            const nodeId = String(event.target.id() || '').trim();
+            resolveNodeCollisions({
+                preserveNodeId: nodeId,
+                includeInternet: true,
+            });
         });
         state.cy.on('pan zoom resize', () => {
             syncInternetNodePosition();
