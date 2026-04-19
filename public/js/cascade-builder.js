@@ -2706,6 +2706,8 @@
         if (typeof state.cy.edgehandles === 'function') {
             state.edgehandles = state.cy.edgehandles({
                 handleNodes: 'node[isPort != 1][isVirtualInternet != 1], node[isPort = 1][portType = "out"]',
+                handlePosition: 'right middle',
+                handleSize: 14,
                 preview: false,
                 hoverDelay: 80,
                 canConnect: (sourceNode, targetNode) => {
@@ -2779,7 +2781,32 @@
                 setConnectIntent(sourceEndpoint.ownerNodeId, event.target.id());
             });
 
-            state.cy.on('tap', 'node[isPort = 1][portType = "in"], node[isPort != 1][isVirtualInternet != 1]', async (event) => {
+            // Also support node-to-node connect without aiming tiny ports (press-and-hold source node).
+            state.cy.on('taphold', 'node[isPort != 1][isVirtualInternet != 1]', async (event) => {
+                const nodeId = String(event.target.id() || '').trim();
+                if (!nodeId) return;
+                const pending = state.connectIntent;
+                if (!pending?.sourceNodeId) {
+                    setConnectIntent(nodeId, buildPortId(nodeId, 'out'));
+                    return;
+                }
+                const sourceNodeId = String(pending.sourceNodeId || '').trim();
+                clearConnectIntent();
+                if (!sourceNodeId || sourceNodeId === nodeId) return;
+                await handleDraftConnect(sourceNodeId, nodeId);
+            });
+
+            state.cy.on('tap', 'node[isPort != 1][isVirtualInternet != 1]', async (event) => {
+                const pending = state.connectIntent;
+                if (!pending?.sourceNodeId) return;
+                const targetNodeId = String(event.target.id() || '').trim();
+                const sourceNodeId = String(pending.sourceNodeId || '').trim();
+                clearConnectIntent();
+                if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
+                await handleDraftConnect(sourceNodeId, targetNodeId);
+            });
+
+            state.cy.on('tap', 'node[isPort = 1][portType = "in"]', async (event) => {
                 const pending = state.connectIntent;
                 if (!pending?.sourceNodeId) return;
                 const targetEndpoint = resolveConnectEndpoint(event.target);
@@ -2950,6 +2977,7 @@
         const endpoint = draftHop
             ? `/api/cascade-builder/drafts/${encodeURIComponent(hopId)}`
             : `/api/cascade/links/${encodeURIComponent(hopId)}`;
+        const isNotFoundError = (message = '') => /404|not found|не найден|не знайден|черновой хоп/i.test(String(message || '').toLowerCase());
         try {
             const result = await requestJson(endpoint, { method: 'DELETE' });
             if (showToast) {
@@ -2995,6 +3023,14 @@
                         error.message = `${error.message}; fallback(${fallbackId}): ${fallbackError.message}`;
                     }
                 }
+            }
+            if (isNotFoundError(error?.message)) {
+                if (reload) {
+                    await loadState();
+                } else {
+                    pruneHopFromLocalState(hop, hopId);
+                }
+                return { success: true, skipped: true };
             }
             if (showToast) {
                 const failedMessage = draftHop
@@ -3223,7 +3259,8 @@
         }
 
         const failures = [];
-        for (const hop of hops) {
+        const hopsToReset = [...hops];
+        for (const hop of hopsToReset) {
             const result = await removeHopConnection(hop, {
                 confirm: false,
                 reload: false,
@@ -3238,6 +3275,9 @@
         }
 
         await loadState();
+        setTimeout(() => {
+            loadState().catch(() => {});
+        }, 900);
 
         if (failures.length) {
             const sample = failures.slice(0, 2)

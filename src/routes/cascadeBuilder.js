@@ -1269,6 +1269,43 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
             return res.status(404).json({ error: tFor(res, 'cascades.sourceOrTargetMissing', 'Source or target node was not found in the current builder state.') });
         }
 
+        const normalizedSourceId = String(sourceNode.id || '').trim();
+        const normalizedTargetId = String(targetNode.id || '').trim();
+        const existingHop = (state.hops || []).find((hop) => (
+            String(hop?.sourceNodeId || '').trim() === normalizedSourceId
+            && String(hop?.targetNodeId || '').trim() === normalizedTargetId
+        ));
+        if (existingHop) {
+            const duplicateMessage = tFor(
+                res,
+                'cascades.validationDuplicateHop',
+                'Duplicate hop detected between {source} and {target}.',
+                {
+                    source: sourceNode.name || normalizedSourceId,
+                    target: targetNode.name || normalizedTargetId,
+                },
+            );
+            return res.json({
+                suggestion: buildDraftHopSuggestion({ sourceNode, targetNode, mode }),
+                accepted: false,
+                existingHopId: String(existingHop.id || existingHop.edgeId || ''),
+                draftHop: null,
+                validation: {
+                    status: 'error',
+                    errors: [{ code: 'duplicate-hop', message: duplicateMessage }],
+                    warnings: [],
+                    summary: {
+                        nodes: state.nodes.length,
+                        hops: state.hops.length,
+                        draftHops: state.hops.filter((hop) => hop?.isDraft).length,
+                        internetExitNodes: 0,
+                        errors: 1,
+                        warnings: 0,
+                    },
+                },
+            });
+        }
+
         const draftSuggestion = buildDraftHopSuggestion({ sourceNode, targetNode, mode });
         const draftNonce = Date.now();
         const draftHop = {
@@ -1310,6 +1347,42 @@ router.post('/connect', requireScope('nodes:write'), async (req, res) => {
         if (validation.errors.length === 0) {
             const storedDraft = await getStoredDraft(req, state.flowId);
             const draftHops = Array.isArray(storedDraft?.draftHops) ? storedDraft.draftHops : [];
+            const draftDuplicate = draftHops.find((hop) => (
+                String(hop?.sourceNodeId || '').trim() === normalizedSourceId
+                && String(hop?.targetNodeId || '').trim() === normalizedTargetId
+            ));
+            if (draftDuplicate) {
+                return res.json({
+                    suggestion: draftSuggestion,
+                    accepted: false,
+                    existingHopId: String(draftDuplicate.id || draftDuplicate.edgeId || ''),
+                    draftHop: null,
+                    validation: {
+                        status: 'error',
+                        errors: [{
+                            code: 'duplicate-hop',
+                            message: tFor(
+                                res,
+                                'cascades.validationDuplicateHop',
+                                'Duplicate hop detected between {source} and {target}.',
+                                {
+                                    source: sourceNode.name || normalizedSourceId,
+                                    target: targetNode.name || normalizedTargetId,
+                                },
+                            ),
+                        }],
+                        warnings: [],
+                        summary: {
+                            nodes: state.nodes.length,
+                            hops: state.hops.length,
+                            draftHops: draftHops.length,
+                            internetExitNodes: 0,
+                            errors: 1,
+                            warnings: 0,
+                        },
+                    },
+                });
+            }
             const nodePositions = storedDraft?.nodePositions && typeof storedDraft.nodePositions === 'object'
                 ? storedDraft.nodePositions
                 : {};
