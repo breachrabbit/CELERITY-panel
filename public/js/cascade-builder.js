@@ -74,6 +74,9 @@
     const BUILDER_PORT_OFFSET = 0;
     const BUILDER_NODE_COLLISION_PADDING = 26;
     const INTERNET_NODE_COLLISION_PADDING = 52;
+    const LAYOUT_SANITY_MAX_ABS = 12000;
+    const LAYOUT_SANITY_MAX_SPREAD = 6000;
+    const LAYOUT_SANITY_MIN_GAP = 28;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -677,8 +680,8 @@
                 selector: 'edge',
                 style: {
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'inside-to-node',
-                    'target-endpoint': 'inside-to-node',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -743,8 +746,8 @@
                 style: {
                     'line-style': 'dashed',
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'inside-to-node',
-                    'target-endpoint': 'inside-to-node',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -1488,31 +1491,27 @@
                     const dy = targetPos.y - sourcePos.y;
                     const distance = Math.max(Math.hypot(dx, dy), 1);
                     const lrDirection = sourcePos.x <= targetPos.x ? 1 : -1;
-                    const verticalBias = clamp(Math.abs(dy) * 0.48, 18, 160);
-                    const horizontalBias = clamp(Math.abs(dx) * 0.1, 0, 58);
-                    let curveDistance = (dy >= 0 ? 1 : -1) * (verticalBias + horizontalBias);
-
-                    // Keep long near-horizontal links gently curved instead of collapsing into flat lines.
-                    if (Math.abs(dy) < 26 && Math.abs(dx) > 120) {
-                        const horizontalCurve = clamp((Math.abs(dx) * 0.06) + 24, 24, 82);
-                        curveDistance = lrDirection * horizontalCurve;
-                    }
+                    const verticalBias = clamp((Math.abs(dy) * 0.34) + (Math.abs(dx) * 0.03), 16, 120);
+                    const horizontalCurve = clamp((Math.abs(dx) * 0.085) + 18, 18, 96);
+                    const nearHorizontal = Math.abs(dy) < 32;
+                    let curveDistance = nearHorizontal
+                        ? (lrDirection * horizontalCurve)
+                        : ((dy >= 0 ? 1 : -1) * verticalBias);
 
                     if (reverseBucketSize > 0) {
-                        curveDistance += ((sourcePos.y <= targetPos.y) ? -24 : 24);
+                        curveDistance += ((sourcePos.y <= targetPos.y) ? -30 : 30);
                     }
 
-                    const fanOffset = (index - centerIndex) * 28;
+                    const fanOffset = (index - centerIndex) * 32;
                     curveDistance += fanOffset;
                     curveDistance = clamp(curveDistance, -180, 180);
 
-                    const directionalWeight = lrDirection > 0 ? 0.38 : 0.62;
-                    const verticalWeightBias = clamp((Math.abs(dy) / distance) * 0.12, 0, 0.12);
-                    const curveWeight = clamp(
-                        directionalWeight + ((dy >= 0 ? -1 : 1) * verticalWeightBias),
-                        0.22,
-                        0.78,
-                    );
+                    const horizontalRatio = clamp(Math.abs(dx) / distance, 0, 1);
+                    const verticalWeightBias = clamp((1 - horizontalRatio) * 0.16, 0, 0.16);
+                    let curveWeight = lrDirection > 0 ? 0.33 : 0.67;
+                    curveWeight += (dy >= 0 ? -1 : 1) * verticalWeightBias;
+                    curveWeight += clamp((index - centerIndex) * 0.06, -0.12, 0.12);
+                    curveWeight = clamp(curveWeight, 0.16, 0.84);
 
                     edge.data('curveDistance', Math.round(curveDistance));
                     edge.data('curveWeight', Number(curveWeight.toFixed(2)));
@@ -1545,8 +1544,25 @@
         });
 
         if (forceLayout || !inViewport.length) {
+            if (forceLayout) {
+                const columns = clamp(Math.ceil(Math.sqrt(graphNodes.length)), 2, 4);
+                const stepX = BUILDER_NODE_WIDTH + 130;
+                const stepY = BUILDER_NODE_HEIGHT + 130;
+                state.cy.batch(() => {
+                    graphNodes.forEach((node, index) => {
+                        const row = Math.floor(index / columns);
+                        const col = index % columns;
+                        node.position({
+                            x: 240 + (col * stepX),
+                            y: 170 + (row * stepY),
+                        });
+                    });
+                });
+                syncAllNodePorts();
+                syncInternetNodePosition();
+            }
             runAutoLayout({ animate: false });
-            fitRealGraphView(48);
+            fitRealGraphView(64);
             return;
         }
 
@@ -1877,20 +1893,53 @@
         }));
 
         const hasAnyValidPosition = preparedNodes.some((node) => hasFinitePosition(node.position));
-        if (hasAnyValidPosition && preparedNodes.every((node) => hasFinitePosition(node.position))) {
-            flow.nodes = preparedNodes;
-            return flow;
+        const allValidPositions = preparedNodes.every((node) => hasFinitePosition(node.position));
+        if (hasAnyValidPosition && allValidPositions) {
+            const xs = preparedNodes.map((node) => Number(node.position.x) || 0);
+            const ys = preparedNodes.map((node) => Number(node.position.y) || 0);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+            const spreadX = Math.abs(maxX - minX);
+            const spreadY = Math.abs(maxY - minY);
+            const maxAbs = Math.max(
+                ...xs.map((value) => Math.abs(value)),
+                ...ys.map((value) => Math.abs(value)),
+            );
+
+            let overlapHits = 0;
+            for (let i = 0; i < preparedNodes.length; i += 1) {
+                for (let j = i + 1; j < preparedNodes.length; j += 1) {
+                    const first = preparedNodes[i]?.position || {};
+                    const second = preparedNodes[j]?.position || {};
+                    const distance = Math.hypot(
+                        Number(first.x || 0) - Number(second.x || 0),
+                        Number(first.y || 0) - Number(second.y || 0),
+                    );
+                    if (distance < LAYOUT_SANITY_MIN_GAP) overlapHits += 1;
+                }
+            }
+
+            const tooManyOverlaps = overlapHits > Math.max(1, Math.floor(preparedNodes.length / 2));
+            const outOfRange = maxAbs > LAYOUT_SANITY_MAX_ABS;
+            const overSpread = spreadX > LAYOUT_SANITY_MAX_SPREAD || spreadY > LAYOUT_SANITY_MAX_SPREAD;
+            if (!tooManyOverlaps && !outOfRange && !overSpread) {
+                flow.__positionRecoveryRequired = false;
+                flow.nodes = preparedNodes;
+                return flow;
+            }
         }
 
         const unresolvedNodes = preparedNodes.filter((node) => !hasFinitePosition(node.position));
-        const anchorNode = preparedNodes.find((node) => hasFinitePosition(node.position));
-        const startX = anchorNode ? Number(anchorNode.position.x) + 220 : 260;
-        const startY = anchorNode ? Number(anchorNode.position.y) : 180;
+        const nodesToRelayout = unresolvedNodes.length ? unresolvedNodes : preparedNodes;
+        const startX = 260;
+        const startY = 180;
         const columns = clamp(Math.ceil(Math.sqrt(preparedNodes.length)), 2, 4);
         const stepX = BUILDER_NODE_WIDTH + 120;
         const stepY = BUILDER_NODE_HEIGHT + 120;
 
-        unresolvedNodes.forEach((node, index) => {
+        nodesToRelayout.forEach((node, index) => {
             const row = Math.floor(index / columns);
             const col = index % columns;
             node.position = {
@@ -1899,6 +1948,7 @@
             };
         });
 
+        flow.__positionRecoveryRequired = true;
         flow.nodes = preparedNodes;
         return flow;
     }
@@ -3527,8 +3577,9 @@
         syncEdgeRoutingGeometry();
 
         const hasPositions = flow.nodes.some((node) => node.position && typeof node.position.x === 'number');
-        if (!hasPositions) {
-            runAutoLayout({ animate: true });
+        const shouldForceAutoLayout = Boolean(flow.__positionRecoveryRequired);
+        if (!hasPositions || shouldForceAutoLayout) {
+            runAutoLayout({ animate: !shouldForceAutoLayout });
         } else {
             resolveNodeCollisions({ includeInternet: true });
             syncEdgeRoutingGeometry();
