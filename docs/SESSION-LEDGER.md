@@ -984,3 +984,17 @@
   - verify live on stand with same user scenario (xray-relay-xray);
   - if any ghost link remains, add server-side dedupe guard in `/api/cascade-builder/connect`;
   - continue automation path (role transitions + background reconcile notifications).
+
+## 2026-04-18 Session — Builder Connect/Reset Follow-up
+
+- Worked on:
+  - remaining builder usability issues from live run (extra links + non-realtime reset + port-only connect).
+- Finished with:
+  - code commit `017a100` in `main`;
+  - node-body drag connect enabled (right-side card drag gesture);
+  - client-side flow hop normalization to suppress duplicate directional links in canvas;
+  - reset links now converges with bounded state re-poll (no manual refresh dependency).
+- Next step:
+  - verify on stand that connect/disconnect/reset behaves consistently in one pass;
+  - if server still returns duplicated links under race, add backend idempotency/dedupe in `/api/cascade-builder/state` or `/api/cascade-builder/connect`;
+  - continue cascade automation track after builder UX is stable.

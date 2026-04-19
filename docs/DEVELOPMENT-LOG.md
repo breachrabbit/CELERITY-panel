@@ -2049,3 +2049,25 @@ Change type:
 
 Change type:
 - `stability fix` — cascade connect/reset behavior under real operator flow
+
+## 2026-04-18 Cascade Builder Node-Drag Connect + Realtime Reset Convergence (shipped)
+
+- Worked on follow-up UX issues from live `xray-relay-xray` run:
+  - occasional extra links in canvas after connect;
+  - need to connect by dragging from node card body (not only port circles);
+  - reset/disconnect should converge in UI without manual page refresh.
+- Shipped in:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/public/js/cascade-builder.js`
+- Changes:
+  - added body-drag connect trigger (`tapstart` on right side of node card starts edge draw);
+  - added render-time hop normalization/dedupe by directional pair for stable canvas state;
+  - strengthened realtime unlink path (`prune + summary/validation/internet rerender` without forced reload);
+  - reset links now performs bounded re-poll (`loadState` retries) until post-reset hop count converges.
+- Code commit:
+  - `017a100` — `fix: improve cascade connect drag and realtime link reset sync`
+- Delivery:
+  - pushed to `main` (`origin/main` updated).
+
+Change type:
+- `stability fix` — cascade builder link rendering and reset consistency
+- `ux polish` — node-body drag connect flow

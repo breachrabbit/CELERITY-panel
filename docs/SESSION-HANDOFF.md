@@ -3272,6 +3272,40 @@ Immediate next step:
    - auto standalone restore on cascade detach,
    - auto role transition + reconcile notifications.
 
+## 2026-04-18 Update — Node-Body Drag Connect + Reset Convergence
+
+Done in this session:
+- Shipped code fix:
+  - `017a100` — `fix: improve cascade connect drag and realtime link reset sync`
+- File:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/public/js/cascade-builder.js`
+- Functional changes:
+  1. Node-body drag connect:
+     - connect can now start from the right side of node card body (`tapstart` threshold), not only from tiny out-port circles.
+  2. Canvas duplicate suppression:
+     - render-time hop normalization/dedupe by directional pair keeps canvas stable when duplicate link payload appears.
+  3. Realtime unlink/reset feedback:
+     - local prune path now rerenders summary/validation/internet sections immediately;
+     - reset action now performs bounded `loadState` retries until hop count converges, reducing manual refresh need.
+
+Current stop-point:
+- Code is in `main` and pushed (`origin/main`).
+- Need live stand verification on the exact user scenario:
+  - build/rebuild `xray-relay-xray`,
+  - reset/unlink links in one pass,
+  - confirm no phantom links appear after connect and no forced manual refresh is needed.
+
+Immediate next step:
+1. Run live builder smoke on stand:
+   - node-body drag connect;
+   - out-port connect;
+   - right-click disconnect;
+   - reset all links.
+2. If duplicates still appear from backend payload race:
+   - add backend guard in cascade-builder state/connect path (idempotent directional-pair dedupe).
+3. Continue planned automation wave only after builder interaction is stable:
+   - auto standalone restore and role reconcile notifications.
+
 ## Prompt For Next Session (Latest, supersedes older prompts)
 
 ```text
