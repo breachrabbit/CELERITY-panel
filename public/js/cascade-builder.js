@@ -39,6 +39,7 @@
         lastConnectAt: 0,
         connectFallbackEnabled: false,
         dragConnectSession: null,
+        dragConnectDocCleanup: null,
         transientCleanupTimer: null,
         tooltipHideTimer: null,
         confirmResolver: null,
@@ -77,6 +78,28 @@
         return document.querySelector('.builder-workspace');
     }
 
+    function getBuilderCanvasWrapElement() {
+        return document.querySelector('.builder-canvas-wrap');
+    }
+
+    function ensureDragOverlayElements() {
+        const wrap = getBuilderCanvasWrapElement();
+        if (!wrap) return null;
+
+        let overlay = document.getElementById('builderConnectDragOverlay');
+        if (!overlay) {
+            overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            overlay.setAttribute('id', 'builderConnectDragOverlay');
+            overlay.setAttribute('class', 'builder-connect-drag-overlay');
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.innerHTML = '<line id="builderConnectDragLine" class="builder-connect-drag-line" x1="0" y1="0" x2="0" y2="0"></line>';
+            wrap.appendChild(overlay);
+        }
+        const line = document.getElementById('builderConnectDragLine');
+        if (!line) return null;
+        return { overlay, line, wrap };
+    }
+
     function getBuilderErrorTooltipElement() {
         return document.getElementById('builderErrorTooltip');
     }
@@ -90,6 +113,17 @@
         }
         tooltip.classList.remove('is-visible');
         tooltip.innerHTML = '';
+    }
+
+    function getClientPointFromEventLike(eventLike) {
+        if (!eventLike) return null;
+        const point = eventLike.touches?.[0]
+            || eventLike.changedTouches?.[0]
+            || eventLike;
+        const clientX = Number(point?.clientX);
+        const clientY = Number(point?.clientY);
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+        return { x: clientX, y: clientY };
     }
 
     function showBuilderErrorTooltip(message, hint = '') {
@@ -595,6 +629,17 @@
                 },
             },
             {
+                selector: 'node[isPort = 1].builder-connect-target',
+                style: {
+                    'border-color': '#08C5CB',
+                    'border-width': 3,
+                    'background-color': '#e7fcfd',
+                    'shadow-blur': 6,
+                    'shadow-opacity': 0.24,
+                    'shadow-color': '#08C5CB',
+                },
+            },
+            {
                 selector: 'edge',
                 style: {
                     'curve-style': 'unbundled-bezier',
@@ -860,8 +905,114 @@
     }
 
     function clearDragConnectSession({ clearIntent = true } = {}) {
+        if (typeof state.dragConnectDocCleanup === 'function') {
+            state.dragConnectDocCleanup();
+        }
+        state.dragConnectDocCleanup = null;
+        const overlayNodes = ensureDragOverlayElements();
+        if (overlayNodes) {
+            overlayNodes.overlay.classList.remove('is-active');
+        }
+        if (state.cy) {
+            state.cy.nodes('node[isPort = 1][portType = "in"]').removeClass('builder-connect-target');
+        }
         state.dragConnectSession = null;
         if (clearIntent) clearConnectIntent();
+    }
+
+    function getPortClientPoint(portId) {
+        if (!state.cy) return null;
+        const portNode = state.cy.getElementById(String(portId || '').trim());
+        if (!portNode.length) return null;
+        const container = state.cy.container();
+        if (!container || typeof container.getBoundingClientRect !== 'function') return null;
+        const rect = container.getBoundingClientRect();
+        const rendered = portNode.renderedPosition();
+        const x = Number(rect.left) + Number(rendered?.x || 0);
+        const y = Number(rect.top) + Number(rendered?.y || 0);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x, y };
+    }
+
+    function updateDragOverlayLine(sourceClientPoint, targetClientPoint) {
+        const overlayNodes = ensureDragOverlayElements();
+        if (!overlayNodes || !sourceClientPoint || !targetClientPoint) return;
+        const wrapRect = overlayNodes.wrap.getBoundingClientRect();
+        const x1 = Number(sourceClientPoint.x) - Number(wrapRect.left);
+        const y1 = Number(sourceClientPoint.y) - Number(wrapRect.top);
+        const x2 = Number(targetClientPoint.x) - Number(wrapRect.left);
+        const y2 = Number(targetClientPoint.y) - Number(wrapRect.top);
+        overlayNodes.line.setAttribute('x1', String(x1));
+        overlayNodes.line.setAttribute('y1', String(y1));
+        overlayNodes.line.setAttribute('x2', String(x2));
+        overlayNodes.line.setAttribute('y2', String(y2));
+        overlayNodes.overlay.classList.add('is-active');
+    }
+
+    function updateDragOverlayFromClientPoint(clientPoint) {
+        const session = state.dragConnectSession;
+        if (!session?.showLine || !session?.sourcePortId) return;
+        if (!clientPoint) return;
+        const sourcePoint = getPortClientPoint(session.sourcePortId);
+        if (!sourcePoint) return;
+        updateDragOverlayLine(sourcePoint, clientPoint);
+    }
+
+    function bindDragDocumentListeners() {
+        if (typeof state.dragConnectDocCleanup === 'function') {
+            state.dragConnectDocCleanup();
+        }
+        const onMove = (ev) => {
+            if (!state.dragConnectSession?.showLine) return;
+            const point = getClientPointFromEventLike(ev);
+            if (!point) return;
+            updateDragOverlayFromClientPoint(point);
+        };
+        const onUp = () => {
+            setTimeout(() => {
+                if (!state.dragConnectSession) return;
+                clearDragConnectSession({ clearIntent: true });
+            }, 0);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('touchmove', onMove, { passive: true });
+        document.addEventListener('mouseup', onUp);
+        document.addEventListener('touchend', onUp);
+        document.addEventListener('touchcancel', onUp);
+        state.dragConnectDocCleanup = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.removeEventListener('touchend', onUp);
+            document.removeEventListener('touchcancel', onUp);
+        };
+    }
+
+    function startPortDragConnect(event, portNode) {
+        const sourceEndpoint = resolveConnectEndpoint(portNode);
+        if (!sourceEndpoint.ownerNodeId || sourceEndpoint.portType !== 'out') return false;
+        const sourceNodeId = String(sourceEndpoint.ownerNodeId || '').trim();
+        const sourcePortId = String(portNode.id() || '').trim();
+        if (!sourceNodeId || !sourcePortId) return false;
+        if (state.connectInFlight) return false;
+
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+        hideBuilderErrorTooltip();
+        setConnectIntent(sourceNodeId, sourcePortId);
+        state.cy?.nodes('node[isPort = 1][portType = "in"]').addClass('builder-connect-target');
+        state.dragConnectSession = {
+            sourceNodeId,
+            sourcePortId,
+            startedAt: Date.now(),
+            showLine: true,
+        };
+        bindDragDocumentListeners();
+        const startPoint = getPortClientPoint(sourcePortId);
+        if (startPoint) {
+            updateDragOverlayLine(startPoint, startPoint);
+        }
+        return true;
     }
 
     function startBodyDragConnect(event, nodeElement) {
@@ -874,14 +1025,15 @@
         setConnectIntent(sourceNodeId, buildPortId(sourceNodeId, 'out'));
         state.dragConnectSession = {
             sourceNodeId,
+            sourcePortId: buildPortId(sourceNodeId, 'out'),
             startedAt: Date.now(),
+            showLine: false,
         };
         return true;
     }
 
     function shouldStartBodyConnectDrag(event, nodeElement) {
         if (!event || !nodeElement || !nodeElement.length) return false;
-        if (!state.edgehandles || typeof state.edgehandles.start !== 'function') return false;
         if (state.edgeDrawActive || state.connectInFlight) return false;
         if (state.connectIntent?.sourceNodeId) return false;
 
@@ -2843,6 +2995,7 @@
 
         state.cy.on('tap', (event) => {
             if (event.target === state.cy) {
+                clearDragConnectSession({ clearIntent: true });
                 clearConnectIntent();
                 scheduleTransientEdgeCleanup();
                 hideBuilderErrorTooltip();
@@ -2860,7 +3013,7 @@
 
         if (typeof state.cy.edgehandles === 'function') {
             state.edgehandles = state.cy.edgehandles({
-                handleNodes: 'node[isPort != 1][isVirtualInternet != 1], node[isPort = 1][portType = "out"]',
+                handleNodes: 'node[isPort != 1][isVirtualInternet != 1]',
                 handlePosition: 'right middle',
                 handleSize: 14,
                 preview: false,
@@ -2899,18 +3052,21 @@
         state.cy.on('mousedown', 'node[isPort != 1][isVirtualInternet != 1]', (event) => {
             startBodyDragConnect(event, event.target);
         });
+        state.cy.on('mousedown', 'node[isPort = 1][portType = "out"]', (event) => {
+            startPortDragConnect(event, event.target);
+        });
         state.cy.on('tapstart', 'node[isPort != 1][isVirtualInternet != 1]', (event) => {
             // touch fallback: keep old behavior for mobile/tablet.
             const started = startBodyDragConnect(event, event.target);
             if (started) return;
             if (!shouldStartBodyConnectDrag(event, event.target)) return;
+            if (!state.edgehandles || typeof state.edgehandles.start !== 'function') return;
             hideBuilderErrorTooltip();
             clearConnectIntent();
             try {
                 state.edgehandles.start(event.target);
             } catch (_) {}
         });
-
         state.cy.on('ehstart', (event, sourceNode) => {
             state.edgeDrawActive = true;
             const endpoint = resolveConnectEndpoint(sourceNode && sourceNode.length ? sourceNode : event?.target);
@@ -2946,6 +3102,7 @@
         if (state.connectFallbackEnabled) {
             // Stable connect mode: tap OUT port -> tap target node/IN port.
             state.cy.on('tap', 'node[isPort = 1][portType = "out"]', (event) => {
+                if (state.dragConnectSession?.showLine) return;
                 const sourceEndpoint = resolveConnectEndpoint(event.target);
                 if (!sourceEndpoint.ownerNodeId) return;
                 setConnectIntent(sourceEndpoint.ownerNodeId, event.target.id());
@@ -3007,6 +3164,23 @@
                 clearDragConnectSession({ clearIntent: true });
                 if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
                 await handleDraftConnect(sourceNodeId, targetNodeId);
+            });
+            state.cy.on('mouseup', 'node[isPort = 1][portType = "in"]', async (event) => {
+                const session = state.dragConnectSession;
+                if (!session?.sourceNodeId) return;
+                const sourceNodeId = String(session.sourceNodeId || '').trim();
+                const targetEndpoint = resolveConnectEndpoint(event.target);
+                const targetNodeId = String(targetEndpoint.ownerNodeId || '').trim();
+                clearDragConnectSession({ clearIntent: true });
+                if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
+                await handleDraftConnect(sourceNodeId, targetNodeId);
+            });
+            state.cy.on('mousemove', (event) => {
+                const session = state.dragConnectSession;
+                if (!session?.showLine) return;
+                const point = getClientPointFromEventLike(event.originalEvent || event);
+                if (!point) return;
+                updateDragOverlayFromClientPoint(point);
             });
 
             state.cy.on('mouseup', (event) => {
