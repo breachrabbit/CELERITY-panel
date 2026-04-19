@@ -38,6 +38,7 @@
         lastConnectSignature: '',
         lastConnectAt: 0,
         connectFallbackEnabled: false,
+        transientCleanupTimer: null,
         tooltipHideTimer: null,
         confirmResolver: null,
         confirmOpen: false,
@@ -895,6 +896,7 @@
             return !isVirtualInternet && !hopId;
         });
         if (staleEdges.length) staleEdges.remove();
+        dedupeRenderedHopEdges();
     }
 
     function scheduleTransientEdgeCleanup() {
@@ -902,6 +904,45 @@
         requestAnimationFrame(() => {
             cleanupTransientBuilderEdges();
         });
+    }
+
+    function dedupeRenderedHopEdges() {
+        if (!state.cy) return;
+        const seen = new Set();
+        const duplicates = [];
+        state.cy.edges().forEach((edge) => {
+            const isVirtualInternet = Number(edge.data('isVirtualInternet')) === 1;
+            if (isVirtualInternet) return;
+            const hopId = String(edge.data('hopId') || '').trim();
+            const source = String(edge.data('source') || '').trim();
+            const target = String(edge.data('target') || '').trim();
+            const key = hopId ? `hop:${hopId}` : `pair:${source}->${target}`;
+            if (seen.has(key)) {
+                duplicates.push(edge);
+                return;
+            }
+            seen.add(key);
+        });
+        if (duplicates.length) {
+            state.cy.remove(duplicates);
+            syncEdgeFlowAnimation();
+        }
+    }
+
+    function stopTransientCleanupTicker() {
+        if (state.transientCleanupTimer) {
+            clearInterval(state.transientCleanupTimer);
+            state.transientCleanupTimer = null;
+        }
+    }
+
+    function startTransientCleanupTicker() {
+        stopTransientCleanupTicker();
+        state.transientCleanupTimer = setInterval(() => {
+            if (!state.cy) return;
+            if (state.edgeDrawActive || state.connectInFlight) return;
+            cleanupTransientBuilderEdges();
+        }, 900);
     }
 
     function syncInternetNodePosition() {
@@ -2627,6 +2668,7 @@
     function initCy(flow) {
         if (state.cy) {
             stopEdgeFlowAnimation();
+            stopTransientCleanupTicker();
             state.cy.destroy();
             state.cy = null;
             state.edgehandles = null;
@@ -2649,6 +2691,7 @@
             portNodes.ungrabify();
         }
         scheduleTransientEdgeCleanup();
+        startTransientCleanupTicker();
         syncAllNodePorts();
 
         const hasPositions = flow.nodes.some((node) => node.position && typeof node.position.x === 'number');
@@ -2798,7 +2841,16 @@
 
             state.cy.on('tap', 'node[isPort != 1][isVirtualInternet != 1]', async (event) => {
                 const pending = state.connectIntent;
-                if (!pending?.sourceNodeId) return;
+                if (!pending?.sourceNodeId) {
+                    const detail = Number(event?.originalEvent?.detail || 0);
+                    if (detail >= 2) {
+                        const sourceNodeId = String(event.target.id() || '').trim();
+                        if (sourceNodeId) {
+                            setConnectIntent(sourceNodeId, buildPortId(sourceNodeId, 'out'));
+                        }
+                    }
+                    return;
+                }
                 const targetNodeId = String(event.target.id() || '').trim();
                 const sourceNodeId = String(pending.sourceNodeId || '').trim();
                 clearConnectIntent();
