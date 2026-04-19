@@ -22,6 +22,17 @@
     if (typeof cytoscapeEdgehandles !== 'undefined') cytoscape.use(cytoscapeEdgehandles);
 
     const i18n = window._cascadeBuilderI18n || {};
+
+    (function ensureBuilderThemeBaseline() {
+        const root = document.documentElement;
+        if (!root) return;
+        if (String(root.dataset.theme || '').trim()) return;
+        const storedTheme = localStorage.getItem('hidden-rabbit-theme') || localStorage.getItem('celerity-theme');
+        const mode = ['dark', 'light'].includes(storedTheme)
+            ? storedTheme
+            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        root.dataset.theme = mode;
+    })();
     const state = {
         flow: null,
         cy: null,
@@ -592,8 +603,8 @@
                 selector: 'node[isPort = 1]',
                 style: {
                     'shape': 'ellipse',
-                    'width': 20,
-                    'height': 20,
+                    'width': 22,
+                    'height': 22,
                     'background-color': palette.portBackground,
                     'border-width': 2,
                     'border-style': 'solid',
@@ -657,8 +668,8 @@
                 selector: 'edge',
                 style: {
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'center',
-                    'target-endpoint': 'center',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -990,7 +1001,7 @@
         if (!state.cy || !clientPoint || typeof state.cy.elementsAt !== 'function') return '';
         const renderedPoint = getRenderedPointFromClientPoint(clientPoint);
         if (!renderedPoint) {
-            const nearestFallback = findClosestInPortFromClientPoint(clientPoint, 44);
+            const nearestFallback = findClosestInPortFromClientPoint(clientPoint, 56);
             const nearestEndpoint = resolveConnectEndpoint(nearestFallback);
             return String(nearestEndpoint.ownerNodeId || '').trim();
         }
@@ -1018,7 +1029,7 @@
         if (resolvedFromHit) return resolvedFromHit;
 
         // Pointer can be slightly outside tiny IN port hitbox during mouse drag.
-        const nearestInPort = findClosestInPortFromClientPoint(clientPoint, 44);
+        const nearestInPort = findClosestInPortFromClientPoint(clientPoint, 56);
         const nearestEndpoint = resolveConnectEndpoint(nearestInPort);
         return String(nearestEndpoint.ownerNodeId || '').trim();
     }
@@ -1090,7 +1101,21 @@
                     || '',
                 ).trim();
                 clearDragConnectSession({ clearIntent: true });
-                if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
+                if (!sourceNodeId) return;
+                if (!targetNodeId) {
+                    showBuilderErrorTooltip(
+                        t('connectTargetRequired', 'Не выбрана целевая нода'),
+                        t('connectTargetRequiredHint', 'Протяни линию до левой точки (IN) другой ноды.'),
+                    );
+                    return;
+                }
+                if (sourceNodeId === targetNodeId) {
+                    showBuilderErrorTooltip(
+                        t('connectSelfDenied', 'Нельзя соединить ноду саму с собой'),
+                        t('connectSelfDeniedHint', 'Выбери другую ноду для целевой связи.'),
+                    );
+                    return;
+                }
                 void handleDraftConnect(sourceNodeId, targetNodeId);
                 return;
             }
@@ -1193,7 +1218,7 @@
         return ratio >= 0.4;
     }
 
-    function findClosestPortFromClientPoint(clientPoint, portType = 'out', maxDistancePx = 24) {
+    function findClosestPortFromClientPoint(clientPoint, portType = 'out', maxDistancePx = 36) {
         if (!state.cy || !clientPoint) return null;
         const safePortType = String(portType || '').trim().toLowerCase() === 'in' ? 'in' : 'out';
         const ports = state.cy.nodes(`node[isPort = 1][portType = "${safePortType}"]`);
@@ -1214,11 +1239,11 @@
         return minDistance <= Number(maxDistancePx) ? nearest : null;
     }
 
-    function findClosestOutPortFromClientPoint(clientPoint, maxDistancePx = 24) {
+    function findClosestOutPortFromClientPoint(clientPoint, maxDistancePx = 36) {
         return findClosestPortFromClientPoint(clientPoint, 'out', maxDistancePx);
     }
 
-    function findClosestInPortFromClientPoint(clientPoint, maxDistancePx = 24) {
+    function findClosestInPortFromClientPoint(clientPoint, maxDistancePx = 36) {
         return findClosestPortFromClientPoint(clientPoint, 'in', maxDistancePx);
     }
 
@@ -1231,11 +1256,16 @@
         if (!container) return;
 
         const onStart = (ev) => {
-            if (state.connectInFlight || state.edgeDrawActive || state.dragConnectSession?.showLine) return;
+            if (state.connectInFlight || state.dragConnectSession?.showLine) return;
+            if (state.edgeDrawActive) {
+                state.edgeDrawActive = false;
+                state.edgeDrawSession = null;
+                scheduleTransientEdgeCleanup();
+            }
             if (ev.type === 'mousedown' && Number.isFinite(ev.button) && Number(ev.button) !== 0) return;
             const point = getClientPointFromEventLike(ev);
             if (!point) return;
-            const outPort = findClosestOutPortFromClientPoint(point, 40);
+            const outPort = findClosestOutPortFromClientPoint(point, 56);
             if (!outPort) return;
 
             const started = startPortDragConnect({
