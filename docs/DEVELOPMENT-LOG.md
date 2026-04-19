@@ -2071,3 +2071,20 @@ Change type:
 Change type:
 - `stability fix` — cascade builder link rendering and reset consistency
 - `ux polish` — node-body drag connect flow
+
+## 2026-04-19 Cascade Builder Desktop Drag Gesture Fallback (shipped)
+
+- Fixed remaining UX gap where links were still created mostly via port circles.
+- Updated:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/public/js/cascade-builder.js`
+- Changes:
+  - added explicit desktop gesture flow:
+    - `mousedown` on right half of source node body starts connect intent;
+    - `mouseup` on target node creates draft hop;
+    - `mouseup` on empty canvas cancels intent cleanly.
+  - preserved tap/port behavior as compatibility path.
+- Code commit:
+  - `e01f8ac` — `fix: add node-body drag connect fallback in cascade builder`
+
+Change type:
+- `ux polish` — desktop node-to-node drag connect

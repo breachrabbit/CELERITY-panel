@@ -3306,6 +3306,27 @@ Immediate next step:
 3. Continue planned automation wave only after builder interaction is stable:
    - auto standalone restore and role reconcile notifications.
 
+## 2026-04-19 Update — Drag Connect Still Point-Only (follow-up fix shipped)
+
+Done in this session:
+- Added explicit desktop drag fallback in builder:
+  - `mousedown` on right side of source node body starts connect intent;
+  - `mouseup` on target node creates draft hop;
+  - `mouseup` on empty canvas cancels.
+- Commit:
+  - `e01f8ac` — `fix: add node-body drag connect fallback in cascade builder`
+
+Current stop-point:
+- Code is in `main`, push completed.
+- Needs live visual confirmation on stand after hard refresh.
+
+Immediate next step:
+1. Verify on stand:
+   - drag from source node body (right half) to target node body;
+   - ensure no mandatory click on port circles.
+2. If browser-specific misses remain:
+   - add pointer-event mirror handlers (`pointerdown/pointerup`) for same flow.
+
 ## Prompt For Next Session (Latest, supersedes older prompts)
 
 ```text

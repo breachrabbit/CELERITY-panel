@@ -998,3 +998,14 @@
   - verify on stand that connect/disconnect/reset behaves consistently in one pass;
   - if server still returns duplicated links under race, add backend idempotency/dedupe in `/api/cascade-builder/state` or `/api/cascade-builder/connect`;
   - continue cascade automation track after builder UX is stable.
+
+## 2026-04-19 Session — Desktop Drag Gesture Patch
+
+- Worked on:
+  - user reported that link creation still felt point-only (circles), not node-to-node drag.
+- Finished with:
+  - code commit `e01f8ac` in `main`;
+  - explicit desktop drag fallback added (`mousedown` source body -> `mouseup` target node).
+- Next step:
+  - verify on stand by drag from right side of source card body directly to target card;
+  - if any browser still misses gesture, add pointer-events fallback (`pointerdown/pointerup`) in the same handler.
