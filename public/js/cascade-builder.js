@@ -38,6 +38,7 @@
         lastConnectSignature: '',
         lastConnectAt: 0,
         connectFallbackEnabled: false,
+        dragConnectSession: null,
         transientCleanupTimer: null,
         tooltipHideTimer: null,
         confirmResolver: null,
@@ -856,6 +857,26 @@
             }
         }
         toast(i18n.connectPickTarget || 'Select target node to create draft hop.');
+    }
+
+    function clearDragConnectSession({ clearIntent = true } = {}) {
+        state.dragConnectSession = null;
+        if (clearIntent) clearConnectIntent();
+    }
+
+    function startBodyDragConnect(event, nodeElement) {
+        if (!shouldStartBodyConnectDrag(event, nodeElement)) return false;
+        const sourceNodeId = String(nodeElement.id() || '').trim();
+        if (!sourceNodeId) return false;
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+        hideBuilderErrorTooltip();
+        setConnectIntent(sourceNodeId, buildPortId(sourceNodeId, 'out'));
+        state.dragConnectSession = {
+            sourceNodeId,
+            startedAt: Date.now(),
+        };
+        return true;
     }
 
     function shouldStartBodyConnectDrag(event, nodeElement) {
@@ -2875,10 +2896,14 @@
             });
         }
 
+        state.cy.on('mousedown', 'node[isPort != 1][isVirtualInternet != 1]', (event) => {
+            startBodyDragConnect(event, event.target);
+        });
         state.cy.on('tapstart', 'node[isPort != 1][isVirtualInternet != 1]', (event) => {
+            // touch fallback: keep old behavior for mobile/tablet.
+            const started = startBodyDragConnect(event, event.target);
+            if (started) return;
             if (!shouldStartBodyConnectDrag(event, event.target)) return;
-            if (typeof event.preventDefault === 'function') event.preventDefault();
-            if (typeof event.stopPropagation === 'function') event.stopPropagation();
             hideBuilderErrorTooltip();
             clearConnectIntent();
             try {
@@ -2971,6 +2996,24 @@
                 clearConnectIntent();
                 if (!sourceNodeId || sourceNodeId === targetNodeId) return;
                 await handleDraftConnect(sourceNodeId, targetNodeId);
+            });
+
+            // Desktop drag-connect: mousedown on source node body (right side) and mouseup on target.
+            state.cy.on('mouseup', 'node[isPort != 1][isVirtualInternet != 1]', async (event) => {
+                const session = state.dragConnectSession;
+                if (!session?.sourceNodeId) return;
+                const sourceNodeId = String(session.sourceNodeId || '').trim();
+                const targetNodeId = String(event.target.id() || '').trim();
+                clearDragConnectSession({ clearIntent: true });
+                if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
+                await handleDraftConnect(sourceNodeId, targetNodeId);
+            });
+
+            state.cy.on('mouseup', (event) => {
+                const session = state.dragConnectSession;
+                if (!session?.sourceNodeId) return;
+                if (event.target && event.target !== state.cy) return;
+                clearDragConnectSession({ clearIntent: true });
             });
         }
     }
