@@ -1655,21 +1655,32 @@
             (element.isEdge() && Number(element.data('isVirtualInternet')) !== 1)
             || (Number(element.data('isPort')) !== 1 && Number(element.data('isVirtualInternet')) !== 1)
         ));
-        state.cy.one('layoutstop', () => {
+        const onLayoutStop = () => {
             syncAllNodePorts();
             syncInternetNodePosition();
             resolveNodeCollisions({ includeInternet: true });
             syncEdgeRoutingGeometry();
             fitRealGraphView(48);
-        });
-        layoutCollection.layout({
-            name: 'dagre',
-            rankDir: 'LR',
-            nodeSep: 48,
-            rankSep: 96,
-            animate,
-            animationDuration: animate ? 320 : 0,
-        }).run();
+        };
+        state.cy.one('layoutstop', onLayoutStop);
+        try {
+            layoutCollection.layout({
+                name: (typeof cytoscapeDagre !== 'undefined') ? 'dagre' : 'grid',
+                rankDir: 'LR',
+                nodeSep: 48,
+                rankSep: 96,
+                animate,
+                animationDuration: animate ? 320 : 0,
+            }).run();
+        } catch (error) {
+            console.warn('[CascadeBuilder] Auto-layout failed, fallback to grid:', error);
+            state.cy.one('layoutstop', onLayoutStop);
+            layoutCollection.layout({
+                name: 'grid',
+                animate: false,
+                spacingFactor: 1.5,
+            }).run();
+        }
     }
 
     function buildHopCurveMap(hops) {
@@ -1779,6 +1790,51 @@
         if (flow.draft && typeof flow.draft === 'object') {
             flow.draft.draftHopCount = draftCount;
         }
+        return flow;
+    }
+
+    function hasFinitePosition(position) {
+        return Boolean(
+            position
+            && Number.isFinite(Number(position.x))
+            && Number.isFinite(Number(position.y)),
+        );
+    }
+
+    function ensureFlowNodePositions(flow) {
+        if (!flow || !Array.isArray(flow.nodes) || !flow.nodes.length) return flow;
+
+        const preparedNodes = flow.nodes.map((node) => ({
+            ...node,
+            position: hasFinitePosition(node?.position)
+                ? { x: Number(node.position.x), y: Number(node.position.y) }
+                : null,
+        }));
+
+        const hasAnyValidPosition = preparedNodes.some((node) => hasFinitePosition(node.position));
+        if (hasAnyValidPosition && preparedNodes.every((node) => hasFinitePosition(node.position))) {
+            flow.nodes = preparedNodes;
+            return flow;
+        }
+
+        const unresolvedNodes = preparedNodes.filter((node) => !hasFinitePosition(node.position));
+        const anchorNode = preparedNodes.find((node) => hasFinitePosition(node.position));
+        const startX = anchorNode ? Number(anchorNode.position.x) + 220 : 260;
+        const startY = anchorNode ? Number(anchorNode.position.y) : 180;
+        const columns = clamp(Math.ceil(Math.sqrt(preparedNodes.length)), 2, 4);
+        const stepX = BUILDER_NODE_WIDTH + 120;
+        const stepY = BUILDER_NODE_HEIGHT + 120;
+
+        unresolvedNodes.forEach((node, index) => {
+            const row = Math.floor(index / columns);
+            const col = index % columns;
+            node.position = {
+                x: startX + (col * stepX),
+                y: startY + (row * stepY),
+            };
+        });
+
+        flow.nodes = preparedNodes;
         return flow;
     }
 
@@ -3414,6 +3470,11 @@
         }
         syncInternetNodePosition();
         syncEdgeFlowAnimation();
+        requestAnimationFrame(() => {
+            if (!state.cy) return;
+            state.cy.resize();
+            fitRealGraphView(48);
+        });
 
         state.cy.on('select', 'node', (event) => {
             if (isPortElement(event.target)) return;
@@ -4137,7 +4198,9 @@
     async function loadState({ selectHopId = null, selectNodeId = null } = {}) {
         try {
             hideBuilderErrorTooltip();
-            const flow = normalizeFlowForRendering(await requestJson('/api/cascade-builder/state'));
+            const flow = ensureFlowNodePositions(
+                normalizeFlowForRendering(await requestJson('/api/cascade-builder/state')),
+            );
             state.flow = flow;
             renderLibrary(flow);
             renderSummary(flow, flow.validation);
