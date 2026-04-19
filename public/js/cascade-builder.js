@@ -989,7 +989,11 @@
     function resolveConnectTargetFromClientPoint(clientPoint) {
         if (!state.cy || !clientPoint || typeof state.cy.elementsAt !== 'function') return '';
         const renderedPoint = getRenderedPointFromClientPoint(clientPoint);
-        if (!renderedPoint) return '';
+        if (!renderedPoint) {
+            const nearestFallback = findClosestInPortFromClientPoint(clientPoint, 44);
+            const nearestEndpoint = resolveConnectEndpoint(nearestFallback);
+            return String(nearestEndpoint.ownerNodeId || '').trim();
+        }
         const elements = state.cy.elementsAt(renderedPoint.x, renderedPoint.y);
         if (!elements || !elements.length) return '';
 
@@ -1010,7 +1014,13 @@
             }
         });
 
-        return targetNodeId || fallbackNodeId;
+        const resolvedFromHit = targetNodeId || fallbackNodeId;
+        if (resolvedFromHit) return resolvedFromHit;
+
+        // Pointer can be slightly outside tiny IN port hitbox during mouse drag.
+        const nearestInPort = findClosestInPortFromClientPoint(clientPoint, 44);
+        const nearestEndpoint = resolveConnectEndpoint(nearestInPort);
+        return String(nearestEndpoint.ownerNodeId || '').trim();
     }
 
     function updateDragConnectTargetHighlight(targetNodeId = '') {
@@ -1183,9 +1193,10 @@
         return ratio >= 0.4;
     }
 
-    function findClosestOutPortFromClientPoint(clientPoint, maxDistancePx = 24) {
+    function findClosestPortFromClientPoint(clientPoint, portType = 'out', maxDistancePx = 24) {
         if (!state.cy || !clientPoint) return null;
-        const ports = state.cy.nodes('node[isPort = 1][portType = "out"]');
+        const safePortType = String(portType || '').trim().toLowerCase() === 'in' ? 'in' : 'out';
+        const ports = state.cy.nodes(`node[isPort = 1][portType = "${safePortType}"]`);
         if (!ports.length) return null;
         let nearest = null;
         let minDistance = Number.POSITIVE_INFINITY;
@@ -1203,6 +1214,14 @@
         return minDistance <= Number(maxDistancePx) ? nearest : null;
     }
 
+    function findClosestOutPortFromClientPoint(clientPoint, maxDistancePx = 24) {
+        return findClosestPortFromClientPoint(clientPoint, 'out', maxDistancePx);
+    }
+
+    function findClosestInPortFromClientPoint(clientPoint, maxDistancePx = 24) {
+        return findClosestPortFromClientPoint(clientPoint, 'in', maxDistancePx);
+    }
+
     function bindNativePortDragStartListeners() {
         if (typeof state.dragConnectContainerCleanup === 'function') {
             state.dragConnectContainerCleanup();
@@ -1216,7 +1235,7 @@
             if (ev.type === 'mousedown' && Number.isFinite(ev.button) && Number(ev.button) !== 0) return;
             const point = getClientPointFromEventLike(ev);
             if (!point) return;
-            const outPort = findClosestOutPortFromClientPoint(point, 24);
+            const outPort = findClosestOutPortFromClientPoint(point, 40);
             if (!outPort) return;
 
             const started = startPortDragConnect({
