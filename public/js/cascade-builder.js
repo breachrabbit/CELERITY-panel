@@ -40,6 +40,9 @@
         connectFallbackEnabled: false,
         dragConnectSession: null,
         dragConnectDocCleanup: null,
+        dragConnectContainerCleanup: null,
+        dragConnectLocked: false,
+        dragConnectPrevUngrabify: null,
         transientCleanupTimer: null,
         tooltipHideTimer: null,
         confirmResolver: null,
@@ -654,8 +657,8 @@
                 selector: 'edge',
                 style: {
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'outside-to-node',
-                    'target-endpoint': 'outside-to-node',
+                    'source-endpoint': 'center',
+                    'target-endpoint': 'center',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -720,8 +723,8 @@
                 style: {
                     'line-style': 'dashed',
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'outside-to-node',
-                    'target-endpoint': 'outside-to-node',
+                    'source-endpoint': 'center',
+                    'target-endpoint': 'center',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -929,7 +932,32 @@
             state.cy.nodes('node[isPort = 1][portType = "in"]').removeClass('builder-connect-hover-target');
         }
         state.dragConnectSession = null;
+        unlockDragConnectGraph();
         if (clearIntent) clearConnectIntent();
+    }
+
+    function lockDragConnectGraph() {
+        if (!state.cy || state.dragConnectLocked) return;
+        try {
+            if (typeof state.cy.autoungrabify === 'function') {
+                state.dragConnectPrevUngrabify = Boolean(state.cy.autoungrabify());
+                state.cy.autoungrabify(true);
+            } else {
+                state.dragConnectPrevUngrabify = null;
+            }
+            state.dragConnectLocked = true;
+        } catch (_) {}
+    }
+
+    function unlockDragConnectGraph() {
+        if (!state.cy || !state.dragConnectLocked) return;
+        try {
+            if (typeof state.cy.autoungrabify === 'function' && state.dragConnectPrevUngrabify !== null) {
+                state.cy.autoungrabify(Boolean(state.dragConnectPrevUngrabify));
+            }
+        } catch (_) {}
+        state.dragConnectPrevUngrabify = null;
+        state.dragConnectLocked = false;
     }
 
     function getPortClientPoint(portId) {
@@ -1091,6 +1119,7 @@
         if (typeof event.stopPropagation === 'function') event.stopPropagation();
         hideBuilderErrorTooltip();
         setConnectIntent(sourceNodeId, sourcePortId);
+        lockDragConnectGraph();
         state.cy?.nodes('node[isPort = 1][portType = "in"]').addClass('builder-connect-target');
         state.dragConnectSession = {
             sourceNodeId,
@@ -1115,6 +1144,7 @@
         if (typeof event.stopPropagation === 'function') event.stopPropagation();
         hideBuilderErrorTooltip();
         setConnectIntent(sourceNodeId, buildPortId(sourceNodeId, 'out'));
+        lockDragConnectGraph();
         state.cy?.nodes('node[isPort = 1][portType = "in"]').addClass('builder-connect-target');
         state.dragConnectSession = {
             sourceNodeId,
@@ -1150,7 +1180,67 @@
         const width = Number(box?.w || 0);
         if (!width) return false;
         const ratio = (clientX - Number(box?.x1 || 0)) / width;
-        return ratio >= 0.54;
+        return ratio >= 0.4;
+    }
+
+    function findClosestOutPortFromClientPoint(clientPoint, maxDistancePx = 24) {
+        if (!state.cy || !clientPoint) return null;
+        const ports = state.cy.nodes('node[isPort = 1][portType = "out"]');
+        if (!ports.length) return null;
+        let nearest = null;
+        let minDistance = Number.POSITIVE_INFINITY;
+        ports.forEach((portNode) => {
+            const point = getPortClientPoint(portNode.id());
+            if (!point) return;
+            const dx = Number(point.x) - Number(clientPoint.x);
+            const dy = Number(point.y) - Number(clientPoint.y);
+            const distance = Math.sqrt((dx * dx) + (dy * dy));
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearest = portNode;
+            }
+        });
+        return minDistance <= Number(maxDistancePx) ? nearest : null;
+    }
+
+    function bindNativePortDragStartListeners() {
+        if (typeof state.dragConnectContainerCleanup === 'function') {
+            state.dragConnectContainerCleanup();
+        }
+        state.dragConnectContainerCleanup = null;
+        const container = state.cy?.container?.();
+        if (!container) return;
+
+        const onStart = (ev) => {
+            if (state.connectInFlight || state.edgeDrawActive || state.dragConnectSession?.showLine) return;
+            if (ev.type === 'mousedown' && Number.isFinite(ev.button) && Number(ev.button) !== 0) return;
+            const point = getClientPointFromEventLike(ev);
+            if (!point) return;
+            const outPort = findClosestOutPortFromClientPoint(point, 24);
+            if (!outPort) return;
+
+            const started = startPortDragConnect({
+                originalEvent: ev,
+                preventDefault: () => ev.preventDefault?.(),
+                stopPropagation: () => ev.stopPropagation?.(),
+            }, outPort);
+            if (!started) return;
+
+            ev.preventDefault?.();
+            ev.stopPropagation?.();
+            updateDragOverlayFromClientPoint(point);
+            updateDragConnectTargetFromClientPoint(point);
+        };
+
+        container.addEventListener('mousedown', onStart, { capture: true });
+        container.addEventListener('touchstart', onStart, { capture: true, passive: false });
+        container.addEventListener('pointerdown', onStart, { capture: true });
+
+        state.dragConnectContainerCleanup = () => {
+            container.removeEventListener('mousedown', onStart, { capture: true });
+            container.removeEventListener('touchstart', onStart, { capture: true });
+            container.removeEventListener('pointerdown', onStart, { capture: true });
+        };
     }
 
     function getPortPositionFromNodeElement(nodeElement, portType) {
@@ -3032,6 +3122,11 @@
         if (state.cy) {
             stopEdgeFlowAnimation();
             stopTransientCleanupTicker();
+            if (typeof state.dragConnectContainerCleanup === 'function') {
+                state.dragConnectContainerCleanup();
+            }
+            state.dragConnectContainerCleanup = null;
+            unlockDragConnectGraph();
             state.cy.destroy();
             state.cy = null;
             state.edgehandles = null;
@@ -3053,6 +3148,7 @@
         if (portNodes.length) {
             portNodes.ungrabify();
         }
+        bindNativePortDragStartListeners();
         scheduleTransientEdgeCleanup();
         startTransientCleanupTicker();
         syncAllNodePorts();
@@ -3148,9 +3244,6 @@
             });
         }
 
-        state.cy.on('mousedown', 'node[isPort != 1][isVirtualInternet != 1]', (event) => {
-            startBodyDragConnect(event, event.target);
-        });
         state.cy.on('mousedown', 'node[isPort = 1][portType = "out"]', (event) => {
             startPortDragConnect(event, event.target);
         });
