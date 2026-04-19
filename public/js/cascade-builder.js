@@ -640,6 +640,17 @@
                 },
             },
             {
+                selector: 'node[isPort = 1].builder-connect-hover-target',
+                style: {
+                    'border-color': '#02A8AD',
+                    'border-width': 4,
+                    'background-color': '#ecfeff',
+                    'shadow-blur': 10,
+                    'shadow-opacity': 0.32,
+                    'shadow-color': '#02A8AD',
+                },
+            },
+            {
                 selector: 'edge',
                 style: {
                     'curve-style': 'unbundled-bezier',
@@ -915,6 +926,7 @@
         }
         if (state.cy) {
             state.cy.nodes('node[isPort = 1][portType = "in"]').removeClass('builder-connect-target');
+            state.cy.nodes('node[isPort = 1][portType = "in"]').removeClass('builder-connect-hover-target');
         }
         state.dragConnectSession = null;
         if (clearIntent) clearConnectIntent();
@@ -932,6 +944,65 @@
         const y = Number(rect.top) + Number(rendered?.y || 0);
         if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
         return { x, y };
+    }
+
+    function getRenderedPointFromClientPoint(clientPoint) {
+        if (!state.cy || !clientPoint) return null;
+        const container = state.cy.container();
+        if (!container || typeof container.getBoundingClientRect !== 'function') return null;
+        const rect = container.getBoundingClientRect();
+        const renderedX = Number(clientPoint.x) - Number(rect.left);
+        const renderedY = Number(clientPoint.y) - Number(rect.top);
+        if (!Number.isFinite(renderedX) || !Number.isFinite(renderedY)) return null;
+        if (renderedX < 0 || renderedY < 0 || renderedX > rect.width || renderedY > rect.height) return null;
+        return { x: renderedX, y: renderedY };
+    }
+
+    function resolveConnectTargetFromClientPoint(clientPoint) {
+        if (!state.cy || !clientPoint || typeof state.cy.elementsAt !== 'function') return '';
+        const renderedPoint = getRenderedPointFromClientPoint(clientPoint);
+        if (!renderedPoint) return '';
+        const elements = state.cy.elementsAt(renderedPoint.x, renderedPoint.y);
+        if (!elements || !elements.length) return '';
+
+        let fallbackNodeId = '';
+        let targetNodeId = '';
+        elements.forEach((element) => {
+            if (targetNodeId) return;
+            if (!element || typeof element.isNode !== 'function' || !element.isNode()) return;
+            const endpoint = resolveConnectEndpoint(element);
+            const ownerNodeId = String(endpoint.ownerNodeId || '').trim();
+            if (!ownerNodeId || endpoint.isVirtualInternet) return;
+            if (!endpoint.isPort) {
+                if (!fallbackNodeId) fallbackNodeId = ownerNodeId;
+                return;
+            }
+            if (endpoint.portType === 'in') {
+                targetNodeId = ownerNodeId;
+            }
+        });
+
+        return targetNodeId || fallbackNodeId;
+    }
+
+    function updateDragConnectTargetHighlight(targetNodeId = '') {
+        if (!state.cy) return;
+        state.cy.nodes('node[isPort = 1][portType = "in"]').removeClass('builder-connect-hover-target');
+        const nodeId = String(targetNodeId || '').trim();
+        if (!nodeId) return;
+        const targetPort = state.cy.getElementById(buildPortId(nodeId, 'in'));
+        if (targetPort.length) {
+            targetPort.addClass('builder-connect-hover-target');
+        }
+    }
+
+    function updateDragConnectTargetFromClientPoint(clientPoint) {
+        const session = state.dragConnectSession;
+        if (!session?.showLine) return '';
+        const targetNodeId = resolveConnectTargetFromClientPoint(clientPoint);
+        session.hoverTargetNodeId = targetNodeId || '';
+        updateDragConnectTargetHighlight(targetNodeId);
+        return targetNodeId;
     }
 
     function updateDragOverlayLine(sourceClientPoint, targetClientPoint) {
@@ -967,19 +1038,39 @@
             const point = getClientPointFromEventLike(ev);
             if (!point) return;
             updateDragOverlayFromClientPoint(point);
+            updateDragConnectTargetFromClientPoint(point);
         };
-        const onUp = () => {
+        const onUp = (ev) => {
+            const session = state.dragConnectSession;
+            if (!session) return;
+            if (session.showLine) {
+                const sourceNodeId = String(session.sourceNodeId || '').trim();
+                const point = getClientPointFromEventLike(ev);
+                const targetNodeId = String(
+                    session.hoverTargetNodeId
+                    || resolveConnectTargetFromClientPoint(point)
+                    || '',
+                ).trim();
+                clearDragConnectSession({ clearIntent: true });
+                if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
+                void handleDraftConnect(sourceNodeId, targetNodeId);
+                return;
+            }
             setTimeout(() => {
                 if (!state.dragConnectSession) return;
                 clearDragConnectSession({ clearIntent: true });
             }, 0);
         };
+        document.addEventListener('pointermove', onMove, { passive: true });
+        document.addEventListener('pointerup', onUp);
         document.addEventListener('mousemove', onMove);
         document.addEventListener('touchmove', onMove, { passive: true });
         document.addEventListener('mouseup', onUp);
         document.addEventListener('touchend', onUp);
         document.addEventListener('touchcancel', onUp);
         state.dragConnectDocCleanup = () => {
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('touchmove', onMove);
             document.removeEventListener('mouseup', onUp);
@@ -1006,6 +1097,7 @@
             sourcePortId,
             startedAt: Date.now(),
             showLine: true,
+            hoverTargetNodeId: '',
         };
         bindDragDocumentListeners();
         const startPoint = getPortClientPoint(sourcePortId);
@@ -3159,6 +3251,7 @@
             state.cy.on('mouseup', 'node[isPort != 1][isVirtualInternet != 1]', async (event) => {
                 const session = state.dragConnectSession;
                 if (!session?.sourceNodeId) return;
+                if (session.showLine) return;
                 const sourceNodeId = String(session.sourceNodeId || '').trim();
                 const targetNodeId = String(event.target.id() || '').trim();
                 clearDragConnectSession({ clearIntent: true });
@@ -3168,6 +3261,7 @@
             state.cy.on('mouseup', 'node[isPort = 1][portType = "in"]', async (event) => {
                 const session = state.dragConnectSession;
                 if (!session?.sourceNodeId) return;
+                if (session.showLine) return;
                 const sourceNodeId = String(session.sourceNodeId || '').trim();
                 const targetEndpoint = resolveConnectEndpoint(event.target);
                 const targetNodeId = String(targetEndpoint.ownerNodeId || '').trim();
