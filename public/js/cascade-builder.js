@@ -68,6 +68,10 @@
         console[kind === 'error' ? 'error' : 'log'](message);
     }
 
+    function sleep(ms = 0) {
+        return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+    }
+
     function getBuilderWorkspaceElement() {
         return document.querySelector('.builder-workspace');
     }
@@ -854,6 +858,29 @@
         toast(i18n.connectPickTarget || 'Select target node to create draft hop.');
     }
 
+    function shouldStartBodyConnectDrag(event, nodeElement) {
+        if (!event || !nodeElement || !nodeElement.length) return false;
+        if (!state.edgehandles || typeof state.edgehandles.start !== 'function') return false;
+        if (state.edgeDrawActive || state.connectInFlight) return false;
+        if (state.connectIntent?.sourceNodeId) return false;
+
+        const originalEvent = event.originalEvent || {};
+        if (Number.isFinite(originalEvent.button) && Number(originalEvent.button) !== 0) return false;
+        if (originalEvent.metaKey || originalEvent.ctrlKey || originalEvent.altKey) return false;
+
+        const pointer = originalEvent.touches?.[0]
+            || originalEvent.changedTouches?.[0]
+            || originalEvent;
+        const clientX = Number(pointer?.clientX);
+        if (!Number.isFinite(clientX)) return false;
+
+        const box = nodeElement.renderedBoundingBox({ includeLabels: false, includeOverlays: false });
+        const width = Number(box?.w || 0);
+        if (!width) return false;
+        const ratio = (clientX - Number(box?.x1 || 0)) / width;
+        return ratio >= 0.54;
+    }
+
     function getPortPositionFromNodeElement(nodeElement, portType) {
         const width = Number(nodeElement.width()) || BUILDER_NODE_WIDTH;
         const delta = (width / 2) + BUILDER_PORT_OFFSET;
@@ -1087,12 +1114,76 @@
         return curveByHopId;
     }
 
+    function getRenderHopPriority(hop) {
+        if (!hop || typeof hop !== 'object') return 0;
+        const status = String(hop.status || '').trim().toLowerCase();
+        let score = 0;
+        if (!hop.isDraft) score += 100;
+        if (status === 'online' || status === 'active' || status === 'ready') score += 20;
+        if (status === 'pending' || status === 'draft') score += 10;
+        return score;
+    }
+
+    function getRenderableHops(hops) {
+        const source = Array.isArray(hops) ? hops : [];
+        const byId = new Set();
+        const byPair = new Map();
+
+        source.forEach((hop) => {
+            if (!hop || typeof hop !== 'object') return;
+            const hopId = String(hop.id || '').trim();
+            const sourceNodeId = String(hop.sourceNodeId || '').trim();
+            const targetNodeId = String(hop.targetNodeId || '').trim();
+            if (!hopId || !sourceNodeId || !targetNodeId) return;
+            if (byId.has(hopId)) return;
+            byId.add(hopId);
+
+            const pairKey = `${sourceNodeId}->${targetNodeId}`;
+            const current = byPair.get(pairKey);
+            if (!current) {
+                byPair.set(pairKey, hop);
+                return;
+            }
+
+            const currentPriority = getRenderHopPriority(current);
+            const nextPriority = getRenderHopPriority(hop);
+            if (nextPriority > currentPriority) {
+                byPair.set(pairKey, hop);
+                return;
+            }
+            if (nextPriority === currentPriority && String(hopId).localeCompare(String(current.id || '')) > 0) {
+                byPair.set(pairKey, hop);
+            }
+        });
+
+        return Array.from(byPair.values());
+    }
+
+    function normalizeFlowForRendering(flow) {
+        if (!flow || typeof flow !== 'object') return flow;
+        const renderableHops = getRenderableHops(flow.hops);
+        const sourceHops = Array.isArray(flow.hops) ? flow.hops : [];
+        if (renderableHops.length === sourceHops.length) return flow;
+
+        const draftCount = renderableHops.filter((hop) => !!hop.isDraft).length;
+        flow.hops = renderableHops;
+        if (flow.summary && typeof flow.summary === 'object') {
+            flow.summary.hops = renderableHops.length;
+            flow.summary.draftHops = draftCount;
+        }
+        if (flow.draft && typeof flow.draft === 'object') {
+            flow.draft.draftHopCount = draftCount;
+        }
+        return flow;
+    }
+
     function flowToElements(flow) {
         const elements = [];
         const exitNodeIds = getFlowExitNodeIds(flow);
         const exitNodeIdSet = new Set(exitNodeIds.map((id) => String(id)));
         const internetNode = getFlowInternetNodeData(flow);
-        const curveByHopId = buildHopCurveMap(flow?.hops || []);
+        const renderableHops = getRenderableHops(flow?.hops || []);
+        const curveByHopId = buildHopCurveMap(renderableHops);
 
         for (const node of flow.nodes) {
             const isInternetExit = exitNodeIdSet.has(String(node.id));
@@ -1169,7 +1260,7 @@
             });
         }
 
-        for (const hop of flow.hops) {
+        for (const hop of renderableHops) {
             const curve = curveByHopId.get(String(hop.id || '')) || { curveDistance: 0, curveWeight: 0.5 };
             elements.push({
                 group: 'edges',
@@ -2784,6 +2875,17 @@
             });
         }
 
+        state.cy.on('tapstart', 'node[isPort != 1][isVirtualInternet != 1]', (event) => {
+            if (!shouldStartBodyConnectDrag(event, event.target)) return;
+            if (typeof event.preventDefault === 'function') event.preventDefault();
+            if (typeof event.stopPropagation === 'function') event.stopPropagation();
+            hideBuilderErrorTooltip();
+            clearConnectIntent();
+            try {
+                state.edgehandles.start(event.target);
+            } catch (_) {}
+        });
+
         state.cy.on('ehstart', (event, sourceNode) => {
             state.edgeDrawActive = true;
             const endpoint = resolveConnectEndpoint(sourceNode && sourceNode.length ? sourceNode : event?.target);
@@ -2971,6 +3073,7 @@
                 return true;
             });
         }
+        normalizeFlowForRendering(state.flow);
 
         if (!state.cy) return;
         const edgeCollection = state.cy.edges().filter((edge) => {
@@ -3045,6 +3148,9 @@
                 await loadState();
             } else {
                 pruneHopFromLocalState(hop, hopId);
+                renderSummary(state.flow, state.flow?.validation || { status: 'unknown', errors: [], warnings: [] });
+                renderValidation(state.flow?.validation || null);
+                renderInternetSection(state.flow);
             }
             return { success: true };
         } catch (error) {
@@ -3069,6 +3175,9 @@
                             await loadState();
                         } else {
                             pruneHopFromLocalState(hop, fallbackId);
+                            renderSummary(state.flow, state.flow?.validation || { status: 'unknown', errors: [], warnings: [] });
+                            renderValidation(state.flow?.validation || null);
+                            renderInternetSection(state.flow);
                         }
                         return { success: true };
                     } catch (fallbackError) {
@@ -3081,6 +3190,9 @@
                     await loadState();
                 } else {
                     pruneHopFromLocalState(hop, hopId);
+                    renderSummary(state.flow, state.flow?.validation || { status: 'unknown', errors: [], warnings: [] });
+                    renderValidation(state.flow?.validation || null);
+                    renderInternetSection(state.flow);
                 }
                 return { success: true, skipped: true };
             }
@@ -3326,10 +3438,13 @@
             }
         }
 
-        await loadState();
-        setTimeout(() => {
-            loadState().catch(() => {});
-        }, 900);
+        const expectedRemaining = failures.length;
+        for (let attempt = 0; attempt < 7; attempt += 1) {
+            await loadState();
+            const remaining = Array.isArray(state.flow?.hops) ? state.flow.hops.length : 0;
+            if (remaining <= expectedRemaining) break;
+            await sleep(380);
+        }
 
         if (failures.length) {
             const sample = failures.slice(0, 2)
@@ -3347,7 +3462,7 @@
     async function loadState({ selectHopId = null, selectNodeId = null } = {}) {
         try {
             hideBuilderErrorTooltip();
-            const flow = await requestJson('/api/cascade-builder/state');
+            const flow = normalizeFlowForRendering(await requestJson('/api/cascade-builder/state'));
             state.flow = flow;
             renderLibrary(flow);
             renderSummary(flow, flow.validation);
