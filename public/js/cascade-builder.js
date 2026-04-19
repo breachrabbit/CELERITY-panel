@@ -57,6 +57,8 @@
         transientCleanupTimer: null,
         viewportRecoveryTimer: null,
         viewportRecoveryAttempt: 0,
+        layoutRecoveryTimer: null,
+        canvasResizeObserver: null,
         tooltipHideTimer: null,
         confirmResolver: null,
         confirmOpen: false,
@@ -264,10 +266,26 @@
         requestAnimationFrame(() => {
             if (!state.cy) return;
             state.cy.resize();
-            fitRealGraphView(56);
             syncInternetNodePosition();
             syncAllNodePorts();
+            resolveNodeCollisions({ includeInternet: true });
+            ensureNodesVisibleInViewport({ forceLayout: false });
         });
+    }
+
+    function requestBuilderCanvasRecovery({ forceLayout = false, delayMs = 120 } = {}) {
+        if (state.layoutRecoveryTimer) {
+            clearTimeout(state.layoutRecoveryTimer);
+            state.layoutRecoveryTimer = null;
+        }
+        state.layoutRecoveryTimer = setTimeout(() => {
+            if (!state.cy) return;
+            state.cy.resize();
+            syncInternetNodePosition();
+            syncAllNodePorts();
+            resolveNodeCollisions({ includeInternet: true });
+            ensureNodesVisibleInViewport({ forceLayout });
+        }, Math.max(0, Number(delayMs) || 0));
     }
 
     async function setBuilderFullscreen(enabled) {
@@ -680,8 +698,8 @@
                 selector: 'edge',
                 style: {
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'outside-to-node',
-                    'target-endpoint': 'outside-to-node',
+                    'source-endpoint': 'inside-to-node',
+                    'target-endpoint': 'inside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -746,8 +764,8 @@
                 style: {
                     'line-style': 'dashed',
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'outside-to-node',
-                    'target-endpoint': 'outside-to-node',
+                    'source-endpoint': 'inside-to-node',
+                    'target-endpoint': 'inside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -1491,27 +1509,28 @@
                     const dy = targetPos.y - sourcePos.y;
                     const distance = Math.max(Math.hypot(dx, dy), 1);
                     const lrDirection = sourcePos.x <= targetPos.x ? 1 : -1;
-                    const verticalBias = clamp((Math.abs(dy) * 0.34) + (Math.abs(dx) * 0.03), 16, 120);
-                    const horizontalCurve = clamp((Math.abs(dx) * 0.085) + 18, 18, 96);
+                    const verticalBias = clamp((Math.abs(dy) * 0.30) + (Math.abs(dx) * 0.04), 18, 138);
+                    const horizontalCurve = clamp((Math.abs(dx) * 0.09) + 20, 20, 112);
                     const nearHorizontal = Math.abs(dy) < 32;
+                    const directionSwing = Math.sin((index + 1) * 1.15) * 8;
                     let curveDistance = nearHorizontal
                         ? (lrDirection * horizontalCurve)
                         : ((dy >= 0 ? 1 : -1) * verticalBias);
 
                     if (reverseBucketSize > 0) {
-                        curveDistance += ((sourcePos.y <= targetPos.y) ? -30 : 30);
+                        curveDistance += ((sourcePos.y <= targetPos.y) ? -34 : 34);
                     }
 
                     const fanOffset = (index - centerIndex) * 32;
-                    curveDistance += fanOffset;
-                    curveDistance = clamp(curveDistance, -180, 180);
+                    curveDistance += fanOffset + directionSwing;
+                    curveDistance = clamp(curveDistance, -212, 212);
 
                     const horizontalRatio = clamp(Math.abs(dx) / distance, 0, 1);
                     const verticalWeightBias = clamp((1 - horizontalRatio) * 0.16, 0, 0.16);
                     let curveWeight = lrDirection > 0 ? 0.33 : 0.67;
                     curveWeight += (dy >= 0 ? -1 : 1) * verticalWeightBias;
                     curveWeight += clamp((index - centerIndex) * 0.06, -0.12, 0.12);
-                    curveWeight = clamp(curveWeight, 0.16, 0.84);
+                    curveWeight = clamp(curveWeight, 0.14, 0.86);
 
                     edge.data('curveDistance', Math.round(curveDistance));
                     edge.data('curveWeight', Number(curveWeight.toFixed(2)));
@@ -4439,6 +4458,33 @@
         });
         document.getElementById('builderFullscreenToggle')?.addEventListener('click', () => {
             setBuilderFullscreen(!state.isFullscreen);
+        });
+
+        if (typeof ResizeObserver !== 'undefined') {
+            const canvasRoot = document.getElementById('builderCy');
+            if (canvasRoot) {
+                state.canvasResizeObserver = new ResizeObserver(() => {
+                    requestBuilderCanvasRecovery({ forceLayout: false, delayMs: 80 });
+                });
+                state.canvasResizeObserver.observe(canvasRoot);
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            requestBuilderCanvasRecovery({ forceLayout: false, delayMs: 70 });
+        }, { passive: true });
+
+        window.addEventListener('pageshow', () => {
+            requestBuilderCanvasRecovery({ forceLayout: true, delayMs: 40 });
+        });
+
+        window.addEventListener('load', () => {
+            requestBuilderCanvasRecovery({ forceLayout: true, delayMs: 40 });
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            requestBuilderCanvasRecovery({ forceLayout: false, delayMs: 30 });
         });
 
         document.addEventListener('fullscreenchange', () => {
