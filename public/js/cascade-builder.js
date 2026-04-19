@@ -55,6 +55,8 @@
         dragConnectLocked: false,
         dragConnectPrevUngrabify: null,
         transientCleanupTimer: null,
+        viewportRecoveryTimer: null,
+        viewportRecoveryAttempt: 0,
         tooltipHideTimer: null,
         confirmResolver: null,
         confirmOpen: false,
@@ -71,7 +73,7 @@
     const BUILDER_NODE_HEIGHT = 58;
     const BUILDER_PORT_OFFSET = 0;
     const BUILDER_NODE_COLLISION_PADDING = 26;
-    const INTERNET_NODE_COLLISION_PADDING = 34;
+    const INTERNET_NODE_COLLISION_PADDING = 52;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -675,8 +677,8 @@
                 selector: 'edge',
                 style: {
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'outside-to-node',
-                    'target-endpoint': 'outside-to-node',
+                    'source-endpoint': 'inside-to-node',
+                    'target-endpoint': 'inside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -741,8 +743,8 @@
                 style: {
                     'line-style': 'dashed',
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'outside-to-node',
-                    'target-endpoint': 'outside-to-node',
+                    'source-endpoint': 'inside-to-node',
+                    'target-endpoint': 'inside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -1485,13 +1487,15 @@
                     const dx = targetPos.x - sourcePos.x;
                     const dy = targetPos.y - sourcePos.y;
                     const distance = Math.max(Math.hypot(dx, dy), 1);
-
-                    const verticalBias = clamp(Math.abs(dy) * 0.42, 14, 140);
-                    const horizontalBias = clamp(Math.abs(dx) * 0.08, 0, 42);
+                    const lrDirection = sourcePos.x <= targetPos.x ? 1 : -1;
+                    const verticalBias = clamp(Math.abs(dy) * 0.48, 18, 160);
+                    const horizontalBias = clamp(Math.abs(dx) * 0.1, 0, 58);
                     let curveDistance = (dy >= 0 ? 1 : -1) * (verticalBias + horizontalBias);
 
-                    if (Math.abs(dy) < 18 && Math.abs(dx) > 180) {
-                        curveDistance = 0;
+                    // Keep long near-horizontal links gently curved instead of collapsing into flat lines.
+                    if (Math.abs(dy) < 26 && Math.abs(dx) > 120) {
+                        const horizontalCurve = clamp((Math.abs(dx) * 0.06) + 24, 24, 82);
+                        curveDistance = lrDirection * horizontalCurve;
                     }
 
                     if (reverseBucketSize > 0) {
@@ -1502,14 +1506,75 @@
                     curveDistance += fanOffset;
                     curveDistance = clamp(curveDistance, -180, 180);
 
-                    const weightBias = clamp((Math.abs(dx) / distance) * 0.14, 0, 0.14);
-                    const curveWeight = clamp(0.5 + ((dy >= 0 ? -1 : 1) * weightBias), 0.25, 0.75);
+                    const directionalWeight = lrDirection > 0 ? 0.38 : 0.62;
+                    const verticalWeightBias = clamp((Math.abs(dy) / distance) * 0.12, 0, 0.12);
+                    const curveWeight = clamp(
+                        directionalWeight + ((dy >= 0 ? -1 : 1) * verticalWeightBias),
+                        0.22,
+                        0.78,
+                    );
 
                     edge.data('curveDistance', Math.round(curveDistance));
                     edge.data('curveWeight', Number(curveWeight.toFixed(2)));
                 });
             });
         });
+    }
+
+    function stopViewportRecovery() {
+        if (!state.viewportRecoveryTimer) return;
+        clearTimeout(state.viewportRecoveryTimer);
+        state.viewportRecoveryTimer = null;
+    }
+
+    function ensureNodesVisibleInViewport({ forceLayout = false } = {}) {
+        if (!state.cy) return;
+        const graphNodes = state.cy.nodes('[isPort != 1][isVirtualInternet != 1]');
+        if (!graphNodes.length) return;
+
+        const width = Number(state.cy.width() || 0);
+        const height = Number(state.cy.height() || 0);
+        if (!width || !height) return;
+
+        const inViewport = graphNodes.filter((node) => {
+            const rendered = node.renderedPosition();
+            const x = Number(rendered?.x);
+            const y = Number(rendered?.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+            return x >= -120 && x <= (width + 120) && y >= -120 && y <= (height + 120);
+        });
+
+        if (forceLayout || !inViewport.length) {
+            runAutoLayout({ animate: false });
+            fitRealGraphView(48);
+            return;
+        }
+
+        fitRealGraphView(48);
+    }
+
+    function scheduleViewportRecovery() {
+        stopViewportRecovery();
+        state.viewportRecoveryAttempt = 0;
+
+        const tick = () => {
+            if (!state.cy) return;
+            state.viewportRecoveryAttempt += 1;
+            state.cy.resize();
+            syncAllNodePorts();
+            syncInternetNodePosition();
+            resolveNodeCollisions({ includeInternet: true });
+            syncEdgeRoutingGeometry();
+            ensureNodesVisibleInViewport({ forceLayout: state.viewportRecoveryAttempt >= 4 });
+
+            if (state.viewportRecoveryAttempt >= 6) {
+                state.viewportRecoveryTimer = null;
+                return;
+            }
+            state.viewportRecoveryTimer = setTimeout(tick, 180);
+        };
+
+        state.viewportRecoveryTimer = setTimeout(tick, 120);
     }
 
     function cleanupTransientBuilderEdges() {
@@ -3421,6 +3486,7 @@
         if (state.cy) {
             stopEdgeFlowAnimation();
             stopTransientCleanupTicker();
+            stopViewportRecovery();
             if (typeof state.dragConnectContainerCleanup === 'function') {
                 state.dragConnectContainerCleanup();
             }
@@ -3475,6 +3541,7 @@
             state.cy.resize();
             fitRealGraphView(48);
         });
+        scheduleViewportRecovery();
 
         state.cy.on('select', 'node', (event) => {
             if (isPortElement(event.target)) return;
