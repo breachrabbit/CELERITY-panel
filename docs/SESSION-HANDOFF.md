@@ -3327,6 +3327,33 @@ Immediate next step:
 2. If browser-specific misses remain:
    - add pointer-event mirror handlers (`pointerdown/pointerup`) for same flow.
 
+## 2026-04-19 Update — Full Port Drag UX + Dark Theme On Cascades
+
+Done in this session:
+- Implemented full mouse connection flow from port circles with visible drag line:
+  - start: `mousedown` on OUT port,
+  - preview: dashed line follows pointer in real time,
+  - finish: `mouseup` on IN port or target node creates draft hop,
+  - release on empty canvas cancels.
+- Added visual IN-port highlighting during active drag.
+- Fixed cascade page dark theme integration by migrating selectors to:
+  - `:root[data-theme="dark"] ...`
+  matching global app theme behavior.
+- Code commit:
+  - `196cfc8` — `feat: add port-to-port drag line and dark-theme support for cascade page`
+
+Current stop-point:
+- Patch is in `main` and pushed.
+- Needs live regression on stand with hard refresh.
+
+Immediate next step:
+1. Validate in stand:
+   - drag from OUT circle to IN circle works in one gesture;
+   - releasing into empty canvas cancels without side effects;
+   - dark mode toggles cascade page visuals correctly.
+2. If any browser still misses drag finalize:
+   - add `pointerdown/pointerup` mirror handlers over current mouse path.
+
 ## Prompt For Next Session (Latest, supersedes older prompts)
 
 ```text

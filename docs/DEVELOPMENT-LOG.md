@@ -2088,3 +2088,25 @@ Change type:
 
 Change type:
 - `ux polish` — desktop node-to-node drag connect
+
+## 2026-04-19 Cascade Builder Port Drag + Dark Theme Alignment (shipped)
+
+- Delivered full mouse flow for creating links from port circle to port circle with visible drag line.
+- Updated files:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/public/js/cascade-builder.js`
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/public/css/cascade-builder.css`
+- Builder changes:
+  - custom desktop connect gesture:
+    - `mousedown` on OUT port starts drag session;
+    - dashed line is rendered live above canvas during drag;
+    - `mouseup` on IN port or node commits draft hop;
+    - release to empty canvas cancels cleanly.
+  - added IN-port highlight while drag session is active.
+- Theme changes:
+  - cascade page dark-mode selectors migrated to app theme source (`:root[data-theme="dark"]`) so dark theme applies consistently with global switcher.
+- Code commit:
+  - `196cfc8` — `feat: add port-to-port drag line and dark-theme support for cascade page`
+
+Change type:
+- `ux polish` — full port-to-port mouse flow with visible line
+- `stability fix` — cascades page dark-theme selector consistency

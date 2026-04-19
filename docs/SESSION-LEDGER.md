@@ -1009,3 +1009,18 @@
 - Next step:
   - verify on stand by drag from right side of source card body directly to target card;
   - if any browser still misses gesture, add pointer-events fallback (`pointerdown/pointerup`) in the same handler.
+
+## 2026-04-19 Session — Port-To-Port Mouse Flow + Dark Theme Fix
+
+- Worked on:
+  - user requested true port circle to port circle dragging with visible line;
+  - cascades page dark theme was not consistently applied.
+- Finished with:
+  - code commit `196cfc8` in `main`;
+  - custom port drag line implemented (live dashed line during drag, commit on target port/node);
+  - active IN-port highlight during drag;
+  - dark-theme selectors aligned to `:root[data-theme="dark"]` in cascade builder CSS.
+- Next step:
+  - live verify on stand:
+    - port-to-port drag creates hop in one gesture,
+    - dark mode switches correctly without manual class hacks.
