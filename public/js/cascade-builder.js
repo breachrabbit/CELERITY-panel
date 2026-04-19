@@ -589,8 +589,8 @@
                 selector: 'node[isPort = 1]',
                 style: {
                     'shape': 'ellipse',
-                    'width': 16,
-                    'height': 16,
+                    'width': 20,
+                    'height': 20,
                     'background-color': palette.portBackground,
                     'border-width': 2,
                     'border-style': 'solid',
@@ -1115,12 +1115,19 @@
         if (typeof event.stopPropagation === 'function') event.stopPropagation();
         hideBuilderErrorTooltip();
         setConnectIntent(sourceNodeId, buildPortId(sourceNodeId, 'out'));
+        state.cy?.nodes('node[isPort = 1][portType = "in"]').addClass('builder-connect-target');
         state.dragConnectSession = {
             sourceNodeId,
             sourcePortId: buildPortId(sourceNodeId, 'out'),
             startedAt: Date.now(),
-            showLine: false,
+            showLine: true,
+            hoverTargetNodeId: '',
         };
+        bindDragDocumentListeners();
+        const startPoint = getPortClientPoint(buildPortId(sourceNodeId, 'out'));
+        if (startPoint) {
+            updateDragOverlayLine(startPoint, startPoint);
+        }
         return true;
     }
 
@@ -3145,6 +3152,9 @@
             startBodyDragConnect(event, event.target);
         });
         state.cy.on('mousedown', 'node[isPort = 1][portType = "out"]', (event) => {
+            startPortDragConnect(event, event.target);
+        });
+        state.cy.on('tapstart', 'node[isPort = 1][portType = "out"]', (event) => {
             startPortDragConnect(event, event.target);
         });
         state.cy.on('tapstart', 'node[isPort != 1][isVirtualInternet != 1]', (event) => {
