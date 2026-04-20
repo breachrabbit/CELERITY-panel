@@ -70,8 +70,15 @@ services:
     volumes:
       - app_logs:/app/logs
       - app_backups:/app/backups
+    networks:
+      - default
+      - coolify
 
 volumes:
   mongo_data:
   app_logs:
   app_backups:
+
+networks:
+  coolify:
+    external: true
