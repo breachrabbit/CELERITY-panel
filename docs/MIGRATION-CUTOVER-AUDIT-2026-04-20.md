@@ -18,8 +18,11 @@ Current status by required layer:
 4. Production Continuity Audit — **Closed (constraints + gates captured)**
 5. Rollback Plan — **Closed (v2 draft + rollout gates captured)**
 
-No migration/cutover actions were executed in this step.
-No cleanup actions were executed in this step.
+Phase 2A / Batch 0 prerequisite state:
+
+- **Completed**: target repo `breachrabbit/brlabs.hrlab` is populated from current codebase (`main` + tags).
+- **Validated**: branches/tags/workflows/repo settings were externally verified.
+- **Not executed yet**: Coolify source cutover, runtime source-path switch, cleanup, feature waves.
 
 ---
 
@@ -29,14 +32,16 @@ No cleanup actions were executed in this step.
 
 ```text
 origin   https://github.com/breachrabbit/CELERITY-panel.git
+brlabs   https://github.com/breachrabbit/brlabs.hrlab.git
 upstream https://github.com/ClickDevTech/CELERITY-panel.git
 ```
 
 ### Assessment
 
 - `origin` still points to legacy-named repo path.
+- dedicated `brlabs` remote is now present and used for Batch 0 populate push.
 - `upstream` still points to original ClickDevTech repository.
-- This is expected pre-cutover, but must be controlled in Migration Cutover phase.
+- This is expected in staged cutover, but origin/source binding switch is still pending.
 
 ### Action required in cutover phase
 
@@ -94,19 +99,24 @@ breachrabbit/brlabs.hrlab:
 - actions/variables: 0
 - hooks: 0
 - environments: 0
-- releases: 0
+- releases: 1 (v1.1.0)
 ```
 
 Additional repo facts:
 
 - `breachrabbit/CELERITY-panel` is public and currently used by runtime/deploy paths.
-- `breachrabbit/brlabs.hrlab` exists and is private, but currently empty.
+- `breachrabbit/brlabs.hrlab` exists, is private, and now contains `main` + tags (`v1.0.0`, `v1.1.0`).
+- workflow inventory in target repo:
+  - `.github/workflows/docker.yml` (`Docker Hub`, active).
+- actions settings in target repo:
+  - `enabled=true`, `allowed_actions=all`.
+- branch protection API for private repo returned `403` (`Upgrade to GitHub Pro...`) and cannot be used as a hard validation surface in current plan.
 
 ### Assessment
 
 - No GitHub-side deployment secrets/variables/hooks are currently configured in either repo.
-- Target repo readiness is currently blocked by emptiness (`brlabs.hrlab` has no content/workflows/releases yet).
-- Release-channel reliance on GitHub Releases cannot be considered ready for cutover because both repos currently report `releases=0`.
+- Target repo baseline is now populated and auditable.
+- Release-channel risk moved from “both repos empty” to “legacy source repo still has no releases while runtime channel still points to legacy path”.
 
 ## 1.5 External Coolify audit (source links/hooks/deploy bindings)
 
@@ -224,15 +234,15 @@ Confirmed dependency points:
 Release inventory status (GitHub API):
 
 - `breachrabbit/CELERITY-panel` releases: `0`
-- `breachrabbit/brlabs.hrlab` releases: `0`
+- `breachrabbit/brlabs.hrlab` releases: `1` (`v1.1.0`, agent assets published)
 
 ### Assessment
 
 - Current runtime install channel has a structural cutover risk:
-  - channel points to a releases feed that currently has no published artifacts.
+  - channel still points to legacy repo releases (`breachrabbit/CELERITY-panel/releases`) where release inventory is currently `0`.
 - Cutover must explicitly define release strategy before switching default source path:
   - panel-bundle-first strategy, or
-  - publish releases before channel switch.
+  - switch runtime channel to target repo releases after continuity gates.
 
 ---
 
@@ -300,27 +310,28 @@ Mandatory artifacts for rollback readiness:
 
 ## 6) Final Cutover Micro-Batch Checklist (Phase 2 input)
 
-Status: draft-ready, execution not started.
+Status: **Phase 2A / Batch 0 complete**.
 
-### Batch 0 — Freeze + Snapshot
+### Batch 0 — Populate Target Repo (Prerequisite) — Completed
 
-- Freeze non-cutover changes.
-- Capture:
-  - current stand app UUID, last healthy deployment id/commit,
-  - current Coolify env snapshot (redacted),
-  - current git remotes and repo metadata snapshot.
-- Gate:
-  - documented rollback baseline exists.
+Executed:
 
-### Batch 1 — Repo Binding Cutover (no runtime switch yet)
+- pushed current `main` to `breachrabbit/brlabs.hrlab`;
+- pushed tags `v1.0.0` and `v1.1.0` to target;
+- validated target repo branch/tag/workflow/settings surfaces via GitHub API.
 
-- Push current working tree to `breachrabbit/brlabs.hrlab`.
-- Rebind local `origin` to `breachrabbit/brlabs.hrlab`.
-- Keep `upstream` policy explicit (retain for diff-only or freeze).
-- Gate:
-  - `brlabs.hrlab` contains full code and history baseline required for deployment.
+Validation facts:
 
-### Batch 2 — Coolify Source Binding Switch
+- branch: `main` exists and points to `47a8de29fa87843eb0c3339fe14b341b99e8c4be`;
+- tags: `v1.0.0`, `v1.1.0` present in target repo;
+- workflow: `.github/workflows/docker.yml` is present and active;
+- repo settings:
+  - `private=true`,
+  - `default_branch=main`,
+  - Actions enabled (`allowed_actions=all`),
+  - hooks/environments/secrets/variables currently empty.
+
+### Batch 1 — Coolify Source Binding Switch (next)
 
 - Switch Coolify app source binding from:
   - `breachrabbit/CELERITY-panel.git`
@@ -331,7 +342,7 @@ Status: draft-ready, execution not started.
   - deploy from new repo succeeds;
   - `/panel/login` and `/panel/nodes` smoke pass.
 
-### Batch 3 — Runtime Source Channel Switch
+### Batch 2 — Runtime Source Channel Switch
 
 - Update runtime channel vars:
   - `CC_AGENT_RELEASE_BASE`
@@ -343,7 +354,7 @@ Status: draft-ready, execution not started.
   - Hysteria onboarding smoke `completed`;
   - no legacy ClickDevTech URL in setup logs.
 
-### Batch 4 — Identity Surface Switch (audit-safe)
+### Batch 3 — Identity Surface Switch (audit-safe)
 
 - Switch metadata/docs/workflow references in controlled allow-list.
 - Do not run broad cleanup; only cutover-required identity surfaces.
@@ -351,7 +362,7 @@ Status: draft-ready, execution not started.
   - no deploy regression;
   - continuity smokes pass.
 
-### Batch 5 — Stabilization Hold
+### Batch 4 — Stabilization Hold
 
 - Keep monitor window with no new cleanup/feature wave.
 - Re-run continuity checks:
@@ -373,13 +384,12 @@ Status: draft-ready, execution not started.
 
 ## 7.2 Cutover blockers (current)
 
-1. `brlabs.hrlab` is currently empty (cannot be deployment source yet).
-2. Coolify stand is still bound to `breachrabbit/CELERITY-panel.git`.
-3. Runtime channel still points to `breachrabbit/CELERITY-panel/releases`.
-4. Releases inventory is empty in both repos (`releases=0`) — release strategy must be explicit before source switch.
-5. Identity residue remains high in workflow/docs/compose/package surfaces.
+1. Coolify stand is still bound to `breachrabbit/CELERITY-panel.git` (Batch 1 pending).
+2. Runtime channel still points to legacy releases path (`breachrabbit/CELERITY-panel/releases`) with inventory `0`.
+3. Identity residue remains high in workflow/docs/compose/package surfaces (to be handled after source cutover).
+4. Workflow runs in target repo are currently failing; requires explicit non-blocking decision for Batch 1 or pre-cutover workflow adjustment.
 
-Status: **Phase 1 complete with blockers identified**.
+Status: **Phase 1 closed + Phase 2A Batch 0 completed**.
 
 ---
 
@@ -392,10 +402,30 @@ Completed now:
   - Coolify source links/hooks/deploy bindings,
   - artifact/release/update source dependency map;
 - updated production continuity constraints and rollback gates;
-- prepared final micro-batch cutover checklist with explicit blockers.
+- prepared and executed Batch 0 prerequisite (target repo populate + validation).
 
 Still required before Phase 2 (Migration Cutover):
 
-1. populate `breachrabbit/brlabs.hrlab` with deployment-ready code baseline;
-2. approve runtime release strategy for agent/install channels (because releases are currently empty);
-3. approve ordered execution of Batch 0..5 with rollback readiness confirmed.
+1. approve Batch 1 (Coolify source binding switch) with rollback gates;
+2. approve runtime release strategy for agent/install channels (legacy release path still `0`);
+3. run Batch 1 smokes and confirm continuity before moving to Batch 2.
+
+## Batch 1 (Coolify cutover) readiness decision
+
+Decision: **Ready with gates**.
+
+Ready conditions met:
+
+- target repo populated and validated (`main`, tags, workflows, settings);
+- rollback/checklist framework is documented;
+- scope separation is explicit (runtime path switch deferred).
+
+Hard gates to enforce during Batch 1:
+
+1. Do not touch runtime release-path in same batch.
+2. Capture pre-switch source binding snapshot and last healthy deployment pointer.
+3. Immediately run minimal smokes after switch:
+   - `/panel/login`,
+   - `/panel/nodes`,
+   - node setup page open/render.
+4. If smoke fails, rollback source binding immediately.

@@ -118,6 +118,109 @@ Do not change order.
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 0 Completed (Prerequisite)
+
+### Что решено
+
+- Phase 1 audit remains closed.
+- Phase 2A Batch 0 (populate target repo) is completed.
+- Scope remained strict:
+  - no Coolify changes,
+  - no runtime release-path switch,
+  - no cleanup,
+  - no feature-work.
+
+### Что сделано
+
+- Target repo populated:
+  - `breachrabbit/brlabs.hrlab` now contains current `main`;
+  - tags pushed: `v1.0.0`, `v1.1.0`.
+- Target repo validation executed:
+  - branches: `main` exists;
+  - tags: both tags visible via GitHub API;
+  - workflows: `.github/workflows/docker.yml` exists and active;
+  - repo settings confirmed:
+    - `private=true`,
+    - `default_branch=main`,
+    - Actions enabled (`allowed_actions=all`).
+- Control surfaces checked:
+  - hooks/environments/secrets/variables are empty (`0`).
+- Additional evidence captured:
+  - target repo now has release `v1.1.0` with `cc-agent` assets;
+  - source repo releases remain `0`;
+  - target workflow runs currently end in `failure` and must be treated as explicit gate/risk.
+- Updated docs:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/DEVELOPMENT-LOG.md`
+  - `docs/SESSION-LEDGER.md`
+
+### Что в работе
+
+- Batch 1 (Coolify source cutover) is not executed yet.
+- Runtime release-path migration remains pending for later batch.
+
+### Что дальше
+
+1. Approve Batch 1 (Coolify cutover) go/no-go with rollback gates.
+2. Execute only Coolify source binding switch.
+3. Run immediate smoke set:
+   - `/panel/login`,
+   - `/panel/nodes`,
+   - setup jobs panel open + basic action responsiveness.
+4. Stop and record result before moving to runtime source-path batch.
+
+### Что нельзя путать
+
+- Batch 0 populate does not mean cutover is complete.
+- Workflow failure in target repo is a separate gate/risk and must be explicit.
+- Runtime source-path switch must not be mixed into Batch 1.
+
+### Что еще не доказано
+
+- Production continuity after real Coolify source switch to `brlabs.hrlab`.
+- Stability of deployment flow if target workflow remains failing.
+
+### Что является только форковой спецификой
+
+- Transitional release/source channel behavior with guarded installer paths.
+- Current onboarding/cascade production utility constraints in this fork track.
+
+### Stop-point
+
+- Session stopped after Batch 0 completion and document closure.
+
+## Prompt For Next Session (Batch 1 decision/execution only)
+
+```text
+Прочитай по порядку:
+1) docs/START-HERE.md
+2) docs/PROJECT-BASELINE.md
+3) docs/ROADMAP.md
+4) docs/SESSION-HANDOFF.md
+5) docs/KNOWN-ISSUES.md
+6) docs/DEVELOPMENT-LOG.md
+7) docs/SESSION-LEDGER.md
+8) docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md
+9) docs/CUTOVER-RISK-REGISTER.md
+
+Контекст:
+- Phase 1 завершен.
+- Phase 2A Batch 0 завершен (target repo populated + validated).
+- Текущая задача: только решение/исполнение Batch 1 (Coolify source cutover).
+
+Сделать:
+1) подтвердить rollback gates перед Batch 1;
+2) выполнить только Coolify source switch;
+3) прогнать минимальные smoke-checks;
+4) зафиксировать результат и остановиться.
+
+Не делать:
+- runtime source-path switch,
+- cleanup,
+- feature-work.
+```
+
 ## 2026-04-20 Stop-Point — Migration Cutover Audit Kickoff
 
 ### Что решено

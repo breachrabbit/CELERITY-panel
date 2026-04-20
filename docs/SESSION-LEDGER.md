@@ -2,6 +2,27 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 0 prerequisite (populate target repo `breachrabbit/brlabs.hrlab`) with strict scope lock.
+- Finished with:
+  - pushed `main` and tags (`v1.0.0`, `v1.1.0`) to target repo;
+  - validated target surfaces:
+    - branches (`main`),
+    - tags (`v1.0.0`, `v1.1.0`),
+    - workflows (`.github/workflows/docker.yml`, active),
+    - repo settings (`private=true`, `default_branch=main`, Actions enabled);
+  - confirmed empty control surfaces:
+    - hooks/environments/secrets/variables all `0`;
+  - captured additional state:
+    - target repo now has release `v1.1.0` with agent assets;
+    - source repo releases remain `0`;
+    - target workflow runs currently failing on push/tag.
+  - updated cutover docs/risk/handoff with Batch 0 completion and blockers.
+- Next step:
+  - Phase 2A Batch 1 decision (Coolify source cutover) with explicit rollback gates;
+  - keep runtime release-path switch for later batch (do not mix with Batch 1).
+
+## 2026-04-20
+
 - Worked on: Phase 1 external cutover audit closure (GitHub/Coolify/runtime source surfaces).
 - Finished with:
   - completed external GitHub checks for both repos on:

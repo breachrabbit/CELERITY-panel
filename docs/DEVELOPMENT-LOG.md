@@ -1,5 +1,46 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 0 (Prerequisite) Completed
+
+- Executed only Batch 0 scope (no cleanup, no feature work, no runtime/Coolify switch):
+  1. populated target repo `breachrabbit/brlabs.hrlab` from current codebase;
+  2. validated branches/tags/workflows/repo settings surfaces.
+- Git operations completed:
+  - added dedicated local remote:
+    - `brlabs -> https://github.com/breachrabbit/brlabs.hrlab.git`;
+  - pushed `main` to target repo;
+  - pushed tags to target repo:
+    - `v1.0.0`
+    - `v1.1.0`.
+- Validation facts captured:
+  - target branch state:
+    - `main` exists (`47a8de29fa87843eb0c3339fe14b341b99e8c4be`);
+  - target tags present (`v1.0.0`, `v1.1.0`);
+  - workflows present:
+    - `.github/workflows/docker.yml` (`Docker Hub`, active);
+  - actions settings:
+    - enabled, `allowed_actions=all`;
+  - hooks/environments/secrets/variables:
+    - all currently empty;
+  - branch protection API for private repo returned `403` (plan-tier limitation for this endpoint).
+- Additional observed fact:
+  - target repo now has release `v1.1.0` with cc-agent assets;
+  - source repo (`breachrabbit/CELERITY-panel`) releases still `0`.
+- Phase decision:
+  - Batch 1 (Coolify cutover) is **technically ready with gates**:
+    - target repo is now populated/validated;
+    - pending blockers remain explicitly documented (Coolify source binding still old, runtime release path still old, target workflow failures).
+- Docs updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — migration prerequisite execution (target repo populate)
+- `docs` — cutover state, blockers, and next-batch readiness formalization
+
 ## 2026-04-20 Migration Cutover Audit — External Surface Closure
 
 - Completed the external verification part of Phase 1 (audit-only scope, no cleanup/feature work):
