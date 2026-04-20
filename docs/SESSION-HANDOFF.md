@@ -2714,6 +2714,99 @@ Next step:
   - docs/SESSION-LEDGER.md
 ```
 
+## 2026-04-20 Stop-Point — Phase 1 External Audit Closed
+
+### Что решено
+
+- Phase 1 remains audit-only and completed with external evidence closure.
+- Work order remains locked:
+  1. Migration Cutover Audit
+  2. Migration Cutover
+  3. Legacy Cleanup
+  4. Unresolved engineering work
+
+### Что сделано
+
+- Closed external audit facts for GitHub and Coolify:
+  - GitHub endpoint counts verified for both repos (`secrets/variables/hooks/environments/releases`);
+  - target repo `breachrabbit/brlabs.hrlab` confirmed private and empty;
+  - both repos currently have `releases=0`;
+  - Coolify stand app `ymi9vwwf438y5ozeh0kwhklf` confirmed still bound to `breachrabbit/CELERITY-panel.git` (`main`);
+  - runtime source env still points to `CC_AGENT_RELEASE_BASE=https://github.com/breachrabbit/CELERITY-panel/releases`.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`:
+    - external evidence section,
+    - final micro-batch checklist (`Batch 0..5`),
+    - rollback gates,
+    - explicit cutover blockers.
+  - `docs/CUTOVER-RISK-REGISTER.md`:
+    - risk impact/likelihood/status refreshed with blocker-level rows.
+
+### Что в работе
+
+- No code migration executed yet.
+- Waiting for explicit operator go/no-go to start Phase 2 micro-batch execution.
+
+### Что дальше
+
+1. Approve Phase 2 execution order (`Batch 0..5`) from audit doc.
+2. Execute cutover batches with smoke/rollback gates after each batch.
+3. Keep cleanup frozen until cutover blockers are cleared.
+
+### Что нельзя путать
+
+- `BR Labs.hrlab` track is not Hidden Rabbit product truth.
+- Phase 2 cutover is not cleanup.
+- Identity migration is a controlled production event, not textual rename.
+
+### Что еще не доказано
+
+- End-to-end runtime continuity after actual source switch to `brlabs.hrlab` (not started yet).
+- Release-channel behavior after switching away from current `breachrabbit/CELERITY-panel/releases` default.
+
+### Что является только форковой спецификой
+
+- Current durable onboarding + setup-status split behavior.
+- Transitional cascade-builder/domain implementation details.
+
+### Stop-point
+
+- Session ended with Phase 1 closed by evidence; no cleanup and no feature work performed.
+
+## Prompt For Next Session (Latest, cutover execution prep)
+
+```text
+Прочитай по порядку:
+1) docs/START-HERE.md
+2) docs/PROJECT-BASELINE.md
+3) docs/ROADMAP.md
+4) docs/SESSION-HANDOFF.md
+5) docs/KNOWN-ISSUES.md
+6) docs/DEVELOPMENT-LOG.md
+7) docs/SESSION-LEDGER.md
+8) docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md
+9) docs/CUTOVER-RISK-REGISTER.md
+
+Потом продолжай строго в рамках Migration Cutover (Phase 2), только после подтверждения operator go.
+
+Контекст:
+- Phase 1 (Migration Cutover Audit) закрыт фактами;
+- cleanup и feature-work остаются замороженными;
+- production continuity — hard constraint.
+
+Приоритет:
+1) выполнить Batch 0 (freeze + snapshots + rollback baseline);
+2) подготовить Batch 1 (populate brlabs.hrlab) и остановиться на gate-check;
+3) после каждого batch фиксировать smoke/gate/rollback state в docs.
+
+Важно:
+- не смешивать code commit и docs commit;
+- в конце сессии обязательно обновить:
+  - docs/SESSION-HANDOFF.md
+  - docs/DEVELOPMENT-LOG.md
+  - docs/SESSION-LEDGER.md
+```
+
 ## 2026-04-18 Update — Onboarding Jobs UX + Hybrid Sidecar Standalone Gate (shipped)
 
 Что завершено:

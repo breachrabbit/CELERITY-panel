@@ -2,6 +2,29 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 1 external cutover audit closure (GitHub/Coolify/runtime source surfaces).
+- Finished with:
+  - completed external GitHub checks for both repos on:
+    - `actions/secrets`,
+    - `actions/variables`,
+    - `hooks`,
+    - `environments`,
+    - `releases`;
+  - confirmed `breachrabbit/brlabs.hrlab` exists but is empty;
+  - confirmed both repos currently have `releases=0`;
+  - confirmed Coolify stand app `ymi9vwwf438y5ozeh0kwhklf` is still bound to:
+    - `breachrabbit/CELERITY-panel.git` (`main`);
+  - confirmed runtime channel env still uses:
+    - `CC_AGENT_RELEASE_BASE=https://github.com/breachrabbit/CELERITY-panel/releases`;
+  - updated:
+    - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md` (external facts + micro-batches + rollback gates + blockers),
+    - `docs/CUTOVER-RISK-REGISTER.md` (impact/likelihood/status refresh).
+- Next step:
+  - approve and execute Phase 2 cutover micro-batches in order (`Batch 0..5`);
+  - do not start cleanup before cutover blockers are cleared.
+
+## 2026-04-20
+
 - Worked on: mandatory bootstrap switch to Cutover model and Phase-1 Migration Cutover Audit kickoff.
 - Finished with:
   - created `docs/START-HERE.md` with fixed execution order:
