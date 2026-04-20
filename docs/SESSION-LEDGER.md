@@ -2,6 +2,26 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1D-B-UPSTREAM (production vs canary backend registration comparison).
+- Finished with:
+  - compared live routing backend registration across:
+    - service target names,
+    - internal port registration,
+    - network attachment,
+    - provider registration consistency;
+  - confirmed smoke status:
+    - production `/panel/login` -> `HTTP 200`,
+    - canary `/panel/login` -> `HTTP 503` (`no available server`);
+  - identified exact upstream mismatch:
+    - canary uses mixed registration models (`custom_labels` graph + compose backend graph),
+    - `docker_compose_domains` remains `null`,
+    - break remains at `service selection -> upstream availability`.
+- Next step:
+  - unify canary registration model (single router/service target path);
+  - then retry smoke gate.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1D-B-INGRESS-TRACE (routing trace only).
 - Finished with:
   - traced live chain for canary:

@@ -104,6 +104,31 @@ Phase 2A / Batch 1D-B-INGRESS-TRACE state:
   - ingress gate remains blocked;
   - Batch 1D-B decision cannot resume.
 
+Phase 2A / Batch 1D-B-UPSTREAM state:
+
+- **Executed (upstream registration comparison), no config mutation**.
+- **Compared live registration surfaces (production vs canary)**:
+  1. Router/service label set seen in app-level generated state (`custom_labels`);
+  2. Backend container label set rendered in live compose for each app;
+  3. Service target naming, internal port declarations, network attachments, provider registration consistency.
+- **Production (working path)**:
+  - backend registration is coherent:
+    - router rules, service names, and backend registration labels are aligned on the same routing model;
+    - domain binding object is present (`docker_compose_domains` contains backend domain);
+    - smoke `/panel/login` = `HTTP 200`.
+- **Canary (failing path)**:
+  - registration is split across two models:
+    - app-level generated labels in `custom_labels` reference services `http-0-*` / `https-0-*` on port `80`;
+    - backend compose labels from patch define different service identity `backend-$UUID` on port `3000`;
+    - canary keeps `docker_compose_domains=null` (unlike production).
+- **Exact upstream mismatch**:
+  - **provider registration state is inconsistent for canary**:
+    - router/service selection path is not singular and resolves to an upstream set with no available server for the matched host;
+    - break occurs at `service selection -> backend upstream availability`.
+- **Batch result**:
+  - mismatch is fixable (registration model must be unified);
+  - smoke gate can be retried **only after** registration consistency is restored on canary.
+
 ---
 
 ## 1) Remote/Repo Audit

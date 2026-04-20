@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1D-B-UPSTREAM (backend registration comparison)
+
+- Scope executed: upstream comparison only, no host-rule re-debug, no blind patch.
+- Compared production vs canary live registration for:
+  - router->service mapping labels,
+  - service target names and internal ports,
+  - network attachment,
+  - provider registration consistency.
+- Verified smoke status remained:
+  - production `/panel/login` -> `HTTP 200`;
+  - canary `/panel/login` -> `HTTP 503` (`no available server`).
+- Exact upstream mismatch captured:
+  - canary has split registration model:
+    - app-level generated service graph in `custom_labels` (`http-0/https-0`, port 80),
+    - separate compose-level backend service graph (`backend-$UUID`, port 3000),
+    - with `docker_compose_domains=null`;
+  - resulting provider view is inconsistent and breaks at `service selection -> upstream availability`.
+- Batch conclusion:
+  - mismatch is fixable;
+  - smoke gate retry is allowed only after registration model is unified.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `trace` — production vs canary upstream registration comparison
+- `audit` — exact mismatch formalization
+- `docs` — continuity/risk updates
+
 ## 2026-04-20 Phase 2A — Batch 1D-B-INGRESS-TRACE (routing chain trace only)
 
 - Scope executed: trace-only, no YAML rework, no blind patch, no cleanup, no feature-work.

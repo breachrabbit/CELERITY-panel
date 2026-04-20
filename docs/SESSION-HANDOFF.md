@@ -27,6 +27,60 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-UPSTREAM
+
+### Что решено
+
+- Выполнен только upstream-comparison scope:
+  - production vs canary backend registration;
+  - без host-rule re-debug и без blind patch.
+- Exact upstream mismatch локализован.
+
+### Что сделано
+
+- Сравнены live registration surfaces:
+  - router/service labels в `custom_labels`,
+  - backend labels в live compose,
+  - target service names / ports / networks / provider consistency.
+- Подтверждено:
+  - production `/panel/login` -> `HTTP 200`;
+  - canary `/panel/login` -> `HTTP 503` (`no available server`);
+  - canary app `running:healthy`.
+- Зафиксировано отличие:
+  - production имеет согласованную registration model + `docker_compose_domains` populated;
+  - canary держит split model:
+    - app-level `http-0/https-0` service graph (port 80) в `custom_labels`,
+    - отдельный backend service graph `backend-$UUID` (port 3000) в compose labels,
+    - при этом `docker_compose_domains=null`.
+
+### Что в работе
+
+- Нормализация canary provider registration к единой service/router модели.
+
+### Что дальше
+
+1. Исправить только registration consistency на canary.
+2. Повторить smoke `/panel/login`.
+3. До зеленого smoke не возобновлять Batch 1D-B decision.
+
+### Что нельзя путать
+
+- App `running:healthy` не подтверждает корректный upstream chain в router.
+
+### Что еще не доказано
+
+- Устойчивый canary ingress path с единым service graph (`HTTP 200`).
+
+### Что является только форковой спецификой
+
+- Решение о cutover двигается только после подтвержденного canary smoke, не по container health.
+
+### Stop-point
+
+- Batch 1D-B-UPSTREAM: **completed (diagnosis)**.
+- Exact break: **service selection -> backend upstream availability** due to split registration model.
+- Batch 1D-B decision resume: **нет** (до фикса registration consistency).
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-INGRESS-TRACE
 
 ### Что решено

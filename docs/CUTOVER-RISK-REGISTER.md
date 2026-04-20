@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-INGRESS-TRACE)
+Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-UPSTREAM)
 
 ## Risk Register
 
@@ -31,6 +31,7 @@ Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-INGRESS-TRACE)
 | Explicit backend-label patch deployed but canary ingress still `503` (`i9zxjfcku9gur6q3wq32r8k2`) | Indicates unresolved backend route mapping despite healthy app; can prolong cutover freeze | High | Keep scope on Batch 1D-B-INGRESS-DIFF only; verify final mapping chain (`Host -> router/service -> upstream`) on canary object and clear gate before any decision resume | Keep production app/source unchanged; no switch while canary `/panel/login` is non-200 | Open (Patch insufficient; gate still blocked) |
 | Canary app keeps `docker_compose_domains=null` while ingress depends on backend host routing | Platform-level domain binding drift may override/undermine compose-label fallback behavior | High | Track as explicit ingress mismatch in cutover audit; clear only with proven canary `HTTP 200` smoke | Preserve production routing and keep canary isolated until binding path is proven | Open (Unresolved binding state) |
 | Live trace shows break at `router -> service -> upstream` stage (host matched, upstream unavailable) | Confirms failure is in ingress service mapping layer, not in app runtime health | High | Continue only ingress trace/fix scope until selected service has live backend upstream for canary host | Keep production path active; do not resume cutover decision while trace still ends at `no available server` | Open (Exact failure point captured) |
+| Canary uses mixed provider registration models (`custom_labels` service set vs backend compose service set) | Router can select a service graph that has no usable upstream for canary host, causing persistent `503` | High | Unify canary backend registration to a single service/router model before next smoke attempt | Keep production unchanged; retry smoke only after unified registration is confirmed | Open (Exact upstream mismatch captured) |
 
 ## Notes
 
