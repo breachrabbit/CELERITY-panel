@@ -6,6 +6,12 @@ This repository is an operational fork of the Celerity panel codebase, maintaine
 
 It exists to support a real working VPN/panel setup, not to serve as part of a shared product platform.
 
+Current track identity:
+
+- `BR Labs.hrlab` (internal incubation/proving-ground/controlled production utility).
+- This is not the Hidden Rabbit product repository itself.
+- Current migration state is a **Cutover Event** (not simple rename/cleanup).
+
 ## Why It Exists
 
 The fork is used to:
@@ -33,10 +39,10 @@ This project is:
 
 This project is not:
 
-- Rabbit Platform;
-- a shared factory system;
-- a general platform layer;
-- a bridge into any main product memory.
+- the governing center (`rabbit-platform`);
+- the canonical active platform order (`S4-Core`);
+- the final Hidden Rabbit product truth;
+- a bridge into main product memory.
 
 ## Current Operating Shape
 

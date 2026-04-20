@@ -1,15 +1,47 @@
 # Session Handoff
 
+## Current Active Order (Mandatory)
+
+1. Migration Cutover Audit
+2. Migration Cutover
+3. Legacy Cleanup
+4. Unresolved engineering work
+
+Do not change order.
+
+## Mandatory Session Output
+
+### Что решено
+
+### Что сделано
+
+### Что в работе
+
+### Что дальше
+
+### Что нельзя путать
+
+### Что еще не доказано
+
+### Что является только форковой спецификой
+
+### Stop-point
+
 ## Current State
 
 - State: `pending`
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: onboarding-first setup reliability + practical cascade-builder execution path on live test nodes.
-- New mandatory audit task:
-  - review upstream delta `v1.0.0...v1.1.0` and selectively port safe high-value fixes into this fork:
-    - compare link: `https://github.com/ClickDevTech/CELERITY-panel/compare/v1.0.0...v1.1.0`.
+- Current working focus: **Phase 1 / Migration Cutover Audit** (audit-only scope).
+- Working order lock:
+  1. Migration Cutover Audit
+  2. Migration Cutover
+  3. Legacy Cleanup
+  4. Unresolved engineering work
+- Audit artifact for this phase:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
 - Current local patch focus:
   - replaced remaining form-embedded management action buttons with explicit `type="button"` to stop accidental form submit while running onboarding/setup actions;
   - strengthened in-app auto-setup confirmation presentation (`hrConfirm` with explicit action title/buttons), no native browser dialog path expected in node setup actions;
@@ -85,6 +117,65 @@
   - backported same-VPS agent firewall hardening (local/container subnet allow rules);
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
+
+## 2026-04-20 Stop-Point — Migration Cutover Audit Kickoff
+
+### Что решено
+
+- Active identity: `BR Labs.hrlab` is treated as active track identity.
+- Working model switched to `Cutover`, not `Rename`.
+- Phase order is fixed and cannot be changed.
+
+### Что сделано
+
+- Continuity docs updated for new operating model:
+  - `docs/START-HERE.md` (created);
+  - `docs/ISOLATED-PROJECT-RULE.md` (critical cutover rule + permanent laws);
+  - `docs/SESSION-HANDOFF.md` (mandatory output template + active order);
+  - `docs/PROJECT-BASELINE.md` and `docs/ROADMAP.md` aligned with cutover-first rule.
+- Cutover risk register added:
+  - `docs/CUTOVER-RISK-REGISTER.md`.
+- Audit execution started and documented:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - includes required 5 layers:
+    - Remote/Repo Audit,
+    - Identity Residue Sweep,
+    - Runtime Dependency Audit,
+    - Production Continuity Audit,
+    - Rollback Plan (draft v1).
+
+### Что в работе
+
+- Completing Phase-1 evidence depth before migration actions:
+  - external console checks (GitHub/Coolify hooks/secrets/webhooks),
+  - final cutover execution checklist by micro-batches.
+
+### Что дальше
+
+1. Finalize Phase-1 audit evidence and close open audit rows.
+2. Approve Migration Cutover micro-plan (no cleanup yet).
+3. Execute cutover in controlled batches with smoke gates and rollback readiness.
+
+### Что нельзя путать
+
+- `BR Labs.hrlab` track is not Hidden Rabbit product truth.
+- Incubation track is not governing center.
+- Cutover phase is not cleanup phase.
+
+### Что еще не доказано
+
+- Full external infra parity for secrets/hooks/webhooks after target repo identity switch.
+- End-to-end continuity proof for all production constraints under post-cutover source paths.
+
+### Что является только форковой спецификой
+
+- Durable onboarding + repair/resume UX implementation details.
+- Current cascade-builder transitional deploy bridge and diagnostics UX.
+- Local continuity law stack and session governance model in `docs/`.
+
+### Stop-point
+
+- Session ended in Phase-1 (audit-only), with no cleanup wave and no out-of-scope feature work.
 
 ## 2026-04-20 Stop-Point — Full Fork Report Prepared
 

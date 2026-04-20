@@ -1,5 +1,35 @@
 # Development Log
 
+## 2026-04-20 Migration Cutover Audit Kickoff (Phase 1)
+
+- Updated continuity governance to cutover-first model:
+  - added `docs/START-HERE.md`;
+  - updated `docs/ISOLATED-PROJECT-RULE.md` with:
+    - cutover critical rule,
+    - fixed active order,
+    - permanent operating laws;
+  - updated `docs/SESSION-HANDOFF.md` with mandatory session output template and new cutover stop-point block;
+  - aligned `docs/PROJECT-BASELINE.md` and `docs/ROADMAP.md` with cutover-first constraints.
+- Added mandatory cutover risk register:
+  - `docs/CUTOVER-RISK-REGISTER.md` (Risk/Impact/Likelihood/Mitigation/Rollback/Status).
+- Started and documented Phase-1 Migration Cutover Audit:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`;
+  - completed initial pass of required layers:
+    - Remote/Repo Audit;
+    - Identity Residue Sweep;
+    - Runtime Dependency Audit;
+    - Production Continuity Audit;
+    - Rollback Plan (draft v1).
+- Collected hard evidence of unresolved cutover blockers:
+  - remotes still point to legacy-named repo and ClickDevTech upstream;
+  - workflow/image/package/readme surfaces still contain legacy identity traces;
+  - installer/runtime source defaults still use `breachrabbit/CELERITY-panel` path and require controlled migration.
+
+Change types:
+
+- `docs` — cutover governance and audit artifact layer
+- `ops` — migration risk framing + rollback-first planning
+
 ## 2026-04-20 Master Report Consolidation (Full Fork Delta)
 
 - Added a full consolidated report of fork evolution vs original Celerity:

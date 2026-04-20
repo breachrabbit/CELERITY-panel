@@ -1,5 +1,21 @@
 # Known Issues
 
+## Active Migration Cutover Blockers (Phase 1)
+
+1. Repository and release identity is still mixed:
+   - `origin` points to `breachrabbit/CELERITY-panel`;
+   - `upstream` points to `ClickDevTech/CELERITY-panel`.
+2. Legacy identity residue remains in workflow/package/readme/deploy surfaces:
+   - `clickdevtech/hysteria-panel`,
+   - `ClickDevTech/hysteria-panel`,
+   - `CELERITY` naming in metadata/docs.
+3. Runtime source defaults still reference legacy-path fork namespace:
+   - quick installer and agent release defaults use `breachrabbit/CELERITY-panel`.
+4. External infra audit is not yet closed:
+   - GitHub/Coolify secrets, deploy hooks, webhooks need explicit cutover checklist confirmation.
+
+Status: `pending` (must be resolved in Migration Cutover phases, before cleanup wave).
+
 ## Active Product / UX Issues
 
 ### 0. Cascade Builder is experimental and still transitional

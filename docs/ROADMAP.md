@@ -1,5 +1,24 @@
 # Roadmap
 
+## Current Active Order
+
+1. Migration Cutover Audit
+2. Migration Cutover
+3. Legacy Cleanup
+4. Unresolved engineering work
+
+Do not change order.
+
+## Current First Priority
+
+Run Migration Cutover Audit only:
+
+- Remote/Repo Audit;
+- Identity Residue Sweep;
+- Runtime Dependency Audit;
+- Production Continuity Audit;
+- Rollback Plan.
+
 ## Near Term
 
 - run a focused upstream delta audit for `CELERITY-panel v1.0.0...v1.1.0`:

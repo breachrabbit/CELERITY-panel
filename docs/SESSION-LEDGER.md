@@ -2,6 +2,27 @@
 
 ## 2026-04-20
 
+- Worked on: mandatory bootstrap switch to Cutover model and Phase-1 Migration Cutover Audit kickoff.
+- Finished with:
+  - created `docs/START-HERE.md` with fixed execution order:
+    1) Migration Cutover Audit
+    2) Migration Cutover
+    3) Legacy Cleanup
+    4) Unresolved engineering work;
+  - updated `docs/ISOLATED-PROJECT-RULE.md` with:
+    - critical cutover rule,
+    - permanent operating laws,
+    - clarified canonical context separation;
+  - updated `docs/SESSION-HANDOFF.md` with mandatory output template and cutover stop-point section;
+  - added `docs/CUTOVER-RISK-REGISTER.md`;
+  - added `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md` with initial findings across all required audit layers.
+- Next step:
+  - complete external console part of Remote/Repo Audit (secrets/hooks/webhooks/deploy links),
+  - finalize cutover micro-batch checklist and smoke gates,
+  - only then move to Phase-2 Migration Cutover.
+
+## 2026-04-20
+
 - Worked on: preparing a single exhaustive report of all work done in this fork (vs original Celerity), as requested.
 - Finished with:
   - created `docs/HIDDEN-RABBIT-FORK-FULL-REPORT-2026-04-20.ru.md`;

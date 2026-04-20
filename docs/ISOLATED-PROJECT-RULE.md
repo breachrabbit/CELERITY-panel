@@ -1,5 +1,12 @@
 # Isolated Project Rule
 
+## Canonical Context
+
+- `rabbit-platform` is the canonical governing center (external to this repo).
+- `S4-Core` is the canonical active platform order (external to this repo).
+- `BR Labs.hrlab` is this repository track: incubation/proving-ground/controlled production utility.
+- `Hidden Rabbit` remains the target product and is not automatically updated from this track.
+
 ## Status
 
 This repository is an isolated fork used for practical support of a VPN/panel system for a limited circle of users.
@@ -10,9 +17,9 @@ It is maintained as its own working project and must stay independent.
 
 This project:
 
-- is not part of Rabbit Platform;
-- is not part of BR Labs Factory;
-- is not part of S4-Core;
+- is not the governing center (`rabbit-platform`);
+- is not the canonical order (`S4-Core`);
+- is not Hidden Rabbit product truth;
 - does not participate in platform sequencing;
 - does not use any bridge model with the main system;
 - does not inherit Rabbit Platform rules as a governing model.
@@ -48,10 +55,56 @@ Not allowed without an explicit decision:
 
 - mixing this fork with Rabbit Platform or any shared product memory;
 - turning this fork into a platform component;
-- using Factory, Vault, S4-Core, or platform sequencing as the operating model;
+- using Factory/Vault/platform sequencing as the operating model of this repo;
 - opening unrelated feature waves;
 - rewriting the architecture "for beauty";
 - treating this repository as shared infrastructure for the wider ecosystem.
+
+## Critical Rule
+
+BR Labs.hrlab uses **Cutover model**.
+
+Not Rename model.
+
+Any work must assume:
+
+- repo identity already exists;
+- active task is controlled migration cutover.
+
+## Active Order (Mandatory)
+
+1. Migration Cutover Audit
+2. Migration Cutover
+3. Legacy Cleanup
+4. Unresolved engineering work
+
+Order cannot be changed.
+
+## Permanent Operating Laws
+
+### LAW 1
+
+BR Labs.hrlab is a separate evolving system.
+
+### LAW 2
+
+Cutover before cleanup. Always.
+
+### LAW 3
+
+Production continuity has priority over refactor purity. Always.
+
+### LAW 4
+
+Nothing transfers automatically to Hidden Rabbit. Ever.
+
+### LAW 5
+
+Fork-specific hacks default to quarantine until proven otherwise.
+
+### LAW 6
+
+Every session must end with handoff. No exceptions.
 
 ## Continuity Law
 
