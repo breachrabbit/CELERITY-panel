@@ -24,6 +24,14 @@ Phase 2A / Batch 0 prerequisite state:
 - **Validated**: branches/tags/workflows/repo settings were externally verified.
 - **Not executed yet**: Coolify source cutover, runtime source-path switch, cleanup, feature waves.
 
+Phase 2A / Batch 1A state:
+
+- **Completed**: workflow failure gate inspected and classified (non-blocking for cutover attempt).
+
+Phase 2A / Batch 1B state:
+
+- **Executed and rolled back**: Coolify source switch was attempted, deployment failed on target private repo access, rollback completed successfully.
+
 ---
 
 ## 1) Remote/Repo Audit
@@ -389,7 +397,83 @@ Validation facts:
 3. Identity residue remains high in workflow/docs/compose/package surfaces (to be handled after source cutover).
 4. Workflow runs in target repo are currently failing; Batch 1A classified this as non-blocking for Batch 1B (Coolify cutover), but structural for CI/release path and still open for later fix batch.
 
-Status: **Phase 1 closed + Phase 2A Batch 0 completed**.
+Status: **Phase 1 closed + Phase 2A Batch 0 and Batch 1A completed; Batch 1B attempted and rolled back (blocked)**.
+
+---
+
+## 8) Phase 2A / Batch 1B — Coolify Cutover Execution (Result)
+
+Scope executed (and only this scope):
+
+1. rollback snapshot of current Coolify app state;
+2. source switch to target repo/branch;
+3. post-switch binding verification;
+4. immediate deploy smoke;
+5. rollback on failure.
+
+### 8.1 Rollback snapshot (pre-switch)
+
+Captured from Coolify app `ymi9vwwf438y5ozeh0kwhklf`:
+
+- source repo: `breachrabbit/CELERITY-panel.git`
+- source branch: `main`
+- source type: `GithubApp`
+- deploy status: `running:healthy`
+- webhook/deploy bindings:
+  - `manual_webhook_secret_* = null` (no manual webhook secrets configured)
+- env continuity:
+  - environment variables present and unchanged during this batch.
+
+### 8.2 Source switch performed
+
+Applied switch in Coolify:
+
+- repo: `breachrabbit/brlabs.hrlab.git`
+- branch: `main`
+
+Binding verification confirmed target values were applied before smoke deploy.
+
+### 8.3 Immediate smoke deploy result
+
+Triggered deploy UUID:
+
+- `e7u39hapu2o42d96p0xworwc`
+
+Result:
+
+- `failed`
+
+Primary failure evidence:
+
+- `git ls-remote https://github.com/breachrabbit/brlabs.hrlab.git refs/heads/main`
+- `fatal: could not read Username for 'https://github.com': No such device or address`
+
+Classification:
+
+- `structural` for Batch 1B (private target repo access path from Coolify `GithubApp` binding is not ready).
+
+### 8.4 Rollback execution
+
+Rollback action:
+
+- restored Coolify source binding to:
+  - repo: `breachrabbit/CELERITY-panel.git`
+  - branch: `main`
+
+Rollback verification deploy UUID:
+
+- `iduyvwk8ib6nm7e86ai4mtgl`
+
+Rollback deploy result:
+
+- `finished`
+- app status remains `running:healthy`.
+
+### 8.5 Batch 1B gate decision
+
+- Batch 1B pass: **No**
+- rollback required: **Yes** (executed)
+- Batch 2 readiness: **No** (blocked until Coolify target-repo auth/binding path is fixed and Batch 1B re-run passes).
 
 ---
 

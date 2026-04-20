@@ -27,13 +27,66 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1B (Coolify Cutover Attempt)
+
+### Что решено
+
+- Batch 1B executed strictly in scope and classified as failed with controlled rollback.
+- Cutover model and ordering remain unchanged:
+  - no move to Batch 2 until Batch 1B passes.
+
+### Что сделано
+
+- Captured rollback snapshot from Coolify app `ymi9vwwf438y5ozeh0kwhklf`:
+  - source repo/branch,
+  - webhook/deploy binding fields,
+  - env continuity baseline.
+- Switched Coolify source binding to:
+  - `breachrabbit/brlabs.hrlab.git:main`.
+- Triggered immediate deploy smoke:
+  - deploy `e7u39hapu2o42d96p0xworwc` -> `failed`.
+- Captured hard failure evidence:
+  - `git ls-remote https://github.com/breachrabbit/brlabs.hrlab.git refs/heads/main`
+  - `fatal: could not read Username for 'https://github.com': No such device or address`.
+- Executed rollback:
+  - rebound Coolify source to `breachrabbit/CELERITY-panel.git:main`;
+  - triggered rollback deploy `iduyvwk8ib6nm7e86ai4mtgl` -> `finished`;
+  - app remained `running:healthy`.
+
+### Что в работе
+
+- Batch 1B blocker resolution (Coolify access to private target repo) is pending.
+
+### Что дальше
+
+1. Repair Coolify private repo access path for `breachrabbit/brlabs.hrlab`.
+2. Re-run Batch 1B only (same rollback gates).
+3. If Batch 1B passes, then open Batch 2 readiness decision.
+
+### Что нельзя путать
+
+- Batch 1A workflow gate being non-blocking does not mean Batch 1B infra access is ready.
+- This failure is not a runtime/feature issue; it is cutover binding/auth path only.
+
+### Что еще не доказано
+
+- Successful deploy from `brlabs.hrlab` in Coolify with post-switch continuity smokes.
+
+### Что является только форковой спецификой
+
+- Staged source switch with explicit rollback-first deployment policy in this fork track.
+
+### Stop-point
+
+- Batch 1B is not passed yet; rollback was required and completed successfully.
+
 ## Current State
 
-- State: `pending`
+- State: `blocked (Batch 1B gate)`
 - Repository mode: isolated operational fork
 - Deployment mode in active use: Coolify + `docker-compose.coolify.yml`
 - Current active stand: `https://tunnel.hiddenrabbit.net.ru/panel`
-- Current working focus: **Phase 1 / Migration Cutover Audit** (audit-only scope).
+- Current working focus: **Phase 2A / Batch 1B blocker resolution** (Coolify access path to target private repo).
 - Working order lock:
   1. Migration Cutover Audit
   2. Migration Cutover

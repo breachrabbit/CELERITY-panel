@@ -2,6 +2,24 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1B (Coolify cutover execution only).
+- Finished with:
+  - captured pre-switch Coolify snapshot for app `ymi9vwwf438y5ozeh0kwhklf`;
+  - switched source binding to `breachrabbit/brlabs.hrlab.git:main`;
+  - triggered smoke deploy `e7u39hapu2o42d96p0xworwc` -> `failed`;
+  - captured failure:
+    - `git ls-remote ... breachrabbit/brlabs.hrlab.git refs/heads/main`
+    - `fatal: could not read Username for 'https://github.com': No such device or address`;
+  - classified as structural blocker for Batch 1B;
+  - rolled back binding to `breachrabbit/CELERITY-panel.git:main`;
+  - rollback deploy `iduyvwk8ib6nm7e86ai4mtgl` finished, app remained `running:healthy`.
+- Next step:
+  - fix Coolify access/auth path for private target repo;
+  - re-run Batch 1B only with same rollback gates;
+  - do not open Batch 2 before Batch 1B pass.
+
+## 2026-04-20
+
 - Worked on: Batch 1A Workflow Failure Gate for target repo (`breachrabbit/brlabs.hrlab`).
 - Finished with:
   - inspected failed runs/jobs/step logs for workflow `Docker Hub`;

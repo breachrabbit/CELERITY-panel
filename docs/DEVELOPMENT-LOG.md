@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1B (Coolify Cutover Attempt + Rollback)
+
+- Scope executed: **Batch 1B only** (Coolify source cutover), no runtime-path switch, no cleanup, no feature-work.
+- Pre-switch snapshot captured for app `ymi9vwwf438y5ozeh0kwhklf`:
+  - source binding (`breachrabbit/CELERITY-panel.git:main`),
+  - deploy/webhook fields,
+  - env continuity baseline.
+- Coolify source switched to target repo:
+  - `breachrabbit/brlabs.hrlab.git:main`.
+- Immediate smoke deploy triggered:
+  - deployment `e7u39hapu2o42d96p0xworwc` -> `failed`.
+- Failure root evidence:
+  - `git ls-remote https://github.com/breachrabbit/brlabs.hrlab.git refs/heads/main`
+  - `fatal: could not read Username for 'https://github.com': No such device or address`.
+- Classification:
+  - **structural blocker** for Batch 1B (Coolify auth/access to private target repo path not ready).
+- Rollback executed in same session:
+  - source rebounded to `breachrabbit/CELERITY-panel.git:main`;
+  - verification deploy `iduyvwk8ib6nm7e86ai4mtgl` -> `finished`;
+  - stand remained `running:healthy`.
+- Docs updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — controlled cutover attempt + rollback execution
+- `audit` — hard evidence capture and blocker classification
+- `docs` — Batch 1B status + risk/state updates
+
 ## 2026-04-20 Batch 1A — Workflow Failure Gate (Target Repo)
 
 - Scope executed: only workflow-failure inspection and gate classification for `breachrabbit/brlabs.hrlab`.
