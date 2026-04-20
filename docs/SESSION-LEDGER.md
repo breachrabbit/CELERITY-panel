@@ -2,6 +2,19 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1C (Clean Test App Proof).
+- Finished with:
+  - created isolated test app `brlabs-cutover-test-1c` (`kp89plobh43b17o0r1f6jrcn`) without touching production app;
+  - bound clean app directly to `brlabs-coolify` + `breachrabbit/brlabs.hrlab:main`;
+  - ran deploy `uj76bwxvjnoe6uxfbb0gsifx` -> `finished`;
+  - confirmed from deployment logs that `git ls-remote` and clone to private target repo succeed;
+  - confirmed app status `running:healthy` after deploy.
+- Next step:
+  - proceed with production migration planning via recreate/canary path;
+  - do not retry old legacy-app source-switch path as primary strategy.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1B-GRANT (Private Repo Access Grant Repair).
 - Finished with:
   - confirmed GitHub installation-side visibility of target repo (`breachrabbit/brlabs.hrlab`) under account `breachrabbit` (installation id `109424007`);

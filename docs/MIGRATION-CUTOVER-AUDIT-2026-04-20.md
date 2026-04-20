@@ -37,6 +37,21 @@ Phase 2A / Batch 1B-GRANT state:
 - **Executed in-scope, not cleared**: GitHub-side installation access for target repo is visible, but Coolify-side provider grant/rebind is still not provable from current control surface.
 - **Retry Batch 1B remains prohibited** until grant is explicitly fixed/verified in Coolify integration.
 
+Phase 2A / Batch 1C state:
+
+- **Completed (clean test app proof)**: a new temporary Coolify app was created from scratch (no source-switch on legacy app object), bound directly to:
+  - Git Source: `brlabs-coolify`
+  - Repo: `breachrabbit/brlabs.hrlab`
+  - Branch: `main`
+- **Validated**:
+  - repo is selectable and bindable in clean app path;
+  - `git ls-remote` and clone from target private repo succeed in deployment helper logs;
+  - build/deploy finished successfully (`uj76bwxvjnoe6uxfbb0gsifx`);
+  - app reached `running:healthy` (`kp89plobh43b17o0r1f6jrcn`).
+- **Conclusion**:
+  - target private repo access is functional in clean app path;
+  - prior Batch 1B failure is most likely tied to legacy app integration state/mapping.
+
 ---
 
 ## 1) Remote/Repo Audit
@@ -402,7 +417,7 @@ Validation facts:
 3. Identity residue remains high in workflow/docs/compose/package surfaces (to be handled after source cutover).
 4. Workflow runs in target repo are currently failing; Batch 1A classified this as non-blocking for Batch 1B (Coolify cutover), but structural for CI/release path and still open for later fix batch.
 
-Status: **Phase 1 closed + Phase 2A Batch 0 and Batch 1A completed; Batch 1B attempted and rolled back (blocked)**.
+Status: **Phase 1 closed + Phase 2A Batch 0/1A completed; Batch 1B failed on legacy app path and rolled back; Batch 1C clean test app proof passed**.
 
 ---
 
@@ -687,3 +702,57 @@ In Coolify UI/provider settings:
    - `breachrabbit/brlabs.hrlab`.
 3. Re-open app source selector and verify target repo is selectable.
 4. Keep source unchanged until this check is complete, then re-open Batch 1B retry gate.
+
+---
+
+## 11) Phase 2A / Batch 1C — Clean Test App Proof
+
+Scope: create isolated temporary app and validate target-repo deploy path without touching production app.
+
+### 11.1 Temporary app created (clean path only)
+
+Created new temporary Coolify application:
+
+- app name: `brlabs-cutover-test-1c`
+- app UUID: `kp89plobh43b17o0r1f6jrcn`
+- project/env/server/destination:
+  - `spnla5m89uta9ekk4pcssbbi` / `dhhkm1hgi6u0wu5gcj13ai0i`
+  - server `b12livcyx9yv572q0fpgvi22`
+  - destination `rzbup3wambhp8oxbpftvukki`
+- source binding at creation:
+  - Git Source (`GithubApp`): `brlabs-coolify` (`pv2un348vnk4ul5wc7wglze3`)
+  - repo: `breachrabbit/brlabs.hrlab.git`
+  - branch: `main`
+
+No source-switch action was performed on the production app object.
+
+### 11.2 Validation checklist (Batch 1C target)
+
+Validated by API/log evidence:
+
+1. Branches/tags/workflow/settings in target repo:
+   - branches: `main`
+   - tags: `v1.1.0`, `v1.0.0`
+   - workflows: `.github/workflows/docker.yml`
+   - actions settings: `enabled=true`, `allowed_actions=all`
+2. Repo selectable/bindable in Coolify clean app path: **Yes**
+3. Git access and clone: **Success**
+   - helper log includes successful:
+     - `git ls-remote ... breachrabbit/brlabs.hrlab.git refs/heads/main`
+     - `git clone ... breachrabbit/brlabs.hrlab.git`
+4. Build/deploy path: **Success**
+   - deployment UUID: `uj76bwxvjnoe6uxfbb0gsifx`
+   - status: `finished`
+5. Minimal smoke proof: **Success**
+   - app status: `running:healthy`
+   - startup logs show panel boot and listener on `:3000`
+
+### 11.3 Batch 1C conclusion
+
+1. Batch 1C passed: **Yes**
+2. Legacy app-state bug hypothesis: **Supported by evidence**
+   - old app source-switch path failed on private repo auth;
+   - clean new app path with same target repo/source succeeds end-to-end.
+3. Safest next migration path:
+   - **Recreate path (recommended)** for production cutover;
+   - retrying old app source-switch path is higher risk and not recommended as primary strategy.

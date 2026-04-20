@@ -1,5 +1,36 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1C (Clean Test App Proof)
+
+- Scope executed: created isolated temporary Coolify app only; production app not modified.
+- Created clean test app:
+  - name: `brlabs-cutover-test-1c`
+  - uuid: `kp89plobh43b17o0r1f6jrcn`
+  - source: `brlabs-coolify` (`pv2un348vnk4ul5wc7wglze3`)
+  - repo/branch: `breachrabbit/brlabs.hrlab:main`.
+- Triggered deploy:
+  - deployment uuid: `uj76bwxvjnoe6uxfbb0gsifx`
+  - result: `finished`.
+- Verified proof points:
+  - target repo branch/tag/workflow/settings are present and valid;
+  - helper logs show successful `git ls-remote` and clone against private target repo;
+  - build path starts and completes;
+  - runtime reaches `running:healthy` and app startup logs are normal.
+- Cutover conclusion:
+  - private repo access is functional in clean new-app path;
+  - prior Batch 1B failure most likely tied to legacy app integration state.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — isolated Coolify clean-app proof execution
+- `audit` — cutover evidence closure for Batch 1C
+- `docs` — risk/state decision update
+
 ## 2026-04-20 Phase 2A — Batch 1B-GRANT (Private Repo Access Grant Repair)
 
 - Scope executed: GRANT-gate only, no Batch 1B retry, no Batch 2, no cleanup, no feature work.

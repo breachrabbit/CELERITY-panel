@@ -27,6 +27,57 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1C (Clean Test App Proof)
+
+### Что решено
+
+- Выполнен только `Batch 1C` scope (clean new app proof), production app не изменялся.
+- Подтверждено, что private target repo доступен в clean path.
+
+### Что сделано
+
+- Создано временное приложение в Coolify с нуля:
+  - app: `brlabs-cutover-test-1c` (`kp89plobh43b17o0r1f6jrcn`).
+- Привязано напрямую:
+  - source: `brlabs-coolify` (`pv2un348vnk4ul5wc7wglze3`),
+  - repo: `breachrabbit/brlabs.hrlab`,
+  - branch: `main`.
+- Запущен deploy:
+  - deployment: `uj76bwxvjnoe6uxfbb0gsifx`,
+  - status: `finished`.
+- Проверено:
+  - `git ls-remote` и clone target private repo проходят;
+  - build/deploy путь проходит;
+  - app поднялся `running:healthy`, startup logs валидны.
+
+### Что в работе
+
+- Подготовка safest migration path после доказанного clean-app proof.
+
+### Что дальше
+
+1. Не чинить legacy app object дальше как primary path.
+2. Планировать production migration через recreate/canary strategy.
+3. Держать rollback gates обязательными перед реальным production switch.
+
+### Что нельзя путать
+
+- Успех `Batch 1C` не означает, что old app source-switch path стал безопасным.
+
+### Что еще не доказано
+
+- Final production cutover execution (traffic switch) еще не выполнялся.
+
+### Что является только форковой спецификой
+
+- Cutover discipline: clean-app proof как обязательный gate перед production switch.
+
+### Stop-point
+
+- Batch 1C: **passed**.
+- Legacy app state bug hypothesis: **supported by evidence**.
+- Safest next path: **recreate path** (не retry old app cutover).
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1B-GRANT (Private Repo Access Grant Repair)
 
 ### Что решено
