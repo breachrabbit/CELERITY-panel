@@ -2,6 +2,21 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1D-B-INGRESS-DIFF (deploy-complete check + canary smoke only).
+- Finished with:
+  - verified deployment `i9zxjfcku9gur6q3wq32r8k2` is `finished`;
+  - canary app `kp89plobh43b17o0r1f6jrcn` remained `running:healthy`;
+  - canary smoke `/panel/login` still fails:
+    - `HTTP 503`,
+    - response body `no available server`;
+  - confirmed gate is still blocked after explicit backend-label patch;
+  - recorded remaining mismatch as unresolved canary ingress backend mapping with app-level `docker_compose_domains=null`.
+- Next step:
+  - continue only Batch 1D-B-INGRESS-DIFF scope;
+  - clear canary ingress smoke to `HTTP 200` before any Batch 1D-B decision resume.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1D-B-INGRESS (canary ingress/router binding only).
 - Finished with:
   - verified canary app `kp89plobh43b17o0r1f6jrcn` stayed `running:healthy`;

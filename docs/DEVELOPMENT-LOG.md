@@ -1,5 +1,32 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1D-B-INGRESS-DIFF (Deploy wait + smoke verification)
+
+- Scope executed: strict stop-point continuation only (`deploy status` + canary smoke), no cleanup, no feature-work, no Batch 2.
+- Checked Coolify deployment result:
+  - deployment `i9zxjfcku9gur6q3wq32r8k2` -> `finished`;
+  - app `kp89plobh43b17o0r1f6jrcn` remained `running:healthy`.
+- Verified post-deploy canary smoke:
+  - `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503`;
+  - response body: `no available server`.
+- Gate conclusion:
+  - ingress gate still blocked;
+  - explicit backend-label patch is insufficient in current state.
+- Remaining mismatch explicitly recorded:
+  - unresolved canary backend ingress mapping path (`Host -> router/service -> backend upstream`);
+  - canary app-level binding still reports `docker_compose_domains=null`.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — deploy completion + smoke result capture
+- `audit` — mismatch state formalization after patch verification
+- `docs` — continuity/risk update
+
 ## 2026-04-20 Phase 2A — Batch 1D-B-INGRESS (Canary Ingress Gate)
 
 - Scope executed: ingress/router binding only for canary app path (no cleanup, no feature-work, no Batch 2).

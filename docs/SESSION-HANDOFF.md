@@ -27,6 +27,53 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-INGRESS-DIFF
+
+### Что решено
+
+- Выполнен строго заданный шаг: дождаться deploy `i9zxjfcku9gur6q3wq32r8k2` и проверить canary smoke `/panel/login`.
+- По результату smoke gate не закрыт: canary по-прежнему `HTTP 503`, body `no available server`.
+
+### Что сделано
+
+- Подтверждено через Coolify:
+  - deploy `i9zxjfcku9gur6q3wq32r8k2` -> `finished`,
+  - app `kp89plobh43b17o0r1f6jrcn` -> `running:healthy`.
+- Подтверждено, что в runtime compose применен patch с explicit backend ingress labels.
+- Выполнен smoke-check:
+  - `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503`;
+  - body: `no available server`.
+
+### Что в работе
+
+- Unresolved ingress mapping на canary path:
+  - backend ingress mapping все еще не дает рабочий upstream route;
+  - app-level binding state остается `docker_compose_domains=null`.
+
+### Что дальше
+
+1. Продолжить только `Batch 1D-B-INGRESS-DIFF` scope до зеленого canary smoke.
+2. Не возобновлять Batch 1D-B decision до `HTTP 200` на canary `/panel/login`.
+
+### Что нельзя путать
+
+- `running:healthy` контейнера и успешный deploy не равны ingress-success.
+- Текущий patch не закрывает gate, пока smoke остается `503`.
+
+### Что еще не доказано
+
+- Рабочий end-to-end ingress для canary app с target repo source (`/panel/login` = `HTTP 200`).
+
+### Что является только форковой спецификой
+
+- Строгий gate: решение по cutover двигается только после успешного canary ingress smoke.
+
+### Stop-point
+
+- Batch 1D-B-INGRESS-DIFF: **not cleared**.
+- Rollback: **не требуется** (production path не затронут).
+- Batch 1D-B decision resume: **нет** (до закрытия ingress gate).
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-INGRESS
 
 ### Что решено

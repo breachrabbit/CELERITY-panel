@@ -69,6 +69,19 @@ Phase 2A / Batch 1D-B state:
 - **Production continuity preserved**:
   - production app/source binding was not switched in this batch.
 
+Phase 2A / Batch 1D-B-INGRESS-DIFF state:
+
+- **Executed (mismatch-fix verification), gate not passed**:
+  - exact mismatch already captured before this step:
+    - missing backend ingress labels,
+    - `docker_compose_domains=null` on canary app object;
+  - minimal patch with explicit backend Traefik labels was deployed;
+  - redeploy `i9zxjfcku9gur6q3wq32r8k2` finished, app remained `running:healthy`;
+  - post-deploy smoke result is still `HTTP 503` / `no available server` on canary `/panel/login`.
+- **Conclusion for this batch step**:
+  - current patch is insufficient to clear ingress gate;
+  - unresolved mismatch remains in canary ingress backend mapping path (`Host -> router/service -> backend upstream`), with app-level domain binding still `docker_compose_domains=null`.
+
 ---
 
 ## 1) Remote/Repo Audit
