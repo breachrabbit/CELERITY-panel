@@ -1,5 +1,21 @@
 # Session Ledger
 
+## 2026-04-20
+
+- Worked on: preparing a single exhaustive report of all work done in this fork (vs original Celerity), as requested.
+- Finished with:
+  - created `docs/HIDDEN-RABBIT-FORK-FULL-REPORT-2026-04-20.ru.md`;
+  - included full fork delta summary:
+    - what changed,
+    - what bugs were fixed,
+    - what was newly implemented,
+    - what is still in progress,
+    - what is planned next;
+  - added baseline metrics and commit-linked subsystem timeline.
+- Next step:
+  - wait for updated project rules/instructions;
+  - continue from new governing instructions using this report as reference.
+
 ## 2026-04-18
 
 - Worked on: full automation pass requested by operator (hybrid-by-default, auto role/runtime transitions, node delete cleanup, users delete action).

@@ -86,6 +86,33 @@
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-20 Stop-Point — Full Fork Report Prepared
+
+### What was delivered
+
+- Completed and added the requested full retrospective report:
+  - `docs/HIDDEN-RABBIT-FORK-FULL-REPORT-2026-04-20.ru.md`.
+- Report scope:
+  - complete high-level and subsystem-level delta vs original Celerity;
+  - fixed original/early bugs with concrete commit references;
+  - all major introduced capabilities (durable onboarding, cascade builder, diagnostics, topology reconcile, UI redesign, source hardening);
+  - current in-progress items and future plan blocks.
+
+### Validation status
+
+- Report file exists in `docs/` and is ready for handoff/use as the next rules baseline.
+- No runtime code behavior changed in this step (docs-only wave).
+
+### What is pending
+
+1. Receive updated project development rules/governance from operator.
+2. Continue technical work under the new rule-set using the full report as source context.
+
+### Next step
+
+1. Pause implementation and wait for next explicit instruction set.
+2. Resume from this stop-point with code/docs split preserved.
+
 ## 2026-04-18 Stop-Point — Hybrid-by-default + Topology Automation + Cleanup/Delete UX
 
 ### What was delivered
