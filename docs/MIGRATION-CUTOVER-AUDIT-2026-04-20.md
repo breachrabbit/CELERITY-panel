@@ -32,6 +32,11 @@ Phase 2A / Batch 1B state:
 
 - **Executed and rolled back**: Coolify source switch was attempted, deployment failed on target private repo access, rollback completed successfully.
 
+Phase 2A / Batch 1B-GRANT state:
+
+- **Executed in-scope, not cleared**: GitHub-side installation access for target repo is visible, but Coolify-side provider grant/rebind is still not provable from current control surface.
+- **Retry Batch 1B remains prohibited** until grant is explicitly fixed/verified in Coolify integration.
+
 ---
 
 ## 1) Remote/Repo Audit
@@ -620,3 +625,65 @@ Not observed as root cause:
     - this workflow failure affects Docker Hub publish pipeline, not stand runtime source binding itself.
 - For broader CI/release hygiene:
   - classification: **structural debt** and must be addressed in later dedicated batch.
+
+---
+
+## 10) Phase 2A / Batch 1B-GRANT — Private Repo Access Grant Repair
+
+Scope: grant/auth repair only (no Batch 1B retry, no Batch 2, no cleanup, no feature-work).
+
+### 10.1 GitHub-side access evidence
+
+Using app installation visibility:
+
+- installed account: `breachrabbit`;
+- installation id: `109424007`;
+- target repository is present in installation-search scope:
+  - `breachrabbit/brlabs.hrlab` (private, `main`).
+
+This confirms target repo availability at GitHub app installation surface used by current integration tooling.
+
+### 10.2 Coolify-side binding facts (post-gate check)
+
+For app `ymi9vwwf438y5ozeh0kwhklf`:
+
+- source binding is still rollback-safe old path:
+  - `git_repository=breachrabbit/CELERITY-panel.git`
+  - `git_branch=main`;
+- integration markers remain:
+  - `source_type=App\\Models\\GithubApp`
+  - `source_id=0`
+  - `private_key_id=null`
+  - `manual_webhook_secret_* = null`.
+
+### 10.3 Control-surface limitation found
+
+Current available Coolify control surface provides:
+
+- read application/deploy/env state;
+- trigger deployment;
+- env create/update.
+
+Current available control surface does **not** provide:
+
+- GitHub provider re-authorization action;
+- repository grant assignment inside provider mapping;
+- source integration rebind mutation endpoint.
+
+Result: grant repair cannot be completed programmatically from the current automation channel alone.
+
+### 10.4 Gate decision
+
+- Batch 1B-GRANT gate: **Not cleared**
+- Is retry Batch 1B ready? **No**
+- Batch 2 readiness: **No**
+
+### 10.5 Required operator action before retry Batch 1B
+
+In Coolify UI/provider settings:
+
+1. Re-authorize GitHub integration used by this app.
+2. Ensure installation/repo selection explicitly includes:
+   - `breachrabbit/brlabs.hrlab`.
+3. Re-open app source selector and verify target repo is selectable.
+4. Keep source unchanged until this check is complete, then re-open Batch 1B retry gate.

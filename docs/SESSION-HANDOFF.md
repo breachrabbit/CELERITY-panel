@@ -27,6 +27,53 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1B-GRANT (Private Repo Access Grant Repair)
+
+### Что решено
+
+- Выполнен только Batch 1B-GRANT scope.
+- Retry Batch 1B по-прежнему запрещен до явного подтверждения grant в Coolify.
+
+### Что сделано
+
+- Подтвержден GitHub-side факт доступности target repo в installation-search:
+  - account: `breachrabbit`,
+  - installation: `109424007`,
+  - repo: `breachrabbit/brlabs.hrlab`.
+- Перепроверен Coolify-side state для app `ymi9vwwf438y5ozeh0kwhklf`:
+  - source binding остается на `breachrabbit/CELERITY-panel.git:main`,
+  - `source_type=GithubApp`, `source_id=0`, `private_key_id=null`,
+  - manual webhook secrets пустые.
+- Зафиксировано ограничение контрольного канала:
+  - доступный MCP/API не содержит операций re-authorize/rebind GitHub provider source.
+
+### Что в работе
+
+- Gate cleanup для Batch 1B-GRANT: требуется UI-level grant repair в Coolify.
+
+### Что дальше
+
+1. В Coolify выполнить GitHub integration re-authorize.
+2. Проверить, что в repo scope выбран `breachrabbit/brlabs.hrlab`.
+3. Подтвердить, что target repo selectable в source selector.
+4. Только после этого открывать retry Batch 1B.
+
+### Что нельзя путать
+
+- Видимость repo в GitHub installation-search не доказывает, что текущий Coolify provider mapping уже может клонить private repo.
+
+### Что еще не доказано
+
+- Прямое доказательство `Coolify helper clone path` к `breachrabbit/brlabs.hrlab` после grant repair.
+
+### Что является только форковой спецификой
+
+- Жёсткий запрет на retry source cutover до закрытия отдельного grant gate.
+
+### Stop-point
+
+- Batch 1B-GRANT completed with **blocked** result; retry Batch 1B is **not ready**.
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1B (Coolify Cutover Attempt)
 
 ### Что решено

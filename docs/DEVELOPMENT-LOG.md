@@ -1,5 +1,34 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1B-GRANT (Private Repo Access Grant Repair)
+
+- Scope executed: GRANT-gate only, no Batch 1B retry, no Batch 2, no cleanup, no feature work.
+- GitHub installation-side evidence captured:
+  - installed account: `breachrabbit`;
+  - installation id: `109424007`;
+  - target repo appears in installation search:
+    - `breachrabbit/brlabs.hrlab` (private, `main`).
+- Coolify-side binding re-checked for app `ymi9vwwf438y5ozeh0kwhklf`:
+  - still bound to `breachrabbit/CELERITY-panel.git:main`;
+  - `source_type=GithubApp`, `source_id=0`, `private_key_id=null`;
+  - manual webhook secrets remain empty.
+- Control-channel constraint formalized:
+  - available Coolify MCP/API surface has read/deploy/env operations only;
+  - no provider re-authorize/rebind mutation operation exposed.
+- Gate decision:
+  - Batch 1B-GRANT **not cleared**;
+  - retry Batch 1B **not ready** until Coolify UI-level grant repair is completed and re-verified.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `audit` — grant-gate evidence capture and control-surface capability mapping
+- `docs` — blocker and next-step formalization
+
 ## 2026-04-20 Phase 2A — Batch 1B-AUTH (Private Repo Access Gate)
 
 - Scope executed: AUTH-gate only, no Batch 1B retry, no Batch 2, no cleanup, no feature work.

@@ -2,6 +2,19 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1B-GRANT (Private Repo Access Grant Repair).
+- Finished with:
+  - confirmed GitHub installation-side visibility of target repo (`breachrabbit/brlabs.hrlab`) under account `breachrabbit` (installation id `109424007`);
+  - re-checked Coolify app `ymi9vwwf438y5ozeh0kwhklf` and confirmed source is still pinned to `breachrabbit/CELERITY-panel.git:main`;
+  - formalized control-surface limitation: current Coolify MCP/API does not expose provider re-authorize/rebind actions;
+  - marked GRANT gate as not cleared and kept Batch 1B retry prohibited.
+- Next step:
+  - perform Coolify UI-level GitHub re-authorization/grant include for `breachrabbit/brlabs.hrlab`;
+  - re-verify repo selectability in Coolify source selector;
+  - only then open retry Batch 1B.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1B-AUTH (Private Repo Access Gate).
 - Finished with:
   - verified Coolify integration indicators on app `ymi9vwwf438y5ozeh0kwhklf` (`GithubApp`, `source_id=0`, no manual webhook secrets);
