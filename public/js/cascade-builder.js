@@ -285,6 +285,9 @@
             syncAllNodePorts();
             resolveNodeCollisions({ includeInternet: true });
             ensureNodesVisibleInViewport({ forceLayout });
+            if (!getVisibleGraphNodesCount()) {
+                forceGraphVisibilityRecovery({ forceLayout: true });
+            }
         }, Math.max(0, Number(delayMs) || 0));
     }
 
@@ -698,8 +701,8 @@
                 selector: 'edge',
                 style: {
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'inside-to-node',
-                    'target-endpoint': 'inside-to-node',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -764,8 +767,8 @@
                 style: {
                     'line-style': 'dashed',
                     'curve-style': 'unbundled-bezier',
-                    'source-endpoint': 'inside-to-node',
-                    'target-endpoint': 'inside-to-node',
+                    'source-endpoint': 'outside-to-node',
+                    'target-endpoint': 'outside-to-node',
                     'edge-distances': 'endpoints',
                     'control-point-distances': 'data(curveDistance)',
                     'control-point-weights': 'data(curveWeight)',
@@ -1545,6 +1548,50 @@
         state.viewportRecoveryTimer = null;
     }
 
+    function getVisibleGraphNodesCount() {
+        if (!state.cy) return 0;
+        const graphNodes = state.cy.nodes('[isPort != 1][isVirtualInternet != 1]');
+        if (!graphNodes.length) return 0;
+        const width = Number(state.cy.width() || 0);
+        const height = Number(state.cy.height() || 0);
+        if (!width || !height) return 0;
+        return graphNodes.filter((node) => {
+            const rendered = node.renderedPosition();
+            const x = Number(rendered?.x);
+            const y = Number(rendered?.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+            return x >= -120 && x <= (width + 120) && y >= -120 && y <= (height + 120);
+        }).length;
+    }
+
+    function forceGraphVisibilityRecovery({ forceLayout = true } = {}) {
+        if (!state.cy) return;
+        const graphNodes = state.cy.nodes('[isPort != 1][isVirtualInternet != 1]');
+        if (!graphNodes.length) return;
+
+        const columns = clamp(Math.ceil(Math.sqrt(graphNodes.length)), 2, 4);
+        const stepX = BUILDER_NODE_WIDTH + 130;
+        const stepY = BUILDER_NODE_HEIGHT + 130;
+
+        state.cy.batch(() => {
+            graphNodes.forEach((node, index) => {
+                const row = Math.floor(index / columns);
+                const col = index % columns;
+                node.position({
+                    x: 220 + (col * stepX),
+                    y: 170 + (row * stepY),
+                });
+            });
+        });
+
+        syncAllNodePorts();
+        resolveNodeCollisions({ includeInternet: true });
+        syncInternetNodePosition();
+        syncEdgeRoutingGeometry();
+        if (forceLayout) runAutoLayout({ animate: false });
+        fitRealGraphView(64);
+    }
+
     function ensureNodesVisibleInViewport({ forceLayout = false } = {}) {
         if (!state.cy) return;
         const graphNodes = state.cy.nodes('[isPort != 1][isVirtualInternet != 1]');
@@ -1588,6 +1635,16 @@
         fitRealGraphView(48);
     }
 
+    function scheduleVisibilityFailSafe() {
+        [120, 320, 640].forEach((delayMs, index) => {
+            setTimeout(() => {
+                if (!state.cy) return;
+                if (getVisibleGraphNodesCount() > 0) return;
+                forceGraphVisibilityRecovery({ forceLayout: index > 0 });
+            }, delayMs);
+        });
+    }
+
     function scheduleViewportRecovery() {
         stopViewportRecovery();
         state.viewportRecoveryAttempt = 0;
@@ -1603,6 +1660,9 @@
             ensureNodesVisibleInViewport({ forceLayout: state.viewportRecoveryAttempt >= 4 });
 
             if (state.viewportRecoveryAttempt >= 6) {
+                if (!getVisibleGraphNodesCount()) {
+                    forceGraphVisibilityRecovery({ forceLayout: true });
+                }
                 state.viewportRecoveryTimer = null;
                 return;
             }
@@ -4345,6 +4405,7 @@
             renderInternetSection(flow);
             renderExecutionResult(flow?.draft?.lastExecution || null);
             initCy(flow);
+            scheduleVisibilityFailSafe();
             const targetHopId = selectHopId || (state.selection.type === 'hop' ? state.selection.id : null);
             const targetNodeId = selectNodeId || (state.selection.type === 'node' ? state.selection.id : null);
             const restored = (targetHopId && focusHopById(targetHopId))
