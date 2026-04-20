@@ -27,6 +27,56 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-INGRESS
+
+### Что решено
+
+- Выполнен только `Batch 1D-B-INGRESS` scope.
+- После ingress-only правок canary smoke gate не закрыт: `/panel/login` продолжает отдавать `503 no available server`.
+
+### Что сделано
+
+- Перепроверены canary binding surfaces в Coolify для app:
+  - `kp89plobh43b17o0r1f6jrcn`.
+- Применены/проверены ingress-related env для backend binding:
+  - `SERVICE_URL_BACKEND`,
+  - `SERVICE_FQDN_BACKEND`.
+- Выполнен forced deploy:
+  - `bti18wddqxc17kt4euv66hnp` -> `finished`;
+  - app status после деплоя -> `running:healthy`.
+- Smoke-check повторен:
+  - canary `/panel/login` -> `HTTP 503`, body `no available server`;
+  - production control `/panel/login` -> `HTTP 200`.
+
+### Что в работе
+
+- Остаточный ingress/router-to-service mismatch на canary app path.
+
+### Что дальше
+
+1. Продолжить только ingress diagnostics/fix для canary.
+2. Повторить smoke `/panel/login` на canary.
+3. До `HTTP 200` на canary не возобновлять Batch 1D-B decision.
+
+### Что нельзя путать
+
+- `running:healthy` контейнеров не означает, что ingress gate пройден.
+- Пока canary URL отдает `503`, cutover decision остается заблокирован.
+
+### Что еще не доказано
+
+- Рабочий canary ingress path для target repo deployment (`/panel/login` = `HTTP 200`).
+
+### Что является только форковой спецификой
+
+- Жесткий gate: container health + ingress smoke должны быть одновременно зелеными перед продолжением cutover.
+
+### Stop-point
+
+- Batch 1D-B-INGRESS: **not cleared**.
+- Rollback: **не требуется** (production path не менялся).
+- Batch 1D-B decision: **не возобновлять** до закрытия ingress gate.
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B (Canary Cutover Execution)
 
 ### Что решено

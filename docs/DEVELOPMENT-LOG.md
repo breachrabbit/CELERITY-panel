@@ -1,5 +1,34 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1D-B-INGRESS (Canary Ingress Gate)
+
+- Scope executed: ingress/router binding only for canary app path (no cleanup, no feature-work, no Batch 2).
+- Re-checked Coolify state for canary app `kp89plobh43b17o0r1f6jrcn` and compared against production binding baseline.
+- Applied/verified canary backend binding env inputs:
+  - `SERVICE_URL_BACKEND=https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru`
+  - `SERVICE_FQDN_BACKEND=kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru`
+- Forced deploy executed:
+  - deployment `bti18wddqxc17kt4euv66hnp` -> `finished`;
+  - app status stayed `running:healthy`.
+- Smoke-check after deploy:
+  - canary `/panel/login` -> `HTTP 503` with body `no available server`;
+  - production control `/panel/login` -> `HTTP 200`.
+- Gate decision:
+  - ingress gate still blocked;
+  - Batch 1D-B decision cannot resume yet;
+  - rollback not required because production remained untouched.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — canary ingress fix attempt + redeploy + smoke verification
+- `audit` — blocker confirmation with explicit gate state
+- `docs` — cutover continuity/risk updates
+
 ## 2026-04-20 Phase 2A — Batch 1D-B (Canary Cutover Execution)
 
 - Scope executed: canary execution only (no production source switch, no cleanup, no feature-work).

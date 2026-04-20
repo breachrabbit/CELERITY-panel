@@ -484,6 +484,53 @@ Production endpoint control check:
 
 ---
 
+## 13) Phase 2A / Batch 1D-B-INGRESS — Canary Ingress/Router Binding (Result)
+
+Scope executed (strict):
+
+1. inspect canary ingress/router/service binding surfaces;
+2. patch only ingress-related canary binding inputs;
+3. rerun smoke-check only for `/panel/login`.
+
+### 13.1 Facts captured
+
+- Canary app: `brlabs-cutover-test-1c` (`kp89plobh43b17o0r1f6jrcn`).
+- Canary runtime after deploy:
+  - deployment `bti18wddqxc17kt4euv66hnp` -> `finished`;
+  - app status -> `running:healthy`.
+- Canary smoke (post-fix attempt):
+  - `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login`
+  - result: `HTTP/2 503`
+  - body: `no available server`.
+- Production control:
+  - `https://tunnel.hiddenrabbit.net.ru/panel/login` -> `HTTP/2 200`.
+
+### 13.2 Ingress-only remediation attempted
+
+- Re-checked canary vs production app/env surfaces in Coolify.
+- Added/verified canary binding env inputs:
+  - `SERVICE_URL_BACKEND=https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru`
+  - `SERVICE_FQDN_BACKEND=kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru`
+- Forced redeploy completed successfully (`finished`) on target repo commit path.
+- Post-deploy ingress behavior remained unchanged (`503 no available server`).
+
+### 13.3 Gate decision
+
+- Ingress gate cleared: **No**.
+- Smoke gate passed: **No**.
+- Batch 1D-B decision can resume: **No** (still blocked at canary ingress gate).
+- Rollback required: **No** (production app/source binding unchanged).
+
+### 13.4 Blocker classification (current)
+
+- Blocker type: ingress/router-to-service mapping mismatch on canary app object.
+- Observed pattern:
+  - application is healthy at container level;
+  - public ingress still has no available upstream server.
+- This remains within Migration Cutover scope and is unresolved for Batch 1D-B continuation.
+
+---
+
 ## 8) Phase 2A / Batch 1B — Coolify Cutover Execution (Result)
 
 Scope executed (and only this scope):

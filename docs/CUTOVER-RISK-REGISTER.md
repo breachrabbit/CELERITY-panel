@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-20` (Phase 2A / Batch 1D-B canary execution gate)
+Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-INGRESS)
 
 ## Risk Register
 
@@ -27,6 +27,7 @@ Last updated: `2026-04-20` (Phase 2A / Batch 1D-B canary execution gate)
 | Env/secrets parity drift between legacy production and recreated app | Auth/session/runtime regressions after cutover | High | Run explicit env/secrets parity checklist and block switch until complete | Revert traffic to legacy app and invalidate canary endpoint | Open (Batch 1D-B gate) |
 | Persistent state/volume strategy is unclear in recreate path | Data inconsistency or loss risk | High | Classify shared/migrated/isolated volume usage before switch and snapshot data | Roll back traffic + restore prior volume binding/snapshot | Open (Batch 1D-B gate) |
 | Rollback is defined but not operator-tested before cutover | Slow incident response during failure | Medium | Require rollback drill gate before Batch 1D-B Go decision | Cancel Batch 1D-B execution until rollback drill passes | Open (Gate not yet proven) |
+| Canary ingress still returns `503 no available server` after env parity + forced redeploy on clean app path | Blocks cutover decision despite healthy containers; canary proof is incomplete | High | Keep work in Batch 1D-B-INGRESS scope only; continue ingress/router target mapping diagnostics before any switch decision | Keep production app/source binding unchanged; no traffic switch until canary ingress is green | Open (Active Batch 1D-B blocker) |
 
 ## Notes
 

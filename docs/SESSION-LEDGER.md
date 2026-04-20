@@ -2,6 +2,26 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1D-B-INGRESS (canary ingress/router binding only).
+- Finished with:
+  - verified canary app `kp89plobh43b17o0r1f6jrcn` stayed `running:healthy`;
+  - applied/verified canary backend binding envs:
+    - `SERVICE_URL_BACKEND`,
+    - `SERVICE_FQDN_BACKEND`;
+  - forced redeploy `bti18wddqxc17kt4euv66hnp` finished;
+  - repeated canary smoke:
+    - `/panel/login` -> `HTTP 503`,
+    - response body: `no available server`;
+  - confirmed production control smoke remains green:
+    - `https://tunnel.hiddenrabbit.net.ru/panel/login` -> `HTTP 200`;
+  - classified ingress gate as not cleared (Batch 1D-B decision remains blocked).
+- Next step:
+  - continue only canary ingress diagnostics/fix;
+  - rerun canary `/panel/login` smoke;
+  - do not resume Batch 1D-B decision until canary smoke is green.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1D-B (Canary Cutover Execution).
 - Finished with:
   - executed canary path only on clean app (`kp89plobh43b17o0r1f6jrcn`) without touching production source binding;
