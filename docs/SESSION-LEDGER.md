@@ -2,6 +2,24 @@
 
 ## 2026-04-20
 
+- Worked on: Batch 1A Workflow Failure Gate for target repo (`breachrabbit/brlabs.hrlab`).
+- Finished with:
+  - inspected failed runs/jobs/step logs for workflow `Docker Hub`;
+  - confirmed latest failure root cause:
+    - `Login to Docker Hub` -> `Username and password required`;
+    - secrets/variables in target repo are empty (`0`);
+  - classified cause as:
+    - primary: missing secret,
+    - secondary: workflow assumption/config coupling;
+  - classified gate impact:
+    - benign/non-blocking for Batch 1B (Coolify source cutover),
+    - structural debt for CI/release path.
+- Next step:
+  - proceed to Batch 1B (Coolify cutover) with rollback gates;
+  - keep workflow fix as separate follow-up batch, not mixed with source switch.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 0 prerequisite (populate target repo `breachrabbit/brlabs.hrlab`) with strict scope lock.
 - Finished with:
   - pushed `main` and tags (`v1.0.0`, `v1.1.0`) to target repo;

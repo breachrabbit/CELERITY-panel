@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-04-20 Batch 1A — Workflow Failure Gate (Target Repo)
+
+- Scope executed: only workflow-failure inspection and gate classification for `breachrabbit/brlabs.hrlab`.
+- Inspected:
+  - workflow run `24656401704` (`Docker Hub`);
+  - failed job `build-and-push` (`72090934579`);
+  - step-level logs via `gh run view ... --log`.
+- Confirmed root cause:
+  - failure at `Login to Docker Hub`;
+  - explicit error: `Username and password required`;
+  - target repo has `actions/secrets=0`, `actions/variables=0`.
+- Cause classification:
+  - `missing secret` (primary);
+  - `workflow assumption/config coupling` (secondary).
+- Gate classification:
+  - **benign for Batch 1B (Coolify cutover)** with explicit acceptance;
+  - **structural** for CI/release pipeline and must be handled in dedicated batch later.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `audit` — workflow failure root-cause inspection
+- `docs` — gate decision formalization for Batch 1B readiness
+
 ## 2026-04-20 Phase 2A — Batch 0 (Prerequisite) Completed
 
 - Executed only Batch 0 scope (no cleanup, no feature work, no runtime/Coolify switch):

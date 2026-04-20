@@ -118,6 +118,72 @@ Do not change order.
   - enabled outbound traffic stats in generated Xray config.
 - verify fresh-node run and continue parity work (`setupJobs` retirement + Hysteria live stream).
 
+## 2026-04-20 Stop-Point — Batch 1A Workflow Failure Gate Closed
+
+### Что решено
+
+- Batch 1A выполнен строго в audit-scope:
+  - inspected failed workflow run,
+  - root cause determined,
+  - gate classification formalized.
+- Scope guard соблюден:
+  - no Coolify switch,
+  - no runtime source-path switch,
+  - no cleanup,
+  - no feature work.
+
+### Что сделано
+
+- Inspected latest failed run in target repo:
+  - repo: `breachrabbit/brlabs.hrlab`
+  - workflow: `Docker Hub` (`.github/workflows/docker.yml`)
+  - run: `24656401704`
+  - failed job: `build-and-push` (`72090934579`)
+  - failed step: `Login to Docker Hub`
+  - error: `Username and password required`.
+- Confirmed supporting facts:
+  - `actions/secrets=0`
+  - `actions/variables=0`.
+- Classified cause:
+  - primary: missing secret;
+  - secondary: workflow assumption/config coupling.
+- Classified gate:
+  - benign/non-blocking for Batch 1B (Coolify cutover);
+  - structural for CI/release path (tracked separately).
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/DEVELOPMENT-LOG.md`
+  - `docs/SESSION-LEDGER.md`
+
+### Что в работе
+
+- Batch 1B not executed yet.
+- Workflow fix itself is deferred to dedicated follow-up batch.
+
+### Что дальше
+
+1. Open Batch 1B only (Coolify source switch).
+2. Enforce rollback gates before switch.
+3. Run minimal continuity smokes and stop-point immediately after.
+
+### Что нельзя путать
+
+- Batch 1A gate decision is not a workflow-fix batch.
+- Non-blocking for Coolify cutover does not mean release CI is healthy.
+
+### Что еще не доказано
+
+- Production continuity after actual Coolify source binding switch.
+
+### Что является только форковой спецификой
+
+- Current split between source-cutover batch and later runtime/release-path normalization.
+
+### Stop-point
+
+- Batch 1A closed; ready to proceed to Batch 1B with gates.
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 0 Completed (Prerequisite)
 
 ### Что решено

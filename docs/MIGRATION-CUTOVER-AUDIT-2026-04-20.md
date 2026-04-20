@@ -387,7 +387,7 @@ Validation facts:
 1. Coolify stand is still bound to `breachrabbit/CELERITY-panel.git` (Batch 1 pending).
 2. Runtime channel still points to legacy releases path (`breachrabbit/CELERITY-panel/releases`) with inventory `0`.
 3. Identity residue remains high in workflow/docs/compose/package surfaces (to be handled after source cutover).
-4. Workflow runs in target repo are currently failing; requires explicit non-blocking decision for Batch 1 or pre-cutover workflow adjustment.
+4. Workflow runs in target repo are currently failing; Batch 1A classified this as non-blocking for Batch 1B (Coolify cutover), but structural for CI/release path and still open for later fix batch.
 
 Status: **Phase 1 closed + Phase 2A Batch 0 completed**.
 
@@ -429,3 +429,46 @@ Hard gates to enforce during Batch 1:
    - `/panel/nodes`,
    - node setup page open/render.
 4. If smoke fails, rollback source binding immediately.
+
+## Batch 1A — Workflow Failure Gate (Target Repo)
+
+Scope: inspect failed workflows in `breachrabbit/brlabs.hrlab` and classify impact on Batch 1B.
+
+### Inspected evidence
+
+- workflow: `.github/workflows/docker.yml` (`Docker Hub`)
+- latest failed run:
+  - run id: `24656401704`
+  - job: `build-and-push` (`72090934579`)
+  - failing step: `Login to Docker Hub`
+  - log error: `Username and password required`
+- supporting API facts:
+  - target repo Actions secrets: `0`
+  - target repo Actions variables: `0`
+
+### Root cause classification
+
+Primary cause:
+
+- **missing secret** (`DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`) for docker/login action.
+
+Secondary characteristics:
+
+- workflow assumption/config coupling:
+  - workflow expects Docker Hub credentials on every push;
+  - image namespace is still legacy-oriented (`clickdevtech/hysteria-panel`) and not aligned with cutover target identity.
+
+Not observed as root cause:
+
+- GitHub Actions permissions issue;
+- artifact publish failure in `build-agent` job (that job is green in inspected run).
+
+### Gate decision
+
+- For **Batch 1B (Coolify source cutover)**:
+  - classification: **benign / non-blocking with explicit acceptance**.
+  - rationale:
+    - Batch 1B scope is Coolify git source binding + stand continuity smokes;
+    - this workflow failure affects Docker Hub publish pipeline, not stand runtime source binding itself.
+- For broader CI/release hygiene:
+  - classification: **structural debt** and must be addressed in later dedicated batch.
