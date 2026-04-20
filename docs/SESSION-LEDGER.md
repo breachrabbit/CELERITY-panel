@@ -2,6 +2,19 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1D-A (Production Recreate / Canary Cutover Plan).
+- Finished with:
+  - created plan-only execution design (no production changes);
+  - defined controlled recreate strategy using clean app path validated by Batch 1C;
+  - prepared canary checklist across ingress/env/secrets/volumes/deploy/smokes;
+  - prepared rollback conditions, trigger points, and step-by-step procedure;
+  - defined explicit Go/No-Go gates for opening Batch 1D-B.
+- Next step:
+  - execute Batch 1D-B only if all Go gates are green;
+  - keep legacy production app unchanged until canary validation is complete.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1C (Clean Test App Proof).
 - Finished with:
   - created isolated test app `brlabs-cutover-test-1c` (`kp89plobh43b17o0r1f6jrcn`) without touching production app;

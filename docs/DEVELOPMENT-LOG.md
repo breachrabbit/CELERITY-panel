@@ -1,5 +1,35 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1D-A (Production Recreate / Canary Cutover Plan)
+
+- Scope executed: planning only, no production changes, no cutover execution.
+- Planned controlled migration path:
+  - recreate production target from clean proven app path;
+  - canary-first validation before any traffic switch.
+- Prepared canary checklist blocks:
+  - domain/ingress handling,
+  - env parity,
+  - secrets parity,
+  - volume/persistent state review,
+  - deploy gates,
+  - smoke gates.
+- Prepared rollback model:
+  - instant revert conditions,
+  - rollback trigger points (pre-switch, switch, post-switch),
+  - explicit rollback procedure.
+- Defined Go/No-Go gates for Batch 1D-B execution.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `planning` — recreate/canary execution design
+- `risk` — gate and rollback risk formalization
+- `docs` — cutover-phase decision capture
+
 ## 2026-04-20 Phase 2A — Batch 1C (Clean Test App Proof)
 
 - Scope executed: created isolated temporary Coolify app only; production app not modified.

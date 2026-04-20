@@ -27,6 +27,56 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1D-A (Production Recreate / Canary Cutover Plan)
+
+### Что решено
+
+- Выполнен только planning scope для `Batch 1D-A`.
+- Зафиксирован безопасный путь: `recreate + canary`, без retry старого app cutover.
+
+### Что сделано
+
+- Сформирован контролируемый recreate-план для production target на базе clean app path (доказан Batch 1C).
+- Подготовлен canary checklist:
+  - domain/ingress,
+  - env parity,
+  - secrets parity,
+  - volume/persistent state review,
+  - deploy gates,
+  - smoke gates.
+- Подготовлен rollback plan:
+  - instant revert conditions,
+  - trigger points,
+  - пошаговая rollback procedure.
+- Определены Go/No-Go gates для открытия Batch 1D-B.
+
+### Что в работе
+
+- Ожидается только execution-phase `Batch 1D-B` по утвержденным gate’ам.
+
+### Что дальше
+
+1. Перед запуском Batch 1D-B проверить готовность по всем Go gates.
+2. Выполнять cutover только через recreate/canary path.
+3. Держать legacy production app неизменным до traffic-switch момента.
+
+### Что нельзя путать
+
+- `Batch 1D-A` — только план; ни один production switch/action не выполнялся.
+
+### Что еще не доказано
+
+- Практическое прохождение Batch 1D-B (execution) и пост-switch soak.
+
+### Что является только форковой спецификой
+
+- Жесткий запрет на repair/retry old app cutover после доказанного legacy app state bug.
+
+### Stop-point
+
+- Batch 1D-A: **completed (plan-only)**.
+- Batch 1D-B: **not executed yet (awaiting go/no-go)**.
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1C (Clean Test App Proof)
 
 ### Что решено

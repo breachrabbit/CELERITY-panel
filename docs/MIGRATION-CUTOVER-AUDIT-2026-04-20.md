@@ -52,6 +52,15 @@ Phase 2A / Batch 1C state:
   - target private repo access is functional in clean app path;
   - prior Batch 1B failure is most likely tied to legacy app integration state/mapping.
 
+Phase 2A / Batch 1D-A state:
+
+- **Completed (planning only)**: production recreate/canary cutover execution plan is defined.
+- **No execution performed**:
+  - no production source switch,
+  - no runtime channel switch,
+  - no cleanup,
+  - no feature-work.
+
 ---
 
 ## 1) Remote/Repo Audit
@@ -417,7 +426,7 @@ Validation facts:
 3. Identity residue remains high in workflow/docs/compose/package surfaces (to be handled after source cutover).
 4. Workflow runs in target repo are currently failing; Batch 1A classified this as non-blocking for Batch 1B (Coolify cutover), but structural for CI/release path and still open for later fix batch.
 
-Status: **Phase 1 closed + Phase 2A Batch 0/1A completed; Batch 1B failed on legacy app path and rolled back; Batch 1C clean test app proof passed**.
+Status: **Phase 1 closed + Phase 2A Batch 0/1A completed; Batch 1B failed on legacy app path and rolled back; Batch 1C proof passed; Batch 1D-A plan prepared**.
 
 ---
 
@@ -756,3 +765,115 @@ Validated by API/log evidence:
 3. Safest next migration path:
    - **Recreate path (recommended)** for production cutover;
    - retrying old app source-switch path is higher risk and not recommended as primary strategy.
+
+---
+
+## 12) Phase 2A / Batch 1D-A — Production Recreate / Canary Cutover Plan (Planning Only)
+
+Scope: plan only, no production modifications.
+
+### 12.1 Controlled recreate path design
+
+Primary strategy (based on Batch 1C proof):
+
+1. Create new production-target app object (clean path) using:
+   - Git Source: `brlabs-coolify`;
+   - Repo: `breachrabbit/brlabs.hrlab`;
+   - Branch: `main`.
+2. Mirror production app configuration as a parity baseline:
+   - Docker compose location/build pack;
+   - env and secret set;
+   - health-check profile;
+   - network/destination/server placement.
+3. Keep legacy production app live and untouched during canary stage.
+4. Run full canary validation on new app before any traffic switch.
+
+### 12.2 Canary cutover checklist
+
+#### A) Domain / ingress handling
+
+- [ ] define canary FQDN and verify TLS issuance;
+- [ ] ensure no host-rule collision with current production router;
+- [ ] verify ingress labels/middlewares parity;
+- [ ] predefine traffic-switch method (DNS/host rule swap) and TTL strategy.
+
+#### B) Env/secrets parity
+
+- [ ] export current production env key inventory (names only + required/optional classification);
+- [ ] replicate all required secrets to canary app;
+- [ ] explicitly compare security-sensitive keys:
+  - `SESSION_SECRET`,
+  - `ENCRYPTION_KEY`,
+  - `MONGO_PASSWORD`,
+  - `REDIS_PASSWORD`;
+- [ ] verify no fallback to legacy repo URLs in runtime vars.
+
+#### C) Volume / persistent state review
+
+- [ ] list current production persistent volumes and their functional purpose;
+- [ ] classify each state object:
+  - shared-safe,
+  - must-migrate,
+  - must-not-share;
+- [ ] define canary data strategy (isolated vs reused) per volume type;
+- [ ] define backup snapshot timing before traffic switch.
+
+#### D) Deploy gates (technical)
+
+- [ ] target repo clone success from helper logs;
+- [ ] image build success;
+- [ ] containers start and health status = `running:healthy`;
+- [ ] app startup logs show expected services initialized.
+
+#### E) Smoke gates (functional)
+
+- [ ] `/panel/login` reachable;
+- [ ] `/panel/nodes` renders and data loads;
+- [ ] one Xray onboarding smoke reaches `completed/ready`;
+- [ ] one Hysteria onboarding smoke reaches `completed/ready`;
+- [ ] cascade create/reconnect/delete + standalone auto-restore sanity;
+- [ ] subscription access sanity.
+
+### 12.3 Rollback plan (instant revert model)
+
+#### Instant revert conditions
+
+- canary deploy fails any technical gate;
+- smoke gates show onboarding/runtime regression;
+- ingress switch introduces login/API instability;
+- unexpected node/cascade continuity drift.
+
+#### Rollback trigger points
+
+1. Pre-switch (canary validation stage) -> abort canary, keep legacy production unchanged.
+2. During traffic switch -> immediate route/DNS rollback.
+3. Post-switch soak window -> revert to legacy production app if SLO/error gates fail.
+
+#### Rollback procedure
+
+1. stop traffic shift and restore previous ingress binding;
+2. re-activate last healthy production deploy pointer if needed;
+3. confirm legacy production health (`/panel/login`, `/panel/nodes`);
+4. capture incident diff:
+   - deploy ids,
+   - failing smoke step,
+   - logs snippet;
+5. freeze cutover execution and return to planning gate.
+
+### 12.4 Go / No-Go gates for Batch 1D-B execution
+
+Go only if all are true:
+
+- [ ] clean new production-target app is created and fully configured;
+- [ ] env/secrets parity checklist is complete and reviewed;
+- [ ] domain/ingress plan is conflict-free and reversible;
+- [ ] canary technical + functional smokes are green;
+- [ ] rollback path is tested and operator-ready;
+- [ ] production continuity constraints explicitly signed off.
+
+No-Go if any is true:
+
+- [ ] missing secret/env parity;
+- [ ] unknown persistent-state sharing behavior;
+- [ ] unresolved onboarding smoke fail on canary;
+- [ ] rollback path not testable within target RTO.
