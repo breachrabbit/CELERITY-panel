@@ -477,6 +477,70 @@ Rollback deploy result:
 
 ---
 
+## 9) Phase 2A / Batch 1B-AUTH — Private Repo Access Gate
+
+Scope: auth/integration verification only (no Batch 1B retry, no Batch 2).
+
+### 9.1 Coolify integration facts (current)
+
+From app `ymi9vwwf438y5ozeh0kwhklf`:
+
+- `source_type = App\\Models\\GithubApp`
+- `source_id = 0`
+- `private_key_id = null`
+- `manual_webhook_secret_github/gitlab/bitbucket/gitea = null`
+- current binding remains rollback-safe:
+  - `git_repository = breachrabbit/CELERITY-panel.git`
+  - `git_branch = main`
+  - app status `running:healthy`.
+
+### 9.2 GitHub target repo facts
+
+For `breachrabbit/brlabs.hrlab`:
+
+- repo visibility: `private`;
+- branch `main` exists;
+- hooks: `0`;
+- actions secrets: `0`;
+- actions variables: `0`;
+- environments: `0`;
+- recent workflow runs exist and are unrelated to Coolify clone auth path (`Docker Hub` failures).
+
+### 9.3 Direct access proof status
+
+Previously captured hard failure on Coolify helper clone probe:
+
+- `git ls-remote https://github.com/breachrabbit/brlabs.hrlab.git refs/heads/main`
+- `fatal: could not read Username for 'https://github.com': No such device or address`
+
+This remains the authoritative proof that private repo access is not yet configured for Coolify in current state.
+
+### 9.4 Installation/scope introspection limits
+
+Attempted GitHub API installation introspection:
+
+- `GET /repos/breachrabbit/brlabs.hrlab/installation` -> `401` (`JSON web token could not be decoded`);
+- `GET /user/installations` -> `403` (requires GitHub App-authorized token).
+
+Meaning:
+
+- current operator token can audit repo-level facts but cannot directly list/validate Coolify GitHub App installation scope.
+- provider auth must be fixed/verified in Coolify GitHub integration UI (or with an app-authorized token).
+
+### 9.5 Gate decision
+
+- Batch 1B-AUTH gate: **Not cleared**
+- Can we prove `Coolify can access breachrabbit/brlabs.hrlab` now? **No**
+- Is retry Batch 1B ready? **No**
+
+Required before retry:
+
+1. ensure Coolify GitHub App/token has explicit access to private repo `breachrabbit/brlabs.hrlab`;
+2. verify `git ls-remote` from Coolify helper path succeeds;
+3. only then re-open Batch 1B retry.
+
+---
+
 ## Cutover Audit Output (This Session)
 
 Completed now:

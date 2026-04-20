@@ -1,5 +1,36 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1B-AUTH (Private Repo Access Gate)
+
+- Scope executed: AUTH-gate only, no Batch 1B retry, no Batch 2, no cleanup, no feature work.
+- Coolify integration facts captured for app `ymi9vwwf438y5ozeh0kwhklf`:
+  - `source_type=GithubApp`,
+  - `source_id=0`,
+  - `private_key_id=null`,
+  - `manual_webhook_secret_* = null`.
+- GitHub target repo facts verified:
+  - `breachrabbit/brlabs.hrlab` is private and healthy as repo surface;
+  - hooks/secrets/variables/environments all currently `0`.
+- Access-proof status:
+  - authoritative prior cutover failure remains valid:
+    - `git ls-remote ... brlabs.hrlab.git` -> `could not read Username for 'https://github.com'`.
+- Installation/scope introspection attempts recorded:
+  - `/repos/.../installation` -> `401` (requires app JWT path);
+  - `/user/installations` -> `403` (requires GitHub App-authorized token).
+- Gate decision:
+  - Batch 1B-AUTH **not cleared**;
+  - retry Batch 1B **not ready** until Coolify provider auth/repo grant is fixed.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `audit` — provider/auth observability and access-gate evidence
+- `docs` — blocker state + gate decision formalization
+
 ## 2026-04-20 Phase 2A — Batch 1B (Coolify Cutover Attempt + Rollback)
 
 - Scope executed: **Batch 1B only** (Coolify source cutover), no runtime-path switch, no cleanup, no feature-work.

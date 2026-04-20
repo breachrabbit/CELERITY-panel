@@ -80,6 +80,55 @@ Do not change order.
 
 - Batch 1B is not passed yet; rollback was required and completed successfully.
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1B-AUTH (Private Repo Access Gate)
+
+### Что решено
+
+- Выполнен только AUTH-gate scope без retry Batch 1B.
+- Gate не очищен: доказательства доступа Coolify к private target repo пока нет.
+
+### Что сделано
+
+- Проверен текущий Coolify binding/integration слой на app `ymi9vwwf438y5ozeh0kwhklf`:
+  - `source_type=GithubApp`,
+  - `source_id=0`,
+  - `private_key_id=null`,
+  - `manual_webhook_secret_* = null`.
+- Подтверждены GitHub факты по `breachrabbit/brlabs.hrlab`:
+  - repo private + `main` доступна;
+  - hooks/secrets/variables/environments: `0`.
+- Подтверждено, что предыдущий hard-fail Batch 1B релевантен и не закрыт:
+  - `git ls-remote ... brlabs.hrlab.git` -> `could not read Username`.
+- Попытки installation/scope introspection ограничены текущим токеном:
+  - `/repos/.../installation` -> `401`,
+  - `/user/installations` -> `403`.
+
+### Что в работе
+
+- Требуется починить/подтвердить provider auth path в Coolify для private repo.
+
+### Что дальше
+
+1. Проверить/исправить GitHub integration grant в Coolify для `breachrabbit/brlabs.hrlab`.
+2. Верифицировать access probe (private clone/ls-remote success) в Coolify path.
+3. Только после этого открыть retry Batch 1B.
+
+### Что нельзя путать
+
+- Наличие private repo и успешный `gh api` у оператора не означает доступ Coolify helper к этому repo.
+
+### Что еще не доказано
+
+- Coolify can access `breachrabbit/brlabs.hrlab` from deployment helper path.
+
+### Что является только форковой спецификой
+
+- Жёсткая cutover дисциплина: AUTH-gate before any new source-switch retry.
+
+### Stop-point
+
+- Batch 1B-AUTH completed with **blocked** result.
+
 ## Current State
 
 - State: `blocked (Batch 1B gate)`

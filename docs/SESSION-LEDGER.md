@@ -2,6 +2,19 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1B-AUTH (Private Repo Access Gate).
+- Finished with:
+  - verified Coolify integration indicators on app `ymi9vwwf438y5ozeh0kwhklf` (`GithubApp`, `source_id=0`, no manual webhook secrets);
+  - confirmed target repo `breachrabbit/brlabs.hrlab` is private and repo-level surfaces are healthy;
+  - re-validated hard access failure evidence from Batch 1B (`git ls-remote` auth failure from Coolify helper path);
+  - recorded GitHub installation introspection limits (`401/403` with current token type);
+  - marked AUTH gate as not cleared.
+- Next step:
+  - fix/validate Coolify GitHub integration access to `breachrabbit/brlabs.hrlab`;
+  - only then retry Batch 1B.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1B (Coolify cutover execution only).
 - Finished with:
   - captured pre-switch Coolify snapshot for app `ymi9vwwf438y5ozeh0kwhklf`;
