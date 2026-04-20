@@ -27,6 +27,56 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-INGRESS-TRACE
+
+### Что решено
+
+- Выполнен только trace-scope:
+  - Host request -> router -> service selection -> backend upstream.
+- Exact break point зафиксирован без новых патчей.
+
+### Что сделано
+
+- Сравнен live app state для:
+  - canary `kp89plobh43b17o0r1f6jrcn`,
+  - production `ymi9vwwf438y5ozeh0kwhklf`.
+- Подтверждено smoke:
+  - production `/panel/login` -> `HTTP 200`;
+  - canary `/panel/login` -> `HTTP 503`, body `no available server`.
+- Подтверждено:
+  - canary app `running:healthy`;
+  - canary `docker_compose_domains=null`;
+  - canary сохраняет app-level generated router/service labels в `custom_labels` для canary host.
+
+### Что в работе
+
+- Canary ingress mapping в стадии service/upstream:
+  - host-rule матчится,
+  - upstream для выбранного service path недоступен (`no available server`).
+
+### Что дальше
+
+1. Продолжать только ingress trace/fix scope до green smoke.
+2. Не открывать другие batch/scopes до `HTTP 200` на canary `/panel/login`.
+
+### Что нельзя путать
+
+- `running:healthy` app не означает корректный ingress upstream route.
+
+### Что еще не доказано
+
+- Рабочий canary route chain до backend upstream для `/panel/login`.
+
+### Что является только форковой спецификой
+
+- Cutover gate считается пройденным только после end-to-end canary smoke `HTTP 200`.
+
+### Stop-point
+
+- Batch 1D-B-INGRESS-TRACE: **captured, blocked**.
+- Exact break point: **service selection -> upstream availability**.
+- Batch 1D-B decision resume: **нет**.
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-INGRESS-DIFF
 
 ### Что решено

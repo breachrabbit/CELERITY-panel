@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-INGRESS-DIFF)
+Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-INGRESS-TRACE)
 
 ## Risk Register
 
@@ -30,6 +30,7 @@ Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-INGRESS-DIFF)
 | Canary ingress still returns `503 no available server` after env parity + forced redeploy on clean app path | Blocks cutover decision despite healthy containers; canary proof is incomplete | High | Keep work in Batch 1D-B-INGRESS scope only; continue ingress/router target mapping diagnostics before any switch decision | Keep production app/source binding unchanged; no traffic switch until canary ingress is green | Open (Active Batch 1D-B blocker) |
 | Explicit backend-label patch deployed but canary ingress still `503` (`i9zxjfcku9gur6q3wq32r8k2`) | Indicates unresolved backend route mapping despite healthy app; can prolong cutover freeze | High | Keep scope on Batch 1D-B-INGRESS-DIFF only; verify final mapping chain (`Host -> router/service -> upstream`) on canary object and clear gate before any decision resume | Keep production app/source unchanged; no switch while canary `/panel/login` is non-200 | Open (Patch insufficient; gate still blocked) |
 | Canary app keeps `docker_compose_domains=null` while ingress depends on backend host routing | Platform-level domain binding drift may override/undermine compose-label fallback behavior | High | Track as explicit ingress mismatch in cutover audit; clear only with proven canary `HTTP 200` smoke | Preserve production routing and keep canary isolated until binding path is proven | Open (Unresolved binding state) |
+| Live trace shows break at `router -> service -> upstream` stage (host matched, upstream unavailable) | Confirms failure is in ingress service mapping layer, not in app runtime health | High | Continue only ingress trace/fix scope until selected service has live backend upstream for canary host | Keep production path active; do not resume cutover decision while trace still ends at `no available server` | Open (Exact failure point captured) |
 
 ## Notes
 

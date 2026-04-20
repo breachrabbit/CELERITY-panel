@@ -2,6 +2,23 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1D-B-INGRESS-TRACE (routing trace only).
+- Finished with:
+  - traced live chain for canary:
+    - Host request -> router match -> service selection -> upstream;
+  - compared production vs canary:
+    - production `/panel/login` -> `HTTP 200`,
+    - canary `/panel/login` -> `HTTP 503` (`no available server`);
+  - confirmed canary app stays `running:healthy`;
+  - confirmed canary still has `docker_compose_domains=null`;
+  - recorded exact break point:
+    - failure at `service selection -> backend upstream availability`.
+- Next step:
+  - continue only ingress trace/fix scope;
+  - clear canary `/panel/login` to `HTTP 200` before any Batch 1D-B decision resume.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1D-B-INGRESS-DIFF (deploy-complete check + canary smoke only).
 - Finished with:
   - verified deployment `i9zxjfcku9gur6q3wq32r8k2` is `finished`;

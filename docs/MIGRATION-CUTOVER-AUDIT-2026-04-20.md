@@ -82,6 +82,28 @@ Phase 2A / Batch 1D-B-INGRESS-DIFF state:
   - current patch is insufficient to clear ingress gate;
   - unresolved mismatch remains in canary ingress backend mapping path (`Host -> router/service -> backend upstream`), with app-level domain binding still `docker_compose_domains=null`.
 
+Phase 2A / Batch 1D-B-INGRESS-TRACE state:
+
+- **Executed (trace-only), no config mutation**:
+  - traced canary routing chain from host request to upstream selection;
+  - compared live Coolify app state `production vs canary` (router labels, service labels, domain binding state, smoke outputs).
+- **Observed facts**:
+  - production smoke:
+    - `https://tunnel.hiddenrabbit.net.ru/panel/login` -> `HTTP 200`;
+  - canary smoke:
+    - `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503`,
+    - body: `no available server`;
+  - canary app remains `running:healthy` after deploy;
+  - canary app keeps `docker_compose_domains=null`;
+  - canary still carries app-level generated router/service labels in `custom_labels` for canary host (`http-0/https-0 ... -> port 80`) while explicit backend labels were added in compose.
+- **Exact break point (trace result)**:
+  - request reaches ingress/router layer (503 from router proves host rule is matched),
+  - break occurs at **service selection -> backend upstream availability** stage:
+    - selected canary service path resolves to **no available upstream server** for the matched host/rule.
+- **Gate result**:
+  - ingress gate remains blocked;
+  - Batch 1D-B decision cannot resume.
+
 ---
 
 ## 1) Remote/Repo Audit

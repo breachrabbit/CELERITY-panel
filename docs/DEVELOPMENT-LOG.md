@@ -1,5 +1,32 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1D-B-INGRESS-TRACE (routing chain trace only)
+
+- Scope executed: trace-only, no YAML rework, no blind patch, no cleanup, no feature-work.
+- Traced canary routing chain and compared production vs canary live app ingress state.
+- Verified smoke:
+  - production `https://tunnel.hiddenrabbit.net.ru/panel/login` -> `HTTP 200`;
+  - canary `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503` (`no available server`).
+- Verified canary app runtime:
+  - app `kp89plobh43b17o0r1f6jrcn` remains `running:healthy`.
+- Verified canary ingress binding facts:
+  - `docker_compose_domains=null` remains;
+  - canary still has app-level generated router/service labels for canary host in `custom_labels`.
+- Exact break point captured:
+  - request reaches router (host rule matched),
+  - break occurs at `service selection -> backend upstream availability` (`no available server`).
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `trace` — live routing chain evidence capture (production vs canary)
+- `audit` — exact break-point formalization
+- `docs` — continuity/risk updates
+
 ## 2026-04-20 Phase 2A — Batch 1D-B-INGRESS-DIFF (Deploy wait + smoke verification)
 
 - Scope executed: strict stop-point continuation only (`deploy status` + canary smoke), no cleanup, no feature-work, no Batch 2.
