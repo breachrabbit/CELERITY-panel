@@ -1,5 +1,30 @@
 # Development Log
 
+## 2026-04-20 Phase 2A — Batch 1D-B (Canary Cutover Execution)
+
+- Scope executed: canary execution only (no production source switch, no cleanup, no feature-work).
+- Verified canary app runtime state in Coolify:
+  - app `kp89plobh43b17o0r1f6jrcn` (`brlabs-cutover-test-1c`);
+  - latest deployment `l9lxwlmkkywo4233l2oqdw30` finished;
+  - application status remained `running:healthy`.
+- Immediate smoke-check results:
+  - canary login endpoint `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503`, body `no available server`;
+  - production control endpoint `https://tunnel.hiddenrabbit.net.ru/panel/login` -> `HTTP 200`.
+- Gate decision:
+  - Batch 1D-B = failed (ingress smoke gate);
+  - rollback for production path not required (production was not switched).
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — canary deploy/smoke evidence capture
+- `audit` — gate outcome and blocker formalization
+- `docs` — cutover state update after Batch 1D-B execution
+
 ## 2026-04-20 Phase 2A — Batch 1D-A (Production Recreate / Canary Cutover Plan)
 
 - Scope executed: planning only, no production changes, no cutover execution.

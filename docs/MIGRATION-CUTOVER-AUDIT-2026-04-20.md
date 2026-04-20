@@ -61,6 +61,14 @@ Phase 2A / Batch 1D-A state:
   - no cleanup,
   - no feature-work.
 
+Phase 2A / Batch 1D-B state:
+
+- **Executed (canary only), gate not passed**:
+  - canary deploy finished and app runtime stayed `running:healthy`,
+  - ingress smoke for canary domain failed with `HTTP 503` / `no available server`.
+- **Production continuity preserved**:
+  - production app/source binding was not switched in this batch.
+
 ---
 
 ## 1) Remote/Repo Audit
@@ -426,7 +434,53 @@ Validation facts:
 3. Identity residue remains high in workflow/docs/compose/package surfaces (to be handled after source cutover).
 4. Workflow runs in target repo are currently failing; Batch 1A classified this as non-blocking for Batch 1B (Coolify cutover), but structural for CI/release path and still open for later fix batch.
 
-Status: **Phase 1 closed + Phase 2A Batch 0/1A completed; Batch 1B failed on legacy app path and rolled back; Batch 1C proof passed; Batch 1D-A plan prepared**.
+Status: **Phase 1 closed + Phase 2A Batch 0/1A completed; Batch 1B failed on legacy app path and rolled back; Batch 1C proof passed; Batch 1D-A prepared; Batch 1D-B executed as canary but blocked by ingress smoke gate**.
+
+---
+
+## 11) Phase 2A / Batch 1D-B — Canary Cutover Execution (Result)
+
+Scope executed:
+
+1. controlled canary execution on clean recreated app path (no production source switch);
+2. immediate smoke-check on canary endpoint;
+3. keep/rollback decision according to gates.
+
+### 11.1 Canary execution facts
+
+- canary app: `brlabs-cutover-test-1c` (`kp89plobh43b17o0r1f6jrcn`);
+- source binding (unchanged from proven clean path):
+  - `breachrabbit/brlabs.hrlab:main`;
+- latest deployment:
+  - `l9lxwlmkkywo4233l2oqdw30`,
+  - `status=finished`;
+- app runtime status after deploy:
+  - `running:healthy`.
+
+### 11.2 Immediate smoke-check facts
+
+Canary endpoint checks:
+
+- `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login`
+  - response: `HTTP/2 503`
+  - body: `no available server`.
+
+Production endpoint control check:
+
+- `https://tunnel.hiddenrabbit.net.ru/panel/login`
+  - response: `HTTP/2 200`.
+
+### 11.3 Gate decision
+
+- Batch 1D-B pass: **No** (failed canary ingress smoke gate).
+- Rollback needed: **No** for production path (no production traffic/source switch in this batch).
+- Batch 2 readiness: **No** (blocked until canary ingress path is healthy).
+
+### 11.4 Next required action (still in cutover scope)
+
+1. fix canary ingress/routing binding for recreated app;
+2. re-run Batch 1D-B smoke gates on canary endpoint;
+3. only after clean canary smoke, open decision on production cutover continuation.
 
 ---
 

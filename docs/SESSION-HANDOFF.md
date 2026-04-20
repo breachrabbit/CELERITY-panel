@@ -27,6 +27,53 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B (Canary Cutover Execution)
+
+### Что решено
+
+- Batch 1D-B выполнен строго в canary-контуре (без переключения production app).
+- Go gate по canary smoke не пройден: ingress канарейки отдает `503 no available server`.
+
+### Что сделано
+
+- Подтверждено, что test app остается технически рабочим:
+  - app `kp89plobh43b17o0r1f6jrcn`,
+  - latest deploy `l9lxwlmkkywo4233l2oqdw30` -> `finished`,
+  - app status `running:healthy`.
+- Выполнен immediate smoke-check:
+  - canary URL `/panel/login` -> `HTTP 503`, body `no available server`;
+  - production URL `https://tunnel.hiddenrabbit.net.ru/panel/login` -> `HTTP 200`.
+- Обновлены cutover audit/risk документы под факты Batch 1D-B.
+
+### Что в работе
+
+- Закрытие ingress/router blocker для canary path.
+
+### Что дальше
+
+1. Исправить canary ingress binding/routing.
+2. Повторить Batch 1D-B smoke-check на том же canary app.
+3. Только после зеленого canary smoke обсуждать следующий cutover шаг.
+
+### Что нельзя путать
+
+- `running:healthy` контейнера не равен успешному canary cutover.
+- Пока canary URL не отвечает штатно, production switch запрещен.
+
+### Что еще не доказано
+
+- Успешный end-to-end canary вход через ingress (`/panel/login` с `HTTP 200`) на target repo path.
+
+### Что является только форковой спецификой
+
+- Batch-гейт `container healthy + ingress smoke` обязателен, даже если deploy формально `finished`.
+
+### Stop-point
+
+- Batch 1D-B: **executed, failed smoke gate**.
+- Rollback для production: **не потребовался** (production не переключался).
+- Batch 2: **не открывать** до закрытия canary ingress blocker.
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1D-A (Production Recreate / Canary Cutover Plan)
 
 ### Что решено

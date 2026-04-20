@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-20` (Phase 2A / Batch 1D-A recreate/canary planning)
+Last updated: `2026-04-20` (Phase 2A / Batch 1D-B canary execution gate)
 
 ## Risk Register
 
@@ -23,7 +23,7 @@ Last updated: `2026-04-20` (Phase 2A / Batch 1D-A recreate/canary planning)
 | Hysteria sidecar edge instability under forced hybrid defaults | TLS/runtime fail despite “completed” setup status | Medium | Keep step-level diagnostics and patch only failing step with live logs; add targeted smoke matrix | Disable affected node path to standalone and restore previous stable setup mode | Open |
 | GitHub App installation scope for Coolify cannot be fully introspected with current operator token | False-positive readiness risk for private-repo cutover attempts | Medium | Validate provider auth/scope directly in Coolify GitHub integration (or use app-authorized token) before any new source switch | Keep Batch 1B blocked and source pinned to current healthy repo | Open (Auth observability gap) |
 | Current automation control surface cannot execute all Coolify GitHub provider re-authorize/rebind mutations on existing app | Legacy app source-switch recovery can stall | Medium | Use clean-app API creation path (`private-github-app`) for proof/cutover preparation; keep UI fallback for provider grant ops | Keep legacy app source unchanged and continue with isolated test app path | Mitigated (workable clean-path execution exists) |
-| Domain/ingress overlap during recreate cutover can route traffic to wrong app | User-facing instability during switch window | High | Predefine canary FQDN + host-rule conflict check + reversible ingress switch checklist | Restore previous ingress host binding immediately and keep legacy app as active endpoint | Open (Batch 1D-B gate) |
+| Domain/ingress overlap during recreate cutover can route traffic to wrong app | User-facing instability during switch window | High | Predefine canary FQDN + host-rule conflict check + reversible ingress switch checklist; validate canary endpoint before any production switch | Restore previous ingress host binding immediately and keep legacy app as active endpoint | Open (Observed in Batch 1D-B: canary `503 no available server` while app healthy) |
 | Env/secrets parity drift between legacy production and recreated app | Auth/session/runtime regressions after cutover | High | Run explicit env/secrets parity checklist and block switch until complete | Revert traffic to legacy app and invalidate canary endpoint | Open (Batch 1D-B gate) |
 | Persistent state/volume strategy is unclear in recreate path | Data inconsistency or loss risk | High | Classify shared/migrated/isolated volume usage before switch and snapshot data | Roll back traffic + restore prior volume binding/snapshot | Open (Batch 1D-B gate) |
 | Rollback is defined but not operator-tested before cutover | Slow incident response during failure | Medium | Require rollback drill gate before Batch 1D-B Go decision | Cancel Batch 1D-B execution until rollback drill passes | Open (Gate not yet proven) |

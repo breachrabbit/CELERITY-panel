@@ -2,6 +2,23 @@
 
 ## 2026-04-20
 
+- Worked on: Phase 2A / Batch 1D-B (Canary Cutover Execution).
+- Finished with:
+  - executed canary path only on clean app (`kp89plobh43b17o0r1f6jrcn`) without touching production source binding;
+  - confirmed canary deploy `l9lxwlmkkywo4233l2oqdw30` finished and app status is `running:healthy`;
+  - confirmed canary ingress smoke fails:
+    - `/panel/login` -> `HTTP 503`,
+    - response body `no available server`;
+  - confirmed production control endpoint remains healthy:
+    - `https://tunnel.hiddenrabbit.net.ru/panel/login` -> `HTTP 200`;
+  - classified Batch 1D-B as not passed (ingress gate blocked).
+- Next step:
+  - fix canary ingress/router binding for recreated app;
+  - rerun Batch 1D-B canary smoke;
+  - do not open Batch 2 before canary smoke passes.
+
+## 2026-04-20
+
 - Worked on: Phase 2A / Batch 1D-A (Production Recreate / Canary Cutover Plan).
 - Finished with:
   - created plan-only execution design (no production changes);
