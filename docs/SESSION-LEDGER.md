@@ -1,5 +1,22 @@
 # Session Ledger
 
+## 2026-04-21
+
+- Worked on: Phase 2A / Batch 1D-B-PARITY-DIFF follow-up (deploy result + smoke gate only).
+- Finished with:
+  - verified canary deploy `w100m82bw61dpk258ckxam6x` is `finished`;
+  - confirmed canary app remains `running:healthy`;
+  - repeated canary smoke:
+    - `/panel/login` -> `HTTP 503`,
+    - response body `no available server`;
+  - confirmed parity gap remains:
+    - canary `docker_compose_domains=null`,
+    - backend registration still non-parity with production canonical path.
+- Next step:
+  - close canonical backend-registration parity gap on canary;
+  - retry smoke only after parity fix;
+  - keep Batch 1D-B decision blocked until canary `HTTP 200`.
+
 ## 2026-04-20
 
 - Worked on: Phase 2A / Batch 1D-B-UPSTREAM (production vs canary backend registration comparison).

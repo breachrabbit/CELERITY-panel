@@ -27,6 +27,54 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-21 Stop-Point — Phase 2A Batch 1D-B-PARITY-DIFF (follow-up)
+
+### Что решено
+
+- Выполнен только parity-diff follow-up в текущем batch scope.
+- Проверка показала: deploy прошел, но ingress smoke gate все еще не закрыт.
+
+### Что сделано
+
+- Подтвержден деплой canary:
+  - `w100m82bw61dpk258ckxam6x` -> `finished`.
+- Подтверждено, что canary app остается `running:healthy`.
+- Повторен smoke-check:
+  - `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503`,
+  - body: `no available server`.
+- Зафиксирован parity follow-up по состоянию production vs canary:
+  1. production: `docker_compose_domains` populated;
+  2. canary: `docker_compose_domains=null`;
+  3. canary продолжает жить с mixed routing registration surfaces, что оставляет break на `service selection -> backend upstream availability`.
+
+### Что в работе
+
+- Batch 1D-B decision остается заблокированным ingress smoke gate.
+
+### Что дальше
+
+1. Закрыть canonical parity gap по canary backend registration (в первую очередь `docker_compose_domains` parity).
+2. Повторить smoke `/panel/login` только после parity-level фикса.
+3. Возобновлять Batch 1D-B decision только при `HTTP 200`.
+
+### Что нельзя путать
+
+- `running:healthy` контейнеров не означает, что ingress/router path валиден.
+
+### Что еще не доказано
+
+- Production-canonical parity для canary backend routing chain до рабочего upstream.
+
+### Что является только форковой спецификой
+
+- В BR Labs.hrlab cutover decision блокируется до green ingress smoke, даже при healthy runtime.
+
+### Stop-point
+
+- Batch 1D-B-PARITY-DIFF follow-up: **not cleared**.
+- Smoke gate: **failed (`HTTP 503`)**.
+- Batch 1D-B decision resume: **No**.
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-UPSTREAM
 
 ### Что решено

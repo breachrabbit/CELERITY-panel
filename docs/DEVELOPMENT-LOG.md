@@ -1,5 +1,35 @@
 # Development Log
 
+## 2026-04-21 Phase 2A — Batch 1D-B-PARITY-DIFF (follow-up retry)
+
+- Scope executed: parity-diff follow-up only (no cleanup, no feature-work, no Batch 2).
+- Applied parity-focused patch in codebase:
+  - commit `33f2b4a` (`fix: prioritize backend routers for canary host collision`).
+- Forced canary deploy completed:
+  - deployment `w100m82bw61dpk258ckxam6x` -> `finished`;
+  - canary app remained `running:healthy`.
+- Repeated canary ingress smoke:
+  - `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503`;
+  - response body: `no available server`.
+- Parity conclusion (production vs canary):
+  - `docker_compose_domains` remains missing on canary (`null`);
+  - mixed routing registration surfaces remain in canary state;
+  - ingress break still at `service selection -> backend upstream availability`.
+- Gate outcome:
+  - Batch 1D-B remains blocked;
+  - decision resume is still prohibited until canary smoke becomes `HTTP 200`.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — deploy/smoke verification after parity patch
+- `audit` — exact remaining parity gap capture
+- `docs` — continuity/risk state update
+
 ## 2026-04-20 Phase 2A — Batch 1D-B-UPSTREAM (backend registration comparison)
 
 - Scope executed: upstream comparison only, no host-rule re-debug, no blind patch.

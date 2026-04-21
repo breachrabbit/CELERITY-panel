@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-21` (Phase 2A / Batch 1D-B-REGISTRY-CONSISTENCY)
+Last updated: `2026-04-21` (Phase 2A / Batch 1D-B-PARITY-DIFF follow-up)
 
 ## Risk Register
 
@@ -33,6 +33,7 @@ Last updated: `2026-04-21` (Phase 2A / Batch 1D-B-REGISTRY-CONSISTENCY)
 | Live trace shows break at `router -> service -> upstream` stage (host matched, upstream unavailable) | Confirms failure is in ingress service mapping layer, not in app runtime health | High | Continue only ingress trace/fix scope until selected service has live backend upstream for canary host | Keep production path active; do not resume cutover decision while trace still ends at `no available server` | Open (Exact failure point captured) |
 | Canary uses mixed provider registration models (`custom_labels` service set vs backend compose service set) | Router can select a service graph that has no usable upstream for canary host, causing persistent `503` | High | Unify canary backend registration to a single service/router model before next smoke attempt | Keep production unchanged; retry smoke only after unified registration is confirmed | Open (Exact upstream mismatch captured) |
 | Canary normalized to single app-level model, but production canonical path requires compose-domain backend registration (`docker_compose_domains` + backend host labels) | Smoke remains `503`; canary stays non-parity with production ingress registration path | High | Move canary to production-canonical registration model and confirm backend upstream registration before next smoke | Preserve production routing; keep cutover decision blocked until canary `/panel/login` is `HTTP 200` | Open (Batch 1D-B-REGISTRY-CONSISTENCY not cleared) |
+| Canary backend-router priority patch (`33f2b4a`) applied and redeployed, but smoke still `503 no available server` | Indicates remaining production-parity gap is not just router priority; cutover remains blocked | High | Close parity gap on canonical fields first: populate canary `docker_compose_domains`, then re-validate single-model provider registration and upstream availability | Keep production on legacy app/source; no traffic switch until canary ingress smoke is `HTTP 200` | Open (Batch 1D-B-PARITY-DIFF not cleared) |
 
 ## Notes
 

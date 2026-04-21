@@ -129,6 +129,32 @@ Phase 2A / Batch 1D-B-UPSTREAM state:
   - mismatch is fixable (registration model must be unified);
   - smoke gate can be retried **only after** registration consistency is restored on canary.
 
+Phase 2A / Batch 1D-B-PARITY-DIFF state (2026-04-21 follow-up):
+
+- **Executed (parity-only fix/retry), gate not passed**:
+  - applied minimal parity patch in repo:
+    - commit `33f2b4a` (`fix: prioritize backend routers for canary host collision`);
+    - patch adds explicit backend router priorities for canary compose backend labels.
+  - forced canary deploy completed:
+    - deployment `w100m82bw61dpk258ckxam6x` -> `finished`;
+    - canary app stays `running:healthy`.
+  - repeated canary smoke:
+    - `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503`,
+    - response body: `no available server`.
+- **Exact missing parity items (production vs canary)**:
+  1. `docker_compose_domains`:
+     - production: populated with backend domain binding;
+     - canary: `null`.
+  2. backend routing registration model:
+     - production runtime stays on canonical model tied to populated compose-domain metadata;
+     - canary still carries mixed routing metadata (`custom_labels` service graph + compose backend service graph).
+  3. service target parity remains incomplete:
+     - canary router path still resolves to a backend-upstream-unavailable state (`no available server`) despite healthy containers.
+- **Conclusion for this batch step**:
+  - parity patch was **insufficient**;
+  - ingress gate remains blocked;
+  - Batch 1D-B decision cannot resume yet.
+
 ---
 
 ## 1) Remote/Repo Audit
