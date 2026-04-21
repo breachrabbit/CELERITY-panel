@@ -70,25 +70,6 @@ services:
     volumes:
       - app_logs:/app/logs
       - app_backups:/app/backups
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.middlewares.gzip.compress=true"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID:-app}-backend.entryPoints=http"
-      - "traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID:-app}-backend.middlewares=redirect-to-https"
-      - "traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID:-app}-backend.rule=Host(`${PANEL_DOMAIN}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID:-app}-backend.entryPoints=https"
-      - "traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID:-app}-backend.middlewares=gzip"
-      - "traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID:-app}-backend.rule=Host(`${PANEL_DOMAIN}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID:-app}-backend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID:-app}-backend.tls=true"
-      - "caddy_0.encode=zstd gzip"
-      - "caddy_0.handle_path.0_reverse_proxy={{upstreams}}"
-      - "caddy_0.handle_path=/*"
-      - "caddy_0.header=-Server"
-      - "caddy_0.try_files={path} /index.html /index.php"
-      - "caddy_0=https://${PANEL_DOMAIN}"
-      - "caddy_ingress_network=${COOLIFY_RESOURCE_UUID:-app}"
     networks:
       - default
       - coolify
