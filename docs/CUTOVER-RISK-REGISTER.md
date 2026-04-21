@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-21` (Phase 2A / Batch 1D-B-PARITY-DIFF follow-up)
+Last updated: `2026-04-21` (Phase 2A / Batch 1F-A design)
 
 ## Risk Register
 
@@ -34,6 +34,8 @@ Last updated: `2026-04-21` (Phase 2A / Batch 1D-B-PARITY-DIFF follow-up)
 | Canary uses mixed provider registration models (`custom_labels` service set vs backend compose service set) | Router can select a service graph that has no usable upstream for canary host, causing persistent `503` | High | Unify canary backend registration to a single service/router model before next smoke attempt | Keep production unchanged; retry smoke only after unified registration is confirmed | Open (Exact upstream mismatch captured) |
 | Canary normalized to single app-level model, but production canonical path requires compose-domain backend registration (`docker_compose_domains` + backend host labels) | Smoke remains `503`; canary stays non-parity with production ingress registration path | High | Move canary to production-canonical registration model and confirm backend upstream registration before next smoke | Preserve production routing; keep cutover decision blocked until canary `/panel/login` is `HTTP 200` | Open (Batch 1D-B-REGISTRY-CONSISTENCY not cleared) |
 | Canary backend-router priority patch (`33f2b4a`) applied and redeployed, but smoke still `503 no available server` | Indicates remaining production-parity gap is not just router priority; cutover remains blocked | High | Close parity gap on canonical fields first: populate canary `docker_compose_domains`, then re-validate single-model provider registration and upstream availability | Keep production on legacy app/source; no traffic switch until canary ingress smoke is `HTTP 200` | Open (Batch 1D-B-PARITY-DIFF not cleared) |
+| Quarantine object accidentally reused for repair attempts (`kp89plobh43b17o0r1f6jrcn`) | Reintroduces mixed state and destroys evidence trail for recreate analysis | High | Hard quarantine policy: no new repairs/deploy-mutations on old canary; use it only as evidence snapshot source | Keep production untouched; if accidentally mutated, treat object as invalid evidence and recreate fresh canary again | Open (Controlled by Batch 1F-A) |
+| Recreated canary may again start with non-canonical registration (`docker_compose_domains=null` / mixed models) | Same `503 no available server` failure repeats despite clean recreate | High | Enforce canonical model from creation: backend domain binding + single registration model before first smoke | Do not proceed to cutover decision; freeze failed canary and retain production as-is | Open (Primary Batch 1F-B execution risk) |
 
 ## Notes
 

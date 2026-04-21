@@ -2,6 +2,19 @@
 
 ## 2026-04-21
 
+- Worked on: Phase 2A / Batch 1F-A (Design / Plan only).
+- Finished with:
+  - formalized quarantine policy for broken canary `kp89plobh43b17o0r1f6jrcn` (no further repair-in-place);
+  - prepared clean canary recreate procedure;
+  - defined canonical registration requirements from creation;
+  - defined smoke criteria for `/panel/login`;
+  - defined rollback/freeze procedure if recreated canary still fails.
+- Next step:
+  - open Batch 1F-B execution on a new clean canary object only;
+  - keep production path untouched until recreated canary smoke is green.
+
+## 2026-04-21
+
 - Worked on: Phase 2A / Batch 1D-B-PARITY-DIFF follow-up (deploy result + smoke gate only).
 - Finished with:
   - verified canary deploy `w100m82bw61dpk258ckxam6x` is `finished`;

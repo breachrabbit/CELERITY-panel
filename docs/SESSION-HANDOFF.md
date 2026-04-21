@@ -27,6 +27,56 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-21 Stop-Point — Phase 2A Batch 1F-A (Design / Plan)
+
+### Что решено
+
+- Принято решение `Batch 1D-E`:
+  - repair in place: **NO**;
+  - clean canary recreate: **YES**.
+- Broken canary `kp89plobh43b17o0r1f6jrcn` переведен в quarantine-модель.
+
+### Что сделано
+
+- Подготовлен план без исполнения:
+  1. quarantine handling для broken canary;
+  2. clean recreate-процедура для нового canary;
+  3. canonical registration требования с момента создания;
+  4. smoke criteria;
+  5. rollback-модель при повторном fail recreated canary.
+- Зафиксировано: текущий broken canary не ремонтируется дальше и используется только как источник фактов/логов.
+
+### Что в работе
+
+- Подготовка к `Batch 1F-B` execution (по утвержденному plan-only blueprint).
+
+### Что дальше
+
+1. Выполнить `Batch 1F-B` строго по плану:
+   - новый clean canary объект,
+   - canonical backend registration from creation,
+   - smoke `/panel/login`.
+2. При неуспехе — rollback-by-freeze без затрагивания production.
+
+### Что нельзя путать
+
+- Quarantine объект и recreated canary — это разные сущности.
+- Успешный deploy без `HTTP 200 /panel/login` не считается пройденным gate.
+
+### Что еще не доказано
+
+- Что recreated clean canary пройдет ingress smoke (`HTTP 200`) на canonical model.
+
+### Что является только форковой спецификой
+
+- Decision policy BR Labs.hrlab: broken canary после repeated ingress fail уходит в quarantine, а не в бесконечный repair-in-place.
+
+### Stop-point
+
+- Batch 1F-A: **completed (plan-only)**.
+- Batch 1F-B: **ready**.
+- Execution still not started in this slice.
+
 ## 2026-04-21 Stop-Point — Phase 2A Batch 1D-B-PARITY-DIFF (follow-up)
 
 ### Что решено

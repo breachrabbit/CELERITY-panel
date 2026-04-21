@@ -155,6 +155,42 @@ Phase 2A / Batch 1D-B-PARITY-DIFF state (2026-04-21 follow-up):
   - ingress gate remains blocked;
   - Batch 1D-B decision cannot resume yet.
 
+Phase 2A / Batch 1F-A state (design-only, no execution):
+
+- **Opened by decision**:
+  - `Batch 1D-E`: repair-in-place **rejected**;
+  - clean canary recreate **approved**.
+- **Broken canary handling (quarantine)**:
+  - broken canary object `kp89plobh43b17o0r1f6jrcn` is treated as quarantine-only evidence object;
+  - no further repair, no source switching, no ingress patching, no blind redeploys on this object;
+  - keep for forensic comparison (deploy logs, labels, env snapshots) until recreate verdict is complete.
+- **Clean canary recreate procedure (planned)**:
+  1. Capture rollback/evidence snapshot of quarantine object:
+     - app metadata, env set, compose domains, custom labels, last deployments.
+  2. Create a **new** isolated canary app from clean path:
+     - source: `brlabs-coolify`;
+     - repo: `breachrabbit/brlabs.hrlab`;
+     - branch: `main`.
+  3. Apply env parity with production baseline before first deploy:
+     - only canary-host-specific values differ (`PANEL_DOMAIN`, `SERVICE_URL_BACKEND`, `SERVICE_FQDN_BACKEND`).
+  4. Enforce canonical registration model **from creation**:
+     - populate backend domain binding so `docker_compose_domains` is not null;
+     - keep one registration model (no mixed app-level + compose-level competing router/service graphs).
+  5. Run first deploy and smoke gates.
+- **Smoke criteria (planned gates)**:
+  - `GET /panel/login` on recreated canary domain must return `HTTP 200`;
+  - no `503` / `no available server`;
+  - app status remains `running:healthy`;
+  - ingress route stays stable across at least one re-check after initial success.
+- **Rollback model if recreated canary fails**:
+  - production path remains untouched (hard constraint);
+  - fail canary is frozen as evidence object, no ad-hoc repair wave;
+  - capture diagnostics and decide next micro-batch from evidence;
+  - cutover decision remains blocked until canary smoke is green.
+- **Batch readiness outcome**:
+  - `Batch 1F-A`: **complete (plan-only)**;
+  - `Batch 1F-B`: **ready to execute** with the above gates and rollback constraints.
+
 ---
 
 ## 1) Remote/Repo Audit

@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-04-21 Phase 2A — Batch 1F-A (Design / Plan only)
+
+- Scope executed: planning-only slice, no recreate execution, no production mutation, no cleanup, no feature-work.
+- Context lock:
+  - `Batch 1D-E` decision accepted:
+    - repair-in-place: `NO`,
+    - clean canary recreate: `YES`.
+- Planned and documented:
+  1. Broken canary quarantine handling (`kp89plobh43b17o0r1f6jrcn`).
+  2. Clean canary recreate procedure.
+  3. Canonical registration requirements from creation.
+  4. Smoke acceptance criteria.
+  5. Rollback/freeze model for recreated canary fail.
+- Plan constraints:
+  - do not mutate quarantine app except evidence capture;
+  - enforce single canonical routing model at new canary creation time;
+  - keep production continuity as hard constraint.
+- Output:
+  - Batch 1F-A marked complete (plan-only),
+  - Batch 1F-B marked ready for execution.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `planning` — canary recreate/quarantine execution blueprint
+- `risk` — recreate-specific risk/rollback gates
+- `docs` — continuity update for next execution batch
+
 ## 2026-04-21 Phase 2A — Batch 1D-B-PARITY-DIFF (follow-up retry)
 
 - Scope executed: parity-diff follow-up only (no cleanup, no feature-work, no Batch 2).
