@@ -188,8 +188,32 @@ Phase 2A / Batch 1F-A state (design-only, no execution):
   - capture diagnostics and decide next micro-batch from evidence;
   - cutover decision remains blocked until canary smoke is green.
 - **Batch readiness outcome**:
-  - `Batch 1F-A`: **complete (plan-only)**;
-  - `Batch 1F-B`: **ready to execute** with the above gates and rollback constraints.
+- `Batch 1F-A`: **complete (plan-only)**;
+- `Batch 1F-B`: **ready to execute** with the above gates and rollback constraints.
+
+Phase 2A / Batch 1F-B state (implementation):
+
+- **Executed (clean recreate path), gate not passed**.
+- Go review before execution was treated as passed in-scope:
+  - quarantine object `kp89plobh43b17o0r1f6jrcn` stayed untouched,
+  - recreate procedure and smoke/rollback criteria were used from Batch 1F-A plan.
+- New clean canary created:
+  - app: `brlabs-cutover-canary-1fb`,
+  - uuid: `ukgm8fbv33qujufltpv4whht`,
+  - domain binding object present:
+    - `docker_compose_domains={"backend":{"domain":"https://brlabs-canary-1fb.dev.breachrabbit.ru"}}`.
+- Deploy evidence:
+  - deployment `jcdhk8lv8b7ly716jpsv59xe` finished with `failed`,
+  - failure point in startup chain:
+    - `dependency failed to start: container redis-ukgm8fbv33qujufltpv4whht-... is unhealthy`.
+- Smoke evidence:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 503`.
+- Batch outcome:
+  - recreated canary smoke did not pass,
+  - production rollback was not needed (production app/path was not touched),
+  - canary object is frozen for next targeted batch diagnosis.
+- Decision impact:
+  - Batch 1D-B decision cannot resume yet; ingress/runtime gate is still blocked on recreated canary path.
 
 ---
 

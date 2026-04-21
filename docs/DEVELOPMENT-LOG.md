@@ -1,5 +1,36 @@
 # Development Log
 
+## 2026-04-21 Phase 2A — Batch 1F-B (Implementation)
+
+- Scope executed: recreate implementation only, no production switch, no cleanup, no Batch 2, no feature-work.
+- Go-review execution checks were respected in-scope:
+  - quarantine object `kp89plobh43b17o0r1f6jrcn` remained untouched,
+  - recreate and rollback criteria were applied from Batch 1F-A plan.
+- Created clean canary app in Coolify:
+  - `brlabs-cutover-canary-1fb` (`ukgm8fbv33qujufltpv4whht`).
+- Confirmed canonical domain binding is present on recreated app:
+  - `docker_compose_domains={"backend":{"domain":"https://brlabs-canary-1fb.dev.breachrabbit.ru"}}`.
+- Deploy result captured:
+  - deployment `jcdhk8lv8b7ly716jpsv59xe` -> `failed`;
+  - failure chain includes dependency gate:
+    - `container redis-ukgm8fbv33qujufltpv4whht-... is unhealthy`.
+- Smoke result captured:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 503`.
+- Decision:
+  - canary is frozen for targeted follow-up,
+  - production rollback not needed (production was never switched).
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — recreated canary deploy and smoke evidence
+- `cutover` — Batch 1F-B execution decision (`freeze`)
+- `docs` — continuity/risk updates
+
 ## 2026-04-21 Phase 2A — Batch 1F-A (Design / Plan only)
 
 - Scope executed: planning-only slice, no recreate execution, no production mutation, no cleanup, no feature-work.

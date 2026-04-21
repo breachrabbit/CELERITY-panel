@@ -27,6 +27,58 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-21 Stop-Point — Phase 2A Batch 1F-B (Implementation)
+
+### Что решено
+
+- Batch 1F-B выполнен строго в recreate-scope, без изменений production app/path.
+- По результату принято решение `freeze canary` (без rollback production, так как production не переключался).
+
+### Что сделано
+
+- Подтверждено, что quarantine-объект `kp89plobh43b17o0r1f6jrcn` не переиспользовался.
+- Создан новый clean canary:
+  - app: `brlabs-cutover-canary-1fb`,
+  - uuid: `ukgm8fbv33qujufltpv4whht`.
+- Подтверждена canonical domain registration запись на объекте:
+  - `docker_compose_domains={"backend":{"domain":"https://brlabs-canary-1fb.dev.breachrabbit.ru"}}`.
+- Зафиксирован результат деплоя recreated canary:
+  - deployment `jcdhk8lv8b7ly716jpsv59xe` -> `failed`;
+  - причина в startup chain: `redis ... is unhealthy`.
+- Выполнен smoke:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 503`.
+
+### Что в работе
+
+- Batch 1D-B decision по-прежнему заблокирован.
+- Текущий блокер сместился в dependency/startup слой recreated canary (до стабильного ingress proof).
+
+### Что дальше
+
+1. Открывать только targeted diagnostic batch для recreated canary dependency gate (Redis unhealthy).
+2. После dependency-fix повторить deploy + smoke `/panel/login`.
+3. Возобновлять Batch 1D-B decision только при `HTTP 200`.
+
+### Что нельзя путать
+
+- `docker_compose_domains` parity сама по себе не гарантирует успешный smoke, если deploy падает на dependency health.
+- `HTTP 503` после failed deploy в Batch 1F-B — это уже другой failure layer, не тот же ingress-only кейс из предыдущих батчей.
+
+### Что еще не доказано
+
+- Что clean recreated canary может пройти полный deploy/startup и отдать `HTTP 200` на `/panel/login`.
+
+### Что является только форковой спецификой
+
+- Политика BR Labs.hrlab: при failed recreated canary фиксируем freeze и продолжаем только микробатчем на конкретном failure layer, без расширения scope.
+
+### Stop-point
+
+- Batch 1F-B: **executed, not passed**.
+- Recreated canary smoke: **failed (`HTTP 503`)**.
+- Rollback production: **not required**.
+- Batch 1D-B decision resume: **No**.
+
 ## 2026-04-21 Stop-Point — Phase 2A Batch 1F-A (Design / Plan)
 
 ### Что решено

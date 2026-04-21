@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-21` (Phase 2A / Batch 1F-A design)
+Last updated: `2026-04-21` (Phase 2A / Batch 1F-B implementation)
 
 ## Risk Register
 
@@ -36,6 +36,7 @@ Last updated: `2026-04-21` (Phase 2A / Batch 1F-A design)
 | Canary backend-router priority patch (`33f2b4a`) applied and redeployed, but smoke still `503 no available server` | Indicates remaining production-parity gap is not just router priority; cutover remains blocked | High | Close parity gap on canonical fields first: populate canary `docker_compose_domains`, then re-validate single-model provider registration and upstream availability | Keep production on legacy app/source; no traffic switch until canary ingress smoke is `HTTP 200` | Open (Batch 1D-B-PARITY-DIFF not cleared) |
 | Quarantine object accidentally reused for repair attempts (`kp89plobh43b17o0r1f6jrcn`) | Reintroduces mixed state and destroys evidence trail for recreate analysis | High | Hard quarantine policy: no new repairs/deploy-mutations on old canary; use it only as evidence snapshot source | Keep production untouched; if accidentally mutated, treat object as invalid evidence and recreate fresh canary again | Open (Controlled by Batch 1F-A) |
 | Recreated canary may again start with non-canonical registration (`docker_compose_domains=null` / mixed models) | Same `503 no available server` failure repeats despite clean recreate | High | Enforce canonical model from creation: backend domain binding + single registration model before first smoke | Do not proceed to cutover decision; freeze failed canary and retain production as-is | Open (Primary Batch 1F-B execution risk) |
+| Recreated clean canary can fail before backend starts (dependency health gate), blocking ingress proof even with canonical domain binding | Batch 1F-B can stop at deploy-time (`redis unhealthy`) and keep smoke at `HTTP 503`; cutover decision remains blocked | High | Run dependency-level preflight for recreated app (env parity + service health: Redis/Mongo) before ingress smoke; patch only failing dependency step | Keep production untouched; freeze failed recreated canary and open targeted diagnosis batch from captured deploy logs | Open (Observed in Batch 1F-B: deploy `jcdhk8lv8b7ly716jpsv59xe`) |
 
 ## Notes
 

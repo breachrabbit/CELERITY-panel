@@ -2,6 +2,22 @@
 
 ## 2026-04-21
 
+- Worked on: Phase 2A / Batch 1F-B (Implementation).
+- Finished with:
+  - executed clean recreated canary path on new app `ukgm8fbv33qujufltpv4whht`;
+  - confirmed recreated app has backend domain binding (`docker_compose_domains` populated);
+  - captured failed deploy `jcdhk8lv8b7ly716jpsv59xe` with dependency gate error:
+    - `redis ... is unhealthy`;
+  - captured smoke result:
+    - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 503`;
+  - applied decision: freeze recreated canary (no production rollback needed).
+- Next step:
+  - open a narrow follow-up batch for recreated canary dependency/startup diagnosis (Redis unhealthy);
+  - re-run smoke only after dependency gate is green;
+  - keep Batch 1D-B decision blocked until canary `/panel/login` is `HTTP 200`.
+
+## 2026-04-21
+
 - Worked on: Phase 2A / Batch 1F-A (Design / Plan only).
 - Finished with:
   - formalized quarantine policy for broken canary `kp89plobh43b17o0r1f6jrcn` (no further repair-in-place);
