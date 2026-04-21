@@ -72,19 +72,6 @@ services:
       - app_backups:/app/backups
     labels:
       - "traefik.enable=true"
-      - "traefik.http.middlewares.gzip-${COOLIFY_RESOURCE_UUID}.compress=true"
-      - "traefik.http.middlewares.redirect-${COOLIFY_RESOURCE_UUID}.redirectscheme.scheme=https"
-      - "traefik.http.routers.http-backend-${COOLIFY_RESOURCE_UUID}.entryPoints=http"
-      - "traefik.http.routers.http-backend-${COOLIFY_RESOURCE_UUID}.middlewares=redirect-${COOLIFY_RESOURCE_UUID}"
-      - "traefik.http.routers.http-backend-${COOLIFY_RESOURCE_UUID}.rule=Host(`${SERVICE_FQDN_BACKEND}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.http-backend-${COOLIFY_RESOURCE_UUID}.service=backend-${COOLIFY_RESOURCE_UUID}"
-      - "traefik.http.routers.https-backend-${COOLIFY_RESOURCE_UUID}.entryPoints=https"
-      - "traefik.http.routers.https-backend-${COOLIFY_RESOURCE_UUID}.middlewares=gzip-${COOLIFY_RESOURCE_UUID}"
-      - "traefik.http.routers.https-backend-${COOLIFY_RESOURCE_UUID}.rule=Host(`${SERVICE_FQDN_BACKEND}`) && PathPrefix(`/`)"
-      - "traefik.http.routers.https-backend-${COOLIFY_RESOURCE_UUID}.service=backend-${COOLIFY_RESOURCE_UUID}"
-      - "traefik.http.routers.https-backend-${COOLIFY_RESOURCE_UUID}.tls=true"
-      - "traefik.http.routers.https-backend-${COOLIFY_RESOURCE_UUID}.tls.certresolver=letsencrypt"
-      - "traefik.http.services.backend-${COOLIFY_RESOURCE_UUID}.loadbalancer.server.port=3000"
     networks:
       - default
       - coolify
