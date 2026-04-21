@@ -1038,3 +1038,50 @@ No-Go if any is true:
 - [ ] unknown persistent-state sharing behavior;
 - [ ] unresolved onboarding smoke fail on canary;
 - [ ] rollback path not testable within target RTO.
+
+---
+
+## 2026-04-21 — Phase 2A / Batch 1D-B-REGISTRY-CONSISTENCY (execution result)
+
+Scope (strict):
+- determine canonical registration model from production truth;
+- normalize canary to one registration model;
+- re-register backend;
+- retry canary smoke `/panel/login`.
+
+### Production truth (canonical model)
+
+From live production app (`ymi9vwwf438y5ozeh0kwhklf`) inspection:
+- `docker_compose_domains` is populated (`{"backend":{"domain":"https://tunnel.hiddenrabbit.net.ru"}}`);
+- backend service carries concrete host router/service labels generated for `backend` target;
+- ingress/service routing is anchored to backend service registration (not only app-level generic labels).
+
+Canonical conclusion:
+- production-consistent model is **compose-domain backed service registration** (backend-bound routers/services).
+
+### Canary normalization executed
+
+Canary app (`kp89plobh43b17o0r1f6jrcn`) was normalized to a single model by removing compose-level backend label set from repo compose and redeploying:
+- code commit: `bafa619` (`fix: remove conflicting compose-level backend registration labels`);
+- deployment: `zzgc3er4fhe07itupo5nus0v` (finished, app healthy).
+
+### Smoke result
+
+Canary smoke after deploy:
+- `curl -I https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login`
+- result: **HTTP 503**.
+
+### Exact remaining mismatch
+
+After normalization and redeploy:
+- canary still has `docker_compose_domains=null`;
+- canary backend does not receive production-style backend host registration set;
+- live trace remains breaking at `router -> service -> upstream availability` for canary host.
+
+So, current canary model is still not production-equivalent for backend registration path.
+
+### Gate status
+
+- Registration normalized: **partially** (single-model canary state achieved, but not production-canonical model).
+- Smoke became HTTP 200: **No** (still 503).
+- Batch 1D-B decision resume: **No** (ingress smoke gate remains blocked).

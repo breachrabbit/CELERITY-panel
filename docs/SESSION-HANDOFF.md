@@ -81,6 +81,48 @@ Do not change order.
 - Exact break: **service selection -> backend upstream availability** due to split registration model.
 - Batch 1D-B decision resume: **нет** (до фикса registration consistency).
 
+## 2026-04-21 Stop-Point — Phase 2A Batch 1D-B-REGISTRY-CONSISTENCY
+
+### Что решено
+- Production-truth canonical registration model подтвержден:
+  - `docker_compose_domains` populated + backend-bound host router/service labels.
+- Canary single-model normalization в app-level-only варианте не закрывает ingress gate.
+
+### Что сделано
+- В repo применен минимальный нормализующий патч:
+  - удален compose-level backend label-set из `docker-compose.coolify.yml`;
+  - commit: `bafa619`.
+- Выполнен redeploy canary:
+  - deployment: `zzgc3er4fhe07itupo5nus0v` (finished, app healthy).
+- Выполнен smoke:
+  - `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` -> `HTTP 503`.
+- Проведено точное сравнение production vs canary app state:
+  - production (`ymi9vwwf438y5ozeh0kwhklf`): `docker_compose_domains` populated, backend host labels present;
+  - canary (`kp89plobh43b17o0r1f6jrcn`): `docker_compose_domains=null`, backend host registration parity absent.
+
+### Что в работе
+- Batch 1D-B remains blocked by canary ingress smoke gate.
+
+### Что дальше
+1. Снять canary mismatch на уровне backend registration parity (production-consistent model).
+2. Повторить smoke `/panel/login` только после parity fix.
+3. Возобновлять Batch 1D-B decision только при `HTTP 200`.
+
+### Что нельзя путать
+- App `running:healthy` != ingress gate cleared.
+- Single-model normalization != production-canonical registration parity.
+
+### Что еще не доказано
+- Что canary backend upstream зарегистрирован в router/service graph exactly как у production.
+
+### Что является только форковой спецификой
+- Текущее canary-стейт сопоставление и patch-path в рамках cutover-трека BR Labs.hrlab.
+
+### Stop-point
+- Batch 1D-B-REGISTRY-CONSISTENCY: **not cleared**.
+- Smoke gate: **failed (HTTP 503)**.
+- Batch 1D-B decision resume: **No**.
+
 ## 2026-04-20 Stop-Point — Phase 2A Batch 1D-B-INGRESS-TRACE
 
 ### Что решено

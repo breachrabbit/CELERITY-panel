@@ -1282,3 +1282,20 @@
   - live verify on stand:
     - port-to-port drag creates hop in one gesture,
     - dark mode switches correctly without manual class hacks.
+
+## 2026-04-21 Session — Batch 1D-B-REGISTRY-CONSISTENCY
+
+- Worked on:
+  - strict canary registration consistency pass for `kp89plobh43b17o0r1f6jrcn`.
+- Finished with:
+  - canary compose normalized to single app-level model (compose backend labels removed);
+  - code commit `bafa619` pushed to `main`;
+  - canary redeploy `zzgc3er4fhe07itupo5nus0v` finished healthy;
+  - smoke `/panel/login` still `HTTP 503`.
+- Production-vs-canary comparison:
+  - production (`ymi9vwwf438y5ozeh0kwhklf`) uses populated `docker_compose_domains` + backend host labels;
+  - canary remains `docker_compose_domains=null` (backend registration parity unresolved).
+- Next step:
+  - restore production-canonical backend registration parity for canary;
+  - retry smoke only after parity change;
+  - keep Batch 1D-B decision blocked until `HTTP 200`.

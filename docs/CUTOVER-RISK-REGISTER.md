@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-UPSTREAM)
+Last updated: `2026-04-21` (Phase 2A / Batch 1D-B-REGISTRY-CONSISTENCY)
 
 ## Risk Register
 
@@ -32,6 +32,7 @@ Last updated: `2026-04-20` (Phase 2A / Batch 1D-B-UPSTREAM)
 | Canary app keeps `docker_compose_domains=null` while ingress depends on backend host routing | Platform-level domain binding drift may override/undermine compose-label fallback behavior | High | Track as explicit ingress mismatch in cutover audit; clear only with proven canary `HTTP 200` smoke | Preserve production routing and keep canary isolated until binding path is proven | Open (Unresolved binding state) |
 | Live trace shows break at `router -> service -> upstream` stage (host matched, upstream unavailable) | Confirms failure is in ingress service mapping layer, not in app runtime health | High | Continue only ingress trace/fix scope until selected service has live backend upstream for canary host | Keep production path active; do not resume cutover decision while trace still ends at `no available server` | Open (Exact failure point captured) |
 | Canary uses mixed provider registration models (`custom_labels` service set vs backend compose service set) | Router can select a service graph that has no usable upstream for canary host, causing persistent `503` | High | Unify canary backend registration to a single service/router model before next smoke attempt | Keep production unchanged; retry smoke only after unified registration is confirmed | Open (Exact upstream mismatch captured) |
+| Canary normalized to single app-level model, but production canonical path requires compose-domain backend registration (`docker_compose_domains` + backend host labels) | Smoke remains `503`; canary stays non-parity with production ingress registration path | High | Move canary to production-canonical registration model and confirm backend upstream registration before next smoke | Preserve production routing; keep cutover decision blocked until canary `/panel/login` is `HTTP 200` | Open (Batch 1D-B-REGISTRY-CONSISTENCY not cleared) |
 
 ## Notes
 

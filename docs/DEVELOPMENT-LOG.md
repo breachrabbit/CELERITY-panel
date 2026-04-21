@@ -2561,3 +2561,27 @@ Change type:
 Change type:
 - `ux polish` — full port-to-port mouse flow with visible line
 - `stability fix` — cascades page dark-theme selector consistency
+
+## 2026-04-21 Phase 2A — Batch 1D-B-REGISTRY-CONSISTENCY (single-model retry)
+
+- Worked on:
+  - strict registry-consistency execution for canary app `kp89plobh43b17o0r1f6jrcn`;
+  - canonical model check against production app `ymi9vwwf438y5ozeh0kwhklf`;
+  - canary single-model normalization + redeploy + smoke.
+
+- Shipped:
+  - `/Users/voznyuk/Documents/GitHub/CELERITY-panel/docker-compose.coolify.yml` (remove compose-level backend label-set);
+  - commit `bafa619` — `fix: remove conflicting compose-level backend registration labels`;
+  - deployment `zzgc3er4fhe07itupo5nus0v` finished (app healthy).
+
+- Verification:
+  - smoke `https://kp89plobh43b17o0r1f6jrcn.dev.breachrabbit.ru/panel/login` => `HTTP 503`;
+  - production has `docker_compose_domains` populated and backend-bound host labels;
+  - canary remains `docker_compose_domains=null`, so backend registration parity is still incomplete.
+
+- Outcome:
+  - Batch 1D-B-REGISTRY-CONSISTENCY: not cleared;
+  - Batch 1D-B decision resume: no.
+
+Change type:
+- `cutover-gate` — registry consistency retry + evidence capture.
