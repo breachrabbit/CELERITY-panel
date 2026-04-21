@@ -84,10 +84,12 @@ services:
       - traefik.http.services.backend-https-${COOLIFY_RESOURCE_UUID}.loadbalancer.server.port=3000
       - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-backend.entryPoints=http
       - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-backend.middlewares=redirect-to-https
+      - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-backend.priority=100
       - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-backend.rule=Host(`${PANEL_DOMAIN}`) && PathPrefix(`/`)
       - traefik.http.routers.http-0-${COOLIFY_RESOURCE_UUID}-backend.service=backend-http-${COOLIFY_RESOURCE_UUID}
       - traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID}-backend.entryPoints=https
       - traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID}-backend.middlewares=gzip
+      - traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID}-backend.priority=100
       - traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID}-backend.rule=Host(`${PANEL_DOMAIN}`) && PathPrefix(`/`)
       - traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID}-backend.tls.certresolver=letsencrypt
       - traefik.http.routers.https-0-${COOLIFY_RESOURCE_UUID}-backend.tls=true
