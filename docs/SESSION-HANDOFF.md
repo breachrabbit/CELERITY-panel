@@ -27,6 +27,60 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-22 Stop-Point — Phase 2A Batch 1G (Redis/Dependency Gate)
+
+### Что решено
+
+- Batch 1G выполнен строго в dependency/startup scope.
+- Ingress/routing не изменялись.
+- Redis/dependency gate закрыт, но smoke gate все еще не закрыт.
+
+### Что сделано
+
+- Проверен deploy recreated canary:
+  - app: `ukgm8fbv33qujufltpv4whht`,
+  - deployment: `uy75mj0cqfjetypywbv0idsw` (`finished`).
+- По live deploy логам подтверждено:
+  - `redis ... Healthy`,
+  - `mongo ... Healthy`,
+  - `backend ... Started`.
+- Runtime логи подтверждают запуск приложения:
+  - Mongo/Redis connected,
+  - HTTP listening on `3000`,
+  - panel URL объявлен.
+- Повторен smoke:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 503`.
+
+### Что в работе
+
+- Batch 1D-B decision остается заблокированным только ingress smoke gate.
+
+### Что дальше
+
+1. Открывать только следующий ingress-focused micro-batch (без cleanup/feature-work).
+2. Сохранить текущий canary как активный evidence object.
+3. Повторять smoke `/panel/login` только после точечного ingress/backend-registration шага.
+
+### Что нельзя путать
+
+- `running:healthy` и `backend started` не равны green ingress smoke.
+- В Batch 1G проблема была решена на dependency-layer; это не закрывает ingress-layer автоматически.
+
+### Что еще не доказано
+
+- Что recreated canary отдает `HTTP 200` на `/panel/login`.
+
+### Что является только форковой спецификой
+
+- Cutover-дисциплина BR Labs.hrlab: батч закрывается только в пределах активного scope; соседние слои не трогаются, даже если блокер остается.
+
+### Stop-point
+
+- Redis healthy: **Yes**
+- App started: **Yes**
+- Smoke `/panel/login`: **HTTP 503**
+- Batch 1D-B decision resume: **No**
+
 ## 2026-04-21 Stop-Point — Phase 2A Batch 1F-B (Implementation)
 
 ### Что решено

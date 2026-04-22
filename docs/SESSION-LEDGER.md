@@ -1,5 +1,22 @@
 # Session Ledger
 
+## 2026-04-22
+
+- Worked on: Phase 2A / Batch 1G (Redis/Dependency gate only).
+- Finished with:
+  - verified canary deploy `uy75mj0cqfjetypywbv0idsw` for app `ukgm8fbv33qujufltpv4whht`;
+  - confirmed dependency chain is green:
+    - Redis healthy,
+    - Mongo healthy,
+    - backend started;
+  - confirmed runtime startup logs (Mongo/Redis connected, HTTP listening on `3000`);
+  - captured smoke result:
+    - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 503`.
+- Next step:
+  - keep scope on ingress smoke blocker only;
+  - do not reopen dependency batch unless new health regression appears;
+  - keep Batch 1D-B decision blocked until canary `/panel/login` becomes `HTTP 200`.
+
 ## 2026-04-21
 
 - Worked on: Phase 2A / Batch 1F-B (Implementation).

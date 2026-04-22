@@ -1,5 +1,38 @@
 # Development Log
 
+## 2026-04-22 Phase 2A — Batch 1G (Redis/Dependency Gate)
+
+- Scope executed: dependency/startup layer only (no ingress/routing changes, no cleanup, no feature-work).
+- Verified deployment execution for recreated canary app:
+  - app UUID: `ukgm8fbv33qujufltpv4whht`,
+  - deployment UUID: `uy75mj0cqfjetypywbv0idsw`,
+  - deployment status: `finished`,
+  - app status: `running:healthy`.
+- Confirmed service health in deploy chain:
+  - Redis reached `Healthy`,
+  - Mongo reached `Healthy`,
+  - backend container started.
+- Captured runtime proof from app logs:
+  - MongoDB connected,
+  - Redis connected,
+  - HTTP listening on port `3000`.
+- Smoke result:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 503`.
+- Batch decision impact:
+  - dependency/startup gate cleared,
+  - Batch 1D-B decision still blocked by ingress smoke gate.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — dependency health recovery verification (Redis/Mongo/backend)
+- `cutover-gate` — Batch 1G closure at dependency layer
+- `docs` — continuity/risk updates
+
 ## 2026-04-21 Phase 2A — Batch 1F-B (Implementation)
 
 - Scope executed: recreate implementation only, no production switch, no cleanup, no Batch 2, no feature-work.

@@ -1171,3 +1171,62 @@ So, current canary model is still not production-equivalent for backend registra
 - Registration normalized: **partially** (single-model canary state achieved, but not production-canonical model).
 - Smoke became HTTP 200: **No** (still 503).
 - Batch 1D-B decision resume: **No** (ingress smoke gate remains blocked).
+
+---
+
+## 2026-04-22 — Phase 2A / Batch 1G (Redis/Dependency gate)
+
+Scope (strict):
+- inspect Redis container/logs/healthcheck;
+- identify unhealthy dependency cause;
+- fix only dependency/startup layer;
+- verify app start and run smoke `/panel/login`;
+- no ingress/routing changes.
+
+### What was validated
+
+Canary app:
+- `ukgm8fbv33qujufltpv4whht` (`brlabs-cutover-canary-1fb`)
+
+Target deployment:
+- `uy75mj0cqfjetypywbv0idsw` (forced rebuild)
+
+Observed from live deploy logs:
+- `redis ... Healthy`
+- `mongo ... Healthy`
+- `backend ... Started`
+- app state switched to `running:healthy`
+
+### Exact dependency issue found
+
+Earlier failed chain was not Redis runtime logic itself, but dependency startup consistency:
+- stale `mongo-data` state caused auth mismatch on healthcheck in prior attempt;
+- this blocked backend startup and kept smoke at `503`.
+
+Action in Batch 1G:
+- dependency/startup path was re-executed in clean deploy sequence until Redis/Mongo healthy and backend started.
+
+### Runtime proof
+
+Application runtime logs after deploy confirm startup readiness:
+- `[MongoDB] Connected`
+- `[Redis] Connected`
+- `[Server] HTTP listening on port 3000`
+- panel URL announced by runtime.
+
+### Smoke result
+
+Smoke check:
+- `curl -I https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login`
+- result: **HTTP 503**
+
+So Batch 1G outcome is:
+- Redis healthy: **Yes**
+- App started: **Yes**
+- Smoke HTTP 200: **No** (still 503)
+
+### Gate outcome
+
+- Batch 1G dependency/startup gate: **cleared**
+- Ingress smoke gate: **not cleared**
+- Batch 1D-B decision resume: **No** (still blocked by canary `/panel/login` 503)
