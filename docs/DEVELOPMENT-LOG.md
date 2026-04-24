@@ -1,5 +1,29 @@
 # Development Log
 
+## 2026-04-24 Phase 2A — Batch 1H (Binding Mismatch Gate)
+
+- Scope executed: binding-only verification/fix path; no recreate, no ingress-model change, no cleanup, no feature-work.
+- Confirmed correct canary deploy for commit `a8f3db0` is completed:
+  - deployment `udy2zhniygq7i6pf5y5tt2yh` -> `finished`.
+- Confirmed canary app state:
+  - app `ukgm8fbv33qujufltpv4whht` -> `running:healthy`.
+- Re-checked canary smoke:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 200`.
+- Batch result:
+  - binding gate cleared,
+  - Batch 1D-B decision flow can be resumed in next approved slice.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `ops` — deployment completion + smoke verification
+- `cutover-gate` — Batch 1H clearance
+- `docs` — continuity/risk state sync
+
 ## 2026-04-22 Phase 2A — Batch 1G (Redis/Dependency Gate)
 
 - Scope executed: dependency/startup layer only (no ingress/routing changes, no cleanup, no feature-work).

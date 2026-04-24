@@ -1,5 +1,18 @@
 # Session Ledger
 
+## 2026-04-24
+
+- Worked on: Phase 2A / Batch 1H (binding mismatch gate only).
+- Finished with:
+  - confirmed canary deploy on commit `a8f3db0` is finished (`udy2zhniygq7i6pf5y5tt2yh`);
+  - confirmed canary app is `running:healthy`;
+  - confirmed smoke:
+    - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 200`;
+  - marked ingress/binding gate as cleared.
+- Next step:
+  - return to Batch 1D-B decision slice (keep vs rollback decision path),
+  - do not open cleanup/feature-work/Batch 2 until explicit approval.
+
 ## 2026-04-22
 
 - Worked on: Phase 2A / Batch 1G (Redis/Dependency gate only).

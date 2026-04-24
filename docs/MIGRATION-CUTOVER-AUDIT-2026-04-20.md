@@ -215,6 +215,24 @@ Phase 2A / Batch 1F-B state (implementation):
 - Decision impact:
   - Batch 1D-B decision cannot resume yet; ingress/runtime gate is still blocked on recreated canary path.
 
+Phase 2A / Batch 1H state (2026-04-24):
+
+- **Executed (binding-only scope), gate cleared**.
+- Waited for canary deploy with commit `a8f3db0` to be fully finished:
+  - deployment: `udy2zhniygq7i6pf5y5tt2yh` -> `finished`,
+  - app: `ukgm8fbv33qujufltpv4whht` remains `running:healthy`.
+- Confirmed exact failure class that had caused prior `503`:
+  - backend route binding conflict from mixed/competing registration surfaces
+    (router/service selection could resolve to a non-available upstream path).
+- Applied/validated minimal fix in scope:
+  - `a8f3db0` — remove conflicting backend ingress labels from compose
+    (leave single canonical registration path for canary backend binding).
+- Post-fix smoke:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> **`HTTP 200`**.
+- Batch outcome:
+  - ingress gate for Batch 1H is cleared,
+  - Batch 1D-B decision flow may be resumed later.
+
 ---
 
 ## 1) Remote/Repo Audit

@@ -27,6 +27,51 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-24 Stop-Point — Phase 2A Batch 1H (Binding Gate)
+
+### Что решено
+
+- Batch 1H закрыт в узком scope (только binding mismatch + smoke).
+- Broad changes/recreate/cleanup/feature-work не выполнялись.
+
+### Что сделано
+
+- Подтвержден завершенный canary deploy на commit `a8f3db0`:
+  - deployment `udy2zhniygq7i6pf5y5tt2yh` -> `finished`.
+- Подтверждено состояние canary app:
+  - `ukgm8fbv33qujufltpv4whht` -> `running:healthy`.
+- Подтвержден smoke:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 200`.
+
+### Что в работе
+
+- Batch 1D-B decision path теперь можно возобновлять с canary green-ingress фактом.
+
+### Что дальше
+
+1. Возвращаться к Batch 1D-B decision flow (keep/rollback decision scope), не открывая cleanup или Batch 2 автоматически.
+2. Держать production continuity как hard-constraint.
+
+### Что нельзя путать
+
+- `Batch 1H cleared` не означает автоматическое закрытие всего cutover.
+- Это только clearance ingress smoke gate для canary.
+
+### Что еще не доказано
+
+- Финальное решение по 1D-B (keep vs rollback/freeze decision gate) еще не зафиксировано в отдельном decision-slice.
+
+### Что является только форковой спецификой
+
+- BR Labs.hrlab продолжает cutover-by-batches дисциплину с обязательной фиксацией stop-point в каждом узком срезе.
+
+### Stop-point
+
+- Exact mismatch class: **binding conflict in backend registration/service selection path**.
+- Applied change (validated): **`a8f3db0`**.
+- Smoke `/panel/login`: **HTTP 200**.
+- Batch 1D-B decision resume: **Yes (later decision slice)**.
+
 ## 2026-04-22 Stop-Point — Phase 2A Batch 1G (Redis/Dependency Gate)
 
 ### Что решено

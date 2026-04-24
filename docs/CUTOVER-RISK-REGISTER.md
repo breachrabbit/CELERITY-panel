@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-21` (Phase 2A / Batch 1F-B implementation)
+Last updated: `2026-04-24` (Phase 2A / Batch 1H binding gate cleared)
 
 ## Risk Register
 
@@ -44,3 +44,15 @@ Last updated: `2026-04-21` (Phase 2A / Batch 1F-B implementation)
 - This register is mandatory before and during cutover.
 - Update each row with concrete evidence during audit and migration execution.
 - `Status` vocabulary suggested: `Open`, `Monitoring`, `Mitigated`, `Accepted`, `Closed`.
+
+## 2026-04-24 Status Delta (Batch 1H)
+
+- `Canary ingress still returns 503 no available server after env parity + forced redeploy on clean app path`:
+  - previous status: `Open`,
+  - new status: `Closed (Batch 1H: /panel/login HTTP 200)`.
+- `Canary backend-router priority patch (...) applied and redeployed, but smoke still 503`:
+  - previous status: `Open`,
+  - new status: `Closed (superseded by Batch 1H fix validation on commit a8f3db0)`.
+- `Canary normalized to single app-level model, but production canonical path requires compose-domain backend registration`:
+  - previous status: `Open`,
+  - new status: `Mitigated (binding gate cleared in Batch 1H; keep monitoring for regressions on next cutover batch)`.
