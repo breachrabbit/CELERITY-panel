@@ -2,7 +2,7 @@
 
 Track: `BR Labs.hrlab`  
 Model: `Migration Cutover` (not rename)  
-Last updated: `2026-04-24` (Phase 2A / Batch 1H binding gate cleared)
+Last updated: `2026-04-24` (Phase 2A / Batch 1I canary stability verification)
 
 ## Risk Register
 
@@ -56,3 +56,12 @@ Last updated: `2026-04-24` (Phase 2A / Batch 1H binding gate cleared)
 - `Canary normalized to single app-level model, but production canonical path requires compose-domain backend registration`:
   - previous status: `Open`,
   - new status: `Mitigated (binding gate cleared in Batch 1H; keep monitoring for regressions on next cutover batch)`.
+
+## 2026-04-24 Status Delta (Batch 1I)
+
+- `Canary ingress regression risk after redeploy/restart`:
+  - verification evidence:
+    - canary redeploy `zm8vcq8nikiav4w6m3imvsys` -> `finished`,
+    - `/panel/login` repeated smoke after redeploy -> `HTTP 200` (5/5),
+    - post-redeploy login/API/page flow checks -> all expected `200/302`;
+  - status update: `Monitoring -> Mitigated (Batch 1I verification passed)`.

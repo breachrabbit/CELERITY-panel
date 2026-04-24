@@ -233,6 +233,30 @@ Phase 2A / Batch 1H state (2026-04-24):
   - ingress gate for Batch 1H is cleared,
   - Batch 1D-B decision flow may be resumed later.
 
+Phase 2A / Batch 1I state (2026-04-24, verification):
+
+- **Executed (verification-only), no config/code mutations**.
+- Canary redeploy cycle verified:
+  - deployment `zm8vcq8nikiav4w6m3imvsys` -> `finished`,
+  - app `ukgm8fbv33qujufltpv4whht` remained `running:healthy`.
+- Repeated smoke on canary login endpoint after redeploy:
+  - `https://brlabs-canary-1fb.dev.breachrabbit.ru/panel/login` -> `HTTP 200` (5/5 consecutive checks).
+- Login/API/page flow checks after redeploy:
+  - login page: `GET /panel/login` -> `200`,
+  - login submit: `POST /panel/login` -> `302` with `location: /panel`,
+  - authenticated pages:
+    - `/panel` -> `200`,
+    - `/panel/nodes` -> `200`,
+    - `/panel/cascades/builder` -> `200`,
+    - `/panel/settings` -> `200`,
+  - API/health checks:
+    - `/api/nodes` -> `200`,
+    - `/api/cascade-builder/state` -> `200`,
+    - `/health` -> `200`.
+- Batch outcome:
+  - canary stability is confirmed in repeated-smoke + post-redeploy flow scope;
+  - Batch 1D-B decision path can proceed (separate decision slice).
+
 ---
 
 ## 1) Remote/Repo Audit

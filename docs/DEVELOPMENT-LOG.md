@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-04-24 Phase 2A — Batch 1I (Canary Stability Verification)
+
+- Scope executed: verification-only (no code/config patching, no cleanup, no feature-work).
+- Waited for and confirmed canary redeploy completion:
+  - deployment `zm8vcq8nikiav4w6m3imvsys` -> `finished`,
+  - app `ukgm8fbv33qujufltpv4whht` -> `running:healthy`.
+- Repeated smoke after redeploy:
+  - `/panel/login` -> `HTTP 200` across 5/5 consecutive checks.
+- Verified post-redeploy functional flow:
+  - login page `200`,
+  - login submit `302` to `/panel`,
+  - key pages (`/panel`, `/panel/nodes`, `/panel/cascades/builder`, `/panel/settings`) -> `200`,
+  - API/health (`/api/nodes`, `/api/cascade-builder/state`, `/health`) -> `200`.
+- Batch result:
+  - canary stability confirmed;
+  - Batch 1D-B decision flow may proceed in next approved slice.
+- Updated:
+  - `docs/MIGRATION-CUTOVER-AUDIT-2026-04-20.md`
+  - `docs/CUTOVER-RISK-REGISTER.md`
+  - `docs/SESSION-HANDOFF.md`
+  - `docs/SESSION-LEDGER.md`
+
+Change types:
+
+- `verification` — repeated smoke + post-redeploy flow checks
+- `ops` — deploy completion state capture
+- `docs` — continuity/risk sync
+
 ## 2026-04-24 Phase 2A — Batch 1H (Binding Mismatch Gate)
 
 - Scope executed: binding-only verification/fix path; no recreate, no ingress-model change, no cleanup, no feature-work.

@@ -2,6 +2,19 @@
 
 ## 2026-04-24
 
+- Worked on: Phase 2A / Batch 1I (canary stability verification only).
+- Finished with:
+  - confirmed canary redeploy `zm8vcq8nikiav4w6m3imvsys` -> `finished`;
+  - app `ukgm8fbv33qujufltpv4whht` remained `running:healthy`;
+  - repeated smoke `/panel/login` after redeploy -> `HTTP 200` (5/5);
+  - confirmed post-redeploy login/API/page checks:
+    - login `GET 200`, login `POST 302 -> /panel`,
+    - `/panel`, `/panel/nodes`, `/panel/cascades/builder`, `/panel/settings` -> `200`,
+    - `/api/nodes`, `/api/cascade-builder/state`, `/health` -> `200`.
+- Next step:
+  - open only Batch 1D-B decision slice;
+  - do not open cleanup/feature-work/Batch 2 without explicit approval.
+
 - Worked on: Phase 2A / Batch 1H (binding mismatch gate only).
 - Finished with:
   - confirmed canary deploy on commit `a8f3db0` is finished (`udy2zhniygq7i6pf5y5tt2yh`);

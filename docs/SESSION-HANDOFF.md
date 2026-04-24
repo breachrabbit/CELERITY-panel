@@ -27,6 +27,52 @@ Do not change order.
 
 ### Stop-point
 
+## 2026-04-24 Stop-Point — Phase 2A Batch 1I (Canary Stability Verification)
+
+### Что решено
+
+- Batch 1I выполнен строго в verification-scope (без code/config mutation).
+- Проверка устойчивости canary после redeploy пройдена.
+
+### Что сделано
+
+- Дождались завершения canary redeploy:
+  - deployment `zm8vcq8nikiav4w6m3imvsys` -> `finished`,
+  - app `ukgm8fbv33qujufltpv4whht` -> `running:healthy`.
+- Повторный smoke `/panel/login` после redeploy:
+  - `HTTP 200` в 5/5 последовательных проверках.
+- Проверен post-redeploy flow:
+  - `GET /panel/login` -> `200`,
+  - `POST /panel/login` -> `302` (`location: /panel`),
+  - `/panel`, `/panel/nodes`, `/panel/cascades/builder`, `/panel/settings` -> `200`,
+  - `/api/nodes`, `/api/cascade-builder/state`, `/health` -> `200`.
+
+### Что в работе
+
+- Verification slice закрыт; следующий шаг — только decision-slice по Batch 1D-B.
+
+### Что дальше
+
+1. Открывать только Batch 1D-B decision (keep/rollback decision gate).
+2. Не открывать cleanup/feature-work/Batch 2 без отдельного разрешения.
+
+### Что нельзя путать
+
+- Batch 1I подтверждает стабильность canary после redeploy, но не выполняет production cutover сам по себе.
+
+### Что еще не доказано
+
+- Финальное execution-решение Batch 1D-B (операторский keep/rollback verdict) пока не зафиксировано отдельным срезом.
+
+### Что является только форковой спецификой
+
+- BR Labs.hrlab продолжает дисциплину узких батчей: verification закрывается отдельно от decision/execution.
+
+### Stop-point
+
+- Canary stability: **confirmed**.
+- Batch 1D-B decision proceed: **Yes (next approved decision slice)**.
+
 ## 2026-04-24 Stop-Point — Phase 2A Batch 1H (Binding Gate)
 
 ### Что решено
